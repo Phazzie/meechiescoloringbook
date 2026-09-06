@@ -8,6 +8,140 @@ Info flow: User request -> execution specs -> implementation -> review evidence.
 
 Current active plan is listed first. Older dated entries remain below as historical context and are not active unless explicitly reselected.
 
+## Run 10 close-out (2026-09-06) — micro plan, PR #312
+
+Required by `AGENTS.md` L108: a governance-only documentation change still needs a plan that lists
+the seams, files, commands and how behaviour stays unchanged. This PR opened without one, inheriting
+Run 10's pre-merge plan below, which describes work that had already merged as `1b67d30`. Review
+caught it.
+
+**Goal:** record the Run 10 close-out in the append-only log, and correct the claims in it that
+review has since disproved.
+
+**Seams touched:** none. No contract, mock, adapter, fixture or probe is read or written by this
+change. `CacheSeam` is discussed and not touched.
+
+**Files:**
+
+| Action | File | Exact touch |
+|---|---|---|
+| `[MODIFY]` | `WORST_TO_BEST_LOG.md` | append the Run 10 close-out section and correct claims within it; no other section edited |
+| `[MODIFY]` | `DECISIONS.md` | the 2026-09-03 Assumption only — its `Seams`, `Statement` and `Validation` fields, plus added scope notes |
+| `[MODIFY]` | `plan.md` | this micro plan section, prepended above the Run 10 entry |
+| `[MODIFY]` | `docs/evidence/2026-09-06/lint.txt` | rewritten whole — `npm run lint` captured by redirect |
+| `[MODIFY]` | `docs/evidence/2026-09-06/build.txt` | rewritten whole — `npm run build` captured by redirect |
+| `[MODIFY]` | `docs/evidence/2026-09-06/verify-outer.txt` | rewritten whole — the full chain transcript and its exit. Per `docs/evidence/README.md`: move the previous copy **out** of the directory first, capture to a scratch path, and move the new copy in after the chain returns. **`verify-outer.txt` is therefore absent from that chain's own `proof-tape` inventory, by design.** Two wrong ways were tried first: redirecting the chain straight into the file makes the tape record a byte count 14 short — the missing `verify exit=0` — and leaving the previous copy in place makes the tape inventory a different file than the one committed |
+| `[MODIFY]` | `docs/evidence/2026-09-06/verify.txt` | rewritten whole by `scripts/verify-runner.mjs` (inner check/test stage) |
+| `[MODIFY]` | `docs/evidence/2026-09-06/test.txt` | rewritten whole by `scripts/verify-runner.mjs` |
+| `[MODIFY]` | `docs/evidence/2026-09-06/chamber-lock.json` | rewritten whole by `scripts/chamber-lock.mjs` |
+| `[MODIFY]` | `docs/evidence/2026-09-06/shaolin-lint.json` | rewritten whole by `scripts/shaolin-lint.mjs` |
+| `[MODIFY]` | `docs/evidence/2026-09-06/assumption-alarm.json` | rewritten whole by `scripts/assumption-alarm.mjs` |
+| `[MODIFY]` | `docs/evidence/2026-09-06/seam-ledger.json` | rewritten whole by `scripts/seam-ledger.mjs` |
+| `[MODIFY]` | `docs/evidence/2026-09-06/seam-ledger.md` | rewritten whole by `scripts/seam-ledger.mjs` |
+| `[MODIFY]` | `docs/evidence/2026-09-06/clan-chain.json` | rewritten whole by `scripts/clan-chain.mjs` |
+| `[MODIFY]` | `docs/evidence/2026-09-06/clan-chain.md` | rewritten whole by `scripts/clan-chain.mjs` |
+| `[MODIFY]` | `docs/evidence/2026-09-06/proof-tape.json` | rewritten whole by `scripts/proof-tape.mjs` |
+| `[MODIFY]` | `docs/evidence/2026-09-06/proof-tape.md` | rewritten whole by `scripts/proof-tape.mjs` |
+
+No file under `docs/evidence/` is hand-edited. An earlier version of this table gave that directory
+as one wildcard row, which review rejected: a wildcard cannot be checked against a diff, and it
+silently includes or omits whatever the diff happens to contain. `e2e.txt`,
+`probe-cache-seam.txt` and the two `rewind-*.txt` files are **not** touched by this PR — they belong
+to #311's run and no command here rewrites them.
+
+**Commands:** `npm run lint`, `npm run build`, `npm run verify`. All three, every push — `verify`
+alone is not the checklist, which is a lesson this PR learned as a P1 finding rather than by
+reading. Latest: lint 0, build 0, verify 0; 1559 tests passed and 1 skipped, across 97 passing
+test files plus 1 skipped file — 98 in total, which is the figure `test.txt` reports.
+
+**How behaviour stays unchanged:** nothing under `src/` is modified, so no route, seam, worker or
+response header changes. The only non-Markdown files touched are regenerated evidence artifacts,
+which nothing imports. **Two** code-level defects this PR found are **recorded, not fixed**, precisely so that this stays a
+documentation change; both have a recommended patch written down for a separate PR, and the
+anti-goals below repeat them as things not to touch here. They are `vercel.json` listing HSTS on the
+document rules while `src/hooks.server.ts` documents it as omitted, and those same rules not
+covering the `.html` filenames the build emits.
+
+**Do not touch:** anything under `src/`, `tests/`, `contracts/`, `scripts/` or `vercel.json`. Two
+code-level defects were found while writing this close-out — `vercel.json` listing HSTS on the
+document rules against its own documented rationale, and those rules not covering the emitted
+`.html` filenames — and both are **recorded with a proposed patch, not fixed here**, because fixing
+either turns this into a change that needs code review and its own test work. Do not edit
+`e2e.txt`, `probe-cache-seam.txt` or the `rewind-*.txt` evidence: they belong to #311's run and no
+command in this plan regenerates them.
+
+**Definition of Done:** one self-contained block, runnable from the repository root. It assigns its
+own scratch directory, writes every evidence artifact the inventory above promises, and exits
+non-zero if any step fails.
+
+```sh
+set -u
+
+EV=docs/evidence/2026-09-06
+[ -d "$EV" ] || { echo "no $EV" >&2; exit 1; }
+
+SCRATCH="$(mktemp -d)" || exit 1
+[ -n "$SCRATCH" ] && [ -d "$SCRATCH" ] || { echo "no scratch dir" >&2; exit 1; }
+
+{ npm run lint 2>&1; lint=$?; echo "lint exit=$lint"; } > "$EV/lint.txt" || exit 1
+[ "$lint" -eq 0 ] || exit "$lint"
+
+{ npm run build 2>&1; build=$?; echo "build exit=$build"; } > "$EV/build.txt" || exit 1
+[ "$build" -eq 0 ] || exit "$build"
+
+if [ -e "$EV/verify-outer.txt" ]; then
+  mv "$EV/verify-outer.txt" "$SCRATCH/previous.txt" || exit 1
+fi
+{ npm run verify 2>&1; status=$?; echo "verify exit=$status"; } > "$SCRATCH/verify-outer.txt" || exit 1
+mv "$SCRATCH/verify-outer.txt" "$EV/verify-outer.txt" || exit 1
+exit "$status"
+```
+
+Expected: exit 0, with `verify` reporting 1559 tests passed and 1 skipped across 97 passing test
+files plus 1 skipped — `98` in the transcript's own parenthesis.
+
+Every guard in that block is there because something on this pull request went wrong without one,
+and each looks like a detail until it fires:
+
+- **`npm run lint && npm run build && npm run verify` is not the gate.** Neither `lint` nor `build`
+  writes an evidence file, so running that line leaves `lint.txt` and `build.txt` exactly as stale as
+  they were — which is how this pull request shipped both older than its own first commit while the
+  plan claimed all three ran every push. The redirections are the gate; the bare command is a
+  description of it.
+- **`SCRATCH` must be assigned here.** An earlier version referenced `"$SCRATCH"` with no assignment
+  anywhere in the plan, so the block as written expanded to `/previous.txt` and `/verify-outer.txt`:
+  a failure for an ordinary user, and writes into the filesystem root for a privileged one.
+- **`status` is captured before the `echo`.** `echo` succeeds unconditionally, so
+  `echo "verify exit=$?"` as the group's last command makes the group exit `0` whatever `verify`
+  did — a failing chain reporting success while its own transcript reads `verify exit=1`.
+- **`|| exit 1` on the move.** Preserving `verify`'s status and then discarding the move's is the
+  same defect one step later: a green chain whose evidence never lands, reported clean.
+- **`mktemp -d` is checked, not just called.** If it fails, the unguarded assignment leaves `SCRATCH`
+  empty and every later path falls back to the filesystem root — reintroducing, silently, the exact
+  hazard the assignment was added to remove. `set -u` alone does not catch it, because the variable
+  is set; it is set to nothing.
+- **The other unchecked steps, fixed in the same pass rather than waiting to be told.** A missing
+  `$EV` directory, a redirect that cannot open its file, and the move of the previous transcript all
+  now stop the run. This block has drawn a finding on four consecutive review passes, each one a
+  failure path the previous fix left unguarded; the pattern is that I kept repairing the step that
+  was named.
+
+And the transcript is captured to scratch and moved in **after** the chain returns, with any previous
+copy moved out first, per `docs/evidence/README.md`. It is therefore absent from that chain's own
+`proof-tape` inventory, which is correct and not staleness. Redirecting the chain straight into the
+file instead makes the tape record a byte count 14 short — the missing `verify exit=0` — and leaving
+the old copy in place makes the tape describe a different file than the one committed. Both were
+tried on this pull request before this block was right.
+
+**Self-critique:** the risk here is not to the codebase, it is that a wrong close-out is copied
+forward by a future unattended run that treats this log as its source of prior results. That risk
+was realised: the first version of this entry misreported the open Assumption, the merge-gate
+evidence, two defect classifications and four counts. The mitigation is not care, which had already
+failed — it is that every claim now names the file, line or command a reader can check it against,
+and that the findings ledger is per pass and append-only so a later correction cannot quietly
+displace an earlier one. What remains unmitigated: this entry is long, and length is itself a way
+for a wrong sentence to survive, since each review pass has more surface to cover than the last.
+
 ## Run 10 (2026-09-06) — the installable app: manifest, service worker, and offline
 
 **Goal:** Make the feature the operating system advertises on this app's behalf actually exist. The
