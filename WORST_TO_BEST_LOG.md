@@ -9399,3 +9399,18 @@ them, so the plain pattern matched nothing and the case would have passed agains
 
 `sonarjs` clean · 48 tests · every finding re-run against the fix · the workflow step run in its
 shipped shape.
+
+**Postscript to round 55 — read the log, find the other half.** CI on `4a0b173b` confirmed the
+guard's trusted copy now engages: `Also checking with scripts/evidence-guard.mjs as of the base
+commit 409be991…`, and `all 8 rules pass` twice, once per copy. The same log showed the step beside
+it printing `BASE_SHA:` empty and taking its fallback.
+
+The gate check's base was `github.event.pull_request.base.sha` alone, so on **push** runs — which
+happen for every push, on every branch — it had no base and checked the branch's own copy. Half the
+runs had the mechanism and half had the notice, and nobody would have noticed from a green check.
+It now resolves the same base the guard step does, treats an all-zero or unreachable one as "no
+base", and announces the fallback as an annotation rather than a log line.
+
+> **The fix for a hole is not evidence that the hole is closed everywhere it exists.** Two steps,
+> written a round apart, with the same idea and two different variables. Found by reading what CI
+> actually printed rather than by trusting that the fix I had just tested was the whole of it.

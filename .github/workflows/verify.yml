@@ -279,10 +279,22 @@ jobs:
         # required status check configured on the repository — the owner's setting, not something a
         # branch can grant itself. Recorded rather than papered over.
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          # The pull request's base, or — on a push — the ref's previous tip, which is the same base
+          # the evidence-guard step above resolves. With only the first of these, every push run took
+          # the fallback path and checked the branch's own copy: confirmed in CI, where this step
+          # printed the "no base" notice while the guard step beside it reported checking against
+          # 409be991. A trusted-revision mechanism that is active on half the runs is a mechanism with
+          # a hole in it, and the half it was missing is the one that runs on every push.
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: |
           set -euo pipefail
           checker=scripts/chain-intact.mjs
+          # A branch's first push reports an all-zero `before`, and a force-push names a commit no ref
+          # reaches. Both mean "no usable previous commit", which is the fallback below, not an error.
+          if [ "${BASE_SHA:-}" = "0000000000000000000000000000000000000000" ] || \
+             { [ -n "${BASE_SHA:-}" ] && ! git cat-file -e "$BASE_SHA^{commit}" 2>/dev/null; }; then
+            BASE_SHA=""
+          fi
           # Keep the `.mjs` extension. `mktemp` alone yields `/tmp/tmp.XXXXXXXX`, and node refuses
           # that with ERR_UNKNOWN_FILE_EXTENSION because this package is not `"type": "module"` —
           # the extension is what makes the file ESM. This step failed exactly that way on its first
@@ -290,9 +302,9 @@ jobs:
           # failing. A directory plus the real filename keeps the name and needs no GNU-only flag.
           trusted="$(mktemp -d)/chain-intact.mjs"
           if [ -z "${BASE_SHA:-}" ] || ! git cat-file -e "$BASE_SHA:$checker" 2>/dev/null; then
-            echo "NOTE: the base commit has no $checker (it is being introduced here, or this is a"
-            echo "push event with no base). Running this branch's own copy, which cannot catch a"
-            echo "change that edits the checker and the manifest together."
+            # An annotation, for the same reason as the guard step's: a degraded check that only
+            # whispers in a log is how the guard's own broken mechanism survived a review.
+            echo "::warning title=Gate check not cross-checked::The base commit has no $checker (it is being introduced here, or there is no usable base), so this branch's own copy ran — which cannot catch a change that edits the checker and the manifest together."
             node "$checker"
             exit 0
           fi

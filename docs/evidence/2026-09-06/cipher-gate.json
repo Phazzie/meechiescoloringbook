@@ -1,6 +1,6 @@
 {
   "tool": "cipher-gate",
-  "generatedAt": "2026-09-06T05:31:39.848Z",
+  "generatedAt": "2026-09-06T05:39:25.866Z",
   "cipher": {
     "date": "2026-09-06",
     "seams": "none — this change touches `scripts/`, `.github/workflows/`, `docs/` and the run log only. No contract, mock, adapter, fixture or seam test is modified, and `npm run chamber:lock` reports all 38 seams ok before and after.",
@@ -53,6 +53,6 @@
     "summary": "Moved the evidence checks out of an untracked session script into the repository, then hardened them across eleven review rounds against reproduced defeats: a transcript whose result came from its own stdout, an appended retry inheriting an earlier pass, an entire consistent run replayed under a new date, a config override described but never shown, an artifact omitted from the tape treated as current, a same-length edit to a chain artifact, a rewind reporting `Tests 0 passed` under `--passWithNoTests`, and the plain-English proof summary deleted outright — which no rule could reach, because the tape writes it after taking the inventory that every other rule reads.",
     "risks": "The guard reads text produced by tools it does not control, so a reporter format change can make it reject valid evidence — three such false rejections were found and fixed during review, including CRLF transcripts and Windows-written `evidenceDir` paths. Two SonarCloud issues on this branch remain unidentified because sonarcloud.io is unreachable from the capture environment; `sonarjs.configs.recommended` is clean on the file and the differential all-rules scan shows no new rule class, so the remaining candidate is `.github/workflows/verify.yml`. Recorded rather than guessed at."
   },
-  "latestChangeMs": 1788672551727.9756,
+  "latestChangeMs": 1788672782299.4277,
   "status": "ok"
 }
