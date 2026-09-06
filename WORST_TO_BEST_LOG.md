@@ -8290,3 +8290,54 @@ holding the sentence next to it.
 
 > A claim is not verified by being reasoned about. It is verified by opening the thing it describes
 > and reading it against the words. Everything else is a well-founded guess.
+
+---
+
+## Run 9, eighth close-out — 2026-09-06 — the clean sentence stops enumerating
+
+Two findings on `dd11cf1`. Both P2, both mine, and one of them ends a pattern this run kept repeating.
+
+### The enumeration was the problem, not the words in it
+
+The clean line has now been wrong four times, and the fourth is the one that shows why.
+
+`Settings, list and **dedication** all made it into the prompt.` — `dedication` is optional.
+`dedicationLine` returns `''` when it is absent, and the adapter only compares it when the spec has
+one. So on most clean pages the report claimed a dedication had survived when there had never been
+one, and a provider rewrite could inject an unwanted dedication without disturbing the verdict.
+
+The four versions, each written believing it was exact:
+
+1. *"The page came back exactly as asked"* — claimed the picture, from a check that never sees it.
+2. *"Everything asked for made it into the prompt"* — claimed all of the prompt, from a check that
+   compares part of it.
+3. *"Settings, list and dedication all made it into the prompt"* — claimed a dedication that usually
+   does not exist.
+4. *"The prompt carried every constraint this check covers."*
+
+**The list was the defect.** Every enumeration invites naming something conditional, and every item
+has to stay true as the adapter changes — a second copy of the adapter's coverage, kept in prose,
+going stale exactly the way this run has documented four times over. The fourth version refers to the
+check's coverage instead of restating it, which is the only phrasing that cannot drift from what the
+adapter does, because it does not duplicate it.
+
+Three attempts at precision by being *more specific*; the fix was to stop claiming specifics the
+sentence is not in a position to guarantee.
+
+### The check result was hidden behind the image guard
+
+On the tools hub and every mode route, a generation that returns findings but no readable picture hit
+the no-usable-image guard and returned *before* the drift state was assigned. The reader got the
+image error and a report still reading `unchecked` — the new failure signal suppressed by the older
+error path. The home studio already records its trace above its own guard, so the surfaces disagreed.
+
+**Not fixed by hoisting the assignment**, which would have been the obvious move and would have been
+wrong. Unlike the home studio, these two *keep the page already on screen* when a replacement does
+not decode — so hoisting would attach the new request's findings to a page they do not describe,
+which is precisely the conflation this run exists to remove. The fix is conditional: surface the
+diagnostics only when there is no page to protect. Two tests, one per direction.
+
+### Verified
+
+`check` 0/0 · `lint` exit=0 · **1471 passed**, 1 skipped · `build` exit=0 · e2e 42 passed ·
+`verify` exit=0 · rewind 5 passed · proof tape flags nothing.

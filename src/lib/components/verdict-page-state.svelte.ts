@@ -524,6 +524,18 @@ export class VerdictPageState {
 				// replacement is not a reason to destroy it.
 				this.generateError =
 					'The provider returned an image that could not be read. The page on screen was kept.';
+			// With no page already on screen there is nothing to protect, so the request's own findings
+			// are the most useful thing the reader can be given — the home studio records its trace
+			// above its no-picture guard for exactly this reason. When a page *is* on screen it keeps
+			// its own report: attaching this request's findings to a page they do not describe is the
+			// conflation this whole change exists to remove, so the fix is conditional rather than
+			// simply hoisting the assignment above the guard.
+				if (!this.hasPage) {
+					this.violations = parsed.data.value.violations;
+					this.recommendedFixes = parsed.data.value.recommendedFixes;
+					this.driftCheckFailure = parsed.data.value.driftCheckFailure;
+					this.driftReported = true;
+				}
 				return;
 			}
 			const images = usable.map((entry) => entry.image);

@@ -273,19 +273,22 @@ export const describeQualityReport = (report: QualityReport): string | null => {
 		return 'This page was not built from a prompt, so there is nothing to check.';
 	}
 	if (report.state === 'clean') {
-		// Named line by line, because "everything asked for" was still wider than the check.
+		// The fourth wording of this sentence, and the first that stops enumerating.
 		//
-		// Two narrowings, both from review. First: `detectDrift` is handed `spec`, `promptSent` and
-		// `revisedPrompt` and reads nothing else — it never sees the generated image — so this is
-		// about the prompt, not the page. Second, and easy to miss: within the prompt the adapter
-		// compares only the option lines, the list line, the dedication, alignment, page size, the
-		// required phrases and the negative block. It never looks at `spec.title` or
-		// `spec.footerItem` (grep the adapter: neither word appears). A provider rewrite can change
-		// the headline and this check returns clean.
+		// It began as "The page came back exactly as asked" — a claim about the picture, from a check
+		// that never sees it. Review narrowed it to the prompt. Then to the parts of the prompt the
+		// adapter actually compares, because it never looks at `spec.title` or `spec.footerItem`.
+		// Then this: naming "dedication" claimed something that usually does not exist, since
+		// `dedication` is optional, `dedicationLine` returns '' when it is absent, and the adapter
+		// only compares it when the spec has one. So most clean pages were being told a dedication
+		// survived when there had never been one.
 		//
-		// So the sentence names what was compared and leaves the reader to notice what is absent
-		// from it, rather than covering the gap with a word like "everything".
-		return 'Settings, list and dedication all made it into the prompt.';
+		// Three attempts at an enumeration produced three different wrong specifics, each written
+		// believing it was exact. The list is the problem: it invites naming things that are
+		// conditional, and every item has to stay true as the adapter changes. So the sentence now
+		// refers to the check's own coverage instead of restating it — the one phrasing that cannot
+		// drift away from what the adapter does, because it does not duplicate it.
+		return 'The prompt carried every constraint this check covers.';
 	}
 
 	const settingsBlockers = report.findings.filter(

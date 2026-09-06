@@ -50,7 +50,7 @@ describe('buildQualityReport', () => {
 
 		expect(report.state).toBe('clean');
 		expect(describeQualityReport(report)).toBe(
-			'Settings, list and dedication all made it into the prompt.'
+			'The prompt carried every constraint this check covers.'
 		);
 	});
 
