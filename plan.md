@@ -79,9 +79,18 @@ is captured separately, to a scratch path and moved in after the chain returns, 
 `docs/evidence/README.md`:
 
 ```sh
-{ npm run verify 2>&1; echo "verify exit=$?"; } > "$SCRATCH/verify-outer.txt" \
-  && mv "$SCRATCH/verify-outer.txt" docs/evidence/2026-09-06/verify-outer.txt
+mv docs/evidence/2026-09-06/verify-outer.txt "$SCRATCH/previous.txt"
+{ npm run verify 2>&1; status=$?; echo "verify exit=$status"; } > "$SCRATCH/verify-outer.txt"
+mv "$SCRATCH/verify-outer.txt" docs/evidence/2026-09-06/verify-outer.txt
+exit "$status"
 ```
+
+`status` is captured before the `echo`, because `echo` succeeds unconditionally: writing
+`echo "verify exit=$?"` as the last command in the group makes the group's own status `0` whatever
+`verify` did, so a `&& mv` after it installs a failed transcript and the whole thing exits clean.
+An earlier version of this block had exactly that bug. The transcript would have read
+`verify exit=1` while the command reported success — evidence contradicting its own exit code, which
+is the failure mode this file is supposed to make impossible.
 
 **Self-critique:** the risk here is not to the codebase, it is that a wrong close-out is copied
 forward by a future unattended run that treats this log as its source of prior results. That risk

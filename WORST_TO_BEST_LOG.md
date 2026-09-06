@@ -9684,8 +9684,12 @@ tidy.
 `prerender = 'auto'`, so the five `SLUG_ALIASES` — `/m/receipts`, `/m/caption-this`,
 `/m/apology-translator` and the rest — still resolve through the function, and so does the catchall
 that renders `+error.svelte`. Those keep getting their headers from `hooks.server.ts`, and the same
-test asserts they match **no** `vercel.json` rule, because a header set twice is worse than one set
-once. So the guarantee is split across two files and a future header change has to touch both. That
+test asserts that three of the five — `/m/receipts`, `/m/caption-this`, `/m/apology-translator` —
+match **no** `vercel.json` rule, because a header set twice is worse than one set once. Three of
+five, not five: `/m/rate-his-excuse` and `/m/what-would-meechie-do` are absent from that list, so a
+rule accidentally matching either would slip past the guard. I described this test as asserting all
+five until review checked the cases. Adding the two is a one-line change and belongs in the same
+follow-up as the `.html` rules. So the guarantee is split across two files and a future header change has to touch both. That
 this correction came from review rather than from me is the awkward part: the assertions naming
 those three alias paths are in a test this run wrote.
 
@@ -9879,9 +9883,10 @@ mode — later passes append rather than displace, and any total is recoverable 
 | `8a58e92` | 4 | `lint` and `build` evidence never refreshed |
 | `d38dcfe` | 2 | — |
 | `2244765` | 3 | no micro Plan + Self-Critique for a governance-only change |
-| `28ea7c7` | 3 | — |
-| `51b09d9` | 5 | `verify-outer.txt`, the only full-chain transcript, never regenerated; the plan's evidence inventory given as a wildcard |
+| `28ea7c7` | 3 | `verify-outer.txt`, the only full-chain transcript, never regenerated |
+| `51b09d9` | 5 | that transcript then inventoried while still being written; the plan's evidence inventory given as a wildcard |
 | `552c99d` | 7 | the plan's rows carrying no action marker; the plan never closing on a literal command |
+| `ca48ebf` | 5 | the closing command discarding `verify`'s exit status |
 
 **The P1s.** An open Assumption reported as absent, on the very feature that made it load-bearing.
 A merge-gate stand-down argued from evidence this same log records a reviewer rejecting on #305.
@@ -9901,6 +9906,13 @@ either. I had looked at that file twice, decided it was a captured transcript be
 said so on the PR — so every "verify 0" this entry claimed had no committed evidence on its own
 head. The decision was wrong on its own terms too: #311's transcript is preserved in git at the
 merged commit, and a dated evidence directory is supposed to describe the tree beside it.
+
+And **the capture race**: with the transcript regenerated, redirecting the chain straight into it
+made `proof-tape` — which runs inside that chain — inventory the file mid-write, recording 3,640
+bytes against 3,654 committed. And **the closing command discarding `verify`'s exit status**: an
+`echo` as the group's last command makes the group exit `0` whatever `verify` did, so a `&& mv`
+after it installs a failed transcript and reports success. That one had been sitting in the
+Definition of Done and in every capture I ran on this pull request.
 
 And two more, both about the micro Plan the P1 above added: **its file inventory could not be
 reconciled with the diff** — a wildcard row first, then a `File | Why` table whose second column was
@@ -9956,11 +9968,17 @@ left the same false premise standing a few lines away: the write-operation corre
 the fonts bullet two bullets below it, which repeated it verbatim; scoping the header claim to four
 in the prose left the structured `Statement` naming three.
 
-Three times a correction introduced a fresh error. A rewritten sentence overstated in the other
-direction. A "validation" ran exactly the two scripts I had predicted would object, leaving the
-evidence directory half-refreshed and therefore *looking* verified — and the fix for **that** then
-re-ran the chain after every subsequent edit while `lint.txt` and `build.txt`, which the chain does
-not touch, stayed older than the first commit of this entry.
+Corrections introducing fresh errors is the run's most repeated shape, and no count is given here
+on purpose — the count itself went stale twice. The chain of them: a rewritten sentence overstated
+in the other direction; a "validation" ran exactly the two scripts I had predicted would object,
+leaving the evidence directory half-refreshed and therefore *looking* verified; the fix for that
+re-ran the chain after every edit while `lint.txt` and `build.txt`, which the chain does not touch,
+stayed older than the first commit of this entry; the fix for **that** redirected the chain into the
+transcript and had it inventoried mid-write; the fix for that left the previous transcript in the
+directory, so the tape described a different file than the one committed; rewriting the `Seams`
+field for a parser I had not read put a phantom entry into the alarm report; appending the ledger
+rows without working through the inventories derived from them left both stale; and the command
+written to close all of this discarded `verify`'s exit status behind an `echo`.
 
 The pattern is the first rule one level up: **a correction is new work, and it gets checked like new
 work — including against every other place the same claim was made.** The corollary this run had to
