@@ -9,8 +9,7 @@ Info flow: VerdictPageState (props) -> user actions -> state methods -> reactive
 -->
 <script lang="ts">
 	import type { VerdictPageState } from './verdict-page-state.svelte';
-	import { describeQualityReport } from '$lib/core/quality-report';
-	import QualityFindings from './QualityFindings.svelte';
+	import QualityReportPanel from './QualityReportPanel.svelte';
 
 	let {
 		studio,
@@ -90,26 +89,12 @@ Info flow: VerdictPageState (props) -> user actions -> state methods -> reactive
 		{studio.isGenerating ? 'Printing the truth…' : 'Generate My Coloring Page'}
 	</button>
 
-	<!-- `clean` is rendered, not just `flagged`. This block used to show only findings, so a page
-	     that passed every check and a page nothing had ever looked at produced identical empty
-	     output — the exact conflation this run exists to remove, left in place on two of the three
-	     surfaces. `unchecked` stays silent here and only here: unlike the home studio's always-open
-	     panel, this block sits under the generate button, where "nothing on the paper yet" would be
-	     a caption on an empty space the reader can already see. -->
-	{#if studio.qualityReport.state === 'clean'}
-		<p class="drift-clean" data-testid="verdict-page-clean">
-			{describeQualityReport(studio.qualityReport)}
-		</p>
-	{:else if studio.qualityReport.state === 'flagged'}
-		<div class="drift" data-testid="verdict-page-violations">
-			<p class="drift-title">{describeQualityReport(studio.qualityReport)}</p>
-			<QualityFindings
-				findings={studio.qualityReport.findings}
-				fixes={studio.qualityReport.fixes}
-				fixesTestId="verdict-page-fixes"
-			/>
-		</div>
-	{/if}
+	<QualityReportPanel
+		report={studio.qualityReport}
+		cleanTestId="verdict-page-clean"
+		flaggedTestId="verdict-page-violations"
+		fixesTestId="verdict-page-fixes"
+	/>
 
 	{#if studio.imagePreviews.length > 0}
 		<div class="preview-grid" data-testid="verdict-page-preview">
@@ -310,32 +295,8 @@ Info flow: VerdictPageState (props) -> user actions -> state methods -> reactive
 		color: #ff8fab;
 	}
 
-	.drift {
-		padding: 0.8rem 1rem;
-		border-radius: 0.6rem;
-		border: 1px solid rgba(201, 162, 39, 0.35);
-		background: rgba(201, 162, 39, 0.08);
-	}
 
-	.drift-clean {
-		margin: 0;
-		font-family: var(--font-label, 'Barlow Condensed', sans-serif);
-		font-size: 0.76rem;
-		font-weight: 700;
-		text-transform: uppercase;
-		letter-spacing: 0.1em;
-		color: var(--emerald, #00c896);
-	}
 
-	.drift-title {
-		margin: 0 0 0.4rem;
-		font-family: var(--font-label, 'Barlow Condensed', sans-serif);
-		font-size: 0.76rem;
-		font-weight: 700;
-		text-transform: uppercase;
-		letter-spacing: 0.1em;
-		color: var(--gold-bright, #f0c44a);
-	}
 
 
 

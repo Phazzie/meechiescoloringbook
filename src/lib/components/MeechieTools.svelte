@@ -8,8 +8,8 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 -->
 <script lang="ts">
 	import { POST_JSON_TIMEOUTS_MS, postJson } from '$lib/core/http-client';
-	import { buildQualityReport, describeQualityReport } from '$lib/core/quality-report';
-	import QualityFindings from './QualityFindings.svelte';
+	import { buildQualityReport } from '$lib/core/quality-report';
+	import QualityReportPanel from './QualityReportPanel.svelte';
 	import type {
 		MeechieToolInput,
 		MeechieToolOutput
@@ -829,23 +829,12 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 				{/if}
 			</button>
 
-			<!-- `clean` is rendered too, not just `flagged`: a page that passed every check and a page
-			     nothing has looked at must not both render as nothing. `unchecked` stays silent here,
-			     where the block sits under the generate button and there is visibly no page. -->
-			{#if qualityReport.state === 'clean'}
-				<p class="drift-clean" data-testid="meechie-tool-clean">
-					{describeQualityReport(qualityReport)}
-				</p>
-			{:else if qualityReport.state === 'flagged'}
-				<div class="drift" data-testid="meechie-tool-violations">
-					<p class="drift-title">{describeQualityReport(qualityReport)}</p>
-					<QualityFindings
-						findings={qualityReport.findings}
-						fixes={qualityReport.fixes}
-						fixesTestId="meechie-tool-fixes"
-					/>
-				</div>
-			{/if}
+			<QualityReportPanel
+				report={qualityReport}
+				cleanTestId="meechie-tool-clean"
+				flaggedTestId="meechie-tool-violations"
+				fixesTestId="meechie-tool-fixes"
+			/>
 
 			{#if imagePreviews.length > 0}
 				<div class="preview-grid" data-testid="meechie-tool-preview">
@@ -1279,34 +1268,8 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 		border-radius: 2px;
 	}
 
-	.drift {
-		border-radius: 4px;
-		padding: 0.7rem 0.9rem;
-		background: rgba(201, 162, 39, 0.09);
-		border: 1px solid rgba(201, 162, 39, 0.35);
-		color: rgba(253, 246, 227, 0.88);
-		font-size: 0.87rem;
-	}
 
-	.drift-clean {
-		margin: 0;
-		font-family: var(--font-label, 'Barlow Condensed', sans-serif);
-		font-weight: 700;
-		letter-spacing: 0.08em;
-		text-transform: uppercase;
-		font-size: 0.78rem;
-		color: var(--emerald, #00c896);
-	}
 
-	.drift-title {
-		margin: 0 0 0.35rem;
-		font-family: var(--font-label, 'Barlow Condensed', sans-serif);
-		font-weight: 700;
-		letter-spacing: 0.08em;
-		text-transform: uppercase;
-		font-size: 0.78rem;
-		color: var(--gold-bright, #f0c44a);
-	}
 
 
 

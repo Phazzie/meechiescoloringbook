@@ -8090,3 +8090,38 @@ evidence, and the two commonest sources are now unmistakable:
 > Both are the same error at different scales: answering the question you framed instead of the one
 > in front of you. Reasoning cannot catch it, because the reasoning is sound. Only someone else
 > looking, or a test written from the outside, can.
+
+---
+
+## Run 9, fifth close-out — 2026-09-06 — the duplication gate, and why one extraction was not enough
+
+SonarCloud's gate went 4.5% → 4.1% → **3.3%**, against a 3% ceiling. Failing three times in a row on
+a shrinking number is its own kind of finding, so it is worth saying what I got wrong the first two
+times.
+
+Round one: I extracted `QualityFindings.svelte` — the findings list and the tag rule — and treated
+the duplication as handled because the *interesting* part was now shared. It was not handled. What
+remained in both `VerdictPageStudio` and `MeechieTools` was the wrapper: the `{#if clean}…{:else if
+flagged}` branch, the `.drift` box, its title, and roughly thirty lines of near-identical CSS. Boring
+markup, which is why I did not look at it, and which is exactly what a duplication detector measures.
+
+Now `QualityReportPanel.svelte` owns the whole block and both call sites are a single element with
+their own test ids. `QualityFindings` stays as the inner piece, used by the panel and directly by
+System Trace, whose surrounding layout genuinely differs.
+
+**The thing worth keeping.** I extracted the part that was intellectually duplicated and left the
+part that was merely textually duplicated — and the second is the one that actually rots. Two copies
+of a CSS box is how one surface ends up with a border the other lost. It is the same failure as the
+`clean`-on-one-surface-of-three finding two rounds ago: I fixed the shared *logic* and left the
+shared *presentation* in two places, then wrote in the PR body that all three surfaces went through
+one path.
+
+`unchecked` renders nothing in the panel, and that is now stated as an invariant in the file rather
+than left as a silent branch: the block sits directly under the generate button, where "no check has
+reported" would caption an empty space the reader can already see. System Trace's always-open panel
+says it instead.
+
+### Verified
+
+`check` 0/0 · `lint` exit=0 · 1466 passed, 1 skipped · `build` exit=0 · e2e 42 passed ·
+`verify` exit=0 · rewind 5 passed · proof tape flags nothing.

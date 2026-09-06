@@ -109,7 +109,8 @@ New seams use the self-contained layout. Do not add flat-layout seams. See `src/
 | File | Purpose |
 |------|---------|
 | `MeechieTools.svelte` | The eleven-tool hub at `/meechie`; owns its own verdict-to-page lifecycle |
-| `QualityFindings.svelte` | The one rendering of a flagged quality report — findings with their severity tags, then the fixes the drift seam computed — shared by System Trace, the mode routes and the tools hub, which each had their own divergent copy |
+| `QualityFindings.svelte` | The one rendering of a report's findings — each with its severity tag — and then the fixes the drift seam computed. Used by System Trace directly and by `QualityReportPanel` |
+| `QualityReportPanel.svelte` | The whole report block as it appears under a "make the page" button: the clean line, or the boxed findings. Shared by the mode routes and the tools hub, which had byte-similar copies of the wrapper and its CSS. Renders nothing for `unchecked` — the block sits under the generate button, where "no check has reported" would caption an empty space |
 | `VerdictPageStudio.svelte` | The "put it on paper" panel shared by the three mode routes — dedication, generate, drift report, preview, downloads, vault save |
 | `verdict-page-state.svelte.ts` | `VerdictPageState`: the runes state class behind `VerdictPageStudio`. Owns the verdict request, the page recipe, generation, packaging, and the vault write, with separate staleness tokens for the verdict and the page |
 | `SelfieUpload.svelte` | Wig try-on selfie input |
