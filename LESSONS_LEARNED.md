@@ -563,3 +563,15 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
 - Action: A mutation test that passes has told you nothing until you have checked it removed what
   you meant it to. And when a defect is found by reasoning rather than by a tool, treat it as a
   hypothesis until something fails without the fix.
+
+## 2026-09-06
+- Date: 2026-09-06
+- Context: Run 10 — a browser-probe check for the trailing-slash redirect passed with the redirect
+  removed.
+- Lesson: The check navigated from an already-hydrated SvelteKit page, so the client router resolved
+  the URL and the service worker never saw the request. The check was measuring the framework, not
+  the code under test — and it had been written specifically to test that code. Given a cold
+  context, the same mutation fails with `landed /meechie/, 19 assets at the wrong depth`.
+- Action: A check on service-worker behaviour needs a cold navigation in its own context. More
+  generally: when a mutation does not fail a check, do not conclude the code is unnecessary until
+  you have confirmed the check can observe it at all.

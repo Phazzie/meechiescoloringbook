@@ -55,6 +55,27 @@ const waitFor = async (condition, description, timeoutMs = 60000) => {
 	throw new Error(`Timed out waiting for ${description}`);
 };
 
+/**
+ * Refuse to start if anything is already listening on the port.
+ *
+ * Without this the probe cannot tell its own server from somebody else's: `waitForServer` accepts
+ * the first thing that answers 200, so a leaked preview from an earlier run makes this probe report
+ * on a **previous build** and file the result as seam evidence. That is the worst failure a probe
+ * can have — not "it broke" but "it was confidently wrong" — and it has already happened once
+ * during this change.
+ */
+const refuseIfPortBusy = async () => {
+	try {
+		await fetch(`${BASE}/`);
+	} catch {
+		return; // Nothing listening, which is what we want.
+	}
+	throw new Error(
+		`Something is already serving ${BASE}. Refusing to run: this probe cannot tell whether that ` +
+			`is the build under test. Stop it and re-run.`
+	);
+};
+
 const waitForServer = async () => {
 	for (let attempt = 0; attempt < 60; attempt += 1) {
 		try {
@@ -69,6 +90,8 @@ const waitForServer = async () => {
 };
 
 const run = async () => {
+	await refuseIfPortBusy();
+
 	// Two absolute paths and no PATH lookup: `process.execPath` is this Node binary, and the vite
 	// entry point is resolved from the repository rather than found by name. The first version was
 	// `spawn('npm', ['run', 'preview', ...])`, which SonarCloud failed the pull request over —
@@ -84,7 +107,12 @@ const run = async () => {
 		{ stdio: 'ignore', detached: true }
 	);
 
-	const browser = await chromium.launch(CHROME ? { executablePath: CHROME } : {});
+	// Declared before the `try`, opened inside it. `chromium.launch()` rejects when the browser is
+	// missing or `PROBE_CHROMIUM_PATH` is wrong, and launching it *outside* the try meant that
+	// rejection skipped the `finally` entirely and left the detached preview server running — which
+	// is precisely how the next run comes to measure a stale build. Nothing that can throw may now
+	// happen between spawning the server and entering the scope that stops it.
+	let browser = null;
 
 	/**
 	 * A fresh browser profile with the app loaded, its worker in control, and its cache filled —
@@ -132,6 +160,7 @@ const run = async () => {
 	};
 
 	try {
+		browser = await chromium.launch(CHROME ? { executablePath: CHROME } : {});
 		await waitForServer();
 		const { context, page } = await primedContext();
 
@@ -194,13 +223,42 @@ const run = async () => {
 		);
 
 		// 4. The trailing-slash form, which online is a 308 the network performs and offline is not.
-		const slashNav = await page.goto('/meechie/', { waitUntil: 'domcontentloaded' });
-		const slashTitle = await page.title();
+		//
+		//    In its own primed context, and that is the whole point of the check. Run as another
+		//    `goto` from the already-hydrated page above, SvelteKit's **client router** resolves
+		//    `/meechie/` to the `/meechie` route and rewrites the address bar itself — so the check
+		//    passed with the worker's redirect deliberately removed, measuring the framework rather
+		//    than the thing under test. A cold navigation is the only way the service worker is the
+		//    one answering.
+		const slash = await primedContext();
+		await slash.context.setOffline(true);
+		const slashNav = await slash.page.goto('/meechie/', { waitUntil: 'domcontentloaded' });
+		const slashPath = new URL(slash.page.url()).pathname;
+		// Asset resolution measured directly off the resource timeline, which is the thing the wrong
+		// URL depth actually breaks: served under `/meechie/`, the document's `./_app/…` would have
+		// been fetched as `/meechie/_app/…` and loaded nothing. `performance` is a global in Node as
+		// well as the browser, so this needs no lint exemption to say what it means.
+		const appAssets = await slash.page
+			.evaluate(() => {
+				const names = performance
+					.getEntriesByType('resource')
+					.map((entry) => entry.name)
+					.filter((name) => name.includes('/_app/'));
+				return {
+					loaded: names.length,
+					wrongDepth: names.filter((n) => n.includes('/meechie/_app/')).length
+				};
+			})
+			.catch(() => ({ loaded: 0, wrongDepth: 0 }));
 		record(
-			'the trailing-slash form of a route opens too',
-			slashNav?.status() === 200 && slashTitle.includes('Meechie'),
-			`status ${slashNav?.status()}, title = ${JSON.stringify(slashTitle)}`
+			'the trailing-slash form of a route lands on the canonical URL, with its assets resolved',
+			slashNav?.status() === 200 &&
+				slashPath === '/meechie' &&
+				appAssets.loaded > 0 &&
+				appAssets.wrongDepth === 0,
+			`status ${slashNav?.status()}, landed ${slashPath}, ${appAssets.loaded} /_app/ resources loaded, ${appAssets.wrongDepth} at the wrong depth`
 		);
+		await slash.context.close();
 
 		// 5. A path the build never produced, which is what the fallback is for. In its own context,
 		//    because the app must answer this on a cold launch and because navigating to it from an
@@ -235,6 +293,17 @@ const run = async () => {
 			(fallbackConnection ?? '').includes('Still no connection'),
 			`offline-connection = ${JSON.stringify((fallbackConnection ?? '').trim())}`
 		);
+		// The destination is carried through the redirect, so the button offers to retry the page the
+		// reader actually wanted rather than reloading the apology they landed on.
+		const retryLabel = await fallback.page
+			.textContent('[data-testid="offline-retry"]', { timeout: 5000 })
+			.catch(() => '');
+		record(
+			'the offline page offers to retry the page that failed, not itself',
+			new URL(fallback.page.url()).searchParams.get('from') === '/never-built-by-this-app' &&
+				(retryLabel ?? '').includes('that page'),
+			`from=${JSON.stringify(new URL(fallback.page.url()).searchParams.get('from'))}, button = ${JSON.stringify((retryLabel ?? '').trim())}`
+		);
 		await fallback.context.close();
 
 		// 6. What the app *says* about all this, on the first visit — the case `clients.claim()` and
@@ -268,7 +337,7 @@ const run = async () => {
 
 		await context.setOffline(false);
 	} finally {
-		await browser.close();
+		if (browser) await browser.close();
 		// SIGTERM, then SIGKILL for whatever ignored it. `vite preview` survives the polite signal
 		// often enough that two consecutive runs of this probe left servers holding the port, and a
 		// held port means the next run silently measures the previous build.

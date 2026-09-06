@@ -17,6 +17,7 @@ Invariants:
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { modeCatalog } from '$lib/core/mode-catalog';
+	import { RETURN_PATH_PARAM, safeReturnPath } from '$lib/core/offline-cache';
 
 	const modes = modeCatalog();
 
@@ -30,11 +31,26 @@ Invariants:
 	// that is guaranteed false at the moment it appears.
 	let isOnline = $state<boolean | null>(null);
 
+	// Where the reader was actually going when the network failed, carried here by the service
+	// worker's redirect. Without it "Try again" reloads this apology: they asked for /m/receipts,
+	// were sent here because it is not in the offline copy, and the only button on screen returns
+	// them to the same page — discarding the destination even once the connection is back.
+	// Validated in core rather than used as given; it arrives from the URL bar.
+	let returnPath = $state<string | null>(null);
+
+	const retry = () => {
+		if (returnPath) globalThis.location.assign(returnPath);
+		else globalThis.location.reload();
+	};
+
 	onMount(() => {
 		const sync = () => {
 			isOnline = navigator.onLine;
 		};
 		sync();
+		returnPath = safeReturnPath(
+			new URL(globalThis.location.href).searchParams.get(RETURN_PATH_PARAM)
+		);
 		globalThis.addEventListener('online', sync);
 		globalThis.addEventListener('offline', sync);
 		return () => {
@@ -61,7 +77,7 @@ Invariants:
 		{#if isOnline === null}
 			<!-- Nothing. Said before this device has been asked, it would be a guess either way. -->
 		{:else if isOnline}
-			Your connection is back. Reload and carry on.
+			Your connection is back. {returnPath ? 'Go back to where you were.' : 'Reload and carry on.'}
 		{:else}
 			Still no connection.
 		{/if}
@@ -72,9 +88,9 @@ Invariants:
 			type="button"
 			class="cta"
 			data-testid="offline-retry"
-			onclick={() => globalThis.location.reload()}
+			onclick={retry}
 		>
-			Try again
+			{returnPath ? 'Try that page again' : 'Try again'}
 		</button>
 		<a class="ghost" href="/">Open the coloring book</a>
 	</div>

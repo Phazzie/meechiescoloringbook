@@ -1,7 +1,7 @@
 PASS  a versioned cache exists
-      caches.keys() = ["cb-cache-1788682297041"]
+      caches.keys() = ["cb-cache-1788683842392"]
 PASS  the cache holds the app documents, not only its assets
-      14 documents of 77 entries; e.g. http://127.0.0.1:4399/, http://127.0.0.1:4399/meechie, http://127.0.0.1:4399/offline
+      14 documents of 78 entries; e.g. http://127.0.0.1:4399/, http://127.0.0.1:4399/meechie, http://127.0.0.1:4399/offline
 PASS  the offline fallback document is one of them
       /offline is in Cache Storage
 PASS  robots.txt was skipped rather than cached
@@ -10,16 +10,18 @@ PASS  the worker controls this page without waiting for a second visit
       navigator.serviceWorker.controller is set on the first load
 PASS  a prerendered route opens with the network off
       status 200, <h1> = "Who Fucked Up?"
-PASS  the trailing-slash form of a route opens too
-      status 200, title = "Meechie's Tools — Meechie's Coloring Book"
+PASS  the trailing-slash form of a route lands on the canonical URL, with its assets resolved
+      status 200, landed /meechie, 23 /_app/ resources loaded, 0 at the wrong depth
 PASS  an unbuilt path lands on the offline page, not the browser error page
       status 200, landed /offline, offline-message = "That page needed the network and the net"
 PASS  the offline page hydrates there, so its assets resolved and its retry button is live
       offline-connection = "Still no connection."
+PASS  the offline page offers to retry the page that failed, not itself
+      from="/never-built-by-this-app", button = "Try that page again"
 PASS  the banner reports the offline copy as usable on the first visit
       connection-banner = "Offline. Your saved pages and everything already on this device still "
 PASS  an API call is never answered from the cache while offline
       POST /api/generate -> rejected: TypeError
 
-11/11 checks passed.
+12/12 checks passed.
 probe exit=0

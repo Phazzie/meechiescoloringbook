@@ -13,7 +13,10 @@ import { createMockCacheSeam } from '../../src/lib/seams/cache-seam/mock';
 import type { CacheSeam } from '../../src/lib/seams/cache-seam/contract';
 import {
 	OFFLINE_FALLBACK_PATH,
+	RETURN_PATH_PARAM,
 	cacheKeyFor,
+	canonicalNavigationTarget,
+	safeReturnPath,
 	chooseStrategy,
 	handleFetch,
 	offlineCopyIsReady,
@@ -257,7 +260,9 @@ describe('cacheKeyFor', () => {
 		const many = '/'.repeat(50_000);
 		const started = Date.now();
 
-		expect(cacheKeyFor(`${ORIGIN}${many}x`, true)).toBe(`${ORIGIN}${many}x`);
+		// Collapsed to one leading slash as well as trimmed, so the result is a path on this origin
+		// rather than fifty thousand of them. The assertion that matters is the *time*.
+		expect(cacheKeyFor(`${ORIGIN}${many}x`, true)).toBe(`${ORIGIN}/x`);
 		expect(cacheKeyFor(`${ORIGIN}${many}`, true)).toBe(`${ORIGIN}/`);
 		expect(Date.now() - started).toBeLessThan(1000);
 	});
@@ -268,6 +273,66 @@ describe('cacheKeyFor', () => {
 
 	it('leaves a subresource path untouched, trailing slash and all', () => {
 		expect(cacheKeyFor(`${ORIGIN}/wigs/x.jpg`, false)).toBe(`${ORIGIN}/wigs/x.jpg`);
+	});
+
+	// `//evil.example` as a pathname is same-origin, so it reaches this code — and it is what a
+	// `Location` header reads as a protocol-relative URL to another site.
+	it('collapses leading slashes, which a Location header would otherwise read as another origin', () => {
+		expect(cacheKeyFor(`${ORIGIN}//evil.example/`, true)).toBe(`${ORIGIN}/evil.example`);
+	});
+});
+
+describe('canonicalNavigationTarget', () => {
+	// Serving `/meechie`'s document under `/meechie/` leaves the browser resolving `./_app/…`
+	// against `/meechie/`. Online a 308 prevents it; offline the worker has to.
+	it('names the canonical path for a trailing-slash navigation', () => {
+		expect(canonicalNavigationTarget(`${ORIGIN}/meechie/`)).toBe('/meechie');
+		expect(canonicalNavigationTarget(`${ORIGIN}/m/clapback//`)).toBe('/m/clapback');
+	});
+
+	it('keeps the query string, which does not move the document', () => {
+		expect(canonicalNavigationTarget(`${ORIGIN}/meechie/?a=1`)).toBe('/meechie?a=1');
+	});
+
+	// A query string alone is not a reason to redirect: relative assets already resolve under it.
+	it('is null when the path is already canonical', () => {
+		expect(canonicalNavigationTarget(`${ORIGIN}/meechie`)).toBeNull();
+		expect(canonicalNavigationTarget(`${ORIGIN}/who-fucked-up?from=share`)).toBeNull();
+		expect(canonicalNavigationTarget(`${ORIGIN}/`)).toBeNull();
+	});
+
+	it('never produces a protocol-relative target', () => {
+		expect(canonicalNavigationTarget(`${ORIGIN}//evil.example/`)).toBe('/evil.example');
+	});
+
+	it('is null for a URL it cannot parse', () => {
+		expect(canonicalNavigationTarget('not a url')).toBeNull();
+	});
+});
+
+describe('safeReturnPath', () => {
+	it('accepts a same-origin absolute path', () => {
+		expect(safeReturnPath('/m/receipts')).toBe('/m/receipts');
+		expect(safeReturnPath('/who-fucked-up?from=share')).toBe('/who-fucked-up?from=share');
+	});
+
+	// The whole reason this is parsed rather than used: it arrives from the URL bar and becomes
+	// somewhere the app navigates.
+	it('refuses anything that could leave this origin', () => {
+		expect(safeReturnPath('//evil.example')).toBeNull();
+		expect(safeReturnPath('https://evil.example')).toBeNull();
+		expect(safeReturnPath('/\\evil.example')).toBeNull();
+		expect(safeReturnPath('javascript:alert(1)')).toBeNull();
+	});
+
+	it('refuses the offline page itself, which would be a button that does nothing', () => {
+		expect(safeReturnPath('/offline')).toBeNull();
+		expect(safeReturnPath('/offline?from=%2Fx')).toBeNull();
+	});
+
+	it('is null for nothing at all', () => {
+		expect(safeReturnPath(null)).toBeNull();
+		expect(safeReturnPath('')).toBeNull();
 	});
 
 	it('returns an unparseable URL untouched', () => {
@@ -411,10 +476,11 @@ describe('handleFetch', () => {
 		});
 
 		expect(response.status).toBe(302);
-		// A bare relative path, carrying nothing from the request. The browser resolves it against
-		// the request itself, so it reaches the same page without the redirect target ever being
-		// built out of attacker-influenced data.
-		expect(response.headers.get('location')).toBe('/offline');
+		// Relative, and carrying the destination the reader actually wanted so the offline page's
+		// button can return to it instead of reloading the apology.
+		expect(response.headers.get('location')).toBe(
+			`/offline?${RETURN_PATH_PARAM}=${encodeURIComponent('/never-built')}`
+		);
 	});
 
 	// The plan can say the build produced the page while this device has not stored it. Redirecting

@@ -1,6 +1,6 @@
 {
   "tool": "seam-ledger",
-  "generatedAt": "2026-09-06T08:15:04.808Z",
+  "generatedAt": "2026-09-06T08:40:39.077Z",
   "seams": [
     {
       "seam": "AppConfigSeam",
@@ -1411,7 +1411,7 @@
     {
       "seam": "CacheSeam",
       "owner": "hbpheonix",
-      "lastProbe": "2026-09-06 (automated, 9/9: docs/evidence/2026-09-06/probe-cache-seam.txt)",
+      "lastProbe": "2026-09-06 (automated, 12/12: docs/evidence/2026-09-06/probe-cache-seam.txt)",
       "status": "ok",
       "checks": [
         {

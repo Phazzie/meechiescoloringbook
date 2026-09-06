@@ -30,12 +30,16 @@
 //   4. robots.txt was skipped rather than cached.
 //   5. The worker controls the page on the first load, without waiting for a second visit.
 //   6. A prerendered route opens with the network off.
-//   7. So does its trailing-slash form, which online is a redirect the network performs.
+//   7. Its trailing-slash form lands on the canonical URL, styled and hydrated — not merely
+//      answered, since a document served at the wrong depth arrives looking fine and runs nothing.
 //   8. A path the build never produced lands on the offline page, not the browser's error page.
-//   9. An API call is never answered from the cache while offline.
+//   9. That offline page hydrates there, so its assets resolved at the URL it was served from.
+//  10. It offers to retry the page that actually failed rather than reloading itself.
+//  11. The connection banner reports the offline copy as usable on that first visit.
+//  12. An API call is never answered from the cache while offline.
 //
-// Last run: 2026-09-06, 9/9 — docs/evidence/2026-09-06/probe-cache-seam.txt.
-// Three defects were found by running it, each of which every unit test had passed over:
+// Last run: 2026-09-06, 12/12 — docs/evidence/2026-09-06/probe-cache-seam.txt.
+// Defects found by running it, each of which every unit and end-to-end test had passed over:
 //   - the worker cached all fourteen documents and then controlled nothing, so the next navigation
 //     was still ERR_INTERNET_DISCONNECTED (fixed with `clients.claim()` in activate);
 //   - the fallback returned the offline page's bytes under the requested URL, and SvelteKit's

@@ -82,6 +82,16 @@ self.addEventListener('fetch', (event) => {
 	const strategy = chooseStrategy({
 		method: event.request.method,
 		url: event.request.url,
+		// `self.location.origin` directly, and this is the one deliberate exception to
+		// `app-origin-seam` being "the single place in the application permitted to read
+		// `location.origin`". Both halves of that decision were measured, not assumed — see
+		// DECISIONS.md. Routing it through the seam works (the adapter reads `globalThis.location`,
+		// which in a worker is the worker's own) and takes the built service worker from 7,670 to
+		// 60,991 bytes, because the seam validates with zod. That is 53 KB parsed and run before
+		// this worker can install, on every visitor, to read one string the browser handed us. And
+		// the seam's failure mode is wrong here: it degrades to `''`, which exists so a page refuses
+		// to treat a *stored* URL as same-origin — safe there, and here it would silently make every
+		// request cross-origin and switch the entire offline layer off.
 		origin: self.location.origin,
 		isNavigation
 	});

@@ -9489,3 +9489,87 @@ browser probe — all genuine. One from re-reading my own diff — imagined.
 `check` 0/0 · `lint` exit=0 · `npm test` **1547 passed**, 1 skipped · `build` exit=0 · `test:e2e`
 **46 passed** · `npm run verify` exit=0 · `rewind -- --seam CacheSeam` 14 passed ·
 `probes/cache-seam.probe.mjs` **11/11**.
+
+### Run 10, eighth close-out — 2026-09-06 — four more, and the probe check that was measuring the framework
+
+Codex on `052ef86`: one P1 and three P2s. **All four correct.** That is twelve findings from Codex
+across the run, none disproved.
+
+#### P1 — the probe could leak a server and then measure a stale build
+
+`chromium.launch()` sat *outside* the `try`, so if the browser is missing or `PROBE_CHROMIUM_PATH` is
+wrong, the rejection skips the `finally` and the detached preview server survives. The next run's
+`waitForServer` accepts the first thing answering 200 — **and silently probes the previous build,
+filing the result as seam evidence.** That is the worst failure a probe can have: not "it broke" but
+"it was confidently wrong", and it had already happened once earlier in this run, when I fixed the
+`kill` and not the window before it.
+
+Both halves fixed: the browser is opened *inside* the cleanup scope, and `refuseIfPortBusy()` now
+aborts before spawning if anything is already listening — because the probe cannot tell its own
+server from somebody else's, and guessing is how it lies.
+
+#### P2 — the trailing-slash redirect, and a check that never tested it
+
+Codex: `/meechie/` finds the slashless cached document but returns it **under the trailing-slash
+URL**, so the depth-relative `./_app/…` resolves to `/meechie/_app/…` and nothing loads. Same defect
+as the fallback, one case over — and it noted the probe's own check "waits only for
+`domcontentloaded` and reads the prerendered title", both of which arrive whether or not a script
+runs.
+
+It was worse than that. The check ran as another `goto` from an already-hydrated page, so
+**SvelteKit's client router** resolved the URL itself and the service worker was never involved.
+Mutation-checked twice to establish it: with the redirect deliberately removed the check still
+passed, and the mutation was verified to have applied (`0 occurrences`) before that was believed.
+Given its own cold context, the same mutation now reads:
+
+```
+FAIL  the trailing-slash form of a route lands on the canonical URL, with its assets resolved
+      status 200, landed /meechie/, 39 /_app/ resources loaded, 19 at the wrong depth
+```
+
+**Nineteen assets fetched from `/meechie/_app/…`.** Codex's finding, its fix, and the check that
+holds it, each demonstrated rather than argued. The worker now performs the redirect the network's
+308 performs online.
+
+#### P2 — "Try again" retried the wrong page
+
+After the redirect, the button reloaded `/offline` rather than the `/m/receipts` the reader wanted —
+discarding their destination even once the connection returned. The attempted path now rides along
+as `?from=`, and the button reads **"Try that page again"**.
+
+That puts a value from the URL bar into a navigation, so it is parsed in core with tests rather than
+trusted: `safeReturnPath` refuses anything not beginning with a single `/`, including
+`//evil.example` (protocol-relative), `https://evil.example`, and `/\evil.example` (browsers
+normalise the backslash). The same reasoning made `canonicalPathname` collapse *leading* slashes
+too — a `Location:` built from a path beginning `//` is a redirect off this origin, and
+`https://host//evil.example` is same-origin, so it reaches the code.
+
+#### P2 — the counts said 9/9 in three places
+
+`docs/seams.md`, `src/lib/seams/cache-seam/probe.ts` and the Cipher Gate all still advertised 9/9
+after checks ten and eleven were added. The exact "a fix changes what is true, find every sentence"
+failure, in my own documentation, in the same run that keeps naming it. All three now say **12/12**
+and enumerate what each check establishes.
+
+### And one nobody found: a rule I broke where nobody was looking
+
+Re-reading `src/lib/seams/CLAUDE.md` surfaced `app-origin-seam`, whose adapter states it is *"the
+single place in the application permitted to read `location.origin`"*. My `chooseStrategy` call site
+read `self.location.origin` directly. No reviewer or checker raised it.
+
+**Both options were measured before choosing.** The seam works in a worker — its adapter reads
+`globalThis.location` — and using it takes the built service worker from **7,670 bytes to 60,991**,
+because the seam validates with zod: 53 KB parsed and executed before the worker can install, on
+every visitor, to read one string. Worse, its failure mode is wrong here: it degrades to `''`, which
+in a page correctly refuses to treat a *stored* URL as same-origin, and in the worker would make
+every request look cross-origin and switch the entire offline layer off.
+
+So the direct read stays, as a **stated exception with its measurement at the call site** and a
+`DECISIONS.md` entry carrying the byte counts and the revisit criteria. An exception that names
+itself is a different thing from a rule quietly ignored.
+
+### Evidence after this round
+
+`check` 0/0 · `lint` exit=0 · `npm test` **1557 passed**, 1 skipped · `build` exit=0 · `test:e2e`
+**46 passed** · `npm run verify` exit=0 · `rewind -- --seam CacheSeam` 14 passed ·
+`probes/cache-seam.probe.mjs` **12/12**.

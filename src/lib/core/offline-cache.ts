@@ -37,6 +37,16 @@ import type { CacheSeam } from '$lib/seams/cache-seam/contract';
  */
 export const OFFLINE_FALLBACK_PATH = '/offline';
 
+/**
+ * Query parameter carrying the page the reader was actually trying to reach.
+ *
+ * Without it the offline page's "Try again" reloads the offline page. The reader asked for
+ * `/m/receipts`, was redirected here because it is not in the cache, and pressing the only button
+ * on screen returns them to the same apology — discarding the destination even after the connection
+ * comes back. Exported so the worker that writes it and the page that reads it cannot drift.
+ */
+export const RETURN_PATH_PARAM = 'from';
+
 /** Only crawlers ever request these, and a crawler is never offline in a way this cache can help. */
 const NEVER_PRECACHED = ['/robots.txt'] as const;
 
@@ -277,29 +287,67 @@ export const cacheKeyFor = (url: string, isNavigation: boolean): string => {
 		const parsed = new URL(url);
 		parsed.search = '';
 		parsed.hash = '';
-		parsed.pathname = withoutTrailingSlashes(parsed.pathname);
+		parsed.pathname = canonicalPathname(parsed.pathname);
 		return parsed.toString();
 	} catch {
 		return url;
 	}
 };
 
+const SLASH = 47;
+
 /**
- * Drop trailing slashes, keeping the root's.
+ * Canonicalize a navigation's pathname: exactly one leading slash, no trailing ones, root kept.
  *
- * A scan rather than `replace(/\/+$/, '')`, and not for style. That regular expression has
+ * Scans rather than `replace(/\/+$/, '')`, and not for style. That regular expression has
  * super-linear backtracking: a path of many slashes makes the engine try quadratically many splits
- * before failing. This function runs in the service worker on **every navigation**, against a path
- * the person browsing supplies — so a link to `/////…/x` with a few thousand slashes is a request
- * that costs the worker measurable CPU on someone else's device. Flagged by SonarCloud on this pull
- * request; the loop is linear, and the `> 1` bound is what keeps `/` a path instead of an empty
- * string, without needing a special case for it.
+ * before failing. This runs in the service worker on **every navigation**, against a path the
+ * person browsing supplies — measured at 3,108 ms for 50,000 slashes, against 0 ms for this. Three
+ * seconds of a stranger's CPU per link followed. Flagged by SonarCloud on this pull request.
+ *
+ * The *leading* slashes matter for a second reason, and it is a security one. This value is used to
+ * build a `Location` header, and a path beginning `//evil.example` is a **protocol-relative URL**: a
+ * browser reads `Location: //evil.example` as a redirect to another origin entirely. Collapsing to a
+ * single leading slash means the header can only ever name a path on this origin. A request for
+ * `https://host//evil.example` is same-origin, so it reaches this code; nothing else would have
+ * stopped it.
  */
-const withoutTrailingSlashes = (pathname: string): string => {
-	const SLASH = 47;
+const canonicalPathname = (pathname: string): string => {
 	let end = pathname.length;
 	while (end > 1 && pathname.charCodeAt(end - 1) === SLASH) end -= 1;
-	return pathname.slice(0, end);
+
+	let start = 0;
+	while (start + 1 < end && pathname.charCodeAt(start) === SLASH) start += 1;
+
+	const trimmed = pathname.slice(start, end);
+	return trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+};
+
+/**
+ * The canonical path+query to send a navigation to, or `null` when it is already canonical.
+ *
+ * Serving the cached document under the requested URL is not enough when the requested URL has a
+ * trailing slash, and the reason is the same one that broke the offline fallback: SvelteKit emits
+ * **depth-relative** asset paths — `./_app/…` at `/meechie`, `../_app/…` at `/m/clapback`. Answer
+ * `/meechie/` with `/meechie`'s document and the browser resolves those against `/meechie/`,
+ * fetching `/meechie/_app/…`, which is in no cache and on no server. The page arrives, titled and
+ * styled by nothing, and never hydrates.
+ *
+ * Online the routing table 308s the trailing slash away and none of this arises. Offline there is no
+ * network to perform that redirect, so the worker performs it — which is also why this returns a
+ * path and not a document: the address bar has to change, or the assets stay wrong.
+ *
+ * The query string is preserved and is *not* a reason to redirect on its own. `?from=share` does not
+ * move the document's directory, so relative assets already resolve correctly under it.
+ */
+export const canonicalNavigationTarget = (url: string): string | null => {
+	try {
+		const parsed = new URL(url);
+		const canonical = canonicalPathname(parsed.pathname);
+		return canonical === parsed.pathname ? null : `${canonical}${parsed.search}`;
+	} catch {
+		return null;
+	}
 };
 
 /**
@@ -331,8 +379,26 @@ const unavailableResponse = (): Response =>
  * `302`, not `301`: being offline is the most temporary condition there is, and a permanent
  * redirect is the one kind a browser is entitled to remember after the network comes back.
  */
-const redirectToOfflinePage = (): Response =>
-	new Response(null, { status: 302, headers: { location: OFFLINE_FALLBACK_PATH } });
+const redirectToOfflinePage = (attemptedPath: string | null): Response =>
+	redirectTo(
+		attemptedPath
+			? `${OFFLINE_FALLBACK_PATH}?${RETURN_PATH_PARAM}=${encodeURIComponent(attemptedPath)}`
+			: OFFLINE_FALLBACK_PATH
+	);
+
+/**
+ * A redirect whose `Location` is a path on this origin and cannot be anything else.
+ *
+ * Every caller passes a value that starts with `/` and, thanks to `canonicalPathname`, never `//`.
+ * The assertion is repeated here rather than trusted from the caller because this is the one
+ * function in the file that can send a reader somewhere: a `Location` is the only output here that
+ * a browser will act on without the page's involvement.
+ */
+const redirectTo = (location: string): Response =>
+	new Response(null, {
+		status: 302,
+		headers: { location: location.startsWith('//') ? OFFLINE_FALLBACK_PATH : location }
+	});
 
 export type FetchLike = (request: Request) => Promise<Response>;
 
@@ -390,17 +456,35 @@ const networkFirst = async (
 		return await options.fetchFn(request);
 	} catch {
 		const cached = await cachedResponse(seam, key);
-		if (cached) return cached;
+		if (cached) {
+			// The document is in the cache, but the address bar may still be wrong. Answering
+			// `/meechie/` with `/meechie`'s bytes leaves the browser resolving `./_app/…` against
+			// `/meechie/`, so nothing loads and nothing hydrates — the same defect that broke the
+			// fallback, one case over. Online the routing table's 308 prevents it; offline there is
+			// no network to perform that redirect, so it is performed here.
+			const canonical = options.isNavigation ? canonicalNavigationTarget(request.url) : null;
+			return canonical ? redirectTo(canonical) : cached;
+		}
 
 		if (options.isNavigation && options.fallbackAvailable) {
 			// Checked, not assumed: `fallbackAvailable` says the build produced the page, and this
 			// says this device actually stored it. Redirecting to a path with nothing behind it
 			// would turn one failed navigation into two.
 			const fallback = await cachedResponse(seam, OFFLINE_FALLBACK_PATH);
-			if (fallback) return redirectToOfflinePage();
+			if (fallback) return redirectToOfflinePage(attemptedPathOf(request.url));
 		}
 
 		return unavailableResponse();
+	}
+};
+
+/** The path the reader asked for, canonical and origin-free, or null if it cannot be read. */
+const attemptedPathOf = (url: string): string | null => {
+	try {
+		const parsed = new URL(url);
+		return `${canonicalPathname(parsed.pathname)}${parsed.search}`;
+	} catch {
+		return null;
 	}
 };
 
@@ -438,6 +522,29 @@ export const handleFetch = async (
 				isNavigation: input.isNavigation,
 				fallbackAvailable: input.fallbackAvailable
 			});
+};
+
+/**
+ * The destination to send a reader back to, read out of the offline page's own query string.
+ *
+ * This is the one place in the offline layer where a value from the URL bar becomes somewhere the
+ * app will *navigate*, so it is parsed rather than trusted, in core, with tests:
+ *
+ * - It must begin with a single `/`. `//evil.example` is a protocol-relative URL and
+ *   `https://evil.example` is an absolute one; both would leave this origin.
+ * - It must not begin with `/\` — some browsers normalize a backslash to a slash, which turns
+ *   `/\evil.example` back into the protocol-relative case.
+ * - Anything else — absent, empty, unparseable, or pointing at the offline page itself — yields
+ *   `null`, and the caller falls back to reloading.
+ *
+ * `null` is a perfectly good answer. The button still works; it just has nowhere better to go.
+ */
+export const safeReturnPath = (raw: string | null): string | null => {
+	if (!raw || raw.length < 1) return null;
+	if (!raw.startsWith('/')) return null;
+	if (raw.startsWith('//') || raw.startsWith('/\\')) return null;
+	if (raw === OFFLINE_FALLBACK_PATH || raw.startsWith(`${OFFLINE_FALLBACK_PATH}?`)) return null;
+	return raw;
 };
 
 /**
