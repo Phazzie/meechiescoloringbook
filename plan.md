@@ -87,12 +87,19 @@ which `AGENTS.md` says must not be auto-merged. It is reported in `LESSONS_LEARN
 run that can wait for a human. Do not alter the site nav, `/m/[mode]`, `mode-catalog.ts`,
 `modeCatalog()`, the `/offline` or 404 mode lists, or any `data-testid` other than the ones added.
 
-**Commands:** `npm run check`, `npm run lint`, `npm test`, `npm run build`, `npm run verify`.
+**Commands:** `npm run check`, `npm run lint`, `npm test`, `npm run test:e2e`, `npm run build`,
+`npm run verify`.
 
-**Definition of done (literal):** `npm run check && npm run lint && npm test && npm run build`
-exits 0, and `.svelte-kit/output/prerendered/pages/index.html` contains eight
+**Definition of done (literal):** `npm run check && npm run lint && npm test && npm run test:e2e &&
+npm run build` exits 0, and `.svelte-kit/output/prerendered/pages/index.html` contains eight
 `data-testid="home-mode-…"` attributes, eight `href="/m/…"` links, zero `mode-featured-badge`
 occurrences and zero `home-mode-schedule` occurrences.
+
+*(`npm run test:e2e` added after merge. This plan changed `tests/e2e/smoke.spec.ts` and the suite was
+run — 49 passing — but the gate as written did not name it, so the plan's stated completion bar was
+weaker than the work actually done, and weaker than every other plan in this file, which all list it.
+A CodeRabbit review on PR #315 caught it. Corrected rather than left, because a definition of done
+that omits a suite the diff edits is how a future run learns to skip it.)*
 
 **Self-critique.**
 

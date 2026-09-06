@@ -10793,9 +10793,17 @@ The app has eight modes. The home page's mode strip is the only place most of th
 showed three, and it linked three, and which three was decided by reading the host clock.
 
 That is not a description of a rotation with a small flaw. On any given day **five of this app's
-eight features had no link anywhere in the application** — not in the site nav, not on the home
-page, not from `/meechie`. The only way to reach them was to type `/m/<slug>` at a URL bar with no
-way of knowing the slug existed.
+eight features had no link on any page a reader arrives at on purpose** — not in the site nav, not
+on the home page, not from `/meechie`. The only links to them in the whole application were on
+`/offline` and the 404 page, which a reader reaches only when something has already gone wrong.
+Short of that, the way in was to type `/m/<slug>` at a URL bar with no way of knowing the slug
+existed.
+
+*(Corrected after merge. The first version of this sentence said "no link anywhere in the
+application", which the same entry disproves four paragraphs down where it points out that
+`/offline` and `+error.svelte` both list all eight. A CodeRabbit review caught the contradiction on
+PR #315; it arrived while the merge was in flight and is fixed here rather than quietly. An entry
+that overstates its own finding is exactly the failure this log is supposed to be immune to.)*
 
 The measurement, run against `main` at `901464c` on the day of this run:
 
@@ -11029,6 +11037,35 @@ What made it non-blocking was specific:
 The real remedy is #151 and #208 rebasing. That is their authors' call; pushing to someone else's
 branch is out.
 
+### The worst mistake this run made: it merged past a review it had not read
+
+**CodeRabbit posted a full review with four actionable comments at 18:57:59. PR #315 was merged at
+19:01:26. The review was sitting in an undelivered notification queue the whole time.**
+
+What happened, precisely: asking `@coderabbitai review` produced *two* separate outputs. The first
+was a targeted reply to the two questions the request named, and it said *"No actionable findings."*
+That reply was read, and it was treated as the review. The second was the bot's ordinary full-diff
+review, which landed a minute later with four comments, and it had not been delivered when the merge
+gate was evaluated. Every check was green, every *seen* comment was addressed, and the merge went
+ahead on a picture that was two minutes stale.
+
+The lesson is not "wait longer", which is unfalsifiable. It is: **a reviewer's answer to the question
+you asked is not the same artifact as its review of your diff, and a run must not treat the first as
+the second.** Before merging, re-read the pull request's review threads at that moment rather than
+relying on what arrived in the queue earlier.
+
+All four findings were addressed in the close-out pull request, which is where this entry lives:
+
+| Finding | Verdict | Action |
+|---|---|---|
+| "no link anywhere in the app" overclaims — the same entry says `/offline` and the 404 page listed all eight | **Correct, and the most serious of the four.** The entry contradicted itself four paragraphs apart | Fixed in `CHANGELOG.md`, `CLAUDE.md` and above, marked as a correction |
+| `plan.md` omits `npm run test:e2e` from its commands and definition of done, while the diff edits `smoke.spec.ts` | **Correct.** Every other plan in the file lists it; this one's stated bar was weaker than the work done | Fixed, marked as a correction |
+| `LESSONS_LEARNED.md`: six duplicate `## 2026-09-06` headings (MD024) and no blank line below them (MD022) | Declined | That is the file's convention — ~200 entries use bare `## YYYY-MM-DD` with fields immediately below, and duplicate dates already recur throughout. markdownlint is not in CI. Six entries in a different shape would be the inconsistent ones |
+| `WORST_TO_BEST_LOG.md`: three new fences lack a language identifier (MD040) | Declined | Same reason, measured: `grep -o '^```[a-z]*'` over this file gives **66 bare fences to 8 tagged** |
+
+The first two are the kind of defect this log exists to catch — a claim wider than its own evidence,
+and a completion gate narrower than the work. Both were in prose *this run wrote about accuracy*.
+
 ### What the reviews cost and bought
 
 **Every automated reviewer was rate-limited at once**, which is worth recording because it changes
@@ -11040,10 +11077,12 @@ what a run should do:
 
 Left alone, this pull request would have merged **with no code review at all**. Asking CodeRabbit
 explicitly (`@coderabbitai review`) cost one comment and was the single highest-value action of the
-review phase. Its verdict: *"No actionable findings."* It ran an independent Python check over
-**11,323 UTC day boundaries from 2000 through 2030**, confirming every computed `changesAtMs` was a
-future UTC midnight, and confirmed the hydration gate has exactly one expression. **A future run
-that finds all three bots quiet should ask, not assume the diff is clean.**
+review phase — it produced both the targeted reply *and* the four-comment review above. On the two
+questions it was asked, it ran an independent Python check over **11,323 UTC day boundaries from
+2000 through 2030**, confirming every computed `changesAtMs` was a future UTC midnight, and
+confirmed the hydration gate has exactly one expression. On the diff as a whole it found four
+documentation defects, two of them real. **A future run that finds all three bots quiet should ask,
+not assume the diff is clean — and should then wait for the full review, not just the reply.**
 
 ### The two defects this run caught on itself, after opening the pull request
 
