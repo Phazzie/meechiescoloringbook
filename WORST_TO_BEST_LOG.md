@@ -9868,130 +9868,104 @@ And a third, which this close-out earned on its own account. **Every finding in 
 correct — on #312, a pull request containing no code.** The totals are not restated here; add the
 column up. Restating them is what produced four of the findings in it.
 
-The ledger below is per pass and append-only, which is the second attempt at recording this. The
-first attempt gave a total anchored to one commit, and review caught the flaw in that immediately:
-I kept editing the *anchored* list as later findings arrived, inserting a finding raised against
-`e6beced` into a list stamped `840df85` and dropping an earlier one to make room. An anchor you
-edit is worse than no anchor, because it looks checkable. A ledger by pass has no such failure
-mode — later passes append rather than displace, and any total is recoverable by adding it up.
+The ledger below is the **third** attempt at recording this, and the first two are worth naming
+because each failed in a way the next one fixed. The first gave a total anchored to one commit — and
+I then edited the anchored list as later findings arrived, inserting one raised against `e6beced`
+into a list stamped `840df85` and dropping an earlier item to fit. An anchor you edit is worse than
+no anchor, because it looks checkable. The second was a per-pass table with the priorities
+summarised in prose beneath it; that removed the displacement failure and left the derivation one,
+and the prose was wrong on five consecutive passes — four of the rows below are that drift. This one
+has no derived summary at all: the table is the record, and every claim about it is a claim about a
+row someone can read.
 
-| Pass | Findings | P1s |
-|---|---|---|
-| `8297c31` | 5 | Assumption reported absent; Vercel signature unmatched |
-| `1002807` | 2 | verify chain refreshed in part |
-| `6a5c923` | 1 | — |
-| `180ab72` | 0 | — |
-| `fc8fc4b` | 1 | — |
-| `840df85` | 1 | — |
-| `e6beced` | 2 | — |
-| `8a58e92` | 4 | `lint` and `build` evidence never refreshed |
-| `d38dcfe` | 2 | — |
-| `2244765` | 3 | no micro Plan + Self-Critique for a governance-only change |
-| `28ea7c7` | 3 | `verify-outer.txt`, the only full-chain transcript, never regenerated |
-| `51b09d9` | 5 | that transcript then inventoried while still being written; the plan's evidence inventory given as a wildcard |
-| `552c99d` | 7 | the plan's rows carrying no action marker; the plan never closing on a literal command |
-| `ca48ebf` | 5 | the closing command discarding `verify`'s exit status |
-| `48e7bc2` | 3 | — |
-| `3f412c1` | 3 | — |
-| `8af5bff` | 1 | — |
-| `552ffa6` | 2 | — |
-| `82a47c5` | 1 | — |
+| Pass | # | Priority | Finding |
+|---|---|---|---|
+| `8297c31` | 1 | **P1** | an open Assumption reported as absent, on the feature that made it load-bearing |
+| `8297c31` | 2 | **P1** | a merge-gate stand-down argued from evidence this log records a reviewer rejecting on #305 |
+| `8297c31` | 3 | P2 | the findings total, and the self-found defect dropped from it |
+| `8297c31` | 4 | P2 | "no unit test could have caught" two defects whose unit tests this run wrote |
+| `8297c31` | 5 | P2 | "no `CacheSeam` write operation" when `primeCache` is one |
+| `1002807` | 6 | **P1** | the verify chain refreshed in part — only the two scripts I expected to object |
+| `1002807` | 7 | P2 | "six routes" above a list of seven |
+| `6a5c923` | 8 | P2 | web fonts called a seam limitation when only the strategy refuses them |
+| `180ab72` | — | — | *clean* |
+| `fc8fc4b` | 9 | P2 | the four-item defect list disagreeing with the paragraph explaining it |
+| `840df85` | 10 | P2 | the review-round count |
+| `e6beced` | 11 | P2 | two P1s recorded where there were three |
+| `e6beced` | 12 | P2 | "all five headers … and from nothing else" when the edge supplies one |
+| `8a58e92` | 13 | **P1** | `lint.txt` and `build.txt` never refreshed — `verify` runs neither |
+| `8a58e92` | 14 | P2 | the structured `Statement` naming three headers while the prose said four |
+| `8a58e92` | 15 | P2 | a findings total anchored to a commit and then edited |
+| `8a58e92` | 16 | P2 | "every page" when five alias slugs still reach the hook |
+| `d38dcfe` | 17 | P2 | "all ten" beneath a ledger that had outgrown it |
+| `d38dcfe` | 18 | P2 | a close-out step that would have closed the Assumption on its document half |
+| `2244765` | 19 | **P1** | no micro Plan for a governance-only change (`AGENTS.md` L108) |
+| `2244765` | 20 | P2 | the P2 inventory naming twelve where the ledger implied fourteen |
+| `2244765` | 21 | P2 | a `DECISIONS.md` line range my own edits had shifted |
+| `28ea7c7` | 22 | **P1** | `verify-outer.txt`, the only full-chain transcript, never regenerated |
+| `28ea7c7` | 23 | P2 | the header list restated as three after the `Statement` was corrected to four |
+| `28ea7c7` | 24 | P2 | "twelve findings across eight earlier passes" for #311, where the table says three |
+| `51b09d9` | 25 | **P1** | that transcript then inventoried while still being written |
+| `51b09d9` | 26 | **P1** | the plan's evidence inventory given as a wildcard |
+| `51b09d9` | 27 | P2 | a recommended HSTS patch that fails fourteen assertions |
+| `51b09d9` | 28 | P2 | the structured `Seams` scope left at assets only |
+| `51b09d9` | 29 | P2 | a `DECISIONS.md` line reference shifted by my own edits |
+| `552c99d` | 30 | **P1** | the plan's rows carrying no `[MODIFY]` marker and no exact touch |
+| `552c99d` | 31 | **P1** | the plan never closing on a literal command (`AGENTS.md` L76) |
+| `552c99d` | 32 | P2 | the previous transcript left in place, so the tape described a different file |
+| `552c99d` | 33 | P2 | two passes never appended to this ledger |
+| `552c99d` | 34 | P2 | a prose comma in `Seams`, which `assumption-alarm` splits on |
+| `552c99d` | 35 | P2 | **the emitted `.html` filenames matching no header rule** |
+| `552c99d` | 36 | P2 | the probe's `PATH` defect dropped from the repeated-fix count |
+| `ca48ebf` | 37 | **P1** | the closing command discarding `verify`'s exit status behind an `echo` |
+| `ca48ebf` | 38 | P2 | the structured `Statement` still claiming every filesystem-served path |
+| `ca48ebf` | 39 | P2 | a correction count that had gone stale twice |
+| `ca48ebf` | 40 | P2 | "the test asserts all five `SLUG_ALIASES`" when it lists three |
+| `ca48ebf` | 41 | P2 | both transcript P1s attributed to the wrong passes |
+| `48e7bc2` | 42 | P2 | the transcript move's failure discarded by `exit "$status"` |
+| `48e7bc2` | 43 | P2 | 97 test files where the transcript reports 98 |
+| `48e7bc2` | 44 | P2 | the `ca48ebf` findings never reaching the derived inventory |
+| `3f412c1` | 45 | P2 | `$SCRATCH` referenced and never assigned |
+| `3f412c1` | 46 | P2 | `lint` and `build` named without the redirections that write their evidence |
+| `3f412c1` | 47 | P2 | the transcript-move defect never reaching the derived inventory |
+| `8af5bff` | 48 | P2 | `mktemp -d` called unchecked, putting every path back at the filesystem root |
+| `552ffa6` | 49 | P2 | `/offline.html` said to carry no security headers when it lacks four |
+| `552ffa6` | 50 | P2 | "one code-level defect" above anti-goals listing two |
+| `82a47c5` | 51 | P2 | the asset baseline said to carry none when it lacks three |
+| `04c7c00` | 52 | P2 | "no script writes either" transcript, when `verify-runner.mjs` writes `verify.txt` |
+| `04c7c00` | 53 | P2 | the `552ffa6` code-defect finding never reaching the derived inventory |
 
-**The P1s.** An open Assumption reported as absent, on the very feature that made it load-bearing.
-A merge-gate stand-down argued from evidence this same log records a reviewer rejecting on #305.
-**A verify chain refreshed in part** — fixing the first two I ran only the two scripts I expected to
-object, leaving four downstream artifacts describing an older tree, a directory that reads as
-verified and is not. And **`lint` and `build` evidence never refreshed at all**, which is the same
-defect one layer down: `npm run verify` runs neither, so re-running the chain each time did nothing
-for those two files and I never noticed, because I was watching the chain rather than the checklist.
-And **no micro Plan for this pull request at all**: `AGENTS.md` L108 requires one even for a
-governance-only documentation change — the seams, the files, the commands, and how behaviour stays
-unchanged — and this PR opened inheriting Run 10's pre-merge plan, which describes work that had
-already merged as `1b67d30`. A plan that documents finished work is not a plan. It is in `plan.md`
-now, with the Self-Critique the rule also asks for. And **the full-chain transcript never
-regenerated**: `verify-outer.txt` is the only artifact holding `npm run verify`'s own command line
-and its `verify exit=0`, `verify.txt` holds just the inner check/test stage, and no script writes
-either. I had looked at that file twice, decided it was a captured transcript belonging to #311, and
-said so on the PR — so every "verify 0" this entry claimed had no committed evidence on its own
-head. The decision was wrong on its own terms too: #311's transcript is preserved in git at the
-merged commit, and a dated evidence directory is supposed to describe the tree beside it.
+**This table replaced a prose inventory that was wrong on five consecutive passes.** Every version
+of it was maintained by hand from the ledger beside it, and every version drifted: findings appended
+in one place and not the other, priorities filed by where I met them rather than what they were,
+totals that went stale between passes. Four separate findings above are that drift. The table is now
+the only record — one row per finding, checkable line by line against the review thread, with no
+derived summary to fall out of step with it.
 
-And **the capture race**: with the transcript regenerated, redirecting the chain straight into it
-made `proof-tape` — which runs inside that chain — inventory the file mid-write, recording 3,640
-bytes against 3,654 committed. And **the closing command discarding `verify`'s exit status**: an
-`echo` as the group's last command makes the group exit `0` whatever `verify` did, so a `&& mv`
-after it installs a failed transcript and reports success. That one had been sitting in the
-Definition of Done and in every capture I ran on this pull request.
+What the rows are worth reading for, since the count is not the point:
 
-And two more, both about the micro Plan the P1 above added: **its file inventory could not be
-reconciled with the diff** — a wildcard row first, then a `File | Why` table whose second column was
-prose and whose `.json`, `.md` rows were patterns rather than paths — and **it never closed on a
-literal command**, which `AGENTS.md` L76 requires. The second is the one with teeth: the plan's
-prose named `lint`, `build` and `verify` as run every push, and on this pull request that sentence
-was false twice while sitting there unchallenged. A command someone can execute and get an exit code
-from is the only form of that claim which could have caught either failure.
+**Most of the P1 rows — the bolded ones — are about verification rather than content.** The chain
+run in part; `lint` and `build` never refreshed; the transcript never regenerated, then inventoried
+mid-write; a plan with no file inventory and no closing command; a closing command that discarded
+the exit status it existed to report. Every one is a check that reported success while not checking.
+The close-out's subject is a feature that was advertised and absent; its own review kept finding the
+same shape in the machinery I was using to verify the write-up.
 
-**The P2s**, in three kinds rather than one. An earlier draft called them all counts and capability
-claims and then listed twelve where the ledger implied fourteen — miscounting the list of
-miscounts, which is the joke this entry keeps making at its own expense. The group sizes are
-deliberately not given below, for the same reason.
+(That sentence began as "Nine P1s, and seven of them" — there are eleven, and I put a restated count
+into the paragraph explaining why restated counts fail. It is a pointer to the bolded rows now,
+which is the only form of the claim that stays true as rows are added.)
 
-*Counts*: the findings total; the round count; two P1s recorded where there were three; the list of
-prerendered routes reading "six" above seven of them; the P2 inventory itself; a total left at ten
-in the sentence directly beneath a larger ledger; and "twelve findings across eight earlier passes"
-for #311, where the table further down this entry records three passes with findings and one clean.
+**One finding names a defect in the shipped configuration** — number 35, the emitted `.html`
+filenames matching no header rule. Everything else on this pull request is an error in the writing.
+That one is a live hole, and it was found by review reading the build output rather than by me
+writing about what I had built.
 
-*Capability and scope claims*: "no `CacheSeam` write operation" when `primeCache` is one; fonts
-called a seam limitation when the seam permits them and only the strategy refuses; "no unit test
-could have caught" two defects whose unit tests this run wrote; a missing probe listed among the
-defects it failed to catch; "all five headers" when the edge supplies one of them independently;
-and "every page" when five alias slugs still resolve through the function; a recommended follow-up
-patch that could not have compiled, since removing HSTS from the document rules fails fourteen
-assertions in a test that iterates all five `SECURITY_HEADERS`; a structured `Statement` still
-claiming every filesystem-served path after the `.html` exception was written in prose the parser
-does not read; **"the test asserts all five `SLUG_ALIASES` match no rule" when it lists three** —
-`/m/rate-his-excuse` and `/m/what-would-meechie-do` are absent, and I had cited that test as the
-guarantee twice; and the `.html` gap above, the one finding on this pull request that names a defect
-in the shipped configuration rather than in the writing about it.
+**The repeated shape, which the table makes countable:** a correction introducing a fresh defect.
+Numbers 25, 32, 37, 42, 45, 46, 48 are one continuous chain on a single twelve-line shell block,
+each link the fix for the link before it going one step short. Numbers 44, 47 and 53 are the same
+chain in the inventory. Fixing the instance you were shown, and not the class it belongs to, is what
+this entry is about — and the entry demonstrated it more often than it described it.
 
-*Procedure and reference defects*, which are the ones that could mislead a future run into
-**doing** the wrong thing rather than believing it: a close-out instruction that validated the
-document rules and then said to mark the Assumption `Closed`, leaving its asset half — the original
-half — unchecked; and a structured `Statement` left naming three headers while the prose beside it
-said four, where `assumption-alarm` parses the field and not the paragraph. A third joined them
-late: this entry restating that same three-header list in prose, still saying three after the
-`Statement` had been corrected to four — the restatement going stale exactly as the thing it
-restated was fixed. Then two more of the same shape: a prose comma written into that same `Seams`
-field, which `scripts/assumption-alarm.mjs` splits on, putting a phantom seam into the committed
-alarm report; and the outer transcript captured two wrong ways before the right one, each way
-producing evidence that described something other than the tree it was committed with.
-
-Plus this ledger's own anchoring, a stale `DECISIONS.md` line range, a `DECISIONS.md` reference
-whose line number my own edits above it had moved, and — after the ledger was rebuilt to be
-append-only precisely so this could not happen — **two passes left off it entirely**, which silently
-made these inventories wrong as well, since they are derived from it. Then the same derivation
-failed twice more: the two transcript P1s attributed to the wrong passes, because I wrote the rows
-from memory of what I had just fixed rather than from the review record, and a fix always lands one
-commit after its finding; and the `ca48ebf` row appended without its four P2s reaching this list.
-A correction-count that had gone stale twice, now removed rather than reset. A Definition of Done
-claiming 97 test files where the transcript reports 98 — 97 passing plus 1 skipped. And that same
-block three times over: reporting success when the transcript failed to install, referencing a
-`$SCRATCH` it never assigned so the paths expanded to the filesystem root, and naming
-`lint`/`build`/`verify` without the redirections that actually write `lint.txt` and `build.txt` —
-so following it as written reproduced the stale-evidence failure this entry opens with; and its
-`mktemp -d` called without checking, which on failure leaves the scratch variable empty and puts
-every path back at the filesystem root — the hazard the variable was introduced to remove. And,
-twice, `/offline.html` described as carrying **no** security headers when it carries HSTS from the
-edge and is missing the other four: the same overstatement corrected two paragraphs earlier in this
-entry, reintroduced in the sentence recording the gap it applies to. Then a **third** time, in the
-asset baseline: `/service-worker.js` described as returning no security headers when it returns HSTS
-from the edge and lacks the three the repository sets. Three passes, three separate sentences, one
-phrase — corrected each time it was pointed at and never once by me looking for the others.
-
-All the same disease: a fact restated where it cannot be checked against its source. The reason this
-section is the entry's longest is that it is the one part with no mechanical check behind it. Every
-other claim here now points at a file, a line, a command or a table; this list is maintained by
-hand, and it has been wrong at every pass that touched it.
 
 > **Correcting the instance is not correcting the belief.**
 
