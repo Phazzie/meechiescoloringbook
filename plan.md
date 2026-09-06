@@ -23,22 +23,25 @@ change. `CacheSeam` is discussed and not touched.
 
 **Files:**
 
-| File | Why |
-|---|---|
-| `WORST_TO_BEST_LOG.md` | the close-out entry itself, and every correction to it |
-| `DECISIONS.md` | the 2026-09-03 Assumption, widened to say that #311 made it load-bearing, scoped to the four contingent headers, and given a validation that names both halves |
-| `plan.md` | this micro plan |
-| `docs/evidence/2026-09-06/lint.txt` | rewritten — `npm run lint`, captured by redirect |
-| `docs/evidence/2026-09-06/build.txt` | rewritten — `npm run build`, captured by redirect |
-| `docs/evidence/2026-09-06/verify-outer.txt` | rewritten — the full chain transcript and its exit, captured to a scratch path and moved in after the chain returns, per `docs/evidence/README.md`. **`proof-tape` therefore records it as `predatesRun: true`, by design**: a file cannot be inventoried while it is being written to, so the tape describes the previous copy. Redirecting the chain straight into it instead makes the tape record a byte count 14 short — the missing `verify exit=0` — which is what happened on `51b09d9` |
-| `docs/evidence/2026-09-06/verify.txt` | rewritten by `scripts/verify-runner.mjs` (inner check/test stage) |
-| `docs/evidence/2026-09-06/test.txt` | rewritten by `scripts/verify-runner.mjs` |
-| `docs/evidence/2026-09-06/chamber-lock.json` | rewritten by `scripts/chamber-lock.mjs` |
-| `docs/evidence/2026-09-06/shaolin-lint.json` | rewritten by `scripts/shaolin-lint.mjs` |
-| `docs/evidence/2026-09-06/assumption-alarm.json` | rewritten by `scripts/assumption-alarm.mjs` |
-| `docs/evidence/2026-09-06/seam-ledger.json`, `.md` | rewritten by `scripts/seam-ledger.mjs` |
-| `docs/evidence/2026-09-06/clan-chain.json`, `.md` | rewritten by `scripts/clan-chain.mjs` |
-| `docs/evidence/2026-09-06/proof-tape.json`, `.md` | rewritten by `scripts/proof-tape.mjs` |
+| Action | File | Exact touch |
+|---|---|---|
+| `[MODIFY]` | `WORST_TO_BEST_LOG.md` | append the Run 10 close-out section and correct claims within it; no other section edited |
+| `[MODIFY]` | `DECISIONS.md` | the 2026-09-03 Assumption only — its `Seams`, `Statement` and `Validation` fields, plus added scope notes |
+| `[MODIFY]` | `plan.md` | this micro plan section, prepended above the Run 10 entry |
+| `[MODIFY]` | `docs/evidence/2026-09-06/lint.txt` | rewritten whole — `npm run lint` captured by redirect |
+| `[MODIFY]` | `docs/evidence/2026-09-06/build.txt` | rewritten whole — `npm run build` captured by redirect |
+| `[MODIFY]` | `docs/evidence/2026-09-06/verify-outer.txt` | rewritten whole — the full chain transcript and its exit. Per `docs/evidence/README.md`: move the previous copy **out** of the directory first, capture to a scratch path, and move the new copy in after the chain returns. **`verify-outer.txt` is therefore absent from that chain's own `proof-tape` inventory, by design.** Two wrong ways were tried first: redirecting the chain straight into the file makes the tape record a byte count 14 short — the missing `verify exit=0` — and leaving the previous copy in place makes the tape inventory a different file than the one committed |
+| `[MODIFY]` | `docs/evidence/2026-09-06/verify.txt` | rewritten whole by `scripts/verify-runner.mjs` (inner check/test stage) |
+| `[MODIFY]` | `docs/evidence/2026-09-06/test.txt` | rewritten whole by `scripts/verify-runner.mjs` |
+| `[MODIFY]` | `docs/evidence/2026-09-06/chamber-lock.json` | rewritten whole by `scripts/chamber-lock.mjs` |
+| `[MODIFY]` | `docs/evidence/2026-09-06/shaolin-lint.json` | rewritten whole by `scripts/shaolin-lint.mjs` |
+| `[MODIFY]` | `docs/evidence/2026-09-06/assumption-alarm.json` | rewritten whole by `scripts/assumption-alarm.mjs` |
+| `[MODIFY]` | `docs/evidence/2026-09-06/seam-ledger.json` | rewritten whole by `scripts/seam-ledger.mjs` |
+| `[MODIFY]` | `docs/evidence/2026-09-06/seam-ledger.md` | rewritten whole by `scripts/seam-ledger.mjs` |
+| `[MODIFY]` | `docs/evidence/2026-09-06/clan-chain.json` | rewritten whole by `scripts/clan-chain.mjs` |
+| `[MODIFY]` | `docs/evidence/2026-09-06/clan-chain.md` | rewritten whole by `scripts/clan-chain.mjs` |
+| `[MODIFY]` | `docs/evidence/2026-09-06/proof-tape.json` | rewritten whole by `scripts/proof-tape.mjs` |
+| `[MODIFY]` | `docs/evidence/2026-09-06/proof-tape.md` | rewritten whole by `scripts/proof-tape.mjs` |
 
 No file under `docs/evidence/` is hand-edited. An earlier version of this table gave that directory
 as one wildcard row, which review rejected: a wildcard cannot be checked against a diff, and it
@@ -56,6 +59,29 @@ which nothing imports. The one code-level defect this PR found — `vercel.json`
 document rules while `src/hooks.server.ts` documents it as omitted — is **recorded, not fixed**,
 precisely so that this stays a documentation change; the recommended patch is written down for a
 separate PR.
+
+**Do not touch:** anything under `src/`, `tests/`, `contracts/`, `scripts/` or `vercel.json`. Two
+code-level defects were found while writing this close-out — `vercel.json` listing HSTS on the
+document rules against its own documented rationale, and those rules not covering the emitted
+`.html` filenames — and both are **recorded with a proposed patch, not fixed here**, because fixing
+either turns this into a change that needs code review and its own test work. Do not edit
+`e2e.txt`, `probe-cache-seam.txt` or the `rewind-*.txt` evidence: they belong to #311's run and no
+command in this plan regenerates them.
+
+**Definition of Done:**
+
+```sh
+npm run lint && npm run build && npm run verify
+```
+
+Exits 0, with `verify` reporting 1559 passed / 1 skipped across 97 test files. The outer transcript
+is captured separately, to a scratch path and moved in after the chain returns, per
+`docs/evidence/README.md`:
+
+```sh
+{ npm run verify 2>&1; echo "verify exit=$?"; } > "$SCRATCH/verify-outer.txt" \
+  && mv "$SCRATCH/verify-outer.txt" docs/evidence/2026-09-06/verify-outer.txt
+```
 
 **Self-critique:** the risk here is not to the codebase, it is that a wrong close-out is copied
 forward by a future unattended run that treats this log as its source of prior results. That risk

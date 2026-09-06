@@ -1,6 +1,6 @@
 {
   "tool": "proof-tape",
-  "generatedAt": "2026-09-06T10:57:15.132Z",
+  "generatedAt": "2026-09-06T11:13:36.369Z",
   "evidenceDir": "docs/evidence/2026-09-06",
   "runMarker": "chamber-lock.json",
   "excludedFromInventory": [
@@ -14,15 +14,14 @@
     "probe-cache-seam.txt",
     "rewind-CacheSeam.txt",
     "rewind-DriftDetectionSeam(self-contained).txt",
-    "rewind-DriftDetectionSeam-self-contained.txt",
-    "verify-outer.txt"
+    "rewind-DriftDetectionSeam-self-contained.txt"
   ],
   "files": [
     {
       "name": "assumption-alarm.json",
       "path": "docs/evidence/2026-09-06/assumption-alarm.json",
-      "sizeBytes": 13207,
-      "modifiedAt": "2026-09-06T10:57:14.914Z",
+      "sizeBytes": 13157,
+      "modifiedAt": "2026-09-06T11:13:36.142Z",
       "commands": [],
       "predatesRun": false
     },
@@ -30,7 +29,7 @@
       "name": "build.txt",
       "path": "docs/evidence/2026-09-06/build.txt",
       "sizeBytes": 12512,
-      "modifiedAt": "2026-09-06T10:55:22.062Z",
+      "modifiedAt": "2026-09-06T11:11:42.638Z",
       "commands": [
         "meechies-coloringbook@0.1.0 build",
         "vite build",
@@ -42,7 +41,7 @@
       "name": "chamber-lock.json",
       "path": "docs/evidence/2026-09-06/chamber-lock.json",
       "sizeBytes": 35315,
-      "modifiedAt": "2026-09-06T10:55:22.962Z",
+      "modifiedAt": "2026-09-06T11:11:43.574Z",
       "commands": [],
       "predatesRun": false
     },
@@ -50,7 +49,7 @@
       "name": "clan-chain.json",
       "path": "docs/evidence/2026-09-06/clan-chain.json",
       "sizeBytes": 3181,
-      "modifiedAt": "2026-09-06T10:57:15.058Z",
+      "modifiedAt": "2026-09-06T11:13:36.286Z",
       "commands": [],
       "predatesRun": false
     },
@@ -58,7 +57,7 @@
       "name": "clan-chain.md",
       "path": "docs/evidence/2026-09-06/clan-chain.md",
       "sizeBytes": 1956,
-      "modifiedAt": "2026-09-06T10:57:15.058Z",
+      "modifiedAt": "2026-09-06T11:13:36.286Z",
       "commands": [],
       "predatesRun": false
     },
@@ -77,7 +76,7 @@
       "name": "lint.txt",
       "path": "docs/evidence/2026-09-06/lint.txt",
       "sizeBytes": 60,
-      "modifiedAt": "2026-09-06T10:55:08.602Z",
+      "modifiedAt": "2026-09-06T11:11:28.130Z",
       "commands": [
         "meechies-coloringbook@0.1.0 lint",
         "eslint ."
@@ -123,7 +122,7 @@
       "name": "seam-ledger.json",
       "path": "docs/evidence/2026-09-06/seam-ledger.json",
       "sizeBytes": 37511,
-      "modifiedAt": "2026-09-06T10:57:14.994Z",
+      "modifiedAt": "2026-09-06T11:13:36.222Z",
       "commands": [],
       "predatesRun": false
     },
@@ -131,15 +130,15 @@
       "name": "seam-ledger.md",
       "path": "docs/evidence/2026-09-06/seam-ledger.md",
       "sizeBytes": 2981,
-      "modifiedAt": "2026-09-06T10:57:14.994Z",
+      "modifiedAt": "2026-09-06T11:13:36.222Z",
       "commands": [],
       "predatesRun": false
     },
     {
       "name": "shaolin-lint.json",
       "path": "docs/evidence/2026-09-06/shaolin-lint.json",
-      "sizeBytes": 517,
-      "modifiedAt": "2026-09-06T10:57:14.850Z",
+      "sizeBytes": 519,
+      "modifiedAt": "2026-09-06T11:13:36.074Z",
       "commands": [],
       "predatesRun": false
     },
@@ -147,7 +146,7 @@
       "name": "test.txt",
       "path": "docs/evidence/2026-09-06/test.txt",
       "sizeBytes": 3231,
-      "modifiedAt": "2026-09-06T10:57:14.750Z",
+      "modifiedAt": "2026-09-06T11:13:35.966Z",
       "commands": [
         "meechies-coloringbook@0.1.0 test",
         "vitest run --pool=forks --maxWorkers=1"
@@ -155,27 +154,10 @@
       "predatesRun": false
     },
     {
-      "name": "verify-outer.txt",
-      "path": "docs/evidence/2026-09-06/verify-outer.txt",
-      "sizeBytes": 3654,
-      "modifiedAt": "2026-09-06T10:54:11.534Z",
-      "commands": [
-        "meechies-coloringbook@0.1.0 verify",
-        "npm run audit:gate && node scripts/chamber-lock.mjs && node scripts/verify-runner.mjs && node scripts/shaolin-lint.mjs && node scripts/assumption-alarm.mjs && node scripts/seam-ledger.mjs && node scripts/clan-chain.mjs && node scripts/proof-tape.mjs",
-        "meechies-coloringbook@0.1.0 audit:gate",
-        "npm audit --audit-level=high",
-        "meechies-coloringbook@0.1.0 check",
-        "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-        "meechies-coloringbook@0.1.0 test",
-        "vitest run --pool=forks --maxWorkers=1"
-      ],
-      "predatesRun": true
-    },
-    {
       "name": "verify.txt",
       "path": "docs/evidence/2026-09-06/verify.txt",
       "sizeBytes": 3556,
-      "modifiedAt": "2026-09-06T10:57:14.750Z",
+      "modifiedAt": "2026-09-06T11:13:35.966Z",
       "commands": [
         "meechies-coloringbook@0.1.0 check",
         "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",

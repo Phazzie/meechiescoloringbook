@@ -9689,6 +9689,15 @@ once. So the guarantee is split across two files and a future header change has 
 this correction came from review rather than from me is the awkward part: the assertions naming
 those three alias paths are in a test this run wrote.
 
+**And the rules have a hole this run did not find.** Review did, on the last pass: the build emits
+`index.html`, `offline.html` and `m/<slug>.html`, and Vercel's filesystem handler serves those URLs
+directly. Every `vercel.json` document rule names the extensionless form, so `/offline.html` matches
+nothing and carries no security headers — the same defect this run set out to fix, one path shape
+over. `tests/unit/security-headers.test.ts` cannot see it either, because it derives its paths from
+the routes rather than from the build output, which is the limit of deriving a test from the same
+source as the thing it checks. Recorded in the Assumption as explicitly out of scope rather than
+quietly folded in, since closing that Assumption will say nothing about these URLs.
+
 **Four headers ride on it, not five.** An earlier draft said all five came from those rules "and
 from nothing else", which overstated the exposure and was caught in review. `Strict-Transport-Security`
 is set independently by Vercel's edge — that is what the 2026-09-03 entry records finding in
@@ -9828,12 +9837,16 @@ Every close-out here has tried to name one. The honest one is narrower than any 
 
 > **A fix is new code, and it gets reviewed like new code.**
 
-Three times a fix for a review finding introduced a defect of a different class than the one it
-fixed. The trailing-slash trim was right about slashes and wrong about backtracking. The redirect was
-right about SvelteKit's router and wrong about building a URL from a request. `safeReturnPath` — a
-validator written specifically to stop an open redirect — admitted one, because URL parsers strip
-whitespace before parsing and every check in it was a string-prefix test. **The local gate was green
-for all three.**
+**Four times** during #311 a fix for a review finding introduced a defect of a different class than
+the one it fixed. The trailing-slash trim was right about slashes and wrong about backtracking. The
+redirect was right about SvelteKit's router and wrong about building a URL from a request. The
+`CacheSeam` probe — itself written to answer a review finding — spawned `npm` through `PATH`, which
+is what SonarCloud's security rating was actually about and what `process.execPath` fixed. And
+`safeReturnPath`, a validator written specifically to stop an open redirect, admitted one, because
+URL parsers strip whitespace before parsing and every check in it was a string-prefix test. **The
+local gate was green for all four.** An earlier draft of this paragraph said three, having dropped
+the probe to make room for the validator — the same displacement that the findings ledger below was
+restructured to prevent, in the sentence naming the habit.
 
 And the corollary, which cost this run the most time and is the least flattering:
 
@@ -9866,7 +9879,9 @@ mode — later passes append rather than displace, and any total is recoverable 
 | `8a58e92` | 4 | `lint` and `build` evidence never refreshed |
 | `d38dcfe` | 2 | — |
 | `2244765` | 3 | no micro Plan + Self-Critique for a governance-only change |
-| `28ea7c7` | 3 | `verify-outer.txt`, the only full-chain transcript, never regenerated |
+| `28ea7c7` | 3 | — |
+| `51b09d9` | 5 | `verify-outer.txt`, the only full-chain transcript, never regenerated; the plan's evidence inventory given as a wildcard |
+| `552c99d` | 7 | the plan's rows carrying no action marker; the plan never closing on a literal command |
 
 **The P1s.** An open Assumption reported as absent, on the very feature that made it load-bearing.
 A merge-gate stand-down argued from evidence this same log records a reviewer rejecting on #305.
