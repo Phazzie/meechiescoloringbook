@@ -28,6 +28,8 @@ import { createQuotaGate } from '$lib/server/rate-limit-route';
 import type { QuotaDecision } from '$lib/server/rate-limit-route';
 import { runGeneratePipeline } from '../../src/lib/core/generate-pipeline';
 import { POST } from '../../src/routes/api/generate/+server';
+import { GenerateResultSchema } from '../../contracts/generate.contract';
+import { driftDetectionAdapter } from '$lib/adapters/drift-detection-seam';
 
 const CLIENT_ADDRESS = '203.0.113.7';
 
@@ -711,5 +713,113 @@ describe('/api/generate', () => {
 		expect(consumeQuota).toHaveBeenCalledWith(1);
 		expect(runImageGenerationPipeline).not.toHaveBeenCalled();
 		expect(generate).not.toHaveBeenCalled();
+	});
+
+	// The route-level contract tests for `driftCheckFailure`. `/api/generate` has no probe, fixtures,
+	// mock or adapter of its own — it is pure orchestration over seams that have theirs — so these,
+	// run against the real `driftDetectionAdapter` and parsed by the real `GenerateResultSchema`,
+	// are what a contract test means here.
+	const withRevisedPrompt = (revisedPrompt: string) =>
+		buildPipelineDeps(async () => ({
+			status: 200,
+			body: {
+				ok: true,
+				value: {
+					images: [
+						{
+							id: 'image-1',
+							format: 'png',
+							mimeType: 'image/png',
+							data: 'abc123',
+							encoding: 'base64'
+						}
+					],
+					revisedPrompt,
+					modelMetadata: { provider: 'xai', model: 'grok-imagine-image' }
+				}
+			}
+		}));
+
+	it('publishes driftCheckFailure when a provider rewrite drops the required headings', async () => {
+		// The production scenario this whole change exists for, reproduced rather than simulated: the
+		// seam grades `revisedPrompt` over `promptSent`, and a provider rewrite is prose carrying none
+		// of `PROMPT_REQUIRED_HEADINGS`, so the real adapter declines to grade.
+		const deps = withRevisedPrompt(
+			'A beautiful black and white coloring page of a crown, drawn in clean line art.'
+		);
+		deps.detectDrift = driftDetectionAdapter.detect;
+
+		const result = await runGeneratePipeline({ spec: validSpec }, deps);
+
+		expect(result.status).toBe(200);
+		expect(GenerateResultSchema.safeParse(result.body).success).toBe(true);
+		expect(result.body.ok).toBe(true);
+		if (result.body.ok) {
+			expect(result.body.value.driftCheckFailure?.code).toBe('MISSING_REQUIRED_SECTION');
+			// Empty because nothing was graded — which is only honest because the field above says so.
+			expect(result.body.value.violations).toEqual([]);
+			expect(result.body.value.recommendedFixes).toEqual([]);
+		}
+	});
+
+	it('omits driftCheckFailure when the drift check does return a verdict', async () => {
+		// Keeps `buildPipelineDeps`'s stub `detectDrift`, which returns a verdict. The real adapter is
+		// not used here on purpose: this file's `assemblePrompt` is itself a stub returning a fixed
+		// string that carries none of `PROMPT_REQUIRED_HEADINGS`, so the real adapter would decline
+		// for the wrong reason and the test would pass while proving nothing about the success path.
+		const deps = buildPipelineDeps(async () => ({
+			status: 200,
+			body: {
+				ok: true,
+				value: {
+					images: [
+						{
+							id: 'image-1',
+							format: 'png',
+							mimeType: 'image/png',
+							data: 'abc123',
+							encoding: 'base64'
+						}
+					],
+					modelMetadata: { provider: 'xai', model: 'grok-imagine-image' }
+				}
+			}
+		}));
+
+		const result = await runGeneratePipeline({ spec: validSpec }, deps);
+
+		expect(result.status).toBe(200);
+		expect(GenerateResultSchema.safeParse(result.body).success).toBe(true);
+		expect(result.body.ok).toBe(true);
+		if (result.body.ok) {
+			// Absent, not present-and-undefined: the absence is what tells a consumer an empty
+			// violation list is a real verdict rather than a check that never ran.
+			expect('driftCheckFailure' in result.body.value).toBe(false);
+		}
+	});
+
+	it('rejects a response claiming both a failed check and violations', () => {
+		// The schema enforces the invariant its own documentation states, rather than describing it.
+		const contradictory = {
+			ok: true,
+			value: {
+				prompt: 'p',
+				templateVersion: 'v',
+				images: [
+					{
+						id: 'image-1',
+						format: 'png',
+						mimeType: 'image/png',
+						data: 'abc',
+						encoding: 'base64'
+					}
+				],
+				violations: [{ code: 'X', message: 'y', severity: 'error' }],
+				recommendedFixes: [],
+				driftCheckFailure: { code: 'MISSING_REQUIRED_SECTION', message: 'no heading' }
+			}
+		};
+
+		expect(GenerateResultSchema.safeParse(contradictory).success).toBe(false);
 	});
 });

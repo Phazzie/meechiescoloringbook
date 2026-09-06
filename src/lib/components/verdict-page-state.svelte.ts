@@ -8,6 +8,18 @@
 //      once, here, is the only way it stays fixed.
 // Info flow: tool input -> /api/tools -> verdict -> buildToolPageRecipe -> /api/generate ->
 //            previews + packaged files -> CreationStoreSeam.
+// Invariants: `driftReported` is independent of both `violations.length` and page presence, and the
+//             lifecycle must never collapse them again: an empty violation list means "checked,
+//             nothing wrong" AND "no check has spoken", which are opposite claims, and only this
+//             flag separates them. When a replacement generation returns no decodable image, the
+//             page already on screen keeps BOTH its picture and its report — the new request's
+//             findings are surfaced only when there is no page to protect, because attaching them
+//             to a page they do not describe is the conflation this reporting exists to remove.
+//             Those pageless findings belong to a REQUEST, so every path that changes the request
+//             must clear them. Page presence cannot stand in for that: after such a request
+//             `hasPage`, `isGenerating` and `imagePreviews` all read exactly as they do before the
+//             first one, so a guard written against them alone leaves the report on screen under a
+//             dedication it was never checked against.
 import { creationStoreAdapter } from '$lib/adapters/creation-store-seam';
 import { outputPackagingAdapter } from '$lib/adapters/output-packaging-seam';
 import { sessionAdapter } from '$lib/adapters/session-seam';
@@ -23,6 +35,7 @@ import {
 	buildToolStudioText
 } from '$lib/core/tool-page-recipe';
 import type { ToolPageRecipe } from '$lib/core/tool-page-recipe';
+import { buildQualityReport } from '$lib/core/quality-report';
 import {
 	MeechieToolInputSchema,
 	MeechieToolResultSchema
@@ -231,6 +244,28 @@ export class VerdictPageState {
 	 */
 	violations = $state<GenerateResponseValue['violations']>([]);
 	recommendedFixes = $state<GenerateResponseValue['recommendedFixes']>([]);
+	/**
+	 * True when the drift check has reported on the page currently installed.
+	 *
+	 * Same reason as the home studio's field of this name: an empty `violations` means both "checked
+	 * and clean" and "never checked", and the drift block used to render the second as the first by
+	 * showing nothing at all. Written only where `violations` is written — the install below and the
+	 * reset above.
+	 */
+	private driftReported = $state(false);
+	/** Why the drift check returned no verdict, when `/api/generate` said it returned none. */
+	private driftCheckFailure = $state<GenerateResponseValue['driftCheckFailure']>(undefined);
+	/** What the drift block says about the page currently installed. */
+	qualityReport = $derived(
+		buildQualityReport({
+			// Page presence and check completion are separate facts; see `buildQualityReport`.
+			hasPage: this.imagePreviews.length > 0,
+			driftChecked: this.driftReported,
+			violations: this.violations,
+			recommendedFixes: this.recommendedFixes,
+			driftCheckFailure: this.driftCheckFailure
+		})
+	);
 
 	// --- Page controls ---
 	dedication = $state('');
@@ -341,6 +376,8 @@ export class VerdictPageState {
 		this.revisedPrompt = '';
 		this.violations = [];
 		this.recommendedFixes = [];
+		this.driftReported = false;
+		this.driftCheckFailure = undefined;
 		this.vaultStatus = '';
 		this.copyStatus = '';
 		this.generatedImages = [];
@@ -366,10 +403,22 @@ export class VerdictPageState {
 	 * `isGenerating` matters as much as an installed page: while `/api/generate` is pending there is
 	 * no recipe and no preview yet, so checking only those would return without bumping the token,
 	 * and the in-flight page — built with the previous dedication — would land beneath the new one.
+	 *
+	 * `driftReported` is the same argument one step further out, and the reason the first three flags
+	 * are not enough on their own. A request whose image could not be decoded installs no page and
+	 * leaves nothing generating, but it does leave its own findings on screen — so all three read
+	 * false while a report describing the previous prompt is still rendered. Returning early there
+	 * left that report sitting under a dedication it was never checked against. Diagnostics that
+	 * belong to a request rather than to a page have to be cleared when the request changes.
 	 */
 	setDedication(value: string): void {
 		this.dedication = value;
-		if (!this.isGenerating && !this.hasPage && this.imagePreviews.length === 0)
+		if (
+			!this.isGenerating &&
+			!this.hasPage &&
+			this.imagePreviews.length === 0 &&
+			!this.driftReported
+		)
 			return;
 		this.resetPage();
 	}
@@ -499,6 +548,18 @@ export class VerdictPageState {
 				// replacement is not a reason to destroy it.
 				this.generateError =
 					'The provider returned an image that could not be read. The page on screen was kept.';
+			// With no page already on screen there is nothing to protect, so the request's own findings
+			// are the most useful thing the reader can be given — the home studio records its trace
+			// above its no-picture guard for exactly this reason. When a page *is* on screen it keeps
+			// its own report: attaching this request's findings to a page they do not describe is the
+			// conflation this whole change exists to remove, so the fix is conditional rather than
+			// simply hoisting the assignment above the guard.
+				if (!this.hasPage) {
+					this.violations = parsed.data.value.violations;
+					this.recommendedFixes = parsed.data.value.recommendedFixes;
+					this.driftCheckFailure = parsed.data.value.driftCheckFailure;
+					this.driftReported = true;
+				}
 				return;
 			}
 			const images = usable.map((entry) => entry.image);
@@ -514,6 +575,8 @@ export class VerdictPageState {
 			this.revisedPrompt = parsed.data.value.revisedPrompt ?? '';
 			this.violations = parsed.data.value.violations;
 			this.recommendedFixes = parsed.data.value.recommendedFixes;
+			this.driftReported = true;
+			this.driftCheckFailure = parsed.data.value.driftCheckFailure;
 			this.imagePreviews = usable
 				.map((entry) => entry.preview)
 				.filter((url): url is string => url !== null);

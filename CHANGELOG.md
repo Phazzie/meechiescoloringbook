@@ -8,6 +8,12 @@ Info flow: Changes -> entries -> release communication.
 All notable user-visible changes for this repo.
 
 ## Unreleased
+- A page whose check could not be run is no longer reported as a page with nothing wrong with it. When the image provider rewrites the request — which is when your page is most likely to have lost something you asked for — the check that catches exactly that used to fail and be recorded as zero problems found. It now says the page could not be checked, and why.
+- The check now tells you what would fix each thing it found. A remedy was being worked out for nearly every problem, saved alongside the page, and shown to nobody.
+- A problem and a remark are now told apart. Everything the check found was previously listed identically, so something that changed your page read the same as a passing note about it.
+- The quality panel no longer says a page is fine before you have made one. An empty result meant both "checked, nothing wrong" and "nothing checked yet", and the panel showed the reassuring one — so a studio you had just opened reported a clean page it did not have.
+- The panel says what it found in plain words. It used to print the checker's internal code in front of each line, and label two boxes of prompt text with nothing to say what they were or why they differ.
+- All three places that make a page — the home studio, the toolkit, and the mode pages — now report the same way. They were three separate copies, and each was missing something different.
 - A saved page now keeps the look it was made with. The theme, Meechie's voice settings and the glitter toggle are stored with the page and put back when you reopen it — previously only page size and border came back, so a reopened page showed the default theme and voice, and changing any one control silently restyled the page with five others. A page saved before this change says its style is not on file instead of presenting the defaults as its own.
 - The same is true after a refresh: the draft the studio saves as you work now carries the style with it.
 - Page Controls explains itself. Every theme, voice setting, page size and border says what it does, the panel's summary names what it is currently set to while it is closed, and it states that a change applies to the next page you make rather than to the one on screen.

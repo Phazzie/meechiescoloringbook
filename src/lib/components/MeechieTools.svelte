@@ -5,9 +5,22 @@ Why: Keep non-technical users in one place while reusing seam-backed tools. Ever
      missing, so each verdict now prints, downloads, and saves to the vault.
 Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api/generate ->
            preview + packaged files -> CreationStoreSeam.
+Invariants: `driftReported` is independent of `violations.length` and of page presence, and must
+            stay so: an empty violation list means both "checked, nothing wrong" and "no check has
+            spoken", and only this flag tells them apart. When a replacement generation returns no
+            decodable image, the page on screen keeps both its picture and its report; the new
+            request's findings are surfaced only when there is no page to protect, because
+            attaching them to a page they do not describe is what this reporting exists to stop.
+            Those pageless findings belong to a REQUEST, so every path that changes the request must
+            clear them. Page presence cannot stand in for that: after such a request `lastRecipe`,
+            `isGenerating` and `imagePreviews` all read exactly as they do before the first one, so a
+            guard written against them alone leaves the report on screen under a dedication it was
+            never checked against.
 -->
 <script lang="ts">
 	import { POST_JSON_TIMEOUTS_MS, postJson } from '$lib/core/http-client';
+	import { buildQualityReport } from '$lib/core/quality-report';
+	import QualityReportPanel from './QualityReportPanel.svelte';
 	import type {
 		MeechieToolInput,
 		MeechieToolOutput
@@ -139,6 +152,22 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 	// what the studio flow does.
 	let violations: GenerateResponseValue['violations'] = [];
 	let recommendedFixes: GenerateResponseValue['recommendedFixes'] = [];
+	// True once the drift check has reported on the page currently on screen. `violations.length`
+	// cannot stand in for this: an empty list is both "checked, nothing wrong" and "not checked",
+	// and the block below used to render the second as the first by showing nothing at all.
+	let driftReported = false;
+	// Why the drift check returned no verdict, when `/api/generate` said it returned none.
+	let driftCheckFailure: GenerateResponseValue['driftCheckFailure'] = undefined;
+	// The same transform the home studio and the mode routes use, so all three surfaces agree on
+	// what a warning is, what an unfinished check is, and when silence means clean.
+	$: qualityReport = buildQualityReport({
+		// Page presence and check completion are separate facts; see `buildQualityReport`.
+		hasPage: imagePreviews.length > 0,
+		driftChecked: driftReported,
+		violations,
+		recommendedFixes,
+		driftCheckFailure
+	});
 	let lastRecipe: ToolPageRecipe | null = null;
 	// The verdict the currently displayed page was built from. Kept separate from `output`, which
 	// changes the moment the user switches tools or asks for a new take.
@@ -188,6 +217,8 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 		revisedPrompt = '';
 		violations = [];
 		recommendedFixes = [];
+		driftReported = false;
+		driftCheckFailure = undefined;
 		lastRecipe = null;
 		pageVerdict = null;
 		vaultStatus = '';
@@ -229,7 +260,18 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 		// is still pending, `lastRecipe` and `imagePreviews` are both empty, so checking only those
 		// would return without bumping the token — and the in-flight page, built with the previous
 		// dedication, would then land beneath the new one.
-		if (!isGenerating && lastRecipe === null && imagePreviews.length === 0)
+		//
+		// `driftReported` is the same argument one step further out, and the reason the first three
+		// are not enough on their own. A request whose image could not be decoded installs no page
+		// and leaves nothing generating, but it does leave its own findings on screen — so all three
+		// read false while a report describing the previous prompt is still rendered. Returning early
+		// there left that report sitting under a dedication it was never checked against.
+		if (
+			!isGenerating &&
+			lastRecipe === null &&
+			imagePreviews.length === 0 &&
+			!driftReported
+		)
 			return;
 		resetPage();
 	};
@@ -320,6 +362,18 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 			if (usable.length === 0) {
 				generateError =
 					'The provider returned an image that could not be read. The page on screen was kept.';
+			// With no page already on screen there is nothing to protect, so the request's own findings
+			// are the most useful thing the reader can be given — the home studio records its trace
+			// above its no-picture guard for exactly this reason. When a page *is* on screen it keeps
+			// its own report: attaching this request's findings to a page they do not describe is the
+			// conflation this whole change exists to remove, so the fix is conditional rather than
+			// simply hoisting the assignment above the guard.
+				if (generatedImages.length === 0) {
+					violations = parsed.data.value.violations;
+					recommendedFixes = parsed.data.value.recommendedFixes;
+					driftCheckFailure = parsed.data.value.driftCheckFailure;
+					driftReported = true;
+				}
 				return;
 			}
 			const images = usable.map((entry) => entry.image);
@@ -342,6 +396,8 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 			revisedPrompt = parsed.data.value.revisedPrompt ?? '';
 			violations = parsed.data.value.violations;
 			recommendedFixes = parsed.data.value.recommendedFixes;
+			driftReported = true;
+			driftCheckFailure = parsed.data.value.driftCheckFailure;
 			imagePreviews = usable
 				.map((entry) => entry.preview)
 				.filter((url): url is string => url !== null);
@@ -807,16 +863,12 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 				{/if}
 			</button>
 
-			{#if violations.length > 0}
-				<div class="drift" data-testid="meechie-tool-violations">
-					<p class="drift-title">The page drifted from what was asked for</p>
-					<ul>
-						{#each violations as violation}
-							<li>{violation.message}</li>
-						{/each}
-					</ul>
-				</div>
-			{/if}
+			<QualityReportPanel
+				report={qualityReport}
+				cleanTestId="meechie-tool-clean"
+				flaggedTestId="meechie-tool-violations"
+				fixesTestId="meechie-tool-fixes"
+			/>
 
 			{#if imagePreviews.length > 0}
 				<div class="preview-grid" data-testid="meechie-tool-preview">
@@ -1250,30 +1302,18 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 		border-radius: 2px;
 	}
 
-	.drift {
-		border-radius: 4px;
-		padding: 0.7rem 0.9rem;
-		background: rgba(201, 162, 39, 0.09);
-		border: 1px solid rgba(201, 162, 39, 0.35);
-		color: rgba(253, 246, 227, 0.88);
-		font-size: 0.87rem;
-	}
 
-	.drift-title {
-		margin: 0 0 0.35rem;
-		font-family: var(--font-label, 'Barlow Condensed', sans-serif);
-		font-weight: 700;
-		letter-spacing: 0.08em;
-		text-transform: uppercase;
-		font-size: 0.78rem;
-		color: var(--gold-bright, #f0c44a);
-	}
 
-	.drift ul {
-		margin: 0;
-		padding-left: 1.1rem;
-		line-height: 1.5;
-	}
+
+
+
+
+
+
+
+
+	/* The fixes carry no severity, so they get no tag column. */
+
 
 	.page-actions {
 		display: flex;

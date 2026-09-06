@@ -164,6 +164,15 @@ const makePageAndKeepIt = async (page: Page): Promise<void> => {
 	await expect(page.locator('.preview-grid img')).toBeVisible();
 	await expect(page.getByTestId('verdict-page-download').first()).toBeVisible();
 
+	// The mode routes report a clean check, not just a drifted one. Rendering only `flagged` here
+	// left a page that passed every check and a page nothing had ever looked at producing identical
+	// empty output — the conflation this whole change exists to remove, surviving on two of the
+	// three surfaces.
+	await expect(page.getByTestId('verdict-page-clean')).toContainText(
+		'The prompt carried every constraint this check covers.'
+	);
+	await expect(page.getByTestId('verdict-page-violations')).toHaveCount(0);
+
 	await page.getByTestId('verdict-page-save-vault').click();
 	await expect(page.getByTestId('verdict-page-vault-status')).toContainText(
 		'Saved to the vault'
@@ -175,6 +184,25 @@ const makePageAndKeepIt = async (page: Page): Promise<void> => {
 
 test.beforeEach(async ({ page }) => {
 	await stubApis(page);
+});
+
+test('System Trace does not call an ungenerated page clean', async ({ page }) => {
+	// The defect the quality report was built for. `violations` starts empty, and the panel used to
+	// render an empty list as "No quality flags" — the identical sentence it showed for a page that
+	// had genuinely passed every check. A reader who had generated nothing was told their page was
+	// fine.
+	await gotoHydrated(page, '/');
+
+	const trace = page.getByTestId('system-trace-quality');
+	await page.locator('details.diagnostics summary').click();
+
+	await expect(trace).toHaveAttribute('data-state', 'unchecked');
+	await expect(page.getByTestId('system-trace-unchecked')).toContainText(
+		'Nothing on the paper yet.'
+	);
+	// The clean verdict is absent, not merely worded differently.
+	await expect(page.getByTestId('system-trace-clean')).toHaveCount(0);
+	await expect(page.getByTestId('system-trace-flag-count')).toHaveCount(0);
 });
 
 test('home mode switching and generation controls work', async ({ page }) => {
@@ -937,7 +965,18 @@ test('editing the dedication drops the page it was not generated with, and drift
 					code: 'TEXT_DRIFT',
 					message: 'The printed title lost a word.',
 					severity: 'warning'
+				},
+				{
+					code: 'MISSING_OPTION_LINE',
+					message: 'Missing option line: Border: thin.',
+					severity: 'error'
 				}
+			],
+			// The seam computes one of these next to nearly every violation. Until this run the app
+			// stored them, wrote them into saved records as `fixesApplied`, and showed them to
+			// nobody.
+			recommendedFixes: [
+				{ code: 'ADD_OPTION_LINE', message: 'Add option line: Border: thin.' }
 			]
 		}
 	};
@@ -956,6 +995,22 @@ test('editing the dedication drops the page it was not generated with, and drift
 	// Drift diagnostics are shown rather than discarded behind a page that looks clean.
 	await expect(page.getByTestId('meechie-tool-violations')).toContainText(
 		'The printed title lost a word.'
+	);
+
+	// The error and the warning are told apart rather than rendered identically.
+	const findings = page.getByTestId('meechie-tool-violations').locator('ul').first().locator('li');
+	await expect(findings.filter({ hasText: 'Missing option line' })).toHaveClass(/blocker/);
+	// The tag says what the check actually established: a requirement the prompt dropped.
+	// "Off-spec", not "Dropped": the adapter also flags tokens that are *present*, so a tag meaning
+	// "missing" would contradict half the findings it sits beside.
+	await expect(findings.filter({ hasText: 'Missing option line' })).toContainText('Off-spec');
+	await expect(findings.filter({ hasText: 'lost a word' })).toHaveClass(/note/);
+	// The blocker sorts above the note regardless of the order the seam reported them in.
+	await expect(findings.first()).toContainText('Missing option line: Border: thin.');
+
+	// And the remedy the seam computed alongside them is on screen.
+	await expect(page.getByTestId('meechie-tool-fixes')).toContainText(
+		'Add option line: Border: thin.'
 	);
 
 	// Changing the dedication invalidates the page generated for the previous one, so there is no

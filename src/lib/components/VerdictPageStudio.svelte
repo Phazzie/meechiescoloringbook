@@ -6,9 +6,15 @@ Why: The three standalone mode routes each owned a private copy of this markup, 
      print/share downloads, and the vault save that only the studio and the tools hub had, and a
      fix to any of them lands on all three at once.
 Info flow: VerdictPageState (props) -> user actions -> state methods -> reactive redraw.
+Invariants: The quality report is rendered ONLY through `QualityReportPanel`, never re-implemented
+            here. A private copy is exactly how this surface previously came to render a warning
+            identically to an error, show no recommended fix at all, and drop two of the report's
+            states while the tools hub kept them. One renderer is the fix; a second one is the bug
+            coming back.
 -->
 <script lang="ts">
 	import type { VerdictPageState } from './verdict-page-state.svelte';
+	import QualityReportPanel from './QualityReportPanel.svelte';
 
 	let {
 		studio,
@@ -88,18 +94,12 @@ Info flow: VerdictPageState (props) -> user actions -> state methods -> reactive
 		{studio.isGenerating ? 'Printing the truth…' : 'Generate My Coloring Page'}
 	</button>
 
-	{#if studio.violations.length > 0}
-		<div class="drift" data-testid="verdict-page-violations">
-			<p class="drift-title">The page drifted from what was asked for</p>
-			<ul>
-				<!-- Deliberately unkeyed: `code` is not unique across violations (two lines can
-				     breach the same rule), and a duplicate key is a runtime error in Svelte. -->
-				{#each studio.violations as violation}
-					<li>{violation.message}</li>
-				{/each}
-			</ul>
-		</div>
-	{/if}
+	<QualityReportPanel
+		report={studio.qualityReport}
+		cleanTestId="verdict-page-clean"
+		flaggedTestId="verdict-page-violations"
+		fixesTestId="verdict-page-fixes"
+	/>
 
 	{#if studio.imagePreviews.length > 0}
 		<div class="preview-grid" data-testid="verdict-page-preview">
@@ -300,29 +300,18 @@ Info flow: VerdictPageState (props) -> user actions -> state methods -> reactive
 		color: #ff8fab;
 	}
 
-	.drift {
-		padding: 0.8rem 1rem;
-		border-radius: 0.6rem;
-		border: 1px solid rgba(201, 162, 39, 0.35);
-		background: rgba(201, 162, 39, 0.08);
-	}
 
-	.drift-title {
-		margin: 0 0 0.4rem;
-		font-family: var(--font-label, 'Barlow Condensed', sans-serif);
-		font-size: 0.76rem;
-		font-weight: 700;
-		text-transform: uppercase;
-		letter-spacing: 0.1em;
-		color: var(--gold-bright, #f0c44a);
-	}
 
-	.drift ul {
-		margin: 0;
-		padding-left: 1.1rem;
-		font-size: 0.86rem;
-		color: var(--lavender, #b8aacf);
-	}
+
+
+
+
+
+
+
+
+	/* The fixes are a plain list — they carry no severity, so they get no tag column. */
+
 
 	.preview-grid {
 		display: grid;

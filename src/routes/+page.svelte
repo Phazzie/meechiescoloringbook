@@ -3,6 +3,11 @@ Purpose: Main Meechie coloring-page studio with wig try-on.
 Why: Generate AI-backed Meechie wording, printable coloring pages, and wig try-on portraits.
 Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/store seams.
            Wig selection + selfie -> /api/wig-try-on -> xAI portrait -> coloring page.
+Invariants: `SystemTrace` receives `promptWasSent` from the state and must never be left to infer
+            it from `assembledPrompt` being non-empty — the try-on flow fills that field with a
+            description it never sent. Likewise `report` is passed whole: the panel switches on its
+            state, so handing it loose arrays would put the "empty means clean" inference back in a
+            component.
 -->
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
@@ -145,8 +150,8 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 	<SystemTrace
 		assembledPrompt={studio.assembledPrompt}
 		revisedPrompt={studio.revisedPrompt}
-		validationIssues={studio.validationIssues}
-		violations={studio.violations}
+		promptWasSent={studio.promptWasSent}
+		report={studio.qualityReport}
 	/>
 </main>
 
@@ -1053,13 +1058,6 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		font-weight: 800;
 	}
 
-	:global(.studio .diagnostics-grid) {
-		display: grid;
-		grid-template-columns: repeat(3, 1fr);
-		gap: 1rem;
-		margin-top: 1rem;
-	}
-
 	@media (max-width: 1100px) {
 		:global(.studio .workbench) {
 			grid-template-columns: 1fr;
@@ -1121,7 +1119,6 @@ Info flow: User evidence -> MeechieStudioTextSeam -> page spec -> image/package/
 		}
 
 		:global(.studio .verdict-row),
-		:global(.studio .diagnostics-grid),
 		:global(.studio .settings-panel[open] .settings-content) {
 			grid-template-columns: 1fr;
 		}

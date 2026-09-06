@@ -501,6 +501,48 @@ describe('makePage', () => {
 		expect(state.imagePreviews).toEqual(previewsBefore);
 	});
 
+	it('surfaces the check result when nothing decodes and there is no page to protect', async () => {
+		// The no-usable-image guard returned before the drift state was assigned, so a first request
+		// that came back with findings but no readable picture showed only the image error and left
+		// the report `unchecked` — suppressing the very thing this change exists to surface.
+		const state = await readyState();
+		routes.tools = okTools(PLAIN_VERDICT);
+		routes.generate = okGenerate({
+			violations: [
+				{ code: 'MISSING_OPTION_LINE', message: 'Missing option line: Border: thin.', severity: 'error' }
+			]
+		});
+		stubImageDecoder(() => false);
+		await state.requestVerdict({ toolId: 'random_meechie' });
+		await state.makePage();
+
+		expect(state.hasPage).toBe(false);
+		expect(state.generateError).toContain('could not be read');
+		expect(state.qualityReport.state).toBe('flagged');
+		if (state.qualityReport.state === 'flagged') {
+			expect(state.qualityReport.findings[0].message).toContain('Missing option line');
+		}
+	});
+
+	it('leaves an existing page report alone when a replacement does not decode', async () => {
+		// The mirror of the test above, and the reason the fix is conditional rather than a hoist:
+		// a page on screen keeps its own report. Attaching a later request's findings to a page they
+		// do not describe is the conflation this change removes.
+		const state = await withPage(PLAIN_VERDICT);
+		const reportBefore = state.qualityReport;
+
+		routes.generate = okGenerate({
+			violations: [
+				{ code: 'MISSING_OPTION_LINE', message: 'a finding about a page that never landed', severity: 'error' }
+			]
+		});
+		stubImageDecoder(() => false);
+		await state.makePage();
+
+		expect(state.hasPage).toBe(true);
+		expect(state.qualityReport).toEqual(reportBefore);
+	});
+
 	it('does not start the square render once the run is already stale', async () => {
 		// The square variant rasterises a 1080px canvas. Starting it for a page the user has
 		// already replaced burns time and memory on a result guaranteed to be discarded.
@@ -747,6 +789,36 @@ describe('setDedication', () => {
 
 		expect(state.hasPage).toBe(false);
 		expect(state.imagePreviews).toEqual([]);
+	});
+
+	it('clears a pictureless request report, which no page-presence check can see', async () => {
+		// A request whose image never decoded installs no page and leaves nothing generating, so
+		// `hasPage`, `isGenerating` and `imagePreviews` all read exactly as they do before the first
+		// request — while its findings are on screen. The early return fired on that reading and left
+		// the report describing the previous prompt under a dedication it was never checked against.
+		const state = await readyState();
+		routes.tools = okTools(PLAIN_VERDICT);
+		routes.generate = okGenerate({
+			violations: [
+				{
+					code: 'MISSING_OPTION_LINE',
+					message: 'Missing option line: Border: thin.',
+					severity: 'error'
+				}
+			]
+		});
+		stubImageDecoder(() => false);
+		await state.requestVerdict({ toolId: 'random_meechie' });
+		await state.makePage();
+		expect(state.hasPage).toBe(false);
+		expect(state.qualityReport.state).toBe('flagged');
+
+		state.setDedication('For the group chat');
+
+		expect(state.dedication).toBe('For the group chat');
+		expect(state.qualityReport.state).toBe('unchecked');
+		expect(state.violations).toEqual([]);
+		expect(state.generateError).toBe('');
 	});
 
 	it('does not cancel an in-flight verdict request', async () => {

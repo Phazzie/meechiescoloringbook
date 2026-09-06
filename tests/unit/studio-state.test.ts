@@ -2380,6 +2380,90 @@ describe('StudioState page exports', () => {
 		expect(studio.assembledPrompt).toBe('the assembled prompt');
 	});
 
+	/** A completed generation that carried findings but no usable image. */
+	const arrangePagelessFindings = async (): Promise<StudioState> => {
+		const studio = new StudioState();
+		studio.textOutput = { ...DEFAULT_STUDIO_TEXT_OUTPUT };
+		vi.stubGlobal(
+			'fetch',
+			vi.fn().mockImplementation(
+				async () =>
+					new Response(
+						JSON.stringify({
+							ok: true,
+							value: {
+								prompt: 'the assembled prompt',
+								templateVersion: 'v2',
+								images: [],
+								violations: [
+									{
+										code: 'MISSING_OPTION_LINE',
+										message: 'Missing option line: Border: thin.',
+										severity: 'error'
+									}
+								],
+								recommendedFixes: []
+							}
+						}),
+						{ status: 200, statusText: 'OK' }
+					)
+			)
+		);
+		await studio.handleGeneratePage();
+		return studio;
+	};
+
+	it('retires a pageless request report when a control changes, since no page reset can', async () => {
+		// Every reset in this class hangs off replacing the *page*, and a response with findings and
+		// no image installs none — so the report and trace survived every later control change and
+		// went on describing a prompt built from settings the reader had since moved.
+		const studio = await arrangePagelessFindings();
+		expect(studio.qualityReport.state).toBe('flagged');
+		expect(studio.assembledPrompt).toBe('the assembled prompt');
+
+		await studio.syncSpecFromCurrentText('setting');
+
+		expect(studio.qualityReport.state).toBe('unchecked');
+		expect(studio.assembledPrompt).toBe('');
+		expect(studio.violations).toEqual([]);
+		expect(studio.generationError).toBe('');
+	});
+
+	it('retires it on a dedication edit too, which never rebuilds the spec', async () => {
+		const studio = await arrangePagelessFindings();
+		expect(studio.qualityReport.state).toBe('flagged');
+
+		studio.handleDedicationInput('For the group chat');
+
+		expect(studio.dedication).toBe('For the group chat');
+		expect(studio.qualityReport.state).toBe('unchecked');
+	});
+
+	it('leaves the report of a page on screen alone when a control changes', async () => {
+		// The mirror, and the whole safety of the two tests above: with a page on paper the report
+		// belongs to that page. The studio deliberately keeps a finished page and its trace while the
+		// reader sets up the next one, so clearing here would be the same defect pointed backwards.
+		const studio = arrangeGeneratedPage();
+		await studio.handleGeneratePage();
+		expect(studio.images.length).toBeGreaterThan(0);
+
+		studio.violations = [
+			{
+				code: 'MISSING_OPTION_LINE',
+				message: 'Missing option line: Border: thin.',
+				severity: 'error'
+			}
+		];
+		const promptBefore = studio.assembledPrompt;
+		const reportBefore = studio.qualityReport;
+		expect(reportBefore.state).toBe('flagged');
+
+		await studio.syncSpecFromCurrentText('setting');
+
+		expect(studio.qualityReport).toEqual(reportBefore);
+		expect(studio.assembledPrompt).toBe(promptBefore);
+	});
+
 	it('clears the whole export row when the page is replaced', async () => {
 		const studio = arrangeGeneratedPage();
 		vi.spyOn(outputPackagingAdapter, 'package').mockResolvedValue({

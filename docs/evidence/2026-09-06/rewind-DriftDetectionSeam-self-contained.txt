@@ -1,0 +1,14 @@
+
+> meechies-coloringbook@0.1.0 rewind
+> node scripts/rewind.mjs --seam DriftDetectionSeam (self-contained)
+
+
+[1m[46m RUN [49m[22m [36mv4.1.0 [39m[90m/home/user/meechiescoloringbook[39m
+
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m5 passed[39m[22m[90m (5)[39m
+[2m   Start at [22m 03:25:39
+[2m   Duration [22m 852ms[2m (transform 121ms, setup 40ms, import 126ms, tests 6ms, environment 527ms)[22m
+
+exit=0

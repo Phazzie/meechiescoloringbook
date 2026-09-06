@@ -1,50 +1,203 @@
 <!--
-Purpose: Collapsible diagnostics panel showing assembled prompt, model rewrite, and quality flags.
-Why: Extracted from +page.svelte; read-only view of generation debug data.
-Info flow: Parent passes all diagnostic values; no state or callbacks needed.
+Purpose: The home studio's quality report — what the checks found about the page on the paper, the
+         fixes they computed alongside, and the prompt trace behind both.
+Why: This panel used to render `{code}: {message}` for every finding, show none of the recommended
+     fixes the drift seam computes for nearly every violation, flatten a warning into an error, and
+     print "No quality flags" for a studio that had never generated anything — the same sentence it
+     printed for a page that had passed every check. It is the only surface that tells the reader
+     whether the page matches what was asked for, so each of those was the panel saying more than it
+     knew.
+Info flow: Parent passes the report built by `buildQualityReport` plus the two prompts; this renders
+           them. Read-only — no state, no callbacks.
+Invariants: A non-empty `assembledPrompt` is NOT evidence that a prompt was sent, and nothing here
+            may infer transmission from string presence. The wig try-on flow deliberately stores a
+            human description in that field because a vault record requires a non-empty one, and it
+            never calls a provider — so provenance arrives as the separate `promptWasSent` prop and
+            both prompt branches are gated on it. Reading the string alone put that description under
+            "What Was Sent" and reported "No rewrite reported" beneath it, inventing a request that
+            never happened. Likewise, an absent `revisedPrompt` means no rewrite was *reported*, not
+            that the provider used the prompt verbatim.
 -->
 <script lang="ts">
-	import type { SpecValidationOutput } from '../../../../contracts/spec-validation.contract';
-	import type { Violation } from '../../../../contracts/drift-detection.contract';
+	import {
+		describeQualityReport,
+		type QualityReport
+	} from '$lib/core/quality-report';
+	import QualityFindings from '../QualityFindings.svelte';
 
 	let {
 		assembledPrompt,
 		revisedPrompt,
-		validationIssues,
-		violations
+		promptWasSent,
+		report
 	}: {
 		assembledPrompt: string;
 		revisedPrompt: string;
-		validationIssues: SpecValidationOutput['issues'];
-		violations: Violation[];
+		/**
+		 * Whether `assembledPrompt` was actually sent to a provider.
+		 *
+		 * Not the same as "it is non-empty". The try-on flow writes a human description into
+		 * `assembledPrompt` purely because a vault record requires a non-empty one, and no request
+		 * is ever made — so treating any non-empty string as sent put that description under "What
+		 * Was Sent" and reported "No rewrite reported" beneath it, implying a provider call.
+		 */
+		promptWasSent: boolean;
+		report: QualityReport;
 	} = $props();
+
+	const headline = $derived(describeQualityReport(report));
+	// The provider only returns a rewrite for some models and some requests, and an absent one is
+	// not an empty one: an empty textarea labelled "Model Rewrite" reads as "the model rewrote your
+	// prompt to nothing", which is the opposite of what happened.
+	const hasRewrite = $derived(revisedPrompt.trim().length > 0);
+	// Whether anything was sent at all. Without this the rewrite branch spoke about a prompt that
+	// does not exist — on a freshly opened studio it sat directly under "No prompt sent yet" and
+	// said the model had used it.
+	const hasPrompt = $derived(promptWasSent && assembledPrompt.length > 0);
 </script>
 
 <details class="diagnostics">
-	<summary>System Trace</summary>
-	<div class="diagnostics-grid">
-		<label>
-			Prompt
-			<textarea rows="6" readonly value={assembledPrompt}></textarea>
-		</label>
-		<label>
-			Model Rewrite
-			<textarea rows="6" readonly value={revisedPrompt}></textarea>
-		</label>
-		<div>
-			<p class="eyebrow">Quality</p>
-			{#if validationIssues.length === 0 && violations.length === 0}
-				<p>No quality flags.</p>
+	<summary>
+		System Trace
+		{#if report.state === 'flagged'}
+			<span class="flag-count" data-testid="system-trace-flag-count">
+				{report.findings.length}
+			</span>
+		{/if}
+	</summary>
+
+	<div class="trace-body">
+		<section class="quality" data-testid="system-trace-quality" data-state={report.state}>
+			<p class="eyebrow">The Check</p>
+
+			{#if report.state === 'unchecked'}
+				<p class="empty" data-testid="system-trace-unchecked">
+					Nothing on the paper yet. Make a page and the check reports here.
+				</p>
+			{:else if report.state === 'not-applicable'}
+				<!-- A wig try-on portrait is installed without a prompt, so no check is coming. Saying
+				     "nothing on the paper yet" about it was false while the portrait was on screen. -->
+				<p class="empty" data-testid="system-trace-not-applicable">{headline}</p>
+			{:else if report.state === 'clean'}
+				<p class="clean" data-testid="system-trace-clean">{headline}</p>
 			{:else}
-				<ul>
-					{#each validationIssues as issue}
-						<li>{issue.field}: {issue.message}</li>
-					{/each}
-					{#each violations as violation}
-						<li>{violation.code}: {violation.message}</li>
-					{/each}
-				</ul>
+				<p class="headline" data-testid="system-trace-headline">{headline}</p>
+
+				<QualityFindings
+					findings={report.findings}
+					fixes={report.fixes}
+					fixesTestId="system-trace-fixes"
+				/>
 			{/if}
-		</div>
+		</section>
+
+		<section class="prompts">
+			<p class="eyebrow">What Was Sent</p>
+			{#if hasPrompt}
+				<textarea rows="6" readonly value={assembledPrompt} aria-label="Prompt sent"></textarea>
+			{:else}
+				<p class="empty">No prompt sent yet.</p>
+			{/if}
+
+			<p class="eyebrow">What The Model Made Of It</p>
+			<!-- Gated on `hasPrompt` as well, not just on there being a rewrite. The two branches were
+			     independent, so a reopened record could render its stored rewrite directly beneath
+			     "No prompt sent yet" — the panel contradicting itself in adjacent lines. -->
+			{#if hasPrompt && hasRewrite}
+				<textarea rows="6" readonly value={revisedPrompt} aria-label="Model rewrite"></textarea>
+			{:else if hasPrompt}
+				<!-- "No rewrite reported", not "the model used the prompt as written". `revisedPrompt`
+				     is an optional provider field: its absence means the provider did not report a
+				     rewrite, which is not evidence that it used the prompt verbatim. -->
+				<p class="empty">No rewrite reported.</p>
+			{:else}
+				<p class="empty">Nothing sent yet.</p>
+			{/if}
+		</section>
 	</div>
 </details>
+
+<style>
+	.flag-count {
+		display: inline-block;
+		margin-left: 0.4rem;
+		min-width: 1.35rem;
+		padding: 0.05rem 0.4rem;
+		border-radius: 999px;
+		background: rgba(232, 0, 106, 0.18);
+		border: 1px solid rgba(232, 0, 106, 0.4);
+		color: #ff8ab3;
+		font-size: 0.74rem;
+		font-weight: 800;
+		text-align: center;
+	}
+
+	.trace-body {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+		gap: 1rem;
+		margin-top: 1rem;
+	}
+
+	.eyebrow {
+		margin: 0 0 0.45rem;
+		font-size: 0.72rem;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.18em;
+		color: var(--gold);
+	}
+
+
+	.empty {
+		margin: 0;
+		color: var(--lavender);
+		font-style: italic;
+	}
+
+	.clean {
+		margin: 0;
+		color: var(--emerald);
+		font-weight: 700;
+	}
+
+	.headline {
+		margin: 0 0 0.7rem;
+		color: var(--cream);
+		font-weight: 700;
+	}
+
+
+
+
+
+
+
+
+
+
+
+	.prompts textarea {
+		width: 100%;
+		box-sizing: border-box;
+		margin-bottom: 0.9rem;
+		border-radius: 0.72rem;
+		border: 1px solid rgba(201, 162, 39, 0.25);
+		padding: 0.62rem 0.72rem;
+		font-family: inherit;
+		font-size: 0.86rem;
+		color: var(--cream);
+		background: rgba(7, 7, 15, 0.7);
+		resize: vertical;
+	}
+
+	.prompts .empty {
+		margin-bottom: 0.9rem;
+	}
+
+	@media (max-width: 900px) {
+		.trace-body {
+			grid-template-columns: 1fr;
+		}
+	}
+</style>

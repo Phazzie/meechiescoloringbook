@@ -561,7 +561,13 @@ describe('generate-pipeline edge cases', () => {
 		}
 	});
 
-	it('includes empty violations when drift detection fails', async () => {
+	// Renamed from "includes empty violations when drift detection fails", which is what it used to
+	// assert. An empty violation list is how the studio says "nothing wrong with this page", so the
+	// old expectation locked in a report that gave its most reassuring answer for the drift seam's
+	// most serious finding. This matters more than the name suggests: the seam grades `revisedPrompt`
+	// over `promptSent`, and a provider rewrite carries none of the required headings, so a provider
+	// discarding the page's constraints took this branch every time and was reported as clean.
+	it('reports a failed drift check as a violation rather than as a clean page', async () => {
 		const result = await runGeneratePipeline(
 			{ spec: validSpec },
 			buildGenerateDeps({
@@ -583,8 +589,43 @@ describe('generate-pipeline edge cases', () => {
 		expect(result.status).toBe(200);
 		expect(result.body.ok).toBe(true);
 		if (result.body.ok) {
+			// `violations` is still empty, and now says why: the seam graded nothing, so it found
+			// nothing. `driftCheckFailure` is the field that makes that empty array honest — without
+			// it, the seam's most serious outcome and its cleanest one are the same response.
 			expect(result.body.value.violations).toEqual([]);
 			expect(result.body.value.recommendedFixes).toEqual([]);
+			expect(result.body.value.driftCheckFailure).toEqual({
+				code: 'DRIFT_ERROR',
+				message: 'Detection failed'
+			});
+		}
+	});
+
+	it('omits driftCheckFailure entirely when the drift check did return a verdict', async () => {
+		const result = await runGeneratePipeline(
+			{ spec: validSpec },
+			buildGenerateDeps({
+				validateSpec: vi.fn().mockResolvedValue({ ok: true, issues: [] }),
+				assemblePrompt: vi.fn().mockResolvedValue({
+					ok: true,
+					value: { prompt: 'assembled prompt', templateVersion: 'v2' }
+				}),
+				generateImage: vi.fn().mockResolvedValue({
+					status: 200,
+					body: imageSuccessBody
+				}),
+				detectDrift: vi.fn().mockResolvedValue({
+					ok: true,
+					value: { violations: [], confidenceScore: 1, recommendedFixes: [] }
+				})
+			})
+		);
+		expect(result.status).toBe(200);
+		expect(result.body.ok).toBe(true);
+		if (result.body.ok) {
+			// Absent, not `undefined`-valued: its absence is what tells a consumer the empty
+			// violation list is a real verdict.
+			expect('driftCheckFailure' in result.body.value).toBe(false);
 		}
 	});
 });

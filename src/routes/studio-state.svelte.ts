@@ -2,6 +2,27 @@
 // Why: Extracts the 690-line script from +page.svelte into a testable, self-contained
 //      state module; the page component becomes a thin lifecycle wrapper.
 // Info flow: User actions -> StudioState methods -> reactive $state updates -> component props.
+// Invariants: Four distinctions here are load-bearing and must never be collapsed into one
+//             another, because each collapse produced a report that said something untrue.
+//             (1) `images.length > 0` (a page exists) is INDEPENDENT of `driftReported` (a check
+//             spoke about it): inferring either from the other reported a picture-less generation
+//             as "came back exactly as asked", and a reopened record as "nothing on the paper yet"
+//             while its page was on screen.
+//             (2) `checkResultUnrecorded` (nothing was stored) is NOT `driftCheckFailure` (the
+//             check named a defect): a saved record cannot tell a completed-but-unsaved result
+//             from a failed one, so it must claim neither.
+//             (3) `promptWasSent` is NOT "`assembledPrompt` is non-empty": the try-on flow stores a
+//             human description there purely to satisfy the vault record's non-empty requirement
+//             and never calls a provider.
+//             (4) Diagnostics from a generation that installed NO page belong to the REQUEST, and
+//             every reset in this class hangs off replacing the *page* — so without
+//             `clearPagelessRequestDiagnostics` on the input paths, a findings-but-no-image response
+//             left its report and trace under controls that no longer described it. The `images`
+//             guard in that method is the whole of its safety: a page on screen keeps its own report
+//             through every control change, because the studio deliberately holds a finished page
+//             while the reader sets up the next one.
+//             `tryOnPageOnScreen` is `$state` rather than a plain field because `qualityReport`
+//             derives from it; a plain field would be read once and never follow the paper.
 import { authContextAdapter } from '$lib/adapters/auth-context-seam';
 import { appOriginSeam } from '$lib/adapters/app-origin-seam';
 import { clockSeam } from '$lib/adapters/clock-seam';
@@ -35,6 +56,7 @@ import {
 	type AiQuotaSnapshot
 } from '$lib/core/ai-quota';
 import { compactColoringPageTitle } from '$lib/core/coloring-page-title';
+import { buildQualityReport } from '$lib/core/quality-report';
 import {
 	GENERATED_IMAGE_MIME_TYPES,
 	generatedImageDataUrl
@@ -55,6 +77,7 @@ import {
 	sortVaultCreations
 } from '$lib/core/vault-gallery';
 import { GenerateResultSchema } from '../../contracts/generate.contract';
+import type { GenerateResponseValue } from '../../contracts/generate.contract';
 import { WigTryOnResultSchema } from '../../contracts/wig-try-on.contract';
 import {
 	MeechieStudioTextResultSchema,
@@ -457,6 +480,39 @@ export class StudioState {
 	revisedPrompt = $state('');
 	violations = $state<Violation[]>([]);
 	recommendedFixes = $state<DriftDetectionOutput['recommendedFixes']>([]);
+	/**
+	 * True when the drift check has actually reported on the page currently on the paper.
+	 *
+	 * This exists because `violations.length === 0` answers two opposite questions with the same
+	 * value: "the check ran and found nothing" and "no check has run". System Trace read it as the
+	 * first and so told a reader who had generated nothing that their page was clean.
+	 *
+	 * It cannot be derived. Every candidate proxy is wrong in a case that actually happens:
+	 * `images.length > 0` misses the generation that returns words without a picture, which assigns
+	 * the trace above that guard on purpose so the findings survive; `assembledPrompt !== ''` is
+	 * true for a reopened record whose findings were never stored. So it is written explicitly, at
+	 * exactly the three sites that already write `violations`, and nowhere else.
+	 */
+	private driftReported = $state(false);
+	/** Why the drift check returned no verdict, when `/api/generate` said it returned none. */
+	private driftCheckFailure = $state<GenerateResponseValue['driftCheckFailure']>(undefined);
+	/**
+	 * True when the page on screen came out of the vault without its check result.
+	 *
+	 * Set only by `loadCreation`. Deliberately not derived from "there is a page and no drift result":
+	 * a wig try-on page is installed without ever calling `/api/generate` and matches that shape
+	 * exactly, and was being told it had been saved before its result was recorded — about a page
+	 * that had never been saved at all.
+	 */
+	private checkResultUnrecorded = $state(false);
+	/**
+	 * True when `assembledPrompt` was actually sent to a provider.
+	 *
+	 * The try-on path writes a human description into `assembledPrompt` only because a vault record
+	 * requires a non-empty one; no request is made. Without this, System Trace filed that description
+	 * under "What Was Sent".
+	 */
+	promptWasSent = $state(false);
 	images = $state<GeneratedImage[]>([]);
 	/**
 	 * Every call made to the packaging seam for the page on the paper: the variant asked for, the
@@ -634,6 +690,43 @@ export class StudioState {
 	imagePreviews = $derived(
 		this.images.map((image) => generatedImageDataUrl(image) ?? '')
 	);
+	/**
+	 * What System Trace says about the page on the paper.
+	 *
+	 * Derived rather than assigned, so it cannot lag the four facts it reports on. Built by the
+	 * dependency-free core so the same transform — and the same refusal to call an unchecked page
+	 * clean — is available to the mode routes, which build their own from the same function.
+	 */
+	/**
+	 * Read by `qualityReport` above its own declaration, which a field reference cannot do.
+	 *
+	 * `tryOnPageOnScreen` is declared far below with the rest of the try-on state, and a `$derived`
+	 * initialiser referencing a later field is a use-before-initialisation error. A getter is
+	 * evaluated when the derived runs, not when the class is constructed, so the ordering stops
+	 * mattering — and the flag stays where it is documented.
+	 */
+	private get pageIsTryOnPortrait(): boolean {
+		return this.tryOnPageOnScreen;
+	}
+	qualityReport = $derived(
+		buildQualityReport({
+			// Two separate facts, deliberately. `images.length > 0` is whether there is a page;
+			// `driftReported` is whether the check spoke about it. Passing the second as both — the
+			// first draft of this — reported a picture-less generation as "came back exactly as
+			// asked", and a reopened legacy record as "nothing on the paper yet" while its page was
+			// on screen.
+			hasPage: this.images.length > 0,
+			driftChecked: this.driftReported,
+			violations: this.violations,
+			recommendedFixes: this.recommendedFixes,
+			driftCheckFailure: this.driftCheckFailure,
+			checkResultUnrecorded: this.checkResultUnrecorded,
+			// A try-on portrait is installed without a prompt, so no drift check is coming for it —
+			// which is a different thing from one not having arrived yet.
+			checkApplicable: !this.pageIsTryOnPortrait,
+			validationIssues: this.validationIssues
+		})
+	);
 	/** The bytes of every file packaged for the page on the paper. */
 	packagedFiles = $derived<PackagedFile[]>(
 		this.packageAttempts.flatMap((attempt) => attempt.files)
@@ -753,7 +846,10 @@ export class StudioState {
 	 *
 	 * Cleared in `resetGeneratedPage`, which every path replacing the paper goes through.
 	 */
-	private tryOnPageOnScreen = false;
+	// `$state`, not a plain field: `qualityReport` derives from it, and a plain class field is not
+	// reactive in runes mode — the report would have been computed once and then never followed the
+	// paper changing from a portrait to a generated page or back.
+	private tryOnPageOnScreen = $state(false);
 
 	/**
 	 * The title of the try-on page on the paper, kept so its shape can be restored after a rebuild.
@@ -1138,6 +1234,10 @@ export class StudioState {
 		this.revisedPrompt = '';
 		this.violations = [];
 		this.recommendedFixes = [];
+		this.driftReported = false;
+		this.driftCheckFailure = undefined;
+		this.checkResultUnrecorded = false;
+		this.promptWasSent = false;
 		this.images = [];
 		// Clears the packaged files, the described export row and the export failure sentence in one
 		// assignment, because all three are derived from it. `pageExports` also loses the provider's
@@ -1330,8 +1430,40 @@ export class StudioState {
 	private rebuildSpecFromCurrentText = async (
 		source: SettingChangeSource = 'setting'
 	): Promise<void> => {
+		this.clearPagelessRequestDiagnostics();
 		await this.applyTextToSpec(this.rebuildSourceText(), source);
 	};
+
+	/**
+	 * Drop the findings and the trace of a generation that put nothing on the paper, because the
+	 * request they describe is no longer the one the controls describe.
+	 *
+	 * A generate response can be contract-valid, carry findings, and carry no usable image. Those
+	 * diagnostics are the most useful thing on screen at that moment — which is why the generate path
+	 * records them above its no-picture guard — but they belong to a REQUEST, and the studio had no
+	 * path that retired them. Every reset here hangs off replacing the *page*, and there is no page,
+	 * so moving the paper size or retyping the dedication left the previous prompt's report and trace
+	 * under controls that no longer describe it.
+	 *
+	 * The `images` guard is the whole safety of this. With a page on screen the report belongs to that
+	 * page and must survive every control change untouched: the studio deliberately keeps a finished
+	 * page and its trace while the reader sets up the next one, and dropping the report of the page
+	 * they are looking at would be the same defect pointed the other way. Nothing here runs during a
+	 * generation either — `resetGeneratedPage` has already cleared all of it before the request goes
+	 * out, so every field below is a no-op until a completed request leaves one set.
+	 */
+	private clearPagelessRequestDiagnostics(): void {
+		if (this.images.length > 0) return;
+		this.generationError = '';
+		this.assembledPrompt = '';
+		this.revisedPrompt = '';
+		this.violations = [];
+		this.recommendedFixes = [];
+		this.driftReported = false;
+		this.driftCheckFailure = undefined;
+		this.checkResultUnrecorded = false;
+		this.promptWasSent = false;
+	}
 
 	/**
 	 * The Page Controls panel's handler: rebuild the spec, then report the outcome beside the
@@ -1378,6 +1510,10 @@ export class StudioState {
 	};
 
 	handleDedicationInput = (value: string): void => {
+		// The one input that does not go through `rebuildSpecFromCurrentText`, so it clears the
+		// pageless request's diagnostics itself. Same reason as every Page Control: a report about a
+		// prompt built from the previous dedication is not a report about this one.
+		this.clearPagelessRequestDiagnostics();
 		this.dedication = value;
 		this.spec = { ...this.spec, dedication: this.currentDedication() };
 		void this.validateSpec();
@@ -1702,6 +1838,12 @@ export class StudioState {
 			this.revisedPrompt = parsed.data.value.revisedPrompt || '';
 			this.violations = parsed.data.value.violations;
 			this.recommendedFixes = parsed.data.value.recommendedFixes;
+			// Set with the trace and above the no-picture guard below, for the reason that guard's
+			// own comment gives: a response that carries findings but no image has still been
+			// checked, and its findings are the most useful thing on screen.
+			this.driftReported = true;
+			this.promptWasSent = true;
+			this.driftCheckFailure = parsed.data.value.driftCheckFailure;
 
 			// A generate response can be schema-valid and still carry no picture: `images` is
 			// `z.array(...)` with no minimum. That used to reach the packaging seam and come back as
@@ -2098,6 +2240,37 @@ export class StudioState {
 		this.assembledPrompt = creation.assembledPrompt;
 		this.revisedPrompt = creation.revisedPrompt ?? '';
 		this.violations = creation.violations ?? [];
+		// `!== undefined`, not `.length > 0`. A record saved before the vault stored findings has no
+		// `violations` at all, and `?? []` above turns that absence into an empty array — which the
+		// report would otherwise read as "checked, nothing wrong". A record that never wrote down its
+		// findings is a page whose check result is unknown, and unknown is not clean.
+		// `.length > 0`, not `!== undefined`. A record stores `violations` and nothing else about the
+		// check, so a stored *empty* array is ambiguous in exactly the way this whole change exists to
+		// remove: it is written both by a page that passed and by a page whose check failed, because
+		// a failed check also produces no violations. Treating it as "checked" resurrected the false
+		// clean on the vault path — the same defect, one round trip later.
+		//
+		// So: stored findings mean the check reported, and are shown. Anything else is a result that
+		// is not on file, and says so. The genuine clean case is undersold rather than the failed one
+		// oversold; persisting the distinction needs a `CreationRecordSchema` field and the full
+		// Seam-Driven Development workflow, and is recorded as deferred.
+		const storedFindings = creation.violations ?? [];
+		this.driftReported = storedFindings.length > 0;
+		this.checkResultUnrecorded = storedFindings.length === 0;
+		// Stored findings are proof the record went through `/api/generate`, which is the only path
+		// that produces them — so its `assembledPrompt` is a prompt that really was sent, and System
+		// Trace can show it as one. Without this, a reopened flagged page listed prompt-derived
+		// findings directly beside "No prompt sent yet", and its stored rewrite appeared underneath
+		// that denial.
+		//
+		// A record with no stored findings stays `false`: it is either a try-on portrait, whose
+		// `assembledPrompt` is a description that was never sent, or a generated page whose result
+		// was not persisted. The record carries no marker telling them apart, so this understates
+		// rather than guesses — the same posture as `checkResultUnrecorded` above, and the same
+		// `CreationRecordSchema` field would settle both.
+		this.promptWasSent = storedFindings.length > 0;
+		// A saved record carries no failure reason; `resetGeneratedPage` already cleared any.
+		this.driftCheckFailure = undefined;
 		this.vaultStatus = `Reopened "${creation.intent.title}".`;
 		await this.validateSpec();
 		// The same builder the two generation paths use, so a reopened page gets the same downloads a
