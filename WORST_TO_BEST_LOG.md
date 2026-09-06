@@ -9414,3 +9414,45 @@ base", and announces the fallback as an annotation rather than a log line.
 > **The fix for a hole is not evidence that the hole is closed everywhere it exists.** Two steps,
 > written a round apart, with the same idea and two different variables. Found by reading what CI
 > actually printed rather than by trusting that the fix I had just tested was the whole of it.
+
+### Addendum, round 56 — five fixed, one declined for the second time
+
+**`.npmrc` can preload code into every stage.** `node-options=--require=./preload.cjs` is worse than
+the shell swap found last round: npm passes it to each script as `NODE_OPTIONS`, so branch-owned code
+runs inside every stage of the chain. Measured here — a script that exits 7 exits 0 under it — and
+two things that do **not** help:
+
+| Attempt | Result |
+|---|---|
+| `NODE_OPTIONS=` in the step's environment | exit 0 — npm sets the variable for the child from its own config, overriding the inherited one |
+| `--script-shell=/bin/bash` | exit 0 — it is not the shell that is compromised |
+| `npm --node-options= run …` | **exit 7** — a CLI flag beats the file |
+
+Both halves are in: the workflow passes `--node-options=` alongside `--script-shell`, and
+`chain-intact.mjs` refuses the key in the committed file.
+
+**And a non-dated evidence directory was invisible.** The CI filter keeps only `YYYY-MM-DD` folders,
+so `docs/evidence/zzz/` was dropped and the step reported "nothing to guard" — while
+`clan-chain.mjs` and `proof-tape.mjs` select the lexicographically newest directory with **no date
+filter**, making that unguarded folder the input to the chain two steps later. Changed paths under
+`docs/evidence/` that are neither the conventions document nor inside a dated folder are now refused
+by name.
+
+> **A filter that decides what to check is also deciding what to ignore, and the thing it ignores
+> does not thereby stop existing.** Three stages downstream were reading exactly what the guard had
+> filtered out.
+
+Three more in the guard: an `ok` check citing `/etc/passwd` (existence on the CI host is not
+membership of the tree — the path must be repository-relative and resolve inside the checkout); a
+ledger table with a whole column deleted, which made every check of that kind uncompared rather than
+disagreeing; and a stage with `generatedAt` removed, which `Date.parse` turned into `NaN` and the
+window comparison then skipped — the fifth "unknown counted as fine" on this branch.
+
+**Declined, with the same answer as before:** routing the guard's filesystem reads through a seam
+adapter. It is recorded in `DECISIONS.md` as a rejected alternative and the reasoning has not
+changed — all thirteen scripts in `scripts/` read `node:fs` directly, and a guard that reaches the
+filesystem *through the application* cannot report that the application is broken. Repeating a
+finding does not make it new; the answer is repeated in full rather than by reference.
+
+`sonarjs` clean · 52 tests · every accepted finding reproduced and re-run · the non-dated-directory
+refusal exercised in the step's shipped shape.

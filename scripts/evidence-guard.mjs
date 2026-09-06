@@ -21,7 +21,7 @@
 //      this script is for.
 
 import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
-import { join, basename } from 'node:path';
+import { join, basename, resolve, isAbsolute } from 'node:path';
 import process from 'node:process';
 import { toDateFolder } from './evidence-reporting.mjs';
 
@@ -321,10 +321,10 @@ const selfAgreementProblem = (raw, file, list) => {
 	// is the honest way to record "there is nothing here to find".
 	const missingArtifacts = entries
 		.flatMap((entry) => (Array.isArray(entry?.checks) ? entry.checks : []))
-		.filter((check) => check?.status === 'ok' && (typeof check.path !== 'string' || !existsSync(check.path)))
+		.filter((check) => check?.status === 'ok' && !isRepositoryArtifact(check.path))
 		.map((check) => `${check?.kind} at "${check?.path}"`);
 	if (missingArtifacts.length > 0)
-		return `${file} reports these checks ok while the files they name are not in this tree: ${[...new Set(missingArtifacts)].join(', ')}; a check records what a scan found, and the tree is what is being reviewed.`;
+		return `${file} reports these checks ok while the files they name are not artifacts in this tree: ${[...new Set(missingArtifacts)].join(', ')}; a check records what a scan found, and the tree is what is being reviewed.`;
 	const ROLLED_UP = new Set(['ok', 'na']);
 	const contradicted = entries
 		.filter((entry) => entry?.status === 'ok')
@@ -336,6 +336,22 @@ const selfAgreementProblem = (raw, file, list) => {
 	if (contradicted.length > 0) disagreements.push(...contradicted);
 	if (disagreements.length === 0) return null;
 	return `${file}'s summary disagrees with its own ${list}: ${disagreements.join('; ')}; the file was edited after it was written, or the stage that wrote it is inconsistent.`;
+};
+
+/**
+ * Whether a recorded path names something inside this repository, and it is there.
+ *
+ * `existsSync` alone answers a question about the CI host, not about the tree under review:
+ * `/etc/passwd` exists on the runner, and putting it in a seam's contract check left every rule
+ * passing. A seam artifact is a repository-relative path that resolves inside the checkout, so both
+ * halves are required — inside, and present.
+ */
+const REPOSITORY_ROOT = resolve('.');
+const isRepositoryArtifact = (path) => {
+	if (typeof path !== 'string' || path === '' || isAbsolute(path)) return false;
+	const resolved = resolve(REPOSITORY_ROOT, path);
+	if (resolved !== REPOSITORY_ROOT && !resolved.startsWith(`${REPOSITORY_ROOT}/`)) return false;
+	return existsSync(resolved);
 };
 
 /**
@@ -593,6 +609,22 @@ const cellsProblem = (md, ledger) => {
 		.map((line) => line.split('|').slice(1, -1).map((cell) => cell.trim()));
 	const header = rows.find((cells) => cells[0] === 'Seam');
 	if (header === undefined) return 'seam-ledger.md has no header row, so its columns cannot be read.';
+	// Every column the JSON records, present in the table. Comparing only the columns the table
+	// happens to have made a whole class of results disappear by deleting its header: remove the
+	// Contract column and every contract check went uncompared, silently. A missing column is not a
+	// column that agrees.
+	const columns = new Set(header.map((name) => name.toLowerCase()));
+	const kinds = [
+		'status',
+		...new Set(
+			(Array.isArray(ledger.seams) ? ledger.seams : [])
+				.flatMap((seam) => (Array.isArray(seam?.checks) ? seam.checks : []))
+				.map((check) => String(check?.kind).toLowerCase())
+		)
+	];
+	const absentColumns = kinds.filter((kind) => !columns.has(kind));
+	if (absentColumns.length > 0)
+		return `seam-ledger.md has no column for: ${absentColumns.join(', ')}; the JSON records those results for every seam and the table reports none of them.`;
 	const disagreements = [];
 	for (const seam of ledger.seams) {
 		const row = rows.find((cells) => cells[0] === seam?.seam);
@@ -836,9 +868,18 @@ const misdatedStages = (dir, artifacts) => {
 	// 00:00:00 — before this run's chamber lock, by hours — so a stale artifact from an earlier run
 	// on the same day was certified as part of this chain. The lock opens the run and the tape closes
 	// it, so every stage between them must be stamped between them.
+	// A stamp that cannot be read is not a stamp. `Date.parse` gives NaN for a missing or corrupted
+	// `generatedAt`, and excluding NaN from the comparison below meant deleting the field put a stage
+	// outside every check rather than inside a failing one — the fifth time on this branch that
+	// "unknown" has been treated as "fine".
+	const unstamped = artifacts.filter(
+		(name) => name.endsWith('.json') && Number.isNaN(Date.parse(stampOf(name) ?? ''))
+	);
+	if (unstamped.length > 0)
+		return `these chain artifacts carry no readable generatedAt: ${unstamped.join(', ')}; a stage that does not say when it ran cannot be tied to this run.`;
 	const opened = Date.parse(stampOf('chamber-lock.json') ?? '');
 	const closed = Date.parse(stampOf('proof-tape.json') ?? '');
-	if (Number.isNaN(opened) || Number.isNaN(closed)) return null; // rule 3 reports a missing stamp
+	if (Number.isNaN(opened) || Number.isNaN(closed)) return null; // unreachable: named above
 	const outside = artifacts.filter((name) => {
 		const at = Date.parse(stampOf(name) ?? '');
 		return !Number.isNaN(at) && (at < opened || at > closed);

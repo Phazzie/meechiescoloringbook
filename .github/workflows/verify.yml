@@ -148,6 +148,23 @@ jobs:
             range="$base..HEAD"
           fi
           changed=$(git diff --name-only "$range" -- 'docs/evidence/*')
+          # A path under `docs/evidence/` that is neither the conventions document nor inside a dated
+          # folder is refused rather than skipped. The filter below keeps only `YYYY-MM-DD`
+          # directories, so anything else was dropped and the step reported "nothing to guard" — while
+          # `clan-chain.mjs` and `proof-tape.mjs` select the lexicographically newest directory with
+          # NO date filter, so `docs/evidence/zzz/` becomes the input to the chain that runs two steps
+          # later. Unguarded evidence feeding the verification is exactly backwards.
+          stray=$(printf '%s\n' "$changed" \
+            | grep -E '^docs/evidence/.' \
+            | grep -vE '^docs/evidence/README\.md$' \
+            | grep -vE '^docs/evidence/[0-9]{4}-[0-9]{2}-[0-9]{2}/' || true)
+          if [ -n "$stray" ]; then
+            echo "These evidence paths are neither the conventions document nor inside a dated" >&2
+            echo "docs/evidence/YYYY-MM-DD/ folder, and the chain's own stages would still read the" >&2
+            echo "newest directory here regardless of its name:" >&2
+            printf '  %s\n' $stray >&2
+            exit 1
+          fi
           dirs=$(printf '%s\n' "$changed" \
             | grep -E '^docs/evidence/[0-9]{4}-[0-9]{2}-[0-9]{2}/' \
             | cut -d/ -f1-3 | sort -u || true)
@@ -346,11 +363,13 @@ jobs:
       # way and running check, build and the full suite.
       - name: Install dependencies
         run: npm ci --ignore-scripts
-      # `--script-shell` on the command line, which beats a project `.npmrc`. npm reads that file
-      # before it runs anything, and `script-shell=/bin/true` in it turns this command into one that
-      # exits 0 having executed no stage at all — with `package.json` untouched, so every check above
-      # still passes. Reproduced against this repository. `chain-intact.mjs` refuses that key in the
-      # committed `.npmrc` as well; the two answer different halves, since a check says the config is
-      # clean and this says what runs regardless.
+      # Two npm config keys on the command line, where they beat a project `.npmrc`. npm reads that
+      # file before it runs anything, and either of these turns this command into one that exits 0
+      # having executed no stage: `script-shell=/bin/true` replaces the shell, and
+      # `node-options=--require=./preload.cjs` runs branch code inside every stage — npm passes it as
+      # `NODE_OPTIONS`, and clearing that variable in this step's environment does NOT help, because
+      # npm sets it for the child from its own config. Only these flags do. Both reproduced against
+      # this repository, and `chain-intact.mjs` refuses both keys in the committed file: a check says
+      # the config is clean, and these say what runs regardless.
       - name: Verify
-        run: npm --script-shell=/bin/bash run verify
+        run: npm --node-options= --script-shell=/bin/bash run verify

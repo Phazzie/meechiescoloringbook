@@ -471,7 +471,7 @@ describe('evidence-guard', () => {
 		// the rule was written, since `na` checks carry prose instead of a path.
 		const dir = fresh();
 		mutate(dir, 'chamber-lock.json', /app-config-seam\/contract\.ts/, 'app-config-seam/contract.zz');
-		expect(refusalOf(dir)).toMatch('while the files they name are not in this tree');
+		expect(refusalOf(dir)).toMatch('not artifacts in this tree');
 	});
 
 	it('rejects a stage stamped outside the run it claims to be part of', () => {
@@ -493,6 +493,43 @@ describe('evidence-guard', () => {
 		const startedAt = new RegExp(`(?<pre>Start at\\s{0,8}${ESC}\\[[0-9;]*m\\s{0,8})03:`);
 		mutate(dir, 'rewind-CreationStoreSeam(self-contained).txt', startedAt, '$<pre>04:');
 		expect(refusalOf(dir)).toMatch('match no run that does');
+	});
+
+	it('rejects an ok check naming a file outside the repository', () => {
+		// `existsSync` alone answers a question about the CI host: `/etc/passwd` is there. A seam
+		// artifact is a repository-relative path that resolves inside the checkout.
+		const dir = fresh();
+		mutate(dir, 'chamber-lock.json', /src\/lib\/seams\/app-config-seam\/contract\.ts/, '/etc/passwd');
+		expect(refusalOf(dir)).toMatch('not artifacts in this tree');
+	});
+
+	it('rejects a ledger table missing a whole status column', () => {
+		// Deleting the Contract header and its cells made every contract result uncompared rather than
+		// disagreeing. A missing column is not a column that agrees.
+		const dir = fresh();
+		const path = join(dir, 'seam-ledger.md');
+		const withoutContract = readFileSync(path, 'utf8')
+			.split('\n')
+			.map((line) => {
+				if (!line.startsWith('|')) return line;
+				const cells = line.split('|');
+				cells.splice(3, 1);
+				return cells.join('|');
+			})
+			.join('\n');
+		expect(withoutContract, 'the column removal changed nothing').not.toBe(readFileSync(path, 'utf8'));
+		writeFileSync(path, withoutContract);
+		resize(dir);
+		resummarise(dir);
+		expect(refusalOf(dir)).toMatch('has no column for: contract');
+	});
+
+	it('rejects a chain artifact with no readable generatedAt', () => {
+		// NaN was being excluded from the run-window comparison, so deleting the field put a stage
+		// outside every check rather than inside a failing one.
+		const dir = fresh();
+		mutate(dir, 'seam-ledger.json', /"generatedAt": "[^"]+",/, '"generatedAtX": "",');
+		expect(refusalOf(dir)).toMatch('carry no readable generatedAt');
 	});
 
 	it('rejects a Cipher Gate artifact that did not come back ok', () => {

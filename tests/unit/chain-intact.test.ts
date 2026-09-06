@@ -125,6 +125,18 @@ describe('chain-intact', () => {
 		expect(said).toMatch('changes what "npm run" executes');
 	});
 
+	it('refuses an .npmrc that preloads code into every stage', () => {
+		// `node-options=--require=./preload.cjs` is worse than the shell swap: npm passes it to each
+		// script as NODE_OPTIONS, so branch code runs inside every stage. Measured here — exit 7
+		// becomes exit 0, clearing NODE_OPTIONS in the environment does NOT help because npm sets it
+		// from its own config, and only a CLI `--node-options=` overrides it.
+		const dir = manifestWith(() => {});
+		writeFileSync(join(dir, '.npmrc'), 'node-options=--require=./preload.cjs\n');
+		const said = refusalOf(dir);
+		rmSync(join(dir, '.npmrc'));
+		expect(said).toMatch('node-options');
+	});
+
 	it('accepts an .npmrc that only configures installation', () => {
 		// The real file sets `engine-strict`, which has nothing to do with what a script runs. A check
 		// that refuses harmless settings teaches people to work around it.

@@ -75,10 +75,16 @@ const commandsOf = (script) =>
 // check here and an override there answer different halves: this one says the committed config is
 // clean, and that one holds even if this file is ever bypassed.
 //
+// `node-options` is the second, and it is worse: npm passes it to every script as `NODE_OPTIONS`, so
+// `node-options=--require=./preload.cjs` runs branch code inside each stage. Measured here — a script
+// that exits 7 exits 0 under it, and **clearing `NODE_OPTIONS` in the environment does not help**,
+// because npm sets the variable for the child from its own config. Only a CLI `--node-options=`
+// overrides it, which the workflow now passes; this check is the other half.
+//
 // `ignore-scripts` and `foreground-scripts` were tried and do NOT neutralise `npm run` (measured,
 // exit 7 either way), so they are not listed: a check that refuses harmless settings teaches people
 // to work around it.
-const EXECUTION_KEYS = ['script-shell'];
+const EXECUTION_KEYS = ['script-shell', 'node-options'];
 
 const problems = [];
 let manifest;
