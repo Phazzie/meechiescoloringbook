@@ -791,6 +791,36 @@ describe('setDedication', () => {
 		expect(state.imagePreviews).toEqual([]);
 	});
 
+	it('clears a pictureless request report, which no page-presence check can see', async () => {
+		// A request whose image never decoded installs no page and leaves nothing generating, so
+		// `hasPage`, `isGenerating` and `imagePreviews` all read exactly as they do before the first
+		// request — while its findings are on screen. The early return fired on that reading and left
+		// the report describing the previous prompt under a dedication it was never checked against.
+		const state = await readyState();
+		routes.tools = okTools(PLAIN_VERDICT);
+		routes.generate = okGenerate({
+			violations: [
+				{
+					code: 'MISSING_OPTION_LINE',
+					message: 'Missing option line: Border: thin.',
+					severity: 'error'
+				}
+			]
+		});
+		stubImageDecoder(() => false);
+		await state.requestVerdict({ toolId: 'random_meechie' });
+		await state.makePage();
+		expect(state.hasPage).toBe(false);
+		expect(state.qualityReport.state).toBe('flagged');
+
+		state.setDedication('For the group chat');
+
+		expect(state.dedication).toBe('For the group chat');
+		expect(state.qualityReport.state).toBe('unchecked');
+		expect(state.violations).toEqual([]);
+		expect(state.generateError).toBe('');
+	});
+
 	it('does not cancel an in-flight verdict request', async () => {
 		// The two lifecycles need separate tokens. With one shared token, typing a dedication —
 		// which is on screen while a replacement verdict loads — silently killed that request.

@@ -15,6 +15,11 @@
 //             page already on screen keeps BOTH its picture and its report — the new request's
 //             findings are surfaced only when there is no page to protect, because attaching them
 //             to a page they do not describe is the conflation this reporting exists to remove.
+//             Those pageless findings belong to a REQUEST, so every path that changes the request
+//             must clear them. Page presence cannot stand in for that: after such a request
+//             `hasPage`, `isGenerating` and `imagePreviews` all read exactly as they do before the
+//             first one, so a guard written against them alone leaves the report on screen under a
+//             dedication it was never checked against.
 import { creationStoreAdapter } from '$lib/adapters/creation-store-seam';
 import { outputPackagingAdapter } from '$lib/adapters/output-packaging-seam';
 import { sessionAdapter } from '$lib/adapters/session-seam';
@@ -398,10 +403,22 @@ export class VerdictPageState {
 	 * `isGenerating` matters as much as an installed page: while `/api/generate` is pending there is
 	 * no recipe and no preview yet, so checking only those would return without bumping the token,
 	 * and the in-flight page — built with the previous dedication — would land beneath the new one.
+	 *
+	 * `driftReported` is the same argument one step further out, and the reason the first three flags
+	 * are not enough on their own. A request whose image could not be decoded installs no page and
+	 * leaves nothing generating, but it does leave its own findings on screen — so all three read
+	 * false while a report describing the previous prompt is still rendered. Returning early there
+	 * left that report sitting under a dedication it was never checked against. Diagnostics that
+	 * belong to a request rather than to a page have to be cleared when the request changes.
 	 */
 	setDedication(value: string): void {
 		this.dedication = value;
-		if (!this.isGenerating && !this.hasPage && this.imagePreviews.length === 0)
+		if (
+			!this.isGenerating &&
+			!this.hasPage &&
+			this.imagePreviews.length === 0 &&
+			!this.driftReported
+		)
 			return;
 		this.resetPage();
 	}

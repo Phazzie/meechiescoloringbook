@@ -8446,3 +8446,56 @@ stronger for having a red-green-red sequence across three heads whose source is 
 But writing a one-off observation in the present tense, in a run whose entire subject is claims
 outliving their evidence, is the mistake this file exists to catch. One successful deploy is what
 was observed; "Vercel is green" is not what it showed.
+
+---
+
+## Round 11 — my own fix's blind spot, found by the reviewer looking one transition further
+
+Codex returned a single P2 on `32de878`, against `verdict-page-state.svelte.ts:544` — code **this run
+added**, in round 7, to fix a different Codex finding. It is the first review round where the defect
+was mine start to finish rather than the app's.
+
+Round 7 made a pictureless generation surface its own findings when there is no page to protect. That
+is right. What it did not do is give those findings an owner. They describe a **request**, not a page
+— and every "has this been invalidated?" check in the two components asks about a **page**:
+
+```ts
+if (!this.isGenerating && !this.hasPage && this.imagePreviews.length === 0) return;
+```
+
+After a request whose image would not decode, all three of those read exactly as they do before the
+very first request: nothing generating, no page, no previews. So `setDedication` returned early and
+the report stayed on screen — now captioning a dedication it had never been checked against. Same
+transition, same three flags, in `MeechieTools.svelte`.
+
+The fix is one clause in each guard, `&& !driftReported`, plus the sentence in each header saying why
+page presence cannot stand in for request identity.
+
+### Why this is the run's own pattern, again
+
+Every finding in this run has been *a claim wider than its evidence*. Round 7 was the fix for one of
+those, and it introduced another of exactly the same shape: a report that says "here is what the
+check found" while the thing it was checked against is no longer what the reader is looking at. I
+checked the case I had in mind — findings with no page — and not its neighbour: findings with no
+page, **and then the user types**.
+
+### What I deliberately did not widen
+
+The home studio has the same shape and is **not** the same defect. `handleDedicationInput` there
+clears nothing, because nothing there is cleared on any spec edit: the studio's trace panel is
+anchored to the last generation and stays until the next one, page or no page. That is a consistent
+model, not a missed case, and making it drop its trace on a keystroke would be a design change this
+run did not ask for. Recorded rather than acted on.
+
+### Verified
+
+`check` 0/0 · `lint` exit=0 · **1472 passed**, 1 skipped (the new test is the transition above) ·
+`build` exit=0 · e2e 42 passed · `verify` exit=0 · rewind 5 passed · proof tape flags nothing.
+
+### The stopping rule, stated before the next round rather than after it
+
+Rounds 1–9 found genuine defects. Round 10 was one documentation class, swept exhaustively. Round 11
+is one real regression, in code this run wrote. The rule I am holding myself to: **work anything
+substantive, merge when a round comes back with nothing substantive left.** A green PR carrying only
+marginal notes gets said so plainly and merged, not cycled — cycling a clean PR is its own way of
+never finishing.

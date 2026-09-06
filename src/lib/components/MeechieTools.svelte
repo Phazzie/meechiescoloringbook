@@ -11,6 +11,11 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
             decodable image, the page on screen keeps both its picture and its report; the new
             request's findings are surfaced only when there is no page to protect, because
             attaching them to a page they do not describe is what this reporting exists to stop.
+            Those pageless findings belong to a REQUEST, so every path that changes the request must
+            clear them. Page presence cannot stand in for that: after such a request `lastRecipe`,
+            `isGenerating` and `imagePreviews` all read exactly as they do before the first one, so a
+            guard written against them alone leaves the report on screen under a dedication it was
+            never checked against.
 -->
 <script lang="ts">
 	import { POST_JSON_TIMEOUTS_MS, postJson } from '$lib/core/http-client';
@@ -255,7 +260,18 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 		// is still pending, `lastRecipe` and `imagePreviews` are both empty, so checking only those
 		// would return without bumping the token — and the in-flight page, built with the previous
 		// dedication, would then land beneath the new one.
-		if (!isGenerating && lastRecipe === null && imagePreviews.length === 0)
+		//
+		// `driftReported` is the same argument one step further out, and the reason the first three
+		// are not enough on their own. A request whose image could not be decoded installs no page
+		// and leaves nothing generating, but it does leave its own findings on screen — so all three
+		// read false while a report describing the previous prompt is still rendered. Returning early
+		// there left that report sitting under a dedication it was never checked against.
+		if (
+			!isGenerating &&
+			lastRecipe === null &&
+			imagePreviews.length === 0 &&
+			!driftReported
+		)
 			return;
 		resetPage();
 	};
