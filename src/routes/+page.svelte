@@ -283,12 +283,15 @@ Invariants: `SystemTrace` receives `promptWasSent` from the state and must never
 		}
 	}
 
-	/* `auto-fill` rather than a fixed `repeat(3, 1fr)`: the strip now carries all eight modes, and
-	   the count is a property of the catalogue rather than of this rule — adding a ninth must not
-	   need a CSS edit to be visible. */
+	/* Four columns, not three and not `auto-fill`. Three was the *rendered mode count* written into
+	   the stylesheet, which is why it had to change at all. `auto-fill` was tried and screenshotted:
+	   at this container width it fits six, leaving the eight modes as a row of six and a row of two
+	   beside a hole the width of four cards. Four is a layout choice about how many cards read well
+	   in a row, and it is not coupled to the catalogue — a ninth mode wraps onto the next row with
+	   no edit here, which is the property that actually mattered. */
 	:global(.studio .mode-strip) {
 		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+		grid-template-columns: repeat(4, minmax(0, 1fr));
 		gap: 0.65rem;
 		margin: 1rem 0;
 	}
@@ -318,7 +321,10 @@ Invariants: `SystemTrace` receives `promptWasSent` from the state and must never
 		gap: 0.4rem;
 		text-align: left;
 		animation: mode-card-in 0.38s ease both;
-		animation-delay: calc(var(--card-index, 0) * 90ms);
+		/* 45ms, not the 90ms this had while the strip was three cards long. The stagger is a per-card
+		   delay, so eight cards at 90ms left the last one arriving 630ms after the first — a visible
+		   wait on the page's most prominent element. At 45ms the whole strip is in under 400ms. */
+		animation-delay: calc(var(--card-index, 0) * 45ms);
 	}
 
 	:global(.studio .mode-card.active),
@@ -1157,8 +1163,10 @@ Invariants: `SystemTrace` receives `promptWasSent` from the state and must never
 				62% center;
 		}
 
+		/* Two, not three: eight cards divide evenly by four and by two and by nothing else useful,
+		   so any other count leaves the last row short beside a gap. */
 		:global(.studio .mode-strip) {
-			grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+			grid-template-columns: repeat(2, minmax(0, 1fr));
 		}
 
 		:global(.studio .mode-card) {
