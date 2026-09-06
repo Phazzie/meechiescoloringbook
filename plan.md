@@ -8,7 +8,46 @@ Info flow: User request -> execution specs -> implementation -> review evidence.
 
 Current active plan is listed first. Older dated entries remain below as historical context and are not active unless explicitly reselected.
 
-## Run 11 (2026-09-06) — the verdict: what Meechie said, and what she said about saying it
+## Run 11 close-out (2026-09-06) — micro plan, PR #314
+
+Required by `AGENTS.md` L108: a governance-only documentation change still needs a plan listing the
+seams, files, commands, and how behaviour stays unchanged. **PR #312 opened without one and a review
+caught it**; writing this before opening #314 rather than after being told is the whole point of that
+finding having been recorded.
+
+**Goal:** record the Run 11 merge close-out in the append-only log — the gate state at merge, the
+evidence behind both dispositioned red checks, what six review rounds cost and bought, and the
+candidates a future run should weigh.
+
+**Seams:** none. No seam is named, read or changed.
+
+| File | Action | What changes |
+|---|---|---|
+| `WORST_TO_BEST_LOG.md` | [MODIFY] | one appended section; no existing line edited |
+| `plan.md` | [MODIFY] | this micro plan, and Run 11's own plan retired below it |
+
+**Anti-goals:** no file under `src/`, `tests/`, `contracts/`, `probes/`, `fixtures/`,
+`src/lib/mocks/`, `src/lib/adapters/`, `src/lib/seams/`, `static/` or `docs/evidence/`. No evidence
+regeneration: the chain already ran on the merged head and its outputs describe `b1a6cfc`, which is
+the commit this entry is about — re-running it here would replace evidence for the change with
+evidence for a Markdown append.
+
+**How behaviour stays unchanged:** the diff is prose. No import, export, route, contract, schema,
+prompt string or build input is touched, so nothing the application does can differ. `npm run verify`
+is run to prove that rather than to assert it.
+
+**Commands:** `npm run check`, `npm run lint`, `npm test`, `npm run verify`.
+
+**Self-critique.** The risk is not to the codebase — it is that a wrong close-out is copied forward
+by a future unattended run that treats this log as its record of prior results. Run 10's close-out
+realised exactly that risk and needed ten review rounds on its own accuracy. The mitigation here is
+not care, which is what failed there: it is that every claim in the entry names the file, line,
+command or check-run conclusion a reader can verify it against, and that the three numbers this run
+already got wrong once — a file count, a test count, and a claim about the tool seam — are recorded
+*as corrections* rather than silently fixed, so the entry cannot read as cleaner than the run was.
+What stays unmitigated: the entry is long, and length is itself a way for a wrong sentence to survive.
+
+## Run 11 (2026-09-06) — the verdict: what Meechie said, and what she said about saying it — **merged as `b1a6cfc`; retired**
 
 **Goal:** The home studio asks the provider for seven fields under a `strict: true` JSON schema and
 shows three of them. The four it drops are the four that tell the reader whether the answer is worth
