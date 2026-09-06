@@ -9665,11 +9665,27 @@ the eight canonical mode slugs, which is where the fourteen documents counted be
 Before this change those documents were served by the SvelteKit function, where `hooks.server.ts`
 attaches the headers in code that a test can run. Prerendering makes them files, and Vercel's
 `{"handle":"filesystem"}` precedes the SSR rewrite, so their headers now come from the `vercel.json`
-rules and from nothing else. `tests/unit/security-headers.test.ts` proves the
+rules. `tests/unit/security-headers.test.ts` proves the
 rules *cover* every prerendered path — it derives the list from the routes' own `prerender` flags
 rather than restating it — and that is the whole of what it proves. Whether Vercel then *applies*
 them is the Assumption, and it is the same one, now load-bearing where it was previously only
 tidy.
+
+**Four headers ride on it, not five.** An earlier draft said all five came from those rules "and
+from nothing else", which overstated the exposure and was caught in review. `Strict-Transport-Security`
+is set independently by Vercel's edge — that is what the 2026-09-03 entry records finding in
+production, where it was the *only* header the deployed site sent — so it survives the rules failing
+to apply. What is actually contingent is `X-Content-Type-Options`, `X-Frame-Options`,
+`Referrer-Policy` and `Permissions-Policy`.
+
+Correcting that turned up a real inconsistency this run introduced, recorded rather than fixed
+because this is a documentation change: the three document rules #311 added to `vercel.json` **do**
+list `Strict-Transport-Security`, while the `src/hooks.server.ts` header comment says the
+`vercel.json` sources omit it *because* the edge sets it. That was true of the asset rules the
+comment was written about and is now false of the document rules beside them. Nothing breaks — a
+repeated HSTS is not the hazard a repeated `X-Frame-Options` is, and the hook no longer serves these
+paths — but the config and its stated rationale disagree. The fix is to drop the HSTS entry from
+those three rules, restoring the rationale, rather than to edit the rationale to match the drift.
 
 What a green `assumption-alarm` established is narrower than the row claimed: the entry is present
 and structurally valid. The script checks that Assumptions are recorded, not that they are true. An
@@ -9793,12 +9809,19 @@ was wrong twice over: it confused findings with passes, and undercounted the pas
 Per pass: five findings on `8297c31`, two on `1002807`, one each on `6a5c923`, `fc8fc4b` and
 `840df85`; `180ab72` came back with none.
 
-Two were P1s: an open Assumption reported as absent, on the very feature that made it load-bearing;
-and a merge-gate stand-down argued from evidence this same log records a reviewer rejecting on #305.
+Three were P1s: an open Assumption reported as absent, on the very feature that made it
+load-bearing; a merge-gate stand-down argued from evidence this same log records a reviewer
+rejecting on #305; and **a verify chain refreshed in part**, where fixing the first two I ran only
+the two scripts I expected to object and left four downstream artifacts describing an older tree —
+a directory that reads as verified and is not. An earlier draft counted two, having filed that third
+one with the wording corrections; it is a verification defect, which is what the P1 label was
+telling me.
+
 The rest were counts and capability claims — "six routes" above a list of seven, "no `CacheSeam`
 write operation" when `primeCache` is one, "no unit test could have caught" two defects whose unit
-tests this run wrote, a missing probe listed among the defects it failed to catch, and this
-paragraph's own round count.
+tests this run wrote, fonts called a seam limitation when the seam permits them, a missing probe
+listed among the defects it failed to catch, "all five headers" when the edge supplies one of them,
+and this paragraph's own round count.
 
 > **Correcting the instance is not correcting the belief.**
 
