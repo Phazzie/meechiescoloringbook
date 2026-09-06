@@ -1,0 +1,11 @@
+# Purpose: Capture the output and exit status of `npm run lint` for this head.
+# Why: AGENTS.md requires check, lint, test and build before every push, and the verify
+#      chain writes neither of these two, so nothing else records that they ran.
+# Info flow: npm run lint -> this transcript -> npm run evidence:guard.
+# Invariant: the last line is this run own exit status, and it is the only one.
+#
+
+> meechies-coloringbook@0.1.0 lint
+> eslint .
+
+lint exit=0

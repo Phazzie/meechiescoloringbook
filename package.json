@@ -23,6 +23,7 @@
     "seam:ledger": "node scripts/seam-ledger.mjs",
     "proof:tape": "node scripts/proof-tape.mjs",
     "evidence:guard": "node scripts/evidence-guard.mjs",
+    "chain:intact": "node scripts/chain-intact.mjs",
     "clan:chain": "node scripts/clan-chain.mjs",
     "cipher:gate": "node scripts/cipher-gate.mjs",
     "assumption:alarm": "node scripts/assumption-alarm.mjs",

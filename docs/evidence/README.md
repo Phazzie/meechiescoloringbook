@@ -53,6 +53,15 @@ run that wrote nothing fails instead of validating its predecessor's work. CI ru
 the dated folders a change touches, before `npm run verify`, so what is judged is what the author
 committed rather than what the chain has just rewritten.
 
+The guard also refuses a folder dated after today: a folder and its tape can agree with each other
+about a day that has not happened, and `clan-chain.mjs` and `proof-tape.mjs` both take the newest
+dated folder as their input, so a future-dated one becomes the input to every run until its date
+arrives.
+
+`scripts/chain-intact.mjs` (`npm run chain:intact`) is the companion check on the other side: it
+reads `package.json` and refuses a `verify` script that no longer invokes its stages, since CI runs
+the gate as the branch under review defines it.
+
 ## Capture order
 Two artifacts are written by commands outside the chain but inventoried by a stage inside it, so
 the order matters and is not a matter of taste:

@@ -1,17 +1,20 @@
 /*
  * Purpose: Prove `scripts/evidence-guard.mjs` still accepts good evidence and still rejects each
  *          defect it was written for.
- * Why: The guard decides whether CI trusts a committed evidence folder, and until now nothing ran
- *      it except CI itself — on folders that only exist when a change happens to ship evidence. A
- *      change to the guard could weaken it, or break it outright, and merge unexercised. A CI step
- *      that pointed it at "the newest dated folder" was tried first and carried a time bomb: that
- *      folder's mandated-row waiver expires, so a maintenance-only change would have started failing
- *      on a date, for evidence it did not touch.
- * Info flow: newest committed evidence folder -> temp copy, time-dependent parts neutralised ->
+ * Why: The guard decides whether CI trusts a committed evidence folder, and until this file existed
+ *      nothing ran it except CI itself — on folders that only exist when a change happens to ship
+ *      evidence. A change to the guard could weaken it, or break it outright, and merge unexercised.
+ * Info flow: tests/fixtures/evidence-guard/<date>/ -> temp copy -> one thing broken ->
  *            child `node scripts/evidence-guard.mjs <dir>` -> exit code and message assertions.
  *
  * Invariants:
- *   1. The fixture is a COPY. Nothing here writes to `docs/evidence/`.
+ *   1. The fixture is a FROZEN COPY under `tests/fixtures/`, and every case works on a copy of it.
+ *      Nothing here writes to `docs/evidence/`, and nothing here depends on what the newest run in
+ *      that directory happens to contain. Two earlier versions did: one read a folder while the
+ *      chain was rewriting it, and one would have broken every `npm test` in the repository the
+ *      first time an ordinary run omitted an optional artifact, ran a different seam, or arrived
+ *      after the mandated row's waiver expired. `tests/fixtures/evidence-guard/README.md` has the
+ *      full account.
  *   2. Every mutation is asserted to have changed the file. A mutation that changes nothing and a
  *      guard that catches nothing produce the same result, and this run has been fooled by that
  *      three times; `mutate` fails loudly rather than silently testing nothing.
@@ -23,46 +26,7 @@ import { tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-const EVIDENCE_ROOT = 'docs/evidence';
-const DATED = /(\d{4}-\d{2}-\d{2})$/;
-
-/**
- * The newest dated folder as COMMITTED at HEAD, extracted from git rather than read off disk.
- *
- * The first version of this read the working tree, and it broke the verify chain. `npm test` runs
- * INSIDE `npm run verify`, which rewrites that same folder as it goes — so the fixture was copied
- * mid-rewrite, with some artifacts regenerated and the proof tape not yet, and the guard correctly
- * rejected an inconsistent folder. The test was reading something while it was being written, which
- * is the exact defect this guard exists to catch, committed in the test written for it.
- *
- * Reading from git is not a workaround for that race; it is what this test should always have done.
- * The guard's first invariant is that it judges COMMITTED bytes, so the fixture is the committed
- * bytes, and no concurrently running chain can move them.
- */
-const newestCommittedEvidenceDir = (): string => {
-	const listed = spawnSync('git', ['ls-tree', '-d', '--name-only', 'HEAD', `${EVIDENCE_ROOT}/`], {
-		encoding: 'utf8'
-	});
-	const dated = listed.stdout
-		.split('\n')
-		.filter((line) => DATED.test(line.trim()))
-		.map((line) => line.trim())
-		// An explicit comparator, because a bare `sort()` compares by string conversion and is a
-		// defect the moment the array stops holding strings. These are dated folder names, so
-		// lexicographic order is chronological order.
-		.sort((a, b) => a.localeCompare(b));
-	return dated[dated.length - 1];
-};
-
-/** Extract that committed folder into `destRoot`, preserving its path so the name is kept. */
-const extractCommitted = (dir: string, destRoot: string): void => {
-	const archive = spawnSync('git', ['archive', 'HEAD', dir], {
-		encoding: 'buffer',
-		maxBuffer: 64 * 1024 * 1024
-	});
-	const extract = spawnSync('tar', ['-x', '-C', destRoot], { input: archive.stdout });
-	if (extract.status !== 0) throw new Error(`could not extract ${dir} from HEAD`);
-};
+const FIXTURE = 'tests/fixtures/evidence-guard/2026-09-06';
 
 /**
  * A pattern with the reporter's colour codes in it, built WITHOUT a literal escape character.
@@ -179,33 +143,20 @@ const resummarise = (dir: string): void => {
 };
 
 beforeAll(() => {
-	// The COPY keeps the source folder's name. The guard requires the proof tape's `evidenceDir` to
+	// The COPY keeps the fixture folder's name. The guard requires the proof tape's `evidenceDir` to
 	// name the directory it sits in — that is the rule that catches an old run replayed under a new
-	// date — so a fixture in `evidence-guard-work-XXXX/` is, correctly, rejected as a replay. The
-	// first version of this test did exactly that and its own baseline failed, which is the rule
-	// doing its job to the person writing tests for it.
-	const source = newestCommittedEvidenceDir();
-	const named = basename(source);
+	// date — so a copy in `evidence-guard-work-XXXX/` is, correctly, rejected as a replay. The first
+	// version of this test did exactly that and its own baseline failed, which is the rule doing its
+	// job to the person writing tests for it.
+	//
+	// Nothing is neutralised here any more. The fixture is frozen, so the waiver expiry it carries
+	// was pushed out once, in the committed bytes, where it can be read rather than reconstructed.
+	const named = basename(FIXTURE);
 	pristineRoot = mkdtempSync(join(tmpdir(), 'evidence-guard-good-'));
 	workRoot = mkdtempSync(join(tmpdir(), 'evidence-guard-work-'));
 	pristine = join(pristineRoot, named);
 	workdir = join(workRoot, named);
-	// `git archive` writes the full path, so extract into a scratch root and lift the folder up.
-	const staging = mkdtempSync(join(tmpdir(), 'evidence-guard-git-'));
-	extractCommitted(source, staging);
-	cpSync(join(staging, source), pristine, { recursive: true });
-	rmSync(staging, { recursive: true, force: true });
-	// The mandated Playwright row carries a waiver with an expiry, and the guard compares it to
-	// today. Left alone, every assertion here would start failing on that date for reasons that have
-	// nothing to do with the guard. The expiry is pushed far out in the COPY only; the committed
-	// waiver keeps its real date, which is the whole point of it having one.
-	const e2e = join(pristine, 'e2e.txt');
-	const text = readFileSync(e2e, 'utf8');
-	if (text.includes('Waiver-Expires:')) {
-		writeFileSync(e2e, text.replace(/Waiver-Expires: \d{4}-\d{2}-\d{2}/, 'Waiver-Expires: 2999-12-31'));
-		resize(pristine);
-		resummarise(pristine);
-	}
+	cpSync(FIXTURE, pristine, { recursive: true });
 });
 
 afterAll(() => {
@@ -214,7 +165,7 @@ afterAll(() => {
 });
 
 describe('evidence-guard', () => {
-	it('accepts the evidence this repository ships', () => {
+	it('accepts a folder a real verify chain produced', () => {
 		const result = runGuard(fresh());
 		expect(result.stdout + result.stderr).toContain('rules pass');
 		expect(result.status).toBe(0);
@@ -325,6 +276,57 @@ describe('evidence-guard', () => {
 		const dir = fresh();
 		mutate(dir, 'proof-tape.md', /\((\d{1,12}) bytes\)/, '(1 bytes)');
 		expect(refusalOf(dir)).toMatch('proof-tape.md disagrees with proof-tape.json');
+	});
+
+	it('rejects a chain artifact whose counts do not cover every entry', () => {
+		// Each count agreeing with the entries it names is not every entry being counted. Moving one
+		// seam to a status the summary has no column for, and decrementing the column it left, keeps
+		// every column truthful and the file exactly as long — a passing artifact with an unreported
+		// failure inside it.
+		const dir = fresh();
+		mutate(dir, 'chamber-lock.json', /"status": "ok"/, '"status": "no"');
+		mutate(dir, 'chamber-lock.json', /"ok": 38/, '"ok": 37');
+		expect(refusalOf(dir)).toMatch('in no column at all');
+	});
+
+	it('rejects a Cipher Gate whose cited evidence is not confirmed', () => {
+		// `null` is the same width as `true`, so the byte count still matches and the top-level status
+		// still says ok while the artifact records that it could not confirm a file it cites.
+		const dir = fresh();
+		mutate(dir, 'cipher-gate.json', /"exists": true/, '"exists": null');
+		expect(refusalOf(dir)).toMatch('not confirmed to exist');
+	});
+
+	it('rejects a Clan Chain that reports its seams dirty', () => {
+		// Swapping the two property names is a same-length edit that inverts the result: 38 clean
+		// seams become 38 dirty ones while the ledger and the Markdown beside it still say clean.
+		const dir = fresh();
+		const path = join(dir, 'clan-chain.json');
+		const before = readFileSync(path, 'utf8');
+		const after = before
+			.replace('"clean":', '"__was_clean":')
+			.replace('"dirty":', '"clean":')
+			.replace('"__was_clean":', '"dirty":');
+		expect(after, 'the clean/dirty swap changed nothing').not.toBe(before);
+		writeFileSync(path, after);
+		expect(refusalOf(dir)).toMatch('the chain did not come back clean');
+	});
+
+	it('rejects a folder dated after today', () => {
+		// A folder and a tape can agree with each other about a day that has not happened, and the
+		// chain's own stages take the newest dated folder as their input — so a future-dated folder
+		// feeds every later run evidence from a run that has not occurred.
+		const dir = fresh();
+		const future = join(workRoot, '2999-09-06');
+		rmSync(future, { recursive: true, force: true });
+		cpSync(dir, future, { recursive: true });
+		for (const file of ['proof-tape.json', 'proof-tape.md']) {
+			const path = join(future, file);
+			writeFileSync(path, readFileSync(path, 'utf8').split('2026-09-06').join('2999-09-06'));
+		}
+		const said = refusalOf(future);
+		rmSync(future, { recursive: true, force: true });
+		expect(said).toMatch('which is after today');
 	});
 
 	it('rejects a Cipher Gate artifact that did not come back ok', () => {

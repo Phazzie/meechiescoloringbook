@@ -128,6 +128,8 @@ New seams use the self-contained layout. Do not add flat-layout seams. See `src/
 | `proof-tape.mjs` | `npm run proof:tape` — plain-English evidence summary |
 | `cipher-gate.mjs` | `npm run cipher:gate` — enforces Cipher Gate entry in DECISIONS.md (not in verify chain; run manually if needed) |
 | `rewind.mjs` | `npm run rewind` — single-seam contract verification |
+| `evidence-guard.mjs` | `npm run evidence:guard` — refuses a committed evidence folder whose transcripts do not carry their own results |
+| `chain-intact.mjs` | `npm run chain:intact` — reads `package.json` and refuses a `verify` gate that no longer invokes its stages |
 | `install-githooks.mjs` | `npm run hooks:install` — configures pre-commit/pre-push hooks |
 
 ### contracts/ — legacy flat-layout contracts

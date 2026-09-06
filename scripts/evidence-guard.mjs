@@ -250,13 +250,34 @@ const selfAgreementProblem = (raw, file, list) => {
 	const entries = Array.isArray(parsed[list]) ? parsed[list] : null;
 	if (entries === null)
 		return `${file} has no "${list}" list, so its summary cannot be checked against anything.`;
-	const disagreements = Object.entries(summary)
-		.filter(([, value]) => typeof value === 'number')
+	const counts = Object.entries(summary).filter(([, value]) => typeof value === 'number');
+	const disagreements = counts
 		.map(([status, claimed]) => {
 			const actual = entries.filter((entry) => entry?.status === status).length;
 			return actual === claimed ? null : `${status} (says ${claimed}, ${list} shows ${actual})`;
 		})
 		.filter((entry) => entry !== null);
+	// Every count matching is not every entry being counted. Checking the counts one at a time asks
+	// "does the summary describe the entries it mentions", and a status it does not mention is
+	// invisible to that question: flipping one seam to a status with no column, and decrementing the
+	// column it left, keeps every count truthful and the file exactly as long. The totals then say 37
+	// of 38 seams, which is a passing artifact with an unreported failure in it.
+	const counted = counts.reduce((total, [, claimed]) => total + claimed, 0);
+	if (counted !== entries.length)
+		disagreements.push(
+			`the counts add up to ${counted} but there are ${entries.length} ${list}; ${entries.length - counted} of them ${entries.length - counted === 1 ? 'is' : 'are'} in no column at all`
+		);
+	const unaccounted = [
+		...new Set(
+			entries
+				.map((entry) => entry?.status)
+				.filter((status) => !counts.some(([name]) => name === status))
+		)
+	];
+	if (unaccounted.length > 0)
+		disagreements.push(
+			`these statuses appear in ${list} and in no summary column: ${unaccounted.join(', ')}`
+		);
 	if (disagreements.length === 0) return null;
 	return `${file}'s summary disagrees with its own ${list}: ${disagreements.join('; ')}; the file was edited after it was written, or the stage that wrote it is inconsistent.`;
 };
@@ -278,14 +299,54 @@ const cipherGateProblem = (dir, raw) => {
 	// validates and asking which of those are tied, instead of patching the one that was reported.
 	const untied = notTiedToRun(dir, 'cipher-gate.json');
 	if (untied !== null) return `${untied}, so its status cannot be trusted as this run's.`;
-	let status;
+	let gate;
 	try {
-		status = JSON.parse(raw).status;
+		gate = JSON.parse(raw);
 	} catch {
 		return 'cipher-gate.json is not readable as JSON, so the gate result cannot be established.';
 	}
-	if (status === 'ok') return null;
-	return `cipher-gate.json reports status "${status}"; the Cipher Gate did not pass, and the verify chain does not run it, so this file is the only place that would say so.`;
+	const status = gate.status;
+	if (status !== 'ok')
+		return `cipher-gate.json reports status "${status}"; the Cipher Gate did not pass, and the verify chain does not run it, so this file is the only place that would say so.`;
+	// The top-level status is a summary of the entries beneath it, and nothing was reading those. The
+	// gate's whole content is a list of paths it confirmed exist; setting one entry's `exists` to
+	// `null` — the same width as `true` — left the status ok, the byte count unchanged, and every rule
+	// passing, while the artifact itself recorded that it could not confirm a cited file. Same defect
+	// as the seam summaries above, one artifact along: a headline agreeing with nothing under it.
+	const entries = gate.cipher?.evidence;
+	if (!Array.isArray(entries) || entries.length === 0)
+		return 'cipher-gate.json reports status ok but lists no evidence; a gate that cites nothing has confirmed nothing.';
+	const unconfirmed = entries
+		.filter((entry) => entry?.exists !== true || typeof entry?.path !== 'string' || entry.path === '')
+		.map((entry) => (typeof entry?.path === 'string' && entry.path !== '' ? entry.path : '<no path>'));
+	if (unconfirmed.length > 0)
+		return `cipher-gate.json reports status ok while these cited files are not confirmed to exist: ${unconfirmed.join(', ')}; the gate's status is a summary of exactly these entries.`;
+	return null;
+};
+
+/**
+ * What is wrong with an `assumption-alarm.json`, or `null` — including when there isn't one.
+ *
+ * It states its result as two arrays rather than a summary, so the self-agreement rule cannot reach
+ * it: filling `invalidAssumptions` while preserving the byte count left every rule passing.
+ * `scripts/assumption-alarm.mjs` exits 1 on either array being non-empty, which is what this reads.
+ */
+const assumptionAlarmProblem = (raw) => {
+	if (raw === null) return null;
+	let alarm;
+	try {
+		alarm = JSON.parse(raw);
+	} catch {
+		return 'assumption-alarm.json is not readable as JSON, so its result cannot be established.';
+	}
+	for (const field of ['invalidAssumptions', 'missingSeamCoverage']) {
+		const value = alarm[field];
+		if (!Array.isArray(value))
+			return `assumption-alarm.json has no "${field}" array, so the alarm's result cannot be read.`;
+		if (value.length > 0)
+			return `assumption-alarm.json reports ${value.length} entries in "${field}"; the assumption alarm did not come back clean.`;
+	}
+	return null;
 };
 
 /**
@@ -360,6 +421,15 @@ const replayedFrom = (dir, tape) => {
 	const stamped = typeof tape.generatedAt === 'string' ? tape.generatedAt.slice(0, 10) : null;
 	if (stamped !== here)
 		return `proof-tape.json is stamped ${stamped ?? '<no generatedAt>'} but filed under ${here}; the run and the folder disagree about when it happened.`;
+	// A folder and a tape can agree with each other about a day that has not happened. The rules above
+	// only ask whether the two match, so renaming this folder to 2099-09-06 and moving the tape's date
+	// with it satisfied every one of them — and `clan-chain.mjs` and `proof-tape.mjs` both select the
+	// lexicographically newest dated folder, so that folder becomes the input to every later run,
+	// feeding them evidence from a run that has not occurred. Consistency is not identity, and two
+	// files agreeing about a date is not a date.
+	const today = toDateFolder(new Date());
+	if (here > today)
+		return `this folder is dated ${here}, which is after today (${today}); a run cannot have produced evidence on a day that has not happened, and the chain's stages take the newest dated folder as their input.`;
 	return null;
 };
 
@@ -394,6 +464,80 @@ const freshnessMarker = (predatesRun) => {
  * exists for. This guard executes no repository code by design: CI runs it before `npm install`, and
  * with `node` rather than `npm run`, for that same reason.
  */
+/** The seam names listed under one heading of `clan-chain.md`. */
+const namedUnder = (md, heading, next) => {
+	const start = md.indexOf(`${heading}\n`);
+	if (start === -1) return null;
+	const rest = md.slice(start + heading.length);
+	const end = next === null ? rest.length : rest.indexOf(`${next}\n`);
+	const section = end === -1 ? rest : rest.slice(0, end);
+	return section
+		.split('\n')
+		.map((line) => /^- (.+) \(owner: /.exec(line)?.[1])
+		.filter((name) => name !== undefined);
+};
+
+/**
+ * Whether the Clan Chain agrees with the ledger it is derived from and with its own summary, as a
+ * sentence, or `null`.
+ *
+ * `clan-chain.json` states its result as two lists rather than a summary, so the self-agreement rule
+ * could not reach it and nothing else looked. Swapping the two property names keeps the file exactly
+ * as long and turns 38 clean seams into 38 dirty ones, while the ledger and the Markdown beside it
+ * still report them clean — a mandatory artifact reporting the opposite of its neighbours, with every
+ * rule passing. Third artifact on this branch to state a result in a shape no rule was reading, after
+ * `cipher-gate.json` and `assumption-alarm.json`.
+ */
+const clanChainProblem = (dir) => {
+	const raw = read(dir, 'clan-chain.json');
+	if (raw === null) return 'clan-chain.json is missing; it is a mandatory chain artifact.';
+	let chain;
+	try {
+		chain = JSON.parse(raw);
+	} catch {
+		return 'clan-chain.json is not readable as JSON, so what the chain reports cannot be established.';
+	}
+	const clean = Array.isArray(chain.clean) ? chain.clean : null;
+	const dirty = Array.isArray(chain.dirty) ? chain.dirty : null;
+	if (clean === null || dirty === null)
+		return 'clan-chain.json has no "clean" and "dirty" lists, so what the chain reports cannot be read.';
+	if (dirty.length > 0)
+		return `clan-chain.json reports ${dirty.length} dirty seams: ${dirty.map((entry) => entry?.seam ?? '<unnamed>').join(', ')}; the chain did not come back clean.`;
+	const ledgerRaw = read(dir, 'seam-ledger.json');
+	const ledger = ledgerRaw === null ? null : JSON.parse(ledgerRaw);
+	const ledgerOk = Array.isArray(ledger?.seams)
+		? ledger.seams.filter((entry) => entry?.status === 'ok').length
+		: null;
+	if (ledgerOk === null)
+		return 'seam-ledger.json carries no seams list, so the Clan Chain cannot be checked against it.';
+	if (clean.length !== ledgerOk)
+		return `clan-chain.json calls ${clean.length} seams clean and seam-ledger.json reports ${ledgerOk} ok; the chain and the ledger it is derived from describe different runs.`;
+	return chainSummaryProblem(dir, clean);
+};
+
+/** Whether `clan-chain.md` names the same clean seams as the JSON beside it, as a sentence, or `null`. */
+const chainSummaryProblem = (dir, clean) => {
+	const md = read(dir, 'clan-chain.md');
+	if (md === null)
+		return 'clan-chain.md is missing; the chain writes a plain-English summary beside the JSON.';
+	const listedClean = namedUnder(md, 'Clean seams:', 'Dirty seams:');
+	const listedDirty = namedUnder(md, 'Dirty seams:', null);
+	if (listedClean === null || listedDirty === null)
+		return 'clan-chain.md has no "Clean seams:" and "Dirty seams:" sections, so it cannot be compared with the JSON.';
+	const named = new Set(clean.map((entry) => entry?.seam));
+	const disagreements = [];
+	const onlyInMd = listedClean.filter((name) => !named.has(name));
+	if (onlyInMd.length > 0)
+		disagreements.push(`the summary calls these clean and the JSON does not: ${onlyInMd.join(', ')}`);
+	const onlyInJson = [...named].filter((name) => !listedClean.includes(name));
+	if (onlyInJson.length > 0)
+		disagreements.push(`the JSON calls these clean and the summary does not: ${onlyInJson.join(', ')}`);
+	if (listedDirty.length > 0)
+		disagreements.push(`the summary lists ${listedDirty.length} dirty seams`);
+	if (disagreements.length === 0) return null;
+	return `clan-chain.md and clan-chain.json disagree about the chain: ${disagreements.join('; ')}.`;
+};
+
 /** The summary's per-file rows, keyed by name. */
 const summaryRows = (md) => {
 	const rows = new Map();
@@ -888,27 +1032,17 @@ const RULES = [
 			// that the gate was met — an unread result is the same as no result.
 			const cipherProblem = cipherGateProblem(dir, read(dir, 'cipher-gate.json'));
 			if (cipherProblem !== null) return cipherProblem;
+			// clan-chain states its result as two lists rather than a summary, so the summary-based
+			// check below cannot reach it either.
+			const chainProblem = clanChainProblem(dir);
+			if (chainProblem !== null) return chainProblem;
 			// assumption-alarm states its result as two arrays rather than a summary, so the
 			// summary-based check below could not reach it and nothing else looked: filling
 			// `invalidAssumptions` while preserving the byte count left every rule passing.
 			// `scripts/assumption-alarm.mjs` exits 1 on either array being non-empty, which is the
 			// result this reads.
-			const alarmRaw = read(dir, 'assumption-alarm.json');
-			if (alarmRaw !== null) {
-				let alarm;
-				try {
-					alarm = JSON.parse(alarmRaw);
-				} catch {
-					return 'assumption-alarm.json is not readable as JSON, so its result cannot be established.';
-				}
-				for (const field of ['invalidAssumptions', 'missingSeamCoverage']) {
-					const value = alarm[field];
-					if (!Array.isArray(value))
-						return `assumption-alarm.json has no "${field}" array, so the alarm's result cannot be read.`;
-					if (value.length > 0)
-						return `assumption-alarm.json reports ${value.length} entries in "${field}"; the assumption alarm did not come back clean.`;
-				}
-			}
+			const alarmProblem = assumptionAlarmProblem(read(dir, 'assumption-alarm.json'));
+			if (alarmProblem !== null) return alarmProblem;
 			const SUMMARISED = [
 				{ file: 'chamber-lock.json', list: 'seams' },
 				{ file: 'seam-ledger.json', list: 'seams' },

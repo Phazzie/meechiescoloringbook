@@ -9104,3 +9104,48 @@ is the only Critical-class bug the engine reports in the new code.
 Both sorts are gone: the guard compares the tape's declared exclusions as a set, and the test names
 its comparator. If the gate stays red after this, the next entry says so and the check is reported as
 unmet rather than explained away — a gate you cannot meet is reported as unmet.
+
+### Addendum, round 50 — seven findings, and a fixture that stops choosing itself
+
+Codex reviewed the head that cleared the quality gate and returned seven findings. All seven were
+reproduced before being fixed, and all seven hold.
+
+**Four ways to write a passing artifact that reports a failure.** Each is a same-length edit, and
+each survived because the artifact states its result in a shape no rule was reading:
+
+| Edit | Why it passed |
+|---|---|
+| One seam `"ok"` → `"no"`, summary `38` → `37` | Every column stayed truthful. Nothing asked whether the columns *covered* the seams. |
+| `cipher-gate.json` entry `"exists": true` → `null` | The top-level status still said ok, and nothing read the entries it summarises. |
+| `clan-chain.json` `clean`/`dirty` property names swapped | The chain reports two lists rather than a summary, so the self-agreement rule could not reach it. 38 clean seams became 38 dirty ones while the ledger and the Markdown beside it still said clean. |
+| Folder and tape both renamed `2099-09-06` | Both agree. A rule that asks only whether two files match cannot notice they match about a day that has not happened — and the chain's stages take the newest dated folder as their input, so it would feed every later run. |
+
+> **A headline is not evidence of what is under it.** Three artifacts in a row — `cipher-gate.json`,
+> `assumption-alarm.json`, `clan-chain.json` — each stated its result in a shape the summary rule
+> could not read, and each was trusted for exactly that reason.
+
+**The gate could redefine itself.** CI guards the evidence a change touches, then runs
+`npm run verify` — a script defined *in the pull request being reviewed*. A change that ships no
+evidence folder takes the "nothing to guard" path, and replacing `verify` with `true`, dropping a
+stage, or pointing `test` at something that is not the suite makes the workflow green having
+verified nothing, taking the guard's own tests out of CI in the same edit. Every check in this
+repository was downstream of a script the change could rewrite. `scripts/chain-intact.mjs` now reads
+the committed definition before CI runs it, with its own tests and an explicit list of what it does
+not check.
+
+**The tests were choosing their own subject.** `beforeAll` read `e2e.txt` from whichever committed
+evidence folder was newest — and `e2e.txt` is optional, the rewind transcripts are named after
+whichever seam ran, and the mandated row's waiver expires. The next ordinary run that omitted an
+optional artifact, ran a different seam, or simply arrived after that date would have broken every
+`npm test` in the repository, for evidence it had nothing to do with. The fixture is now frozen
+under `tests/fixtures/evidence-guard/`, with a README explaining why it must not be tidied away.
+
+> **A test whose subject is chosen by the state of the world at the moment it runs is a scheduled
+> outage.** This is the second time the same coupling has bitten: first as a race against the chain
+> rewriting the folder mid-test, now as a dependency on what that folder happens to contain.
+
+Also: `npm ci` replaces `npm install` in CI, so a lockfile that disagrees with `package.json` fails
+the check instead of being silently repaired inside the ephemeral checkout.
+
+`npm run lint` clean · `sonarjs` recommended clean · `npm run evidence:guard` 8 rules pass ·
+26 unit tests across the two guard suites · all seven findings re-run against the fix and refused.
