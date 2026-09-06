@@ -9643,7 +9643,7 @@ The installable app is on `main`. Base `ad3bfe7` → head `6e4d3a5`, squashed to
 | `probes/cache-seam.probe.mjs` | **12/12**, in a real browser |
 | Check runs | **9 of 9 green** — `verify` ×2, CodeQL, Analyze ×2, SonarCloud ×2, Rosentic, Vercel Preview Comments |
 | SonarCloud quality gate | passed — security rating A, 0 hotspots, 0.0% duplication |
-| Codex | **clean on `6e4d3a5`**, after twelve findings across eight earlier passes |
+| Codex | **clean on `6e4d3a5`**, after the passes enumerated in the findings table below — three that returned findings, one earlier clean |
 | Review threads | 13 of 13 resolved |
 | Merge conflict | none |
 | Schema / contract / data migration | **none** — the `CacheSeam` contract is untouched, which is the design decision the run turned on |
@@ -9655,8 +9655,10 @@ lines 678-685 as of `2244765`, and findable by its `Seams: None registered - sta
 headers served by the Vercel edge` line, which is what to search for once these numbers drift —
 carries
 an Assumption dated 2026-09-03 — three days before this run — stating that the `headers` rules in
-`vercel.json` attach `X-Content-Type-Options`, `X-Frame-Options` and `Referrer-Policy` to the paths
-`src/hooks.server.ts` never sees, with `Status: Open - pending first deploy`. Nothing local can
+`vercel.json` attach the security headers to the paths `src/hooks.server.ts` never sees, with
+`Status: Open - pending first deploy`. Read the `Statement` there for which headers; restating the
+list here is what made this sentence stale once already, when the entry gained `Permissions-Policy`
+and this paragraph kept saying three. Nothing local can
 close it: `vite preview` does not read `vercel.json`, and the pull request's own preview deployment
 sits behind deployment protection and 302s to `vercel.com/sso-api`, so no header of the app itself
 is reachable unauthenticated.
@@ -9827,9 +9829,9 @@ The SonarCloud security failure was diagnosed by reasoning about which of my lin
 It was wrong. The answer had been delivered to this session as a review comment naming the file and
 the line, and was sitting unread while the reasoning happened.
 
-And a third, which this close-out earned on its own account. **Twenty-one findings across nine Codex
-passes on #312 — a pull request containing no code — with a tenth returning clean, and every one of
-the twenty-one correct.**
+And a third, which this close-out earned on its own account. **Every finding in the ledger below was
+correct — on #312, a pull request containing no code.** The totals are not restated here; add the
+column up. Restating them is what produced four of the findings in it.
 
 The ledger below is per pass and append-only, which is the second attempt at recording this. The
 first attempt gave a total anchored to one commit, and review caught the flaw in that immediately:
@@ -9850,8 +9852,9 @@ mode — later passes append rather than displace, and any total is recoverable 
 | `8a58e92` | 4 | `lint` and `build` evidence never refreshed |
 | `d38dcfe` | 2 | — |
 | `2244765` | 3 | no micro Plan + Self-Critique for a governance-only change |
+| `28ea7c7` | 3 | `verify-outer.txt`, the only full-chain transcript, never regenerated |
 
-**Five P1s.** An open Assumption reported as absent, on the very feature that made it load-bearing.
+**The P1s.** An open Assumption reported as absent, on the very feature that made it load-bearing.
 A merge-gate stand-down argued from evidence this same log records a reviewer rejecting on #305.
 **A verify chain refreshed in part** — fixing the first two I ran only the two scripts I expected to
 object, leaving four downstream artifacts describing an older tree, a directory that reads as
@@ -9862,27 +9865,38 @@ And **no micro Plan for this pull request at all**: `AGENTS.md` L108 requires on
 governance-only documentation change — the seams, the files, the commands, and how behaviour stays
 unchanged — and this PR opened inheriting Run 10's pre-merge plan, which describes work that had
 already merged as `1b67d30`. A plan that documents finished work is not a plan. It is in `plan.md`
-now, with the Self-Critique the rule also asks for.
+now, with the Self-Critique the rule also asks for. And **the full-chain transcript never
+regenerated**: `verify-outer.txt` is the only artifact holding `npm run verify`'s own command line
+and its `verify exit=0`, `verify.txt` holds just the inner check/test stage, and no script writes
+either. I had looked at that file twice, decided it was a captured transcript belonging to #311, and
+said so on the PR — so every "verify 0" this entry claimed had no committed evidence on its own
+head. The decision was wrong on its own terms too: #311's transcript is preserved in git at the
+merged commit, and a dated evidence directory is supposed to describe the tree beside it.
 
 **The P2s**, in three kinds rather than one. An earlier draft called them all counts and capability
 claims and then listed twelve where the ledger implied fourteen — miscounting the list of
-miscounts, which is the joke this entry keeps making at its own expense.
+miscounts, which is the joke this entry keeps making at its own expense. The group sizes are
+deliberately not given below, for the same reason.
 
-*Counts* (6): the findings total; the round count; two P1s recorded where there were three; the
-list of prerendered routes reading "six" above seven of them; the P2 inventory naming twelve of
-fourteen; and a total left at ten in the sentence directly beneath a ledger reading sixteen.
+*Counts*: the findings total; the round count; two P1s recorded where there were three; the list of
+prerendered routes reading "six" above seven of them; the P2 inventory itself; a total left at ten
+in the sentence directly beneath a larger ledger; and "twelve findings across eight earlier passes"
+for #311, where the table further down this entry records three passes with findings and one clean.
 
-*Capability and scope claims* (6): "no `CacheSeam` write operation" when `primeCache` is one; fonts
+*Capability and scope claims*: "no `CacheSeam` write operation" when `primeCache` is one; fonts
 called a seam limitation when the seam permits them and only the strategy refuses; "no unit test
 could have caught" two defects whose unit tests this run wrote; a missing probe listed among the
 defects it failed to catch; "all five headers" when the edge supplies one of them independently;
 and "every page" when five alias slugs still resolve through the function.
 
-*Procedure and reference defects* (2), which are the two that could mislead a future run into
+*Procedure and reference defects*, which are the ones that could mislead a future run into
 **doing** the wrong thing rather than believing it: a close-out instruction that validated the
 document rules and then said to mark the Assumption `Closed`, leaving its asset half — the original
 half — unchecked; and a structured `Statement` left naming three headers while the prose beside it
-said four, where `assumption-alarm` parses the field and not the paragraph.
+said four, where `assumption-alarm` parses the field and not the paragraph. A third joined them
+late: this entry restating that same three-header list in prose, still saying three after the
+`Statement` had been corrected to four — the restatement going stale exactly as the thing it
+restated was fixed.
 
 Plus this ledger's own anchoring, and a stale `DECISIONS.md` line range, both of which are the same
 disease as the counts: a fact restated where it cannot be checked against its source.
@@ -9890,7 +9904,7 @@ disease as the counts: a fact restated where it cannot be checked against its so
 > **Correcting the instance is not correcting the belief.**
 
 That is the pattern under every finding in the ledger above — including, when this sentence said
-"all ten" after the ledger beside it had grown to sixteen, itself. Each fix was locally right and
+"all ten" while the ledger beside it had long since outgrown that, itself. Each fix was locally right and
 left the same false premise standing a few lines away: the write-operation correction did not reach
 the fonts bullet two bullets below it, which repeated it verbatim; scoping the header claim to four
 in the prose left the structured `Statement` naming three.
