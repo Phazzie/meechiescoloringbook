@@ -8499,3 +8499,68 @@ is one real regression, in code this run wrote. The rule I am holding myself to:
 substantive, merge when a round comes back with nothing substantive left.** A green PR carrying only
 marginal notes gets said so plainly and merged, not cycled — cycling a clean PR is its own way of
 never finishing.
+
+---
+
+## Round 12 — the reviewer was right about the exemption I claimed one entry ago
+
+Two P2s on `cd26468`. The first is the one I had just declined to fix, and Codex's argument beat mine.
+
+### I generalised from the case with a page to the case without one
+
+Round 11's entry says, of the home studio: *"it clears nothing on a spec edit, because its trace is
+anchored to the last generation and stays until the next one, page or no page. That is a consistent
+model, not a missed case."*
+
+The three words doing the damage are **page or no page**. Everything else in that sentence is true and
+observed. That clause is neither. The studio's model is coherent *because a page is on screen for the
+report to describe* — keep the finished page and its trace while the reader sets up the next one. With
+`images: []` there is no page, nothing anchors the report, and every reset in `StudioState` hangs off
+replacing a **page** — so no path retires it. Changing the paper size, the border, the theme, the wig
+or the dedication left the previous prompt's findings and trace sitting under controls that no longer
+described them.
+
+I wrote that clause **in the same entry where I named the pattern**: *every finding in this run has
+been a claim wider than its evidence.* I then made one, about the exemption itself, and shipped it. It
+is the third time this run I have named a habit and immediately practised it — and the first time a
+reviewer caught the naming and the practising in one comment.
+
+Worth recording precisely: I did not fail to consider the home studio. I considered it, reached a
+conclusion, wrote the conclusion down as reasoning rather than as a check, and invited disagreement in
+the reply. The invitation is the only part that worked.
+
+**The fix** is `clearPagelessRequestDiagnostics()`, called from `rebuildSpecFromCurrentText` (every
+Page Control, and the wig selector) and from `handleDedicationInput` (the one input that does not
+rebuild the spec). Its first line is `if (this.images.length > 0) return;` — that guard is the whole
+of its safety, and the third new test is the mirror that pins it: with a page on paper the report is
+that page's and survives every control change untouched. Dropping it would be the same defect pointed
+backwards.
+
+**A test failure I got for free.** My first attempt at that mirror test asserted the prompt survived,
+and it failed — because `arrangeGeneratedPage()` only *arranges*; the page exists after
+`handleGeneratePage()`. The test was wrong and the guard was right, but the failure is what proved the
+guard fires exactly when there is no page. A passing test would have proved less.
+
+### The decision record had outlived the code by two commits
+
+`f870c3a` removed the `check-failed` weight and made a named missing heading a **blocker**. The active
+`DECISIONS.md` entry went on saying the report "renders a `check-failed` finding" and that the seam
+"genuinely found nothing, having graded nothing" — the exact classification that commit removed, still
+standing in the document the repo treats as source of truth.
+
+That is this run's subject, committed against the run's own paperwork: **a record outliving the thing
+it describes.** The entry now states the blocker-plus-`hasIncompleteCheck` behaviour that shipped, and
+carries a `Corrected under review` line saying what it used to claim and why that was wrong. The
+`check-failed` reasoning survives verbatim one entry below, where it is already marked SUPERSEDED —
+that is history and stays readable.
+
+### Verified
+
+`check` 0/0 · `lint` exit=0 · **1475 passed**, 1 skipped (three new) · `build` exit=0 · e2e 42 passed ·
+`verify` exit=0 · proof tape flags nothing.
+
+### On the stopping rule I stated one round early
+
+Round 11 ended by declaring the rule for when to stop. Round 12 then found two real defects, one of
+them in that very entry's reasoning. The rule is unchanged and I still hold to it — but stating it
+before the round that disproved its premise is worth leaving on the record next to it, unedited.

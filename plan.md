@@ -59,14 +59,14 @@ hand, because a hand-kept inventory is a second copy of the truth and goes stale
 | `src/lib/components/QualityReportPanel.svelte` | `[NEW]` | the clean line / boxed findings wrapper and its CSS, shared by the two mode surfaces |
 | `src/lib/components/studio/SystemTrace.svelte` | `[MODIFY]` | render the report; add the `promptWasSent` prop; `not-applicable` branch; drop raw codes and the orphaned CSS |
 | `src/lib/components/VerdictPageStudio.svelte` | `[MODIFY]` | replace the private drift block with `QualityReportPanel`; delete `.drift*` CSS |
-| `src/lib/components/MeechieTools.svelte` | `[MODIFY]` | same replacement; add `driftReported`, `driftCheckFailure`, the `$:` report; delete `.drift*` CSS |
-| `src/lib/components/verdict-page-state.svelte.ts` | `[MODIFY]` | `driftReported`, `driftCheckFailure`, derived `qualityReport` |
+| `src/lib/components/MeechieTools.svelte` | `[MODIFY]` | same replacement; add `driftReported`, `driftCheckFailure`, the `$:` report; delete `.drift*` CSS; `handleDedicationInput` also clears a pageless request's findings |
+| `src/lib/components/verdict-page-state.svelte.ts` | `[MODIFY]` | `driftReported`, `driftCheckFailure`, derived `qualityReport`; `setDedication` also clears a pageless request's findings |
 
 **Source — routes**
 
 | File | Action | Exact edit |
 |---|---|---|
-| `src/routes/studio-state.svelte.ts` | `[MODIFY]` | `driftReported`, `driftCheckFailure`, `checkResultUnrecorded`, `promptWasSent`, `pageIsTryOnPortrait` getter, derived `qualityReport`; `tryOnPageOnScreen` becomes `$state`; reopen path reads stored findings by length |
+| `src/routes/studio-state.svelte.ts` | `[MODIFY]` | `driftReported`, `driftCheckFailure`, `checkResultUnrecorded`, `promptWasSent`, `pageIsTryOnPortrait` getter, derived `qualityReport`; `tryOnPageOnScreen` becomes `$state`; reopen path reads stored findings by length; `clearPagelessRequestDiagnostics` on `rebuildSpecFromCurrentText` and `handleDedicationInput` |
 | `src/routes/+page.svelte` | `[MODIFY]` | pass `report` and `promptWasSent`; delete the orphaned `.diagnostics-grid` rules |
 
 **Tests**
@@ -76,6 +76,8 @@ hand, because a hand-kept inventory is a second copy of the truth and goes stale
 | `tests/unit/quality-report.test.ts` | `[NEW]` | states, severity, ordering, fixes non-pairing, the two page/check directions, try-on, unrecorded |
 | `tests/unit/pipeline-edge-cases.test.ts` | `[MODIFY]` | replace the test asserting the fail-open; add the absent-key assertion |
 | `tests/unit/api-generate.test.ts` | `[MODIFY]` | three route-level contract tests, one driving the real `driftDetectionAdapter` |
+| `tests/unit/verdict-page-state.test.ts` | `[MODIFY]` | both directions of the no-page findings guard; the pageless report retired on a dedication edit |
+| `tests/unit/studio-state.test.ts` | `[MODIFY]` | the pageless report retired on a control change and on a dedication edit, and the mirror: a page on screen keeps its report |
 | `tests/e2e/smoke.spec.ts` | `[MODIFY]` | unchecked state on the home studio; severity, ordering, tag and fixes on the tools hub; clean line on a mode route |
 
 **Docs**

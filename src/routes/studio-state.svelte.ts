@@ -2,7 +2,7 @@
 // Why: Extracts the 690-line script from +page.svelte into a testable, self-contained
 //      state module; the page component becomes a thin lifecycle wrapper.
 // Info flow: User actions -> StudioState methods -> reactive $state updates -> component props.
-// Invariants: Three distinctions here are load-bearing and must never be collapsed into one
+// Invariants: Four distinctions here are load-bearing and must never be collapsed into one
 //             another, because each collapse produced a report that said something untrue.
 //             (1) `images.length > 0` (a page exists) is INDEPENDENT of `driftReported` (a check
 //             spoke about it): inferring either from the other reported a picture-less generation
@@ -14,6 +14,13 @@
 //             (3) `promptWasSent` is NOT "`assembledPrompt` is non-empty": the try-on flow stores a
 //             human description there purely to satisfy the vault record's non-empty requirement
 //             and never calls a provider.
+//             (4) Diagnostics from a generation that installed NO page belong to the REQUEST, and
+//             every reset in this class hangs off replacing the *page* — so without
+//             `clearPagelessRequestDiagnostics` on the input paths, a findings-but-no-image response
+//             left its report and trace under controls that no longer described it. The `images`
+//             guard in that method is the whole of its safety: a page on screen keeps its own report
+//             through every control change, because the studio deliberately holds a finished page
+//             while the reader sets up the next one.
 //             `tryOnPageOnScreen` is `$state` rather than a plain field because `qualityReport`
 //             derives from it; a plain field would be read once and never follow the paper.
 import { authContextAdapter } from '$lib/adapters/auth-context-seam';
@@ -1423,8 +1430,40 @@ export class StudioState {
 	private rebuildSpecFromCurrentText = async (
 		source: SettingChangeSource = 'setting'
 	): Promise<void> => {
+		this.clearPagelessRequestDiagnostics();
 		await this.applyTextToSpec(this.rebuildSourceText(), source);
 	};
+
+	/**
+	 * Drop the findings and the trace of a generation that put nothing on the paper, because the
+	 * request they describe is no longer the one the controls describe.
+	 *
+	 * A generate response can be contract-valid, carry findings, and carry no usable image. Those
+	 * diagnostics are the most useful thing on screen at that moment — which is why the generate path
+	 * records them above its no-picture guard — but they belong to a REQUEST, and the studio had no
+	 * path that retired them. Every reset here hangs off replacing the *page*, and there is no page,
+	 * so moving the paper size or retyping the dedication left the previous prompt's report and trace
+	 * under controls that no longer describe it.
+	 *
+	 * The `images` guard is the whole safety of this. With a page on screen the report belongs to that
+	 * page and must survive every control change untouched: the studio deliberately keeps a finished
+	 * page and its trace while the reader sets up the next one, and dropping the report of the page
+	 * they are looking at would be the same defect pointed the other way. Nothing here runs during a
+	 * generation either — `resetGeneratedPage` has already cleared all of it before the request goes
+	 * out, so every field below is a no-op until a completed request leaves one set.
+	 */
+	private clearPagelessRequestDiagnostics(): void {
+		if (this.images.length > 0) return;
+		this.generationError = '';
+		this.assembledPrompt = '';
+		this.revisedPrompt = '';
+		this.violations = [];
+		this.recommendedFixes = [];
+		this.driftReported = false;
+		this.driftCheckFailure = undefined;
+		this.checkResultUnrecorded = false;
+		this.promptWasSent = false;
+	}
 
 	/**
 	 * The Page Controls panel's handler: rebuild the spec, then report the outcome beside the
@@ -1471,6 +1510,10 @@ export class StudioState {
 	};
 
 	handleDedicationInput = (value: string): void => {
+		// The one input that does not go through `rebuildSpecFromCurrentText`, so it clears the
+		// pageless request's diagnostics itself. Same reason as every Page Control: a report about a
+		// prompt built from the previous dedication is not a report about this one.
+		this.clearPagelessRequestDiagnostics();
 		this.dedication = value;
 		this.spec = { ...this.spec, dedication: this.currentDedication() };
 		void this.validateSpec();
