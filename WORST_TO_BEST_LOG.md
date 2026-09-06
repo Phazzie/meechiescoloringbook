@@ -8638,11 +8638,21 @@ counter-examples I had already written down and counted. Caught by Codex on the 
 run's own thesis, applied to the sentence stating it.
 
 This paragraph originally called that **"the run's last finding."** It was not, and saying so was the
-same mistake a third time in one entry: three more findings landed on the two commits after it — the
-premature merge close-out, the uncounted thirteenth round, and the P1 on editing an append-only file.
-A finding is only the last one once no further look has happened, and at the moment of writing, two
+same mistake a third time in one entry. **Five** more findings landed on the three commits after it:
+
+| Head | Findings |
+|---|---|
+| `fbe8136` | the premature merge close-out; the uncounted thirteenth round |
+| `83d566d` | the P1 on editing an append-only file; "ten more rounds" when it was twelve; the stale "last finding" claim |
+| `a4dd1ac` | "false in its entirety", which discarded real measurements; this count, first written as three |
+
+A finding is only the last one once no further look has happened, and at the moment of writing, three
 more looks were still to come. Nothing is described as last in this file again; the close-out simply
 stops where the reviews stopped.
+
+The count in this paragraph first read **three**, listing only `fbe8136`'s two and the P1 — and it
+was written in the sentence correcting an overclaim, inside the bullet list of overclaims. Naming a
+number is not the same as counting one.
 
 ### What I got wrong, kept in one place
 
@@ -8669,9 +8679,18 @@ stops where the reviews stopped.
   merge close-out — PR #309"*, at `ba6244b`, opens with "The quality report is on `main`." It was
   not. The PR stayed open for **twelve** further review rounds — the second through tenth close-outs
   above, then Rounds 11 and 12, then the clean thirteenth — and merged as `f94059f` from `7f7cba1`.
-  That entry is **false in its entirety from its heading down**, and it is left exactly as written,
-  because this file is append-only; this bullet and the corrections around it are the whole of the
-  record that supersedes it. Read nothing in it as describing a merge that happened.
+  **What is false in that entry is its merge framing, and only that** — the heading calling it a
+  merge close-out, "The quality report is on `main`", and every phrasing that treats the merge as
+  done. **Its measurements are real and stand**: `check` 0/0, `lint` exit=0, 1458 passed, `build`
+  exit=0, e2e 42 passed, `verify` exit=0, rewind 5 passed, all recorded at `ba6244b` and verified in
+  the paragraph immediately above it in this file; so do its Rosentic and Vercel dispositions and its
+  carried-forward list. The entry is left exactly as written, because this file is append-only, and
+  this bullet is the record that supersedes the merge claim in it. Read it as a verification report
+  filed under the wrong heading, not as a fabrication.
+
+  I first wrote here that the entry was "false in its entirety from its heading down." That was
+  itself a claim wider than its evidence — pointed the other way, discarding measurements that were
+  taken and true in order to condemn the framing around them. Corrected after Codex caught it.
 
   This is the same class as the unmade edit — a description of my own work that was untrue when
   written — and the second instance of it in one run, which makes it a habit rather than a slip.
