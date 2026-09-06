@@ -9627,7 +9627,7 @@ the platform before being believed**, in a Node one-liner, before a single line 
 ## Run 10 — merge close-out — PR #311 merged as `1b67d30`
 
 The installable app is on `main`. Base `ad3bfe7` → head `6e4d3a5`, squashed to `1b67d30`.
-**12 commits, 46 files, +4001 / −205.** Ten review rounds.
+**12 commits, 46 files, +4001 / −205.** Nine close-out rounds, listed above by name.
 
 ### What the gate required, and what it found
 
@@ -9668,14 +9668,22 @@ navigation is redirected to, and a worker with no decisions left in it.
 
 ### Where the findings came from
 
-**Twenty-one findings. Two came from me.**
+**No grand total is given, and that is deliberate** — for the reason Run 9's close-out reached the
+hard way: a document that counts the reviews *of itself* cannot state a total while those reviews
+are still arriving, and every total this routine has published has been wrong by the next round.
+An earlier draft of this section said "Twenty-one findings. Two came from me." **Both numbers were
+wrong**, caught by checking them against this file rather than by anyone reporting it. The four
+sources are enumerated instead, each with its basis, so a reader can count them for themselves.
 
-| Source | Findings | Disproved |
+| Source | What it found | Basis |
 |---|---|---|
-| Codex | 12 | 0 |
-| Browser probe (`probes/cache-seam.probe.mjs`) | 3 | — |
-| SonarCloud | 4 | — |
-| Re-reading my own diff | 2 | **1** |
+| **Codex** | 6 on `4fb41f2`, 2 on `cd6985c`, 4 on `052ef86`; clean on `81d517d` and `6e4d3a5` | the review threads, all resolved |
+| **Browser probe** | the worker controlling nothing; the fallback served under the wrong URL; the probe reading the cache before it was filled | `docs/evidence/2026-09-06/probe-cache-seam.txt` |
+| **SonarCloud** | cognitive complexity; `spawn('npm')` PATH resolution; the super-linear regex; an assertion style | its own gate transitions, plus the code-scanning relay for the security one |
+| **Re-reading my own work** | a dead branch in the worker; a stale-banner bug that **was not real**; the `app-origin-seam` rule broken where nobody was looking; an open redirect in the validator written to stop open redirects | the commits that fixed or reverted each |
+
+**Not one of Codex's was disproved. One of mine was** — the stale banner, which the mutation check
+refuted and which was reverted rather than kept.
 
 The four that no unit test could have caught were the ones that mattered: **the security headers**
 prerendering silently dropped, **the missing reality probe**, **a worker that cached everything and
