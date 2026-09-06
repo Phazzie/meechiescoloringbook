@@ -213,21 +213,27 @@ const severityWeight = (value: number): VerdictSeverity['weight'] => {
  * `null` renders as nothing at all. An absent rating is not a low one, and a card that fills the gap
  * with a zero, a dash or "unrated" would be describing a judgement Meechie did not make.
  *
- * `verdict` is taken as well, for one case that is not about absence. When the verdict *is* the
- * score — a headline of exactly `"2/10"` — the number is already the largest thing on the card, and
- * it is there under its own meaning. Rate This Excuse builds its headline that way and scores an
- * excuse's credibility, not a situation's severity, so a page saved from it and reopened here would
- * otherwise print the same number twice with the second copy relabelled to mean something close to
- * the opposite. Derived from the record's own two fields rather than matched against a known
- * headline shape: the question is whether *this* card would say the number twice, which is the same
- * question in every case that matters and needs no list of tools to answer.
+ * The second argument covers one case that is not about absence, and it is passed **only for a
+ * restored record**. When such a record's verdict *is* the score — a headline of exactly `"2/10"` —
+ * the number is already the largest thing on the card, under its own meaning. Rate This Excuse
+ * builds its headline that way and scores an excuse's credibility rather than a situation's
+ * severity, so a page saved from it before `buildToolStudioText` stopped copying that number would
+ * otherwise print it twice, the second time relabelled to mean something close to the opposite.
+ *
+ * Not applied to a live response, which is the correction Codex made to the first version of this
+ * guard. A live `rating` is a studio severity by construction, so the label is right for it in every
+ * case — including the freak one where the model returns `"8/10"` as its four-to-eight-word verdict.
+ * There, suppressing the label would leave exactly the bare, unexplained number this whole change
+ * exists to stop showing, and a redundant true label beats an unexplained number. The guard is for
+ * records written before the producer was fixed, and those are restored by definition.
  */
 export const readVerdictSeverity = (
 	rating: number | undefined,
-	verdict = ''
+	/** The verdict, passed only when it might itself be the score. See above: restored records only. */
+	verdictThatMightBeTheScore = ''
 ): VerdictSeverity | null => {
 	if (rating === undefined) return null;
-	if (verdict.trim() === `${rating}/10`) return null;
+	if (verdictThatMightBeTheScore.trim() === `${rating}/10`) return null;
 	return {
 		value: rating,
 		outOf: 10,
@@ -279,7 +285,13 @@ export const buildVerdictReport = (input: {
 		hasVerdict: true,
 		verdict: output.verdict,
 		quote: output.quote,
-		severity: readVerdictSeverity(output.rating, output.verdict),
+		// The verdict is handed over only when it might be the score, which is only ever true of a
+		// restored record — see `readVerdictSeverity`. A live response's rating is a studio severity
+		// by construction and is always labelled.
+		severity: readVerdictSeverity(
+			output.rating,
+			standingWasReported ? undefined : output.verdict
+		),
 		standing: facts
 			? {
 					code: output.qualityState,

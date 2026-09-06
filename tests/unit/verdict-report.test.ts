@@ -186,11 +186,25 @@ describe('buildVerdictReport severity', () => {
 		// tools: the question is whether this card would say the same number twice.
 		expect(readVerdictSeverity(2, '2/10')).toBeNull();
 		expect(readVerdictSeverity(2, '  2/10  ')).toBeNull();
-		expect(reportFor({ rating: 2, verdict: '2/10' }).severity).toBeNull();
+		expect(reportFor({ rating: 2, verdict: '2/10' }, false).severity).toBeNull();
 		// A headline that merely mentions the number is not the number.
 		expect(readVerdictSeverity(2, 'He scored 2/10 on effort')?.value).toBe(2);
 		// And a real verdict beside a real severity is untouched.
 		expect(readVerdictSeverity(8, 'The phone did not die.')?.label).toBe('Severity 8 of 10');
+	});
+
+	it('still labels a live response whose verdict happens to be the score', () => {
+		// Codex's correction to the guard above. The guard exists for records written before
+		// `buildToolStudioText` stopped copying a tool score into this field, and those are restored
+		// by definition. A live `rating` is a studio severity by construction, so suppressing the
+		// label there would leave the bare, unexplained "8/10" this whole change exists to stop
+		// showing — and a redundant true label beats an unexplained number.
+		const live = reportFor({ rating: 8, verdict: '8/10' }, true);
+		expect(live.severity?.label).toBe('Severity 8 of 10');
+		expect(live.severity?.meaning).toBe(SEVERITY_MEANING);
+
+		// The same response restored from a record is the case the guard is for.
+		expect(reportFor({ rating: 8, verdict: '8/10' }, false).severity).toBeNull();
 	});
 
 	it('reports nothing at all when the response carried no rating', () => {

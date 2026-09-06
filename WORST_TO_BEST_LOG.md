@@ -10018,3 +10018,45 @@ separately against every producer that writes the field** — not against the on
 
 `check` 0/0 · `lint` exit=0 · `npm test` **1589 passed**, 1 skipped · `build` exit=0 · `test:e2e`
 **49 passed** · `npm run verify` exit=0.
+
+### Run 11, third close-out — 2026-09-06 — one more from Codex, on the fix from the round before
+
+`8550ef8` drew a third P2, and it is a finding **on the previous round's fix rather than on the
+original change** — which is now the fourth time in two runs of this routine that a fix has needed
+one of its own.
+
+> *When a valid live studio response uses a numeric ruling such as `verdict: '8/10'` with
+> `rating: 8`, this branch discards the studio severity and leaves the same bare, ambiguous `8/10`
+> display this change aims to fix.*
+
+**Correct.** The guard suppresses the severity label whenever the verdict *is* the score, and I
+applied it to every verdict. A live studio `rating` is a severity by construction, so for a live
+response the label is right in every case — including the freak one where the model answers a
+four-to-eight-word verdict with `"8/10"`. Suppressing it there leaves exactly the unexplained number
+this run exists to stop showing. **A redundant true label beats an unexplained number**, and I had
+traded the second for the first without noticing I was making that trade.
+
+Codex also supplied the argument for the narrower gate, from my own diff: the previous round stopped
+`buildToolStudioText` copying tool ratings, so the only records that can reach this case are ones
+written *before* that fix — which are restored by definition. The verdict is now passed to
+`readVerdictSeverity` only when the standing was not reported, and the parameter is named
+`verdictThatMightBeTheScore` so a future caller cannot pass it out of habit.
+
+Mutation-checked: applying the guard to live responses again fails `still labels a live response
+whose verdict happens to be the score`.
+
+**Vercel's rate limit is not a finding.** `8550ef8` carried a failed commit status —
+*"Deployment rate limited — retry in 24 hours"*, `api-deployments-free-per-day` — which `AGENTS.md`
+names as pre-existing free-tier noise. No standing-down comment was posted, because it did not
+survive to need one: Vercel deployed `85e54f4` successfully, and the PR's combined status on the
+current head is `success`. Recorded rather than acted on.
+
+### Evidence after this round
+
+`check` 0/0 · `lint` exit=0 · `npm test` **1590 passed**, 1 skipped · `build` exit=0 · `test:e2e`
+**49 passed** · `npm run verify` exit=0.
+
+That total is 1590 and not the 1591 this entry first claimed — 1589 plus the one test this round
+adds. Arithmetic done in a sentence, corrected against the runner before the entry shipped. This
+file has been wrong about its own totals before and the habit is worth breaking rather than
+repeating.
