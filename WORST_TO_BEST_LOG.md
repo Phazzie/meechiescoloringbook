@@ -9651,9 +9651,13 @@ The installable app is on `main`. Base `ad3bfe7` → head `6e4d3a5`, squashed to
 
 **The open Assumption, which an earlier draft of this table recorded as "none".** That was wrong,
 and wrong in the direction that hides a gate rather than raising one. The entry — `DECISIONS.md`
-lines 678-685 as of `2244765`, and findable by its `Seams: None registered - static-asset response
-headers served by the Vercel edge` line, which is what to search for once these numbers drift —
-carries
+the `Assumption` block dated **2026-09-03** whose `Statement` begins "The `headers` rules in
+`vercel.json` attach", which is what to search for; it was around lines 678-685 while this PR was
+open, and no line number here is worth trusting for long. The first version of this reference gave
+only a range, which broke when the entry grew. The second gave the entry's `Seams:` line as a search
+string, which broke when review corrected that field's wording — an anchor is only stable if it
+anchors to something nobody has reason to edit. The `Statement`'s opening clause is the least
+volatile part of it, and even that is a bet. It carries
 an Assumption dated 2026-09-03 — three days before this run — stating that the `headers` rules in
 `vercel.json` attach the security headers to the paths `src/hooks.server.ts` never sees, with
 `Status: Open - pending first deploy`. Read the `Statement` there for which headers; restating the
