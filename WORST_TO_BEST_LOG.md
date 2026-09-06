@@ -9671,6 +9671,15 @@ rather than restating it — and that is the whole of what it proves. Whether Ve
 them is the Assumption, and it is the same one, now load-bearing where it was previously only
 tidy.
 
+**"Every page" is the fourteen canonical documents, not every URL.** `/m/[mode]` is
+`prerender = 'auto'`, so the five `SLUG_ALIASES` — `/m/receipts`, `/m/caption-this`,
+`/m/apology-translator` and the rest — still resolve through the function, and so does the catchall
+that renders `+error.svelte`. Those keep getting their headers from `hooks.server.ts`, and the same
+test asserts they match **no** `vercel.json` rule, because a header set twice is worse than one set
+once. So the guarantee is split across two files and a future header change has to touch both. That
+this correction came from review rather than from me is the awkward part: the assertions naming
+those three alias paths are in a test this run wrote.
+
 **Four headers ride on it, not five.** An earlier draft said all five came from those rules "and
 from nothing else", which overstated the exposure and was caught in review. `Strict-Transport-Security`
 is set independently by Vercel's edge — that is what the 2026-09-03 entry records finding in
@@ -9799,29 +9808,43 @@ The SonarCloud security failure was diagnosed by reasoning about which of my lin
 It was wrong. The answer had been delivered to this session as a review comment naming the file and
 the line, and was sitting unread while the reasoning happened.
 
-And a third, which this close-out earned on its own account. **As of `840df85`: ten findings across
-five Codex passes on #312 — a pull request containing no code — with a sixth pass returning clean,
-and every one of the ten correct.** The counts are stated as-of a commit on purpose, because this
-paragraph is being reviewed while it is written, and an unqualified total here would be stale the
-moment the next pass lands. An earlier draft said "reviewed ten times across three rounds", which
-was wrong twice over: it confused findings with passes, and undercounted the passes.
+And a third, which this close-out earned on its own account. **Sixteen findings across seven Codex
+passes on #312 — a pull request containing no code — with an eighth returning clean, and every one
+of the sixteen correct.**
 
-Per pass: five findings on `8297c31`, two on `1002807`, one each on `6a5c923`, `fc8fc4b` and
-`840df85`; `180ab72` came back with none.
+The ledger below is per pass and append-only, which is the second attempt at recording this. The
+first attempt gave a total anchored to one commit, and review caught the flaw in that immediately:
+I kept editing the *anchored* list as later findings arrived, inserting a finding raised against
+`e6beced` into a list stamped `840df85` and dropping an earlier one to make room. An anchor you
+edit is worse than no anchor, because it looks checkable. A ledger by pass has no such failure
+mode — later passes append rather than displace, and any total is recoverable by adding it up.
 
-Three were P1s: an open Assumption reported as absent, on the very feature that made it
-load-bearing; a merge-gate stand-down argued from evidence this same log records a reviewer
-rejecting on #305; and **a verify chain refreshed in part**, where fixing the first two I ran only
-the two scripts I expected to object and left four downstream artifacts describing an older tree —
-a directory that reads as verified and is not. An earlier draft counted two, having filed that third
-one with the wording corrections; it is a verification defect, which is what the P1 label was
-telling me.
+| Pass | Findings | P1s |
+|---|---|---|
+| `8297c31` | 5 | Assumption reported absent; Vercel signature unmatched |
+| `1002807` | 2 | verify chain refreshed in part |
+| `6a5c923` | 1 | — |
+| `180ab72` | 0 | — |
+| `fc8fc4b` | 1 | — |
+| `840df85` | 1 | — |
+| `e6beced` | 2 | — |
+| `8a58e92` | 4 | `lint` and `build` evidence never refreshed |
 
-The rest were counts and capability claims — "six routes" above a list of seven, "no `CacheSeam`
-write operation" when `primeCache` is one, "no unit test could have caught" two defects whose unit
-tests this run wrote, fonts called a seam limitation when the seam permits them, a missing probe
-listed among the defects it failed to catch, "all five headers" when the edge supplies one of them,
-and this paragraph's own round count.
+**Four P1s.** An open Assumption reported as absent, on the very feature that made it load-bearing.
+A merge-gate stand-down argued from evidence this same log records a reviewer rejecting on #305.
+**A verify chain refreshed in part** — fixing the first two I ran only the two scripts I expected to
+object, leaving four downstream artifacts describing an older tree, a directory that reads as
+verified and is not. And **`lint` and `build` evidence never refreshed at all**, which is the same
+defect one layer down: `npm run verify` runs neither, so re-running the chain each time did nothing
+for those two files and I never noticed, because I was watching the chain rather than the checklist.
+
+**The twelve P2s** were counts and capability claims: "six routes" above a list of seven; "no
+`CacheSeam` write operation" when `primeCache` is one; "no unit test could have caught" two defects
+whose unit tests this run wrote; fonts called a seam limitation when the seam permits them; a
+missing probe listed among the defects it failed to catch; the findings total; the round count; two
+P1s counted where there were three; "all five headers" when the edge supplies one of them; a
+structured `Statement` left naming three headers while the prose beside it said four; "every page"
+when five alias slugs still reach the hook; and this ledger's own anchoring.
 
 > **Correcting the instance is not correcting the belief.**
 
