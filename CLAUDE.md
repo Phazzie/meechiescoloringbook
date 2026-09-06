@@ -28,6 +28,8 @@ npm run hooks:install                   # install local git hooks
 
 SvelteKit 2 app (Svelte 5, TypeScript) deployed via `@sveltejs/adapter-vercel`. Core logic is deterministic and dependency-free; all external I/O is isolated behind seams.
 
+**Every page route is prerendered** (`prerender = true`, and `'auto'` on `/m/[mode]` so its slug aliases still resolve through the function). No page `load` depends on the request — they read a bundled catalog and the reader's own typing, and every provider call happens after hydration. This is what puts the app's HTML in `$service-worker`'s `prerendered` list, which is what the service worker caches so an installed copy opens with no network. Adding a request-dependent `load` to a page means removing its `prerender` flag; the build will tell you.
+
 **Request path:**
 ```
 src/routes/api/<endpoint>/+server.ts
@@ -86,6 +88,7 @@ New seams use the self-contained layout. Do not add flat-layout seams. See `src/
 | `mode-catalog.ts` | The focused-mode catalog behind `/m/<slug>` — which modes exist, the questions each asks, and how the answers become a `MeechieToolInput`. Derived from `studioModes` so the home page's links and the mode pages cannot drift apart |
 | `generated-image-preview.ts` | Pure `GeneratedImage` conversions — `data:` URL for a preview, base64 bytes for the vault. Shared by the studio, the toolkit and the mode routes |
 | `page-exports.ts` | Pure descriptions of a finished page's downloads — what each packaged file is, what it is for, how big it is, and one sentence naming any variant that could not be built. The variant is carried in from the call site that asked the packaging seam for it, never recovered from a filename |
+| `offline-cache.ts` | The offline layer's whole policy: which build files are pre-cached and at what priority (critical / optional / skipped), which requests the service worker may answer at all (`/api/*`, cross-origin and non-GET never are), the cache key a navigation is looked up under, the network-first-then-cache-then-offline-page orchestration, and the sentence the app shows about its own connection. Reaches the Cache API only through `CacheSeam`, so `src/service-worker.ts` is pure wiring and every rule here runs against `createMockCacheSeam` in a unit test |
 | `wig-catalog-gallery.ts` | Pure wig-catalog shopping transforms — search across name/brand/style/colour/tags, facet chips for length, hair type and colour family, and sorting. Facet counts are measured against the search and every *other* dimension, so a chip never advertises results it cannot return |
 
 ### src/routes/
@@ -96,6 +99,7 @@ New seams use the self-contained layout. Do not add flat-layout seams. See `src/
 | `meechie/+page.svelte` | Direct route to Meechie tools (hosts `MeechieTools.svelte`, not a chat UI) |
 | `who-fucked-up/+page.svelte`, `rate-his-excuse/+page.svelte`, `random/+page.svelte` | The three standalone mode routes in the nav. Each owns its hero, input and verdict presentation, then hands off to `VerdictPageStudio` |
 | `m/[mode]/+page.svelte` | Focused single-mode page, one per studio mode, and **the only page five of the eight modes have**. **Reachable from the home page** — `StudioHero.svelte` renders a `/m/<id>` link for every weekly mode. Resolves the slug in `+page.ts` (404 on an unknown one) and keys the component on it. Full coloring-page factory: verdict, then `VerdictPageStudio`. Not a delete candidate |
+| `offline/+page.svelte` | The page a navigation lands on when it reaches neither the network nor the cache. Prerendered (`+page.ts`) so a real file exists for the service worker to store at install — `planPrecache` reports `fallbackAvailable: false` if that ever stops being true, and the worker then declines to offer a fallback rather than serving a path it never cached. Names what still works on this device and what waits for a connection, and reads this device's live `navigator.onLine` rather than asserting a state |
 | `+error.svelte` | The app-wide error page. Before it existed every failure fell through to SvelteKit's unstyled default; it now lists every real mode so a mistyped `/m/<slug>` has somewhere to go |
 | `api/generate/+server.ts` | Generation endpoint |
 | `api/image-generation/+server.ts` | Image provider endpoint |

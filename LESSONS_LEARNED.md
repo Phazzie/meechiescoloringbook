@@ -433,3 +433,35 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
   replaced a confusing message with silence.
 - Action: When an early return replaces a call, ask what the old call was reporting for the inputs
   the early return now swallows, and report it where it actually happens.
+
+## 2026-09-06
+- Date: 2026-09-06
+- Context: Rebuilding the installable app's offline layer (`WORST_TO_BEST_LOG.md` Run 10).
+- Lesson: `grep … | head -20` that returns exactly twenty lines looks identical to a grep that
+  returned everything. I read a truncated list of `<title>` tags as the complete set, concluded the
+  home page had none, and wrote a comment and nearly a log entry around the conclusion.
+  `src/routes/+page.svelte:37` had had one all along.
+- Action: When a search's result is going to become a claim about what does *not* exist, re-run it
+  with no `head`. A truncated list can only ever support "at least these"; absence needs the whole
+  output.
+
+## 2026-09-06
+- Date: 2026-09-06
+- Context: Same run — choosing between adding a `CacheSeam` operation and prerendering the routes.
+- Lesson: "The seam is missing an operation" was the wrong diagnosis for "the cache holds no HTML".
+  The cache held no HTML because nothing was prerendered, and nothing was prerendered for no reason
+  — not one route's `load` depended on the request. The textbook fix (`putResponse`, runtime
+  caching) would have been a contract change that bought *less*: a page cached on first visit is
+  still missing on the first offline launch.
+- Action: Before widening a contract to make a consumer's job possible, check whether the consumer
+  is being handed the wrong input. The seam's shape was fine; the build's output was not.
+
+## 2026-09-06
+- Date: 2026-09-06
+- Context: Same run — the manifest's `background_color`, `theme_color` and the app's `--dark-base`.
+- Lesson: Three files stated the same colour and all three disagreed, for as long as the app has
+  existed, because the agreement was a convention and conventions are not checked. Writing "must
+  equal" in a comment would have been a fourth copy of the same unchecked truth.
+- Action: When two files have to agree, read both in a test and compare them. See
+  `tests/unit/install-metadata.test.ts`, which parses the value out of `+layout.svelte` rather than
+  restating it.

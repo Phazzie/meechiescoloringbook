@@ -8783,3 +8783,245 @@ I stated it after round 11: work anything substantive, merge when a round comes 
 substantive left. Round 12 then produced two real findings, one of them in the entry that stated the
 rule. The rule held anyway — round 13 came back clean on `7f7cba1`, and that is what merged. Stating
 it one round early is left on the record next to what followed, unedited.
+
+---
+
+## Run 10 — 2026-09-06 — The installable app (the manifest, the service worker, and what offline means)
+
+**Branch:** `claude/great-bell-w39zim` · **Base:** `main` at `ad3bfe7`
+
+### The feature, and why it was the worst
+
+This app ships a web app manifest with `display: standalone`, three PNG icons and a maskable one,
+and registers a service worker on every single page load. That is not accidental: it is a
+deliberate, wired-up feature, and it is the one feature the *operating system* advertises on the
+app's behalf. A browser reads that manifest and offers to install Meechie's Coloring Book. The
+reader accepts, and gets an icon on their home screen.
+
+It was the worst feature because **there was nothing behind the icon.** Not "less than promised" —
+nothing. The installed app, launched with no network, showed the browser's own network-error page,
+because `display: standalone` means that error page *is* the app: no address bar, no tabs, no way
+back. And the machinery whose file header reads *"Provide offline-capable caching for PWA
+installation"* was, at the same time, the most expensive thing on a first visit.
+
+Measured on `main` at `ad3bfe7`, by reading the built worker rather than the source:
+
+1. **It pre-cached 3,462,111 bytes and not one byte of HTML.** `ASSETS = [...build, ...files]`
+   resolved to **63 URLs, 3.30 MB** — every wig photograph (796 KB), every piece of Meechie
+   artwork (1.8 MB, including a 440 KB banner), and `robots.txt`. `build` is JavaScript and CSS;
+   `files` is `static/`. **Neither contains a page.** Nothing was prerendered, so under
+   `adapter-vercel` every route was server-rendered per request and no document existed to cache.
+   The command that establishes it:
+
+   ```
+   node -e "…parse .svelte-kit/output/client/service-worker.js…"
+   → total urls in SW arrays: 63 ; bytes referenced: 3462111 = 3.30 MB
+   ```
+
+2. **So the fetch handler could not answer a navigation, and its fallback was the failure.**
+   `event.respondWith(match(...).then(r => r.ok && r.value !== null ? r.value : fetch(request)))`.
+   Offline, the cache misses (nothing navigable was in it) and `fetch` rejects — and a rejected
+   promise handed to `respondWith` is exactly how the browser produces its error page. **The
+   feature's central case had no branch.**
+
+3. **The 3.3 MB went in one `cache.addAll`, which is atomic.** One 404 among 63 URLs and *nothing*
+   was cached — the install rejected, the reader had no offline copy at all, and the wig photograph
+   that failed took the application code down with it.
+
+4. **Every layer of that failure was silent.** `navigator.serviceWorker.register(...).catch(() => {})`
+   in `+layout.svelte`, with the comment "Service worker registration is best-effort." A device
+   where the worker had installed and one where it never had were indistinguishable to the app —
+   and they behave completely differently the moment the network goes.
+
+5. **It intercepted every GET on the page, including cross-origin.** Google Fonts, and — had a GET
+   endpoint ever been added — `/api/*`. Nothing in the worker distinguished a request that costs a
+   provider call from a request for a PNG.
+
+6. **It was the only file in this app with no tests.** Every seam here is contract-tested; the one
+   piece of code that runs on every page load for every visitor, and that can serve stale bytes
+   forever, had none — because its decisions were tangled with `$service-worker` and the Web
+   Cache API and could not be reached from a test.
+
+7. **The install metadata described a different app.** `background_color: "#fffaf4"`, a cream, on
+   an app whose `body` has painted `#07070f` since it was written — so the launch splash flashed
+   white before a dark app. `theme_color: "#1c1712"`, a brown that appears nowhere in the palette,
+   and stated twice (`app.html` and the manifest) with no check that the two agreed. The SVG icon
+   declared `sizes: "512x512"`, which is a pixel count for a file that has none. No `id`, no
+   `scope`, no `lang`, no `apple-touch-icon` — which is the only icon iOS reads when a reader adds
+   the app to their home screen.
+
+8. **Nothing in the app ever said the reader was offline.** A verdict that failed because the
+   network was gone produced the same error text as one the provider refused, so the reader's next
+   move — wait, or change the evidence — was a guess.
+
+### Plan (per `AGENTS.md` "Plan + Self-Critique")
+
+**Seams (existing, in `docs/seams.md`, none modified):** `CacheSeam`.
+
+| File | Action |
+|---|---|
+| `src/lib/core/offline-cache.ts` | `[NEW]` the entire policy, pure + seam-injected |
+| `src/service-worker.ts` | `[MODIFY]` reduced to wiring; no decisions left in it |
+| `src/routes/offline/+page.svelte` | `[NEW]` the page an offline navigation lands on |
+| `src/routes/offline/+page.ts` | `[NEW]` `prerender = true` |
+| `src/routes/+page.ts` | `[MODIFY]` add `prerender = true` |
+| `src/routes/{who-fucked-up,rate-his-excuse,random,meechie}/+page.ts` | `[NEW]` `prerender = true` |
+| `src/routes/m/[mode]/+page.ts` | `[MODIFY]` `prerender = 'auto'` + `entries` |
+| `src/routes/+layout.svelte` | `[MODIFY]` connection banner, description, apple-touch-icon, honest registration |
+| `src/app.html` | `[MODIFY]` `theme-color` to the colour the app paints |
+| `static/manifest.webmanifest` | `[MODIFY]` colours, `id`, `scope`, `lang`, icon sizes |
+| `tests/unit/offline-cache.test.ts` | `[NEW]` |
+| `tests/unit/install-metadata.test.ts` | `[NEW]` |
+| `tests/e2e/smoke.spec.ts` | `[MODIFY]` four tests appended |
+
+**Anti-goals (forbidden):** `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`,
+`src/lib/adapters/`, `src/lib/seams/`, `playwright.config.ts`, `svelte.config.js`, `vercel.json`.
+Do not add an operation to `CacheSeam`.
+
+**Commands:** `npm run check`, `npm run lint`, `npm test`, `npm run build`, `npm run test:e2e`,
+`npm run verify`, `npm run rewind -- --seam CacheSeam`.
+
+### The one design decision worth defending: no contract change
+
+The obvious rebuild adds `putResponse` to `CacheSeam` and caches documents as the reader visits
+them. It is the textbook answer, and it is what "runtime caching" means. **It was not taken.**
+
+`CacheSeam` can only bulk-prime at install and read back. So the question became: what could
+possibly be in the cache at install time? And the answer was not "add a write operation" — it was
+that **there were no documents to cache because nothing was prerendered.** Every page in this app
+renders from a bundled JSON catalog and the reader's own typing; every provider call happens after
+hydration. Not one route depended on the request. They were being rendered per request for no
+reason, and that — not a missing seam operation — is why the cache held no HTML.
+
+So all fourteen routes are prerendered, and `$service-worker`'s `prerendered` list joins the
+critical precache set. The whole app is now in the cache at install, and it got there through the
+seam exactly as it stands. **150 KB of HTML bought what a contract change would have bought, and it
+is better**, because a prerendered document is in the cache before the reader's *first* offline
+moment rather than after their second visit to each page.
+
+It also means this pull request carries no schema, contract, or data migration — the condition
+`AGENTS.md` names as a reason not to merge without asking.
+
+`/m/[mode]` is `'auto'` rather than `true`, and that distinction is load-bearing. `true` would
+prerender the eight canonical slugs and 404 at the CDN for everything else, including the five
+aliases `resolveModeSlug` accepts (`/m/receipts`, `/m/caption-this`, …). Verified against the
+built routing table rather than asserted: `.vercel/output/config.json` still carries
+`{"src":"^/m/([^/]+?)/?(?:/__data.json)?$","dest":"/m/[mode]"}` after the `filesystem` handle, so a
+canonical slug is served as static HTML and an alias still reaches the function.
+
+### Self-critique, and what it changed
+
+**The riskiest assumption was that prerendering is behaviour-neutral.** It is the one change here
+that alters how every page is served in production. Two things had to hold: that no `load` depends
+on the request, and that CSP still works. The first is readable — `/`'s `load` calls
+`WigCatalogSeam.listWigs()`, which resolves a bundled `wigs.json` import; `/m/[mode]`'s calls
+`resolveModeSlug`. The second is not, so it was checked: `svelte.config.js` sets `csp.mode: 'auto'`,
+which *hashes* prerendered pages instead of noncing them, and the built
+`.svelte-kit/output/prerendered/pages/offline.html` carries
+`script-src 'self' 'sha256-BOgqSlf9I34…'`. All 46 e2e tests pass.
+
+**The second thing the critique changed was the navigation strategy.** Cache-first would have been
+faster and is what most service workers do with precached HTML. It is wrong here. A cached document
+is a whole deploy behind, and this app ships fixes to *what it says* — the last four runs of this
+routine were almost entirely corrections to sentences the app showed people. Navigations are
+network-first: fresh whenever there is a network, cached when there is not. Route data
+(`__data.json`) too, for the same reason, and because serving a versioned data file beside a
+freshly-fetched document is how a page renders last deploy's data under this deploy's markup.
+
+**The third was the fallback's own guard.** `planPrecache` reports `fallbackAvailable` from whether
+`/offline` was actually in the prerendered manifest, and `handleFetch` will not reach for a fallback
+that flag says false. Without it, a route that quietly stopped being prerendered would have the
+worker answer navigations from a path it never stored — which renders as a blank frame, strictly
+worse than the browser saying it could not connect. A test pins both directions.
+
+### What shipped
+
+- **The whole app is cached, in three graded buckets.** `planPrecache` sorts the build manifest into
+  *critical* (43 application chunks, all 14 prerendered pages, the manifest and 4 icons — **62 URLs**;
+  fails the install if it cannot be stored), *optional* (**15** artwork files; batched, and on
+  failure retried one at a time with the failures named), and *skipped* (**1**, `robots.txt`, which
+  only a crawler requests). One unreachable wig photograph now costs a wig photograph.
+
+  Counted by running `planPrecache` against the real built manifest rather than by adding the
+  buckets up in prose: `CRITICAL 62 OPTIONAL 15 SKIPPED 1 FALLBACK true`, over the same 78 URLs the
+  worker now references (63 before, plus the 14 pages and the offline one). **An earlier draft of
+  this line said 66**, which was arithmetic done in a sentence; the measurement is 62.
+- **An offline navigation lands on the app.** Network-first, then the cached document, then the
+  prerendered `/offline` page — which says what still works on this device (the vault, its pictures,
+  the downloads, every mode's questions) and what waits for a connection (a verdict, a page, the
+  wig try-on), links to all eight modes, and reports this device's live connection rather than
+  asserting one.
+- **A navigation's cache key drops its query string.** `cache.addAll` files a page under its bare
+  path, and `CacheSeam` exposes no `ignoreSearch`, so `/who-fucked-up?from=share` would otherwise
+  have missed a page sitting in the cache.
+- **`/api/*`, cross-origin and non-GET are never answered from a cache** — and are not intercepted
+  at all, so they behave exactly as they would with no worker installed.
+- **The banner says which offline this is.** Registration now resolves through
+  `navigator.serviceWorker.ready` and records the result, so `offlineNotice` can distinguish a
+  device that has the app from one that does not, and say two different sentences.
+- **The install metadata matches the app**, and a test reads all three files and compares them
+  rather than a comment asserting they agree.
+- **The worker has tests.** 35 in `offline-cache.test.ts`, which drive the real orchestrators
+  against `createMockCacheSeam` — including a seam that errors, an install where one file is
+  missing, and a navigation with no network. Beside them, 7 in `install-metadata.test.ts`, which
+  read the three metadata files off disk and compare them, and 4 e2e over the offline page and the
+  connection banner. 46 in total, against 0.
+
+### Evidence
+
+`check` 0 errors / 0 warnings · `lint` exit=0 · `npm test` **1517 passed**, 1 skipped (was 1475 on
+`main`) · `build` exit=0 · `test:e2e` **46 passed** (was 42) · `npm run verify` exit=0 ·
+`rewind -- --seam CacheSeam` 14 passed. All captured in `docs/evidence/2026-09-06/`.
+
+`proof-tape.md` flags `build.txt`, `e2e.txt`, `lint.txt` and `rewind-CacheSeam.txt` as predating the
+verify run. That is the `proof-tape.mjs` limitation Run 8 documented — it compares file times
+against `chamber-lock.json`, which the chain rewrites *after* those captures — not a stale capture:
+all four were written minutes before the chain, on this head. Recorded rather than worked around.
+
+### Scope, and what was deliberately left alone
+
+- **`CacheSeam` gained no operation.** Reasoned above. The consequence is honest and worth stating:
+  a page that is *not* part of the build — there are none today — could never be cached, and neither
+  can a provider response. Both are correct for this app.
+- **The `SLUG_ALIASES` URLs are not prerendered**, so an alias needs a connection while its
+  canonical slug does not. Prerendering them would file five extra copies of identical HTML under
+  names nothing in the app links to.
+- **Nothing was done about the app being useless offline in the way that matters most** — you still
+  cannot make a coloring page without a network, because making one is a provider call. The offline
+  page says so in those words rather than implying otherwise.
+- **The two stale `rewind-DriftDetectionSeam*` evidence files** from Run 9 are still in
+  `docs/evidence/2026-09-06/`, one of them under a filename containing parentheses. Not this run's
+  to clean, and deleting evidence is not a side effect to take on quietly.
+- Run 8's two carried-forward items are still open: the tools hub and the mode routes save no
+  style, and the home studio exposes none of `colorMode`, `textSize`, `fontStyle`, `alignment`,
+  `textStrokeWidth`, `borderThickness`, `illustrations` or `shading`.
+
+### The correction this run owes itself, made before it shipped
+
+I wrote, in a comment in `+layout.svelte` and nearly into this entry, that **the home page had no
+`<title>`** and that a layout-level default therefore fixed a real gap. It was false.
+`src/routes/+page.svelte:37` has had `<title>Meechie's Coloring Book Studio</title>` all along.
+
+The mechanism is worth naming because it is not carelessness in the usual sense. I ran
+`grep '<title>' src/routes … | head -20`, got exactly twenty lines back, and read a truncated list
+as a complete one. **The truncation is invisible in the output**: twenty results and "all the
+results" look identical. An e2e assertion caught it, which is the only reason it is here as a
+correction rather than as a claim.
+
+The fix was not to soften the sentence. The layout `<title>` was **removed**: every route already
+sets one, so it would have been a fallback nothing can reach — a second copy of a truth, free to go
+stale with nothing to notice. The `<meta name="description">` and the `apple-touch-icon` stayed,
+because a grep with no `head` confirms neither existed anywhere in `src`.
+
+### For the next run
+
+The pick came from asking which feature the app *advertises to the operating system* — the one
+promise made outside the app's own surfaces, where the reader cannot see the gap until they are
+already relying on it. Nine runs had rebuilt things you can look at. This was a thing you install.
+
+The generalisable version: **look for the feature whose failure mode is a different program's error
+message.** The service worker's bug did not render as a bad panel or a wrong sentence; it rendered
+as Chrome's dinosaur, which is invisible to every test, every screenshot and every review of this
+codebase, and reads to the user as "the internet is broken" rather than "this app did not prepare".
+
+Do not inherit this entry's measurements. Re-measure.

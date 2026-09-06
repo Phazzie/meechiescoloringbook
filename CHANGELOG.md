@@ -8,6 +8,12 @@ Info flow: Changes -> entries -> release communication.
 All notable user-visible changes for this repo.
 
 ## Unreleased
+- The app can now be installed and opened without a connection. It already offered to install itself — the icon, the standalone window, all of it — but nothing behind that icon worked offline: launching it with no network showed the browser's own "you are not connected" page, because none of the app's pages had ever been saved to the device. Every page is now saved when the app installs, so the studio, the toolkit, all eight modes and your Quote Vault open with no connection.
+- What the app saves for offline use no longer costs 3.3 MB of photographs on your first visit before it saves a single page. The app itself comes first; the artwork follows, and a picture that fails to save no longer means nothing at all was saved.
+- Going somewhere the app cannot reach offline now lands on a Meechie page that says what still works on this device and what is waiting for a connection, instead of the browser's error page with no way back.
+- The app now tells you when you are offline. A verdict that failed because the connection dropped used to read exactly like one the provider refused, so there was no way to tell whether to wait or to try something else.
+- The installed app no longer flashes a cream splash screen before opening a dark app, and the icon iOS uses when you add the app to your home screen is now provided.
+- Nothing you make is answered from a saved copy. A verdict, a coloring page and a wig try-on always go to the server, online or off.
 - A page whose check could not be run is no longer reported as a page with nothing wrong with it. When the image provider rewrites the request — which is when your page is most likely to have lost something you asked for — the check that catches exactly that used to fail and be recorded as zero problems found. It now says the page could not be checked, and why.
 - The check now tells you what would fix each thing it found. A remedy was being worked out for nearly every problem, saved alongside the page, and shown to nobody.
 - A problem and a remark are now told apart. Everything the check found was previously listed identically, so something that changed your page read the same as a passing note about it.

@@ -2602,3 +2602,63 @@ Cipher Gate entry is required.
 - *What could be wrong:* the two-token design. One token would be simpler and is what the tools hub
   uses, but the hub never shows a dedication field beside a loading verdict. Here it does, so a
   shared token makes typing a dedication cancel an in-flight verdict request.
+
+---
+
+## Run 10 (2026-09-06) — the installable app: manifest, service worker, and offline
+
+**Goal:** Make the feature the operating system advertises on this app's behalf actually exist. The
+manifest declares `display: standalone` and a service worker registers on every page load, but the
+worker pre-cached 63 URLs / 3,462,111 bytes containing **zero HTML**, so an installed app launched
+with no network showed the browser's error page — and, since there is no address bar in standalone
+mode, that error page was the app. Measured on `main` at `ad3bfe7` by parsing
+`.svelte-kit/output/client/service-worker.js`, not inferred from source.
+
+**Seams (existing, in `docs/seams.md`, none modified):** `CacheSeam`.
+
+**Files:**
+- `src/lib/core/offline-cache.ts` **[NEW]** — `planPrecache`, `primePrecache`, `chooseStrategy`,
+  `cacheKeyFor`, `handleFetch`, `offlineNotice`, `OFFLINE_FALLBACK_PATH`. Reaches the Cache API only
+  through `CacheSeam`, which is what lets it run against `createMockCacheSeam` in a unit test.
+- `src/service-worker.ts` **[MODIFY]** — reduced to wiring: read `$service-worker`, call the module.
+  No `caches.*` call and no decision remains in it.
+- `src/routes/offline/+page.svelte`, `src/routes/offline/+page.ts` **[NEW]** — the prerendered page a
+  navigation falls back to.
+- `src/routes/+page.ts` **[MODIFY]**, `src/routes/{who-fucked-up,rate-his-excuse,random,meechie}/+page.ts`
+  **[NEW]** — `export const prerender = true`.
+- `src/routes/m/[mode]/+page.ts` **[MODIFY]** — `prerender = 'auto'` plus `entries` over the
+  canonical slugs, so the five `SLUG_ALIASES` URLs still resolve through the function.
+- `src/routes/+layout.svelte` **[MODIFY]** — connection banner from `offlineNotice`, registration
+  resolved through `navigator.serviceWorker.ready` instead of `.catch(() => {})`, `<meta
+  name="description">`, `apple-touch-icon`. No layout `<title>` (every route sets its own).
+- `src/app.html` **[MODIFY]** — `theme-color` to `#07070f`.
+- `static/manifest.webmanifest` **[MODIFY]** — `background_color`/`theme_color` to the colour the app
+  paints, `id`, `scope`, `lang`, `dir`, `orientation`, `categories`, SVG `sizes: "any"`.
+- `tests/unit/offline-cache.test.ts` **[NEW]**, `tests/unit/install-metadata.test.ts` **[NEW]**,
+  `tests/e2e/smoke.spec.ts` **[MODIFY]**.
+- `CHANGELOG.md`, `DECISIONS.md`, `LESSONS_LEARNED.md`, `WORST_TO_BEST_LOG.md`, `plan.md`.
+
+**Anti-goals (do not touch):** `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`,
+`src/lib/adapters/`, `src/lib/seams/`, `playwright.config.ts`, `svelte.config.js`, `vercel.json`.
+Do not add an operation to `CacheSeam`. Do not change any localStorage key or `ColoringPageSpec`
+field.
+
+**Commands:** `npm run check`, `npm run lint`, `npm test`, `npm run build`, `npm run test:e2e`,
+`npm run verify`, `npm run rewind -- --seam CacheSeam`.
+
+**Self-critique:**
+- *Riskiest assumption:* that prerendering is behaviour-neutral. It is the one change that alters
+  how every page is served in production. Two things had to hold and both were checked rather than
+  reasoned about: no `load` depends on the request (`/` calls `WigCatalogSeam.listWigs()`, a bundled
+  JSON import; `/m/[mode]` calls `resolveModeSlug`), and CSP survives — `csp.mode: 'auto'` hashes
+  prerendered pages, and the built `offline.html` carries `script-src 'self' 'sha256-…'`.
+- *What must be proven:* that an alias still resolves. Proven against
+  `.vercel/output/config.json`, which still carries
+  `{"src":"^/m/([^/]+?)/?(?:/__data.json)?$","dest":"/m/[mode]"}` after the `filesystem` handle.
+- *What could be wrong:* the choice not to add `putResponse` to `CacheSeam`. It is the textbook
+  rebuild. The argument against it is in `DECISIONS.md` and rests on a measurement rather than a
+  preference: prerendering puts a page in the cache before the reader's *first* offline launch,
+  where runtime caching only helps after a prior online visit to that same route.
+- *What could still be wrong after this run:* nothing here makes a coloring page available offline
+  to a reader who has never generated one, because making one is a provider call. The offline page
+  says that in those words rather than implying otherwise.

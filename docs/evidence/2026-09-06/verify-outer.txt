@@ -23,10 +23,10 @@ svelte-check found 0 errors and 0 warnings
 [1m[46m RUN [49m[22m [36mv4.1.0 [39m[90m/home/user/meechiescoloringbook[39m
 
 
-[2m Test Files [22m [1m[32m94 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (95)[39m
-[2m      Tests [22m [1m[32m1475 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (1476)[39m
-[2m   Start at [22m 03:23:17
-[2m   Duration [22m 73.38s[2m (transform 2.80s, setup 711ms, import 5.33s, tests 6.40s, environment 47.48s)[22m
+[2m Test Files [22m [1m[32m96 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (97)[39m
+[2m      Tests [22m [1m[32m1517 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (1518)[39m
+[2m   Start at [22m 06:54:36
+[2m   Duration [22m 97.14s[2m (transform 3.74s, setup 938ms, import 7.08s, tests 7.27s, environment 63.80s)[22m
 
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
@@ -53,4 +53,4 @@ Not implemented: HTMLCanvasElement's getContext() method: without installing the
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
-exit=0
+verify exit=0
