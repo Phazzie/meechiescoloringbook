@@ -112,7 +112,15 @@ jobs:
           # The previous version put `|| true` on the whole pipeline, so a failed diff again became
           # an empty list and "nothing to guard" — reintroducing, one round later and in this same
           # file, the defect that adding this check was supposed to fix.
-          changed=$(git diff --name-only "$base...HEAD" -- 'docs/evidence/*')
+          # Two dots on a push, three on a pull request, because they answer different questions.
+          # `A...B` compares merge-base(A,B) to B, which is what review wants: what this branch adds
+          # relative to where it forked. On a push the question is what THIS push changed, and the
+          # two are not the same — resetting the default branch backward to an ancestor that is still
+          # reachable through another ref makes `A...B` empty (the merge base is B itself) while
+          # `A..B` reports the evidence file that changed. The three-dot form then prints "nothing to
+          # guard" for a reset that rewrote evidence.
+          if [ -n "${{ github.event.pull_request.base.sha }}" ]; then range="$base...HEAD"; else range="$base..HEAD"; fi
+          changed=$(git diff --name-only "$range" -- 'docs/evidence/*')
           dirs=$(printf '%s\n' "$changed" \
             | grep -E '^docs/evidence/[0-9]{4}-[0-9]{2}-[0-9]{2}/' \
             | cut -d/ -f1-3 | sort -u || true)

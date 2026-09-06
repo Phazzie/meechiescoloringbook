@@ -127,6 +127,52 @@ const read = (dir, name) => {
 };
 
 /**
+ * What is wrong with `e2e.txt`'s Row 1 — the MANDATED `npx playwright test` — or `null`.
+ *
+ * The rule used to slice straight to Row 2 and never read this row at all, so a run whose mandated
+ * command failed outright passed the gate because the override beside it succeeded. An override is
+ * a substitute for a browser, not for a requirement.
+ *
+ * `docs/evidence/README.md` provides the only honest way through when a mandated command genuinely
+ * cannot run here: record the reason and a waiver expiry. So a red row is allowed exactly when it
+ * says why, and only until the date it named. That is this run's own rule — a gate you cannot meet
+ * is reported as unmet — turned into something a machine refuses to forget.
+ */
+const mandatedRowProblem = (row1) => {
+	const problem = exitStatusProblem(row1, 'e2e-mandated');
+	if (problem === null) return null;
+	if (!/^e2e-mandated exit=[1-9]/m.test(row1))
+		return `${problem}; the mandated command's own result is what this row is for.`;
+	const expiry = /^Waiver-Expires: (\d{4}-\d{2}-\d{2})$/m.exec(row1)?.[1];
+	if (expiry === undefined || !/^Waiver-Reason: \S/m.test(row1))
+		return 'records a failing mandated command with no waiver; a gate that cannot be met is reported as unmet, with a reason and an expiry, not passed over.';
+	if (expiry < toDateFolder(new Date()))
+		return `carries a waiver that expired on ${expiry}; the mandated command has been failing longer than the exception granted for it.`;
+	return null;
+};
+
+/**
+ * Every file the proof tape inventories, flattened out of whatever shape it nests them in.
+ *
+ * One definition, because two rules now ask the tape what it lists: the chain-stage rule and the
+ * lint/build rule. The second was added after a reviewer pointed out that a present, green lint
+ * transcript proves nothing about WHICH run produced it — the tape is what ties a file to a run,
+ * and nothing was asking it.
+ */
+const tapeInventory = (dir) => {
+	const inventory = [];
+	const collect = (node) => {
+		if (Array.isArray(node)) return node.forEach(collect);
+		if (node === null || typeof node !== 'object') return;
+		if (typeof node.name === 'string' && typeof node.sizeBytes === 'number')
+			inventory.push({ name: node.name, sizeBytes: node.sizeBytes, predatesRun: node.predatesRun });
+		Object.values(node).forEach(collect);
+	};
+	collect(JSON.parse(read(dir, 'proof-tape.json') ?? '{}'));
+	return inventory;
+};
+
+/**
  * Whether this folder is a copy of some other run's evidence, as a sentence, or `null` if it is not.
  *
  * The tape records `evidenceDir` and `generatedAt` and nothing was reading either, so an entire
@@ -273,15 +319,7 @@ const RULES = [
 				'clan-chain.json',
 				'proof-tape.json'
 			];
-			const inventory = [];
-			const collect = (node) => {
-				if (Array.isArray(node)) return node.forEach(collect);
-				if (node === null || typeof node !== 'object') return;
-				if (typeof node.name === 'string' && typeof node.sizeBytes === 'number')
-					inventory.push({ name: node.name, sizeBytes: node.sizeBytes, predatesRun: node.predatesRun });
-				Object.values(node).forEach(collect);
-			};
-			collect(JSON.parse(read(dir, 'proof-tape.json') ?? '{}'));
+			const inventory = tapeInventory(dir);
 			const absent = CHAIN_ARTIFACTS.filter((name) => read(dir, name) === null);
 			if (absent.length > 0)
 				return `these chain stages left no artifact: ${absent.join(', ')}; the chain did not run all of them.`;
@@ -373,6 +411,13 @@ const RULES = [
 			// the mandated command can execute partially and print its own "1 passed" before failing,
 			// and the splice failure this rule exists to catch would then pass. Row 2 is the row whose
 			// result gets cited, so Row 2 is what gets checked.
+			// Row 1 first. Slicing straight to Row 2 meant the MANDATED command was never read at all:
+			// a run whose `npx playwright test` failed outright passed this gate because the override
+			// beside it succeeded. An override is a substitute for a browser, not for a requirement.
+			// `docs/evidence/README.md` provides the only honest way through — record the reason and a
+			// waiver expiry — so a red mandated row is allowed exactly when it says why and until when.
+			const mandatedProblem = mandatedRowProblem(e2e.slice(0, marker));
+			if (mandatedProblem !== null) return `e2e.txt Row 1 ${mandatedProblem}`;
 			const row2 = e2e.slice(marker);
 			// The run's own exit status, which is the only line here that answers "did this pass"
 			// without inferring it from counts. Every version of this rule before it asked the
@@ -414,8 +459,13 @@ const RULES = [
 			// indexOf, not a regex. `/```[a-z]*\n[\s\S]{0,20000}defineConfig/` scans a bounded wildcard
 			// up to a literal, which backtracks on every fence that is not followed by one —
 			// sonarjs/super-linear-regex, caught locally before SonarCloud saw it.
+			// A reproduced config is a config that is present, not one that calls a particular helper.
+			// Requiring `defineConfig` would reject a valid Playwright config that exports a plain
+			// object — the CLI accepts one — so compliant evidence would fail for a style choice.
+			// What every config must have is a default export, in one of its two spellings.
 			const fence = row2.indexOf('```');
-			const reproducesConfig = fence !== -1 && row2.indexOf('defineConfig', fence) !== -1;
+			const fenced = fence === -1 ? '' : row2.slice(fence);
+			const reproducesConfig = fenced.includes('export default') || fenced.includes('module.exports');
 			if (NAMES_CONFIG.test(row2) && !reproducesConfig)
 				return 'e2e.txt Row 2 names a config override but does not reproduce it; the run cannot be audited against a configuration that is not in the evidence.';
 			// A passing count is not a passing run. Playwright prints "<n> passed" alongside "<n> failed"
@@ -431,6 +481,22 @@ const RULES = [
 				.find((match) => match !== null && match !== undefined);
 			if (broken !== undefined)
 				return `e2e.txt Row 2 reports "${broken[0].trim()}"; a summary line that also counts passes does not make the run green.`;
+			return null;
+		}
+	},
+	{
+		name: 'every probe transcript carries its own exit status',
+		check: (dir) => {
+			// `docs/evidence/README.md` says every transcript records the status of the command that
+			// produced it. That sentence was true of the four filenames this guard happened to know
+			// and false of the rest, which is a document describing a check that does not exist — the
+			// defect this whole run is about, written by me, in the conventions file for the guard.
+			const probes = readdirSync(dir).filter((f) => f.startsWith('probe-') && f.endsWith('.txt'));
+			for (const file of probes) {
+				const problem = exitStatusProblem(read(dir, file) ?? '', 'probe');
+				if (problem !== null)
+					return `${file} ${problem}; a probe transcript with no result cannot show the probe ran.`;
+			}
 			return null;
 		}
 	},
@@ -542,6 +608,24 @@ const RULES = [
 				// classifying the change, which is the policy-engine work declined in round 32 and
 				// recorded as follow-up. What is here must be green; what is absent is somebody else's rule.
 				if (text === null) continue;
+				// Present and green is not enough: an older passing capture copied into a later run's
+				// folder satisfies both. The tape inventories this folder, so it is what ties the file
+				// to the run — and nothing was asking it to.
+				const entries = tapeInventory(dir).filter((entry) => entry.name === file);
+				if (entries.length !== 1)
+					return `${file} is present but the proof tape carries ${entries.length} inventory entries for it; it cannot be shown to belong to this run.`;
+				// Deliberately NOT `predatesRun === false` here, though that is what the chain-stage rule
+				// requires of chain outputs. `predatesRun` means "older than chamber-lock.json", and the
+				// capture order in docs/evidence/README.md requires lint, build, e2e, the probe and the
+				// rewinds to be written BEFORE the chain so the tape inventories them at their shipped
+				// size. Every one of them is therefore `true` by design, and demanding `false` would
+				// have rejected correct evidence — the fourth rule in this file to do that, caught this
+				// time by reading the tape instead of assuming what it meant.
+				//
+				// The inventory entry is the binding on its own: the drift check above compares that
+				// entry's size to the committed bytes, so a file the tape lists is a file that existed,
+				// at exactly this length, when this run's chain executed. An older capture dropped in
+				// afterwards is not inventoried at all, which is what the count above catches.
 				const problem = exitStatusProblem(text, name);
 				if (problem !== null)
 					return `${file} ${problem}; ${ran} either failed or was captured without its result.`;

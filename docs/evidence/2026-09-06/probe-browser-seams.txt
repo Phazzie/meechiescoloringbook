@@ -1,0 +1,11 @@
+# Purpose: Record the browser-seam probe run for this head.
+# Why: docs/evidence/README.md asks for probe output per seam run; this file was greped in
+#      scratch for eleven rounds and never committed, so the folder shipped without it.
+# Info flow: node probe.local.mjs -> this transcript -> npm run evidence:guard.
+# Invariant: the last line is this run own exit status, and it is the only one.
+#
+Browser seam probe complete.
+Session id: session-123
+Auth kind: anonymous
+Creation count: 1
+probe exit=0
