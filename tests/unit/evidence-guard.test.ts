@@ -47,7 +47,10 @@ const newestCommittedEvidenceDir = (): string => {
 		.split('\n')
 		.filter((line) => DATED.test(line.trim()))
 		.map((line) => line.trim())
-		.sort();
+		// An explicit comparator, because a bare `sort()` compares by string conversion and is a
+		// defect the moment the array stops holding strings. These are dated folder names, so
+		// lexicographic order is chronological order.
+		.sort((a, b) => a.localeCompare(b));
 	return dated[dated.length - 1];
 };
 

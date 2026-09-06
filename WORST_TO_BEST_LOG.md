@@ -9083,3 +9083,24 @@ matches the sentence itself — the same two assertions, one of them back where 
 
 > **A test whose assertion is out of sight is a test nobody can check at a glance.** The static
 > analyser was making a point about legibility, not about types.
+
+**Second postscript — the hypothesis that was wrong, and what replaced it.** The assertion-visibility
+fix did not clear the gate: `42907ae5` came back `D Reliability Rating on New Code` again, which
+disconfirms S2699 as the cause. Written down first, so it could be wrong out loud.
+
+sonarcloud.io is blocked by this environment's network policy — `curl` to its API returns
+`CONNECT tunnel failed, response 403`, and the agent proxy's own status endpoint lists the rejection
+— so the issue list cannot be read. What can be run here is SonarJS itself, which is the same engine
+SonarCloud uses. Running only its **bug-type** rules found two `Array.prototype.sort()` calls with no
+comparator (`sonarjs/no-alphabetical-sort`, a Bug rule): one added in `fce6e6e9`, the commit on which
+the gate first came back red, and one in the test file. A `D` rating needs a Critical bug, and this
+is the only Critical-class bug the engine reports in the new code.
+
+> **The first scan found nothing because it was blind, not because the code was clean.** The bug-rule
+> pass without type information reported five things, none real. Turning on the type service changed
+> the answer — which means the earlier "nothing here" was a scan that could not have found anything,
+> the same vacuous check this run has now built three times and caught three times.
+
+Both sorts are gone: the guard compares the tape's declared exclusions as a set, and the test names
+its comparator. If the gate stays red after this, the next entry says so and the check is reported as
+unmet rather than explained away — a gate you cannot meet is reported as unmet.

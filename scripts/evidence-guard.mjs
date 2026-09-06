@@ -616,10 +616,17 @@ const RULES = [
 			// quietly started excluding a third would have been given the same grounds by a guard that
 			// never asked what it excluded. (An excluded chain artifact is still caught by the entry
 			// count below — this catches the claim itself, one step earlier.)
+			// Compared as a set rather than by sorting both sides and joining them. Two names in either
+			// order mean the same thing, and `Array.prototype.sort()` with no comparator is a defect
+			// waiting for a caller who passes something that is not a string.
 			const excluded = Array.isArray(tapeReport.excludedFromInventory)
-				? [...tapeReport.excludedFromInventory].sort()
+				? tapeReport.excludedFromInventory
 				: null;
-			if (excluded === null || excluded.join(',') !== [...TAPE_OWN_OUTPUTS].sort().join(',')) {
+			const exemptsItsOwnOutputsOnly =
+				excluded !== null &&
+				excluded.length === TAPE_OWN_OUTPUTS.length &&
+				TAPE_OWN_OUTPUTS.every((name) => excluded.includes(name));
+			if (!exemptsItsOwnOutputsOnly) {
 				const names = excluded === null ? 'files it does not name' : excluded.join(', ');
 				return `proof-tape.json excludes ${names} from its inventory; the only files it cannot list are its own two outputs, and an inventory that omits anything else is not an inventory of this folder.`;
 			}
