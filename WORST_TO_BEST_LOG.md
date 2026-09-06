@@ -8685,12 +8685,23 @@ these were never a staleness problem. Staleness would mean the number was true a
 never counted at all — I wrote the number that fit the sentence, twice, while the correct number sat
 in the table under my cursor.
 
-Three separate findings went into reaching a fix the first of them had already described: it said
+Round after round went into reaching a fix the first of them had already described: it said
 *"enumerated or tabulated, not asserted"*, and I then left a running total standing in front of the
 enumeration.
 
-So: **no count in this close-out is stated in prose.** Where a number matters it is a list or a table
-whose rows a reader can check, and where a total would go stale it is simply not written.
+**The rule, stated with the scope it actually has: no running total of this close-out's own review is
+written in prose anywhere in it.** Those are the numbers that cannot be right, because the review
+producing them is still going. Counts of *finished* things stay — the thirteen review rounds on
+PR #309, the nine functions Rosentic named, the measurements at `ba6244b` — because nothing further
+can change them.
+
+An earlier version of this said "no count in this close-out is stated in prose", flatly. That was
+false in the same paragraph, which counted "three separate findings", and false against the
+"Thirteen review rounds" heading eighty lines above. **The sentence stating the rule against
+unscoped claims was itself an unscoped claim** — which is now the third time in this entry that a
+correction has committed the thing it corrected: the catalogue that said "two earlier points", the
+table that claimed to be "the record", and this. The habit is not the numbers. It is reaching for
+the strongest form of a sentence and not checking what it commits me to.
 
 ### What I got wrong, kept in one place
 
