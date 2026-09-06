@@ -9775,6 +9775,25 @@ The SonarCloud security failure was diagnosed by reasoning about which of my lin
 It was wrong. The answer had been delivered to this session as a review comment naming the file and
 the line, and was sitting unread while the reasoning happened.
 
+And a third, which this close-out earned on its own account. **This entry was reviewed ten times
+across three rounds on #312, a pull request containing no code, and every finding was correct.**
+Two P1s: an open Assumption reported as absent, on the very feature that made it load-bearing; and
+a merge-gate stand-down argued from evidence this same log records a reviewer rejecting on #305.
+The rest were counts and capability claims — "six routes" above a list of seven, "no `CacheSeam`
+write operation" when `primeCache` is one, "no unit test could have caught" two defects whose unit
+tests this run wrote.
+
+> **Correcting the instance is not correcting the belief.**
+
+That is the pattern under all ten. Each fix was locally right and left the same false premise
+standing a few lines away: the write-operation correction did not reach the fonts bullet two bullets
+below it, which repeated it verbatim. Twice a correction introduced a fresh error — a rewritten
+sentence that overstated in the other direction, and a "validation" run of exactly the two scripts I
+had predicted would object, which left the evidence directory half-refreshed and therefore *looking*
+verified. The pattern is the same one the first rule names, one level up: **a correction is new
+work, and it gets checked like new work — including against every other place the same claim was
+made.**
+
 ### Open, and deliberately so
 
 - **Five SonarCloud issues, gate passing.** Three identified as pre-existing lines in
