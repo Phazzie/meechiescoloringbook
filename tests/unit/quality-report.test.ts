@@ -49,7 +49,7 @@ describe('buildQualityReport', () => {
 		});
 
 		expect(report.state).toBe('clean');
-		expect(describeQualityReport(report)).toBe('The page came back exactly as asked.');
+		expect(describeQualityReport(report)).toBe('Everything asked for made it into the prompt.');
 	});
 
 	it('keeps an error and a warning apart instead of flattening them', () => {
@@ -114,6 +114,7 @@ describe('buildQualityReport', () => {
 		// counted among the things the page got wrong.
 		expect(report.findings[0].weight).toBe('check-failed');
 		expect(report.findings[0].message).toContain('Required section missing: STYLE:');
+		expect(report.findings[0].message).toContain('The prompt could not be checked');
 		expect(report.hasIncompleteCheck).toBe(true);
 		expect(describeQualityReport(report)).toBe('One check that never finished.');
 	});
@@ -149,7 +150,8 @@ describe('buildQualityReport', () => {
 				code: CHECK_RESULT_UNRECORDED_CODE,
 				message:
 					'This page was saved before its check result was recorded, so it is not on file.',
-				weight: 'check-failed'
+				weight: 'check-failed',
+				source: 'prompt'
 			}
 		]);
 		expect(report.hasIncompleteCheck).toBe(true);
@@ -186,6 +188,22 @@ describe('buildQualityReport', () => {
 		expect(report.findings.every((finding) => !('fix' in finding))).toBe(true);
 	});
 
+	it('counts a settings problem apart from a prompt one', () => {
+		// Two different checks about two different things. Summing them told a reader with an invalid
+		// dedication that their page had failed, when the dedication is why there is no page.
+		const report = buildQualityReport({
+			hasPage: true,
+			driftChecked: true,
+			violations: [blocker('Missing option line: Border: thin.')],
+			recommendedFixes: [],
+			validationIssues: [{ field: 'dedication', message: 'Dedication is too long.' }]
+		});
+
+		expect(describeQualityReport(report)).toBe(
+			'1 setting to fix and 1 thing the prompt dropped.'
+		);
+	});
+
 	it('shows spec-validation issues even before a page exists', () => {
 		// A failing spec check is why there is no page — the studio refuses to generate while it
 		// holds any — so gating it behind "a page exists" would hide the only actionable complaint.
@@ -199,8 +217,17 @@ describe('buildQualityReport', () => {
 
 		if (report.state !== 'flagged') throw new Error('expected a flagged report');
 		expect(report.findings).toEqual([
-			{ code: 'dedication', message: 'Dedication is too long.', weight: 'blocker' }
+			{
+				code: 'dedication',
+				message: 'Dedication is too long.',
+				weight: 'blocker',
+				source: 'settings'
+			}
 		]);
+		// Worded as the request, not the result. A spec-validation failure is usually *why* there is
+		// no page, so counting it as something "the page got wrong" reported a failure of a page that
+		// does not exist.
+		expect(describeQualityReport(report)).toBe('1 setting to fix.');
 	});
 
 	it('ignores stale drift findings while no page is on the paper', () => {
@@ -227,7 +254,7 @@ describe('describeQualityReport', () => {
 			recommendedFixes: []
 		});
 
-		expect(describeQualityReport(report)).toBe('2 things the page got wrong and 1 worth noting.');
+		expect(describeQualityReport(report)).toBe('2 things the prompt dropped and 1 worth noting.');
 	});
 
 	it('uses the singular for a single blocker', () => {
@@ -238,7 +265,7 @@ describe('describeQualityReport', () => {
 			recommendedFixes: []
 		});
 
-		expect(describeQualityReport(report)).toBe('1 thing the page got wrong.');
+		expect(describeQualityReport(report)).toBe('1 thing the prompt dropped.');
 	});
 
 	it('joins all three kinds with commas and a trailing "and"', () => {
@@ -251,7 +278,7 @@ describe('describeQualityReport', () => {
 		});
 
 		expect(describeQualityReport(report)).toBe(
-			'1 thing the page got wrong, 1 worth noting and one check that never finished.'
+			'1 thing the prompt dropped, 1 worth noting and one check that never finished.'
 		);
 	});
 });

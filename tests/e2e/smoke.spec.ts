@@ -169,7 +169,7 @@ const makePageAndKeepIt = async (page: Page): Promise<void> => {
 	// empty output — the conflation this whole change exists to remove, surviving on two of the
 	// three surfaces.
 	await expect(page.getByTestId('verdict-page-clean')).toContainText(
-		'The page came back exactly as asked.'
+		'Everything asked for made it into the prompt.'
 	);
 	await expect(page.getByTestId('verdict-page-violations')).toHaveCount(0);
 
@@ -1000,6 +1000,8 @@ test('editing the dedication drops the page it was not generated with, and drift
 	// The error and the warning are told apart rather than rendered identically.
 	const findings = page.getByTestId('meechie-tool-violations').locator('ul').first().locator('li');
 	await expect(findings.filter({ hasText: 'Missing option line' })).toHaveClass(/blocker/);
+	// The tag says what the check actually established: a requirement the prompt dropped.
+	await expect(findings.filter({ hasText: 'Missing option line' })).toContainText('Dropped');
 	await expect(findings.filter({ hasText: 'lost a word' })).toHaveClass(/note/);
 	// The blocker sorts above the note regardless of the order the seam reported them in.
 	await expect(findings.first()).toContainText('Missing option line: Border: thin.');

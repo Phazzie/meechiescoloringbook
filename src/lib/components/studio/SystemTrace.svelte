@@ -31,6 +31,10 @@ Info flow: Parent passes the report built by `buildQualityReport` plus the two p
 	// not an empty one: an empty textarea labelled "Model Rewrite" reads as "the model rewrote your
 	// prompt to nothing", which is the opposite of what happened.
 	const hasRewrite = $derived(revisedPrompt.trim().length > 0);
+	// Whether anything was sent at all. Without this the rewrite branch spoke about a prompt that
+	// does not exist — on a freshly opened studio it sat directly under "No prompt sent yet" and
+	// said the model had used it.
+	const hasPrompt = $derived(assembledPrompt.length > 0);
 </script>
 
 <details class="diagnostics">
@@ -62,7 +66,7 @@ Info flow: Parent passes the report built by `buildQualityReport` plus the two p
 					{#each report.findings as finding}
 						<li class={finding.weight} data-code={finding.code}>
 							<span class="tag">
-								{#if finding.weight === 'blocker'}Wrong{:else if finding.weight === 'note'}Noted{:else}Unchecked{/if}
+								{#if finding.weight === 'check-failed'}Unchecked{:else if finding.weight === 'note'}Noted{:else if finding.source === 'settings'}Setting{:else}Dropped{/if}
 							</span>
 							<span class="finding-message">{finding.message}</span>
 						</li>
@@ -97,8 +101,13 @@ Info flow: Parent passes the report built by `buildQualityReport` plus the two p
 			<p class="eyebrow">What The Model Made Of It</p>
 			{#if hasRewrite}
 				<textarea rows="6" readonly value={revisedPrompt} aria-label="Model rewrite"></textarea>
+			{:else if hasPrompt}
+				<!-- "No rewrite reported", not "the model used the prompt as written". `revisedPrompt`
+				     is an optional provider field: its absence means the provider did not report a
+				     rewrite, which is not evidence that it used the prompt verbatim. -->
+				<p class="empty">No rewrite reported.</p>
 			{:else}
-				<p class="empty">The model used the prompt as written.</p>
+				<p class="empty">Nothing sent yet.</p>
 			{/if}
 		</section>
 	</div>

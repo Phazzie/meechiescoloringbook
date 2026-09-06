@@ -12,10 +12,13 @@
 // Info flow: GenerateResponse violations + recommendedFixes (+ spec-validation issues) -> buildQualityReport
 //            -> QualityReport -> SystemTrace.svelte / VerdictPageStudio.svelte / MeechieTools.svelte.
 //            All three surfaces, which is the point: they were three divergent renderings before.
-// Invariants: Pure. No I/O, no clock, no randomness. Never claims a page passed a check that did not
-//             run: `state: 'unchecked'` is a distinct value from `state: 'clean'`, and the caller
-//             must say which by passing `hasGeneratedPage`. Violations and fixes are reported as two
-//             lists and never zipped into pairs — see `QualityReport.fixes`.
+// Invariants: Pure. No I/O, no clock, no randomness. Never claims a check passed that did not run:
+//             `state: 'unchecked'` is a distinct value from `state: 'clean'`, and the caller says
+//             which by passing `hasPage` and `driftChecked` as the two separate facts they are.
+//             Violations and fixes are reported as two lists and never zipped into pairs — see
+//             `QualityReport.fixes`. Every sentence here is scoped to what was actually inspected:
+//             `detectDrift` reads `spec`, `promptSent` and `revisedPrompt` and never the generated
+//             image, so nothing this module says may claim anything about the picture.
 
 import type { DriftDetectionOutput, Violation } from '../../../contracts/drift-detection.contract';
 
@@ -47,6 +50,16 @@ export type QualityFinding = {
 	 * says nothing about the page either way.
 	 */
 	weight: 'blocker' | 'note' | 'check-failed';
+	/**
+	 * Which check said so, because the two are about different things and must not be counted
+	 * together.
+	 *
+	 * `settings` is a spec-validation issue: the request on screen is invalid, and there may be no
+	 * page at all — in fact that is usually why. `prompt` is a drift finding: a requirement did not
+	 * survive into the prompt that was sent. Summing them as "things the page got wrong" told a
+	 * reader with an over-long dedication and no page that their nonexistent page had failed.
+	 */
+	source: 'settings' | 'prompt';
 };
 
 /**
@@ -147,7 +160,8 @@ export const buildQualityReport = (input: {
 	const findings: QualityFinding[] = (input.validationIssues ?? []).map((issue) => ({
 		code: issue.field,
 		message: issue.message,
-		weight: 'blocker' as const
+		weight: 'blocker' as const,
+		source: 'settings' as const
 	}));
 
 	if (input.driftChecked) {
@@ -155,7 +169,8 @@ export const buildQualityReport = (input: {
 			findings.push({
 				code: violation.code,
 				message: violation.message,
-				weight: weighViolation(violation)
+				weight: weighViolation(violation),
+				source: 'prompt'
 			});
 		}
 	}
@@ -163,8 +178,9 @@ export const buildQualityReport = (input: {
 	if (input.driftCheckFailure) {
 		findings.push({
 			code: input.driftCheckFailure.code,
-			message: `The page could not be checked against what was asked for: ${input.driftCheckFailure.message}`,
-			weight: 'check-failed'
+			message: `The prompt could not be checked against what was asked for: ${input.driftCheckFailure.message}`,
+			weight: 'check-failed',
+			source: 'prompt'
 		});
 	} else if (input.hasPage && !input.driftChecked) {
 		// A page whose check result is not on file. Distinct from a failed check and from a clean
@@ -172,7 +188,8 @@ export const buildQualityReport = (input: {
 		findings.push({
 			code: CHECK_RESULT_UNRECORDED_CODE,
 			message: 'This page was saved before its check result was recorded, so it is not on file.',
-			weight: 'check-failed'
+			weight: 'check-failed',
+			source: 'prompt'
 		});
 	}
 
@@ -207,15 +224,32 @@ export const describeQualityReport = (report: QualityReport): string | null => {
 		return null;
 	}
 	if (report.state === 'clean') {
-		return 'The page came back exactly as asked.';
+		// Deliberately about the prompt, not the page. `detectDrift` is handed `spec`, `promptSent`
+		// and `revisedPrompt` and reads nothing else — the adapter never sees the generated image. So
+		// a clean result proves every requirement survived into the prompt that was sent; it proves
+		// nothing about whether the provider then drew them. The earlier wording, "The page came back
+		// exactly as asked", claimed the second from evidence for the first, which is the same species
+		// of overclaim this module exists to remove.
+		return 'Everything asked for made it into the prompt.';
 	}
 
-	const blockers = report.findings.filter((finding) => finding.weight === 'blocker').length;
+	const settingsBlockers = report.findings.filter(
+		(finding) => finding.source === 'settings' && finding.weight === 'blocker'
+	).length;
+	const promptBlockers = report.findings.filter(
+		(finding) => finding.source === 'prompt' && finding.weight === 'blocker'
+	).length;
 	const notes = report.findings.filter((finding) => finding.weight === 'note').length;
 
 	const parts: string[] = [];
-	if (blockers > 0) {
-		parts.push(`${blockers} ${blockers === 1 ? 'thing' : 'things'} the page got wrong`);
+	if (settingsBlockers > 0) {
+		// Counted apart from prompt findings, and worded as the request rather than the result: a
+		// spec-validation issue is usually why there is no page at all, so calling it something "the
+		// page got wrong" reported a failure of a page that does not exist.
+		parts.push(`${settingsBlockers} ${settingsBlockers === 1 ? 'setting' : 'settings'} to fix`);
+	}
+	if (promptBlockers > 0) {
+		parts.push(`${promptBlockers} ${promptBlockers === 1 ? 'thing' : 'things'} the prompt dropped`);
 	}
 	if (notes > 0) {
 		parts.push(`${notes} worth noting`);
@@ -225,7 +259,7 @@ export const describeQualityReport = (report: QualityReport): string | null => {
 	}
 
 	// `parts` cannot be empty: `flagged` guarantees a non-empty `findings`, and every finding is
-	// counted by exactly one of the three branches above.
+	// counted by exactly one of the four branches above.
 	return `${formatList(parts)}.`;
 };
 

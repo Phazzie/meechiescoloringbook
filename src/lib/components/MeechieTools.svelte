@@ -842,7 +842,7 @@ Info flow: User inputs -> MeechieToolSeam -> verdict -> tool page recipe -> /api
 						{#each qualityReport.findings as finding}
 							<li class={finding.weight} data-code={finding.code}>
 								<span class="tag"
-									>{#if finding.weight === 'blocker'}Wrong{:else if finding.weight === 'note'}Noted{:else}Unchecked{/if}</span
+									>{#if finding.weight === 'check-failed'}Unchecked{:else if finding.weight === 'note'}Noted{:else if finding.source === 'settings'}Setting{:else}Dropped{/if}</span
 								>
 								<span>{finding.message}</span>
 							</li>

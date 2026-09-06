@@ -7903,3 +7903,80 @@ from checking the thing I had decided to check.
 
 > The hardest defect to catch is not the one you did not look at. It is the one where you looked,
 > saw what you expected, and were right about the thing you were looking at.
+
+---
+
+## Run 9, third close-out — 2026-09-06 — three more Codex findings, all the same defect as the feature
+
+Codex posted three further findings against `8a775d7`. All three are correct, and all three are the
+run's own defect committed in its own replacement code: **a sentence claiming more than the check
+behind it establishes.**
+
+### The drift check never looks at the picture
+
+The clean line read *"The page came back exactly as asked."*
+
+`runGeneratePipeline` hands `detectDrift` exactly three things — `spec`, `promptSent`,
+`revisedPrompt` — and the adapter reads only those strings. **It never sees the generated image.**
+So a clean drift result proves every requirement survived into the prompt that was sent. It proves
+nothing whatever about whether the provider then drew them. A page that ignores the prompt entirely
+passes this check.
+
+I wrote a sentence about the page from a check that only inspects the prompt — which is, exactly,
+what the old panel did when it rendered an empty violation list as "no quality flags". Same overclaim,
+one layer up, in the module built to remove it.
+
+Now: **"Everything asked for made it into the prompt."** Violations count as *"things the prompt
+dropped"*, and the finding tag reads **Dropped** rather than **Wrong**. Every sentence is scoped to
+what was inspected, and the file's Invariants block now says so as a standing rule.
+
+### "The model used the prompt as written" was two claims, both unsupported
+
+That line appeared whenever `revisedPrompt` was empty. Two problems:
+
+- On a freshly opened studio it rendered directly beneath *"No prompt sent yet"* — asserting the
+  model had used a prompt that did not exist.
+- `revisedPrompt` is an **optional provider field**. Its absence means no rewrite was reported. It is
+  not evidence that the provider used the prompt verbatim; nobody told us either way.
+
+Now gated on a prompt actually having been sent, and worded as **"No rewrite reported."** — the thing
+that is known, in place of the thing inferred from a missing field. An absent optional field meaning
+"unknown" rather than a default is the same distinction this run drew for `creation.violations` on a
+reopened record, and I drew it correctly there and not here.
+
+### Settings failures were being counted as page failures
+
+`buildQualityReport` deliberately reports spec-validation issues before a page exists — that is
+right, and there is a test for it. But `describeQualityReport` then counted every blocker as
+*"things the page got wrong"*. So a reader whose dedication is too long, with no page on screen and
+generation blocked *because* of that very issue, was told a nonexistent page had failed.
+
+Findings now carry `source: 'settings' | 'prompt'`, counted separately: *"1 setting to fix"* against
+*"1 thing the prompt dropped"*, and both together where both apply. The settings tag reads
+**Setting**. The test for the pre-page case now asserts the sentence, not just the finding — the
+finding was already right; only the summary over it was wrong, which is why the existing test passed.
+
+### Verified
+
+`check` 0/0 · `lint` exit=0 · **1462 passed**, 1 skipped · `build` exit=0 · e2e 42 passed ·
+`verify` exit=0 · rewind 5 passed · proof tape flags nothing. Outer transcript cross-checked against
+`test.txt`: 1462 and 94 in both.
+
+### The pattern across all eight Codex findings
+
+Two rounds, eight findings, and after separating them by kind only one was a plain coding error (the
+`zod` import). The other seven are one thing in two forms:
+
+- **Three were scope errors in a claim**: the page/prompt confusion, the model-use inference, the
+  settings-counted-as-page-failures. Each took evidence for X and stated a conclusion about Y.
+- **Two were a name and its value disagreeing**: `hasGeneratedPage` receiving a check-completion
+  flag, and `DRIFT_CHECK_FAILED` carrying a meaning the contract did not declare.
+- **Two were a rule followed in one place and not another**: `clean` rendered on one surface of
+  three, and `plan.md` skipped for a plan written into the log instead.
+
+Not one was about whether the code runs. Every test passed at every point. What review found, over
+and over, was the gap between what the code establishes and what it says it establishes — in a change
+whose entire purpose is closing exactly that gap in a feature that had it.
+
+> The overclaim is not a thing you remove from a codebase once. It is a habit, and it follows you
+> into the fix.
