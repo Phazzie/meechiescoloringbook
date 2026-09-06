@@ -9902,6 +9902,14 @@ said so on the PR — so every "verify 0" this entry claimed had no committed ev
 head. The decision was wrong on its own terms too: #311's transcript is preserved in git at the
 merged commit, and a dated evidence directory is supposed to describe the tree beside it.
 
+And two more, both about the micro Plan the P1 above added: **its file inventory could not be
+reconciled with the diff** — a wildcard row first, then a `File | Why` table whose second column was
+prose and whose `.json`, `.md` rows were patterns rather than paths — and **it never closed on a
+literal command**, which `AGENTS.md` L76 requires. The second is the one with teeth: the plan's
+prose named `lint`, `build` and `verify` as run every push, and on this pull request that sentence
+was false twice while sitting there unchallenged. A command someone can execute and get an exit code
+from is the only form of that claim which could have caught either failure.
+
 **The P2s**, in three kinds rather than one. An earlier draft called them all counts and capability
 claims and then listed twelve where the ledger implied fourteen — miscounting the list of
 miscounts, which is the joke this entry keeps making at its own expense. The group sizes are
@@ -9916,7 +9924,11 @@ for #311, where the table further down this entry records three passes with find
 called a seam limitation when the seam permits them and only the strategy refuses; "no unit test
 could have caught" two defects whose unit tests this run wrote; a missing probe listed among the
 defects it failed to catch; "all five headers" when the edge supplies one of them independently;
-and "every page" when five alias slugs still resolve through the function.
+and "every page" when five alias slugs still resolve through the function; a recommended follow-up
+patch that could not have compiled, since removing HSTS from the document rules fails fourteen
+assertions in a test that iterates all five `SECURITY_HEADERS`; and the `.html` gap above, which is
+the only finding on this pull request that names a defect in the shipped configuration rather than
+in the writing about it.
 
 *Procedure and reference defects*, which are the ones that could mislead a future run into
 **doing** the wrong thing rather than believing it: a close-out instruction that validated the
@@ -9925,10 +9937,16 @@ half — unchecked; and a structured `Statement` left naming three headers while
 said four, where `assumption-alarm` parses the field and not the paragraph. A third joined them
 late: this entry restating that same three-header list in prose, still saying three after the
 `Statement` had been corrected to four — the restatement going stale exactly as the thing it
-restated was fixed.
+restated was fixed. Then two more of the same shape: a prose comma written into that same `Seams`
+field, which `scripts/assumption-alarm.mjs` splits on, putting a phantom seam into the committed
+alarm report; and the outer transcript captured two wrong ways before the right one, each way
+producing evidence that described something other than the tree it was committed with.
 
-Plus this ledger's own anchoring, and a stale `DECISIONS.md` line range, both of which are the same
-disease as the counts: a fact restated where it cannot be checked against its source.
+Plus this ledger's own anchoring, a stale `DECISIONS.md` line range, a `DECISIONS.md` reference
+whose line number my own edits above it had moved, and — after the ledger was rebuilt to be
+append-only precisely so this could not happen — **two passes left off it entirely**, which silently
+made these inventories wrong as well, since they are derived from it. All the same disease: a fact
+restated where it cannot be checked against its source.
 
 > **Correcting the instance is not correcting the belief.**
 
