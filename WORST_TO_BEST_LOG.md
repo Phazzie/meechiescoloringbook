@@ -11033,6 +11033,13 @@ What made it non-blocking was specific:
 4. **No re-run was spent.** The check is deterministic over branch contents; it is not a flake and
    re-running it would produce the same six findings. Saying "flake" here would have been a lie.
 5. Precedent: **#313 merged as `b1a6cfc` with this same check red.**
+6. **Confirmed afterwards, which is the part worth trusting.** The close-out pull request that
+   carries this entry changes no signature — it is prose — and `Rosentic - Conflict Detection`
+   came back **`success`** on it, on a branch cut from the `main` that now contains the merged
+   change. So the red on #315 tracked the signature change exactly: present while the change was
+   unmerged and two stale branches still called the old form, gone once `main` carried it. That is
+   the prediction this disposition implied, and it held. Had #316 come back red as well, the
+   disposition would have been wrong and this entry would say so.
 
 The real remedy is #151 and #208 rebasing. That is their authors' call; pushing to someone else's
 branch is out.
