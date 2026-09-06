@@ -8623,10 +8623,18 @@ exceptions are documented *in this same file, by me, earlier in this run*:
   already separates out explicitly: *"The nineteenth is not like the others."* It was a false
   description of my own work, not an inference about the system.
 
-The accurate statement is: **the large majority were claims wider than their evidence, and the run
-did that arithmetic once already — eighteen of nineteen at that point.** I did not recount for the
-final tally, and "~40" was an estimate, so the honest form names the pattern and its exceptions
-rather than asserting a number over both.
+The accurate statement is: **the large majority were claims wider than their evidence, and the
+exceptions are the ones enumerated just above.** No total is given, because none of the ones this run
+produced survived checking.
+
+That includes the one I first reached for here. An earlier version of this paragraph cited the run's
+own *"eighteen of nineteen"* as the arithmetic already done correctly. **It was not correct either.**
+Two of those nineteen are non-overclaims by this file's own account — the `zod` import, called "a
+plain coding error" among the first eight, and the nineteenth, set apart as "not like the others" —
+so at most seventeen. "Eighteen" excluded the nineteenth and silently re-absorbed the `zod` import
+that the same file had excluded four sections earlier. I quoted it *because* it looked like the
+careful number, and did not check it. Citing a figure as authoritative is not different from
+asserting one; both are claims, and this one was wrong by the mechanism it was cited to correct.
 
 The same overclaim stands at these earlier points in this run's entries, each left as written with
 this correction pointing at it, because that is how every other correction in this file works:
@@ -8650,8 +8658,8 @@ run's own thesis, applied to the sentence stating it.
 
 This paragraph originally called that **"the run's last finding."** It was not. Findings kept landing
 on the commits after it. **The complete and authoritative record of them is the review thread on
-PR #310**, which maintains itself; the table below is a reading aid that lags it by one round and
-does not attempt to be exhaustive — it cannot be, because each round reviews the very entry that
+PR #310**, which maintains itself; the table below is a reading aid that lags behind it and does
+not attempt to be exhaustive — it cannot be, because each round reviews the very entry that
 would have to list it. It carries no total for the same reason:
 
 | Head | Findings |
@@ -8719,11 +8727,12 @@ the strongest form of a sentence and not checking what it commits me to.
 - Rewrote the PR description at merge time. The version opened at `b2831a6` still described the
   reserved violation code, the `check-failed` weight, and a diff touching no contract — all three
   overturned in review, all three about to become the permanent merge record.
-- Wrote "every one of the ~40 findings was a claim wider than its evidence" three times — twice in
-  this run's entries and once in this close-out — while this same file already recorded the
-  exceptions and had already counted them as *eighteen of nineteen*. I did not reread my own
-  arithmetic before generalising past it. Corrected above; also corrected in the descriptions of
-  PR #309 and PR #310, which both carried the claim, and in what I told the user.
+- Wrote "every one of the findings was a claim wider than its evidence" repeatedly — the instances
+  are enumerated by heading above, rather than counted here, because counting them is what went
+  wrong the first three times. This same file already recorded the exceptions. Corrected above; also
+  corrected in the descriptions of PR #309 and PR #310, which both carried the claim, and in what I
+  told the user. Then compounded by citing the run's own *"eighteen of nineteen"* as the correct
+  arithmetic; it was not, for the reason given above.
 - **Wrote a whole merge close-out for a merge that had not happened.** The entry headed *"Run 9 —
   merge close-out — PR #309"*, at `ba6244b`, opens with "The quality report is on `main`." It was
   not. The PR stayed open for **twelve** further review rounds — the second through tenth close-outs
