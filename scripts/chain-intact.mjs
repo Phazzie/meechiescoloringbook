@@ -30,7 +30,7 @@
 // the repository, which is the owner's to set and not a branch's to grant itself. Said plainly here
 // because a check that is vague about its own limits gets trusted for what it never did.
 
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import process from 'node:process';
 
 // The chain, as the exact sequence of commands `verify` must run. Compared as a normalised command
@@ -67,6 +67,18 @@ const commandsOf = (script) =>
 		.split('&&')
 		.map((command) => command.trim().replace(/\s+/g, ' '))
 		.filter((command) => command !== '');
+
+// npm reads a project `.npmrc` before it runs anything, and one key there decides what "run" means.
+// `script-shell=/bin/true` leaves this manifest untouched, satisfies every check below, and turns
+// `npm run verify` into a command that exits 0 having executed nothing — reproduced against this
+// repository's own package.json. The workflow also passes `--script-shell` explicitly, because a
+// check here and an override there answer different halves: this one says the committed config is
+// clean, and that one holds even if this file is ever bypassed.
+//
+// `ignore-scripts` and `foreground-scripts` were tried and do NOT neutralise `npm run` (measured,
+// exit 7 either way), so they are not listed: a check that refuses harmless settings teaches people
+// to work around it.
+const EXECUTION_KEYS = ['script-shell'];
 
 const problems = [];
 let manifest;
@@ -113,6 +125,21 @@ for (const { name, command } of REQUIRED_SCRIPTS) {
 		);
 }
 
+if (existsSync('.npmrc')) {
+	const npmrc = readFileSync('.npmrc', 'utf8');
+	const set = npmrc
+		.split('\n')
+		.map((line) => line.trim())
+		.filter((line) => line !== '' && !line.startsWith('#') && !line.startsWith(';'))
+		.map((line) => line.split('=')[0].trim().toLowerCase())
+		.filter((key) => EXECUTION_KEYS.includes(key));
+	if (set.length > 0)
+		problems.push(
+			`.npmrc sets ${[...new Set(set)].join(', ')}, which changes what "npm run" executes. The ` +
+				'gate is a string of commands in package.json; this decides whether they run at all.'
+		);
+}
+
 if (problems.length > 0) {
 	console.error('chain-intact: the committed definition of the verification gate is not intact.\n');
 	for (const problem of problems) console.error(`  - ${problem}`);
@@ -125,5 +152,6 @@ if (problems.length > 0) {
 
 console.log(
 	`chain-intact: the verify gate runs exactly the ${REQUIRED_CHAIN.length} stages of the chain, ` +
-		`and the ${REQUIRED_SCRIPTS.length} scripts it depends on are unchanged.`
+		`the ${REQUIRED_SCRIPTS.length} scripts it depends on are unchanged, and .npmrc does not ` +
+		'change what running them means.'
 );

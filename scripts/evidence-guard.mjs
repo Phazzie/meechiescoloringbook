@@ -266,6 +266,15 @@ const selfAgreementProblem = (raw, file, list) => {
 		return `${file} carries no summary, so it states no overall result.`;
 	if (summary.overallStatus !== 'ok')
 		return `${file} reports overallStatus "${summary.overallStatus}"; a chain artifact that did not come back ok is not evidence of a passing run.`;
+	// The headline is a claim about the columns beneath it. Moving one seam to `missing` and setting
+	// the counters to 37/1 left `overallStatus: ok` standing over an artifact that says a required
+	// seam artifact is missing, and every count matched its entries — the agreement rule cannot see a
+	// headline that never disagreed with anything, because nothing was comparing them.
+	const failures = Object.entries(summary)
+		.filter(([status, value]) => typeof value === 'number' && status !== 'ok' && value > 0)
+		.map(([status, value]) => `${value} ${status}`);
+	if (failures.length > 0)
+		return `${file} reports overallStatus "ok" while its own summary counts ${failures.join(', ')}; the headline is a claim about the columns beneath it.`;
 	const entries = Array.isArray(parsed[list]) ? parsed[list] : null;
 	if (entries === null)
 		return `${file} has no "${list}" list, so its summary cannot be checked against anything.`;
@@ -543,6 +552,18 @@ const namedUnder = (md, heading, next) => {
 		.filter((name) => name !== undefined);
 };
 
+/** The seam names one artifact lists, or `null` when it has no seams list at all. */
+const seamNamesIn = (raw) => {
+	if (raw === null) return null;
+	let parsed;
+	try {
+		parsed = JSON.parse(raw);
+	} catch {
+		return null;
+	}
+	return Array.isArray(parsed.seams) ? parsed.seams.map((entry) => entry?.seam) : null;
+};
+
 /** `scripts/seam-ledger.mjs` renders each status as one of these; anything else is "?" there too. */
 const STATUS_CELL = { ok: '\u2705', missing: '\u274c', blocked: '\u26d4', na: '\u2014' };
 
@@ -621,6 +642,31 @@ const seamLedgerSummaryProblem = (dir) => {
 };
 
 /**
+ * Whether the ledger's ok seams are the seams `chamber-lock.json` found, as a sentence, or `null`.
+ *
+ * A second source, because the chain and the ledger agreeing proves only that they agree. Emptying
+ * the ledger, both chain lists and their summaries together left every rule passing while the lock in
+ * the same folder still listed 38 seams: three files consistent with each other and with nothing
+ * else. The lock is written by a different stage from a different scan.
+ */
+const ledgerAgainstLock = (dir, ledgerOk) => {
+	const registered = seamNamesIn(read(dir, 'chamber-lock.json'));
+	if (registered === null)
+		return 'chamber-lock.json carries no seams list, so the ledger has nothing independent to be checked against.';
+	if (registered.length === 0)
+		return 'chamber-lock.json lists no seams at all; a repository with no seams is not a passing chain, it is a chain that scanned nothing.';
+	const unknown = ledgerOk.filter((seam) => !registered.includes(seam));
+	const unledgered = registered.filter((seam) => !ledgerOk.includes(seam));
+	if (unknown.length === 0 && unledgered.length === 0) return null;
+	return `seam-ledger.json and chamber-lock.json disagree about which seams exist: ${[
+		unknown.length > 0 ? `the ledger reports these ok and the lock does not list them: ${unknown.join(', ')}` : null,
+		unledgered.length > 0 ? `the lock lists these and the ledger does not report them ok: ${unledgered.join(', ')}` : null
+	]
+		.filter((part) => part !== null)
+		.join('; ')}.`;
+};
+
+/**
  * Whether the Clan Chain agrees with the ledger it is derived from and with its own summary, as a
  * sentence, or `null`.
  *
@@ -653,6 +699,13 @@ const clanChainProblem = (dir) => {
 		: null;
 	if (ledgerOk === null)
 		return 'seam-ledger.json carries no seams list, so the Clan Chain cannot be checked against it.';
+	// A second source, because the chain and the ledger agreeing proves only that they agree. Emptying
+	// the ledger, both chain lists and their summaries together left all eight rules passing while
+	// `chamber-lock.json` in the same folder still listed 38 seams: three files consistent with each
+	// other and with nothing else. The lock is written by a different stage from a different scan, so
+	// it is the independent record this comparison was missing.
+	const independent = ledgerAgainstLock(dir, ledgerOk);
+	if (independent !== null) return independent;
 	// The NAMES, not the count. Comparing cardinality asks whether two lists are the same length,
 	// which they remain when one clean seam is replaced by an equal-length invention — in both chain
 	// outputs at once, so they agree with each other about a seam the ledger has never heard of. The
@@ -741,6 +794,32 @@ const proofSummaryProblem = (dir, inventory, tape) => {
 };
 
 /**
+ * Whether every chain artifact's own stamp is dated the folder it sits in, as a sentence, or `null`.
+ *
+ * The tape's date was already required to match the folder, and the lock's was only required not to
+ * be newer than the tape's — so a lock from an earlier tree, copied in before the chain ran, was
+ * marked current by the tape and certified the run. `generatedAt` is written by the stage itself,
+ * which is what makes it worth reading: nothing else in the folder says when a stage ran.
+ */
+const misdatedStages = (dir, artifacts) => {
+	const here = basename(dir);
+	if (!/^\d{4}-\d{2}-\d{2}$/.test(here)) return null;
+	const stampedElsewhere = artifacts.filter((name) => {
+		const raw = name.endsWith('.json') ? read(dir, name) : null;
+		if (raw === null) return false;
+		let at;
+		try {
+			at = JSON.parse(raw).generatedAt;
+		} catch {
+			return false; // an unreadable artifact is its own rule's finding
+		}
+		return typeof at !== 'string' || at.slice(0, 10) !== here;
+	});
+	if (stampedElsewhere.length === 0) return null;
+	return `these chain artifacts are stamped on a different day from the folder they are filed under (${here}): ${stampedElsewhere.join(', ')}; a stage that ran on another day did not run for this evidence.`;
+};
+
+/**
  * Whether every inventory entry describes a file in this folder, at the length recorded, or `null`.
  *
  * Two questions, both about the same entries: where the tape says the file is, and how big it says
@@ -758,6 +837,18 @@ const inventoryProblem = (dir, inventory, postTape) => {
 		.map(({ name, path: recorded }) => `${name} is recorded at "${recorded ?? '<no path>'}"`);
 	if (misplaced.length > 0)
 		return `the proof tape records files outside the folder it describes: ${misplaced.join('; ')}; every entry belongs to ${here}.`;
+	// The other direction. Everything asked so far is "does each entry describe a file"; nothing asked
+	// "is each file described". Dropping an uninventoried `ci-verify.txt` carrying a failing status
+	// into the folder passed every rule, and the tape itself says it excludes only its own two
+	// outputs — so a file it does not list is either evidence from another run or evidence the tape
+	// never saw, and both are untraceable.
+	const listed = new Set(inventory.map((entry) => entry.name));
+	const uninventoried = readdirSync(dir, { withFileTypes: true })
+		.filter((entry) => entry.isFile())
+		.map((entry) => entry.name)
+		.filter((name) => !listed.has(name) && !TAPE_OWN_OUTPUTS.includes(name));
+	if (uninventoried.length > 0)
+		return `these files are in the folder and in no inventory entry: ${uninventoried.join(', ')}; the tape excludes only its own two outputs, so anything else it does not list cannot be tied to this run.`;
 	const drifted = inventory
 		.filter(({ name }) => !postTape.has(name))
 		.map(({ name, sizeBytes }) => {
@@ -1010,6 +1101,13 @@ const RULES = [
 			});
 			if (unfresh.length > 0)
 				return `the proof tape does not report these chain artifacts as belonging to its own run: ${unfresh.join(', ')}; it marks them as predating it, or cannot say.`;
+			// Each stage's own stamp, against the folder's date. The tape's date was already required to
+			// match, and the lock's was only required not to be NEWER than the tape's — so a lock from
+			// an earlier tree, copied in before the chain ran, was inventoried as current and certified
+			// the run. `generatedAt` is written by the stage itself, which is what makes it worth
+			// reading; nothing else in the folder says when a stage ran.
+			const misdated = misdatedStages(dir, CHAIN_ARTIFACTS);
+			if (misdated !== null) return misdated;
 			if (lock === null) return 'chamber-lock.json is missing or carries no generatedAt stamp.';
 			if (tape === null) return 'proof-tape.json is missing or carries no generatedAt stamp.';
 			if (Number.isNaN(lock) || Number.isNaN(tape))

@@ -433,6 +433,38 @@ describe('evidence-guard', () => {
 		expect(refusalOf(dir)).toMatch('records files outside the folder it describes');
 	});
 
+	it('rejects an artifact whose headline outranks its own counters', () => {
+		// `overallStatus: ok` over `1 missing`: every count still matches its entries, so the agreement
+		// rule cannot see it — nothing was comparing the headline with the columns beneath it.
+		const dir = fresh();
+		mutate(dir, 'chamber-lock.json', /"missing": 0/, '"missing": 1');
+		expect(refusalOf(dir)).toMatch('while its own summary counts');
+	});
+
+	it('rejects a ledger that disagrees with chamber-lock about which seams exist', () => {
+		// The ledger and the chain agreeing proves only that they agree. The lock is written by a
+		// different stage from a different scan, so it is the independent record.
+		const dir = fresh();
+		mutate(dir, 'seam-ledger.json', /"seam": "AppConfigSeam"/, '"seam": "AppGhostXSeam"');
+		mutate(dir, 'seam-ledger.md', /\| AppConfigSeam \|/, '| AppGhostXSeam |');
+		expect(refusalOf(dir)).toMatch('disagree about which seams exist');
+	});
+
+	it('rejects a chain artifact stamped on another day', () => {
+		// An older lock copied into today's folder before the chain runs is marked current by the tape
+		// and passes the "tape no older than lock" comparison. Its own stamp says otherwise.
+		const dir = fresh();
+		mutate(dir, 'chamber-lock.json', /"generatedAt": "2026-/, '"generatedAt": "2025-');
+		expect(refusalOf(dir)).toMatch('stamped on a different day');
+	});
+
+	it('rejects a file the tape does not inventory at all', () => {
+		// Every other rule asks "does this entry describe a file". This asks the other direction.
+		const dir = fresh();
+		writeFileSync(join(dir, 'ci-verify.txt'), 'ci exit=1\n');
+		expect(refusalOf(dir)).toMatch('in no inventory entry');
+	});
+
 	it('rejects a Cipher Gate artifact that did not come back ok', () => {
 		const dir = fresh();
 		mutate(dir, 'cipher-gate.json', /"status": "ok"/, '"status": "blocked"');

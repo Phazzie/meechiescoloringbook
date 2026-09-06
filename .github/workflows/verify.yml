@@ -204,15 +204,53 @@ jobs:
             echo "No evidence folder introduced or changed by this branch; nothing to guard."
             exit 0
           fi
+          # The guard is in the branch it polices, exactly as the gate check below is: a change that
+          # edits `scripts/evidence-guard.mjs` AND a dated folder would otherwise be certified by a
+          # guard it had just weakened, and the guard's unit tests do not close that because the same
+          # change owns them too. So the BASE commit's guard runs as well as this branch's, and both
+          # must pass — the base copy has not been through this pull request, and the branch's copy is
+          # the stricter one whenever the branch is adding rules rather than removing them.
+          guard=scripts/evidence-guard.mjs
+          # The WHOLE `scripts/` directory from the base commit, not the one file. The guard imports
+          # `./evidence-reporting.mjs`, so a lone copy in a temp directory dies with
+          # ERR_MODULE_NOT_FOUND — which this step did on its first run here, before it ever reached
+          # a check. `chain-intact.mjs` imports only node: builtins, which is why the same shape
+          # worked there and hid this. A trusted copy has to bring what it depends on.
+          trustedroot="$(mktemp -d)"
+          trusted="$trustedroot/$guard"
+          from_base=no
+          if [ -n "${BASE_SHA:-}" ] && git cat-file -e "$BASE_SHA:$guard" 2>/dev/null; then
+            git archive "$BASE_SHA" scripts | tar -x -C "$trustedroot"
+            from_base=yes
+            echo "Also checking with $guard as of the base commit $BASE_SHA."
+          else
+            echo "NOTE: the base commit has no $guard (it is being introduced here, or this is a push"
+            echo "event with no base), so only this branch's copy runs."
+          fi
           for dir in $dirs; do
             echo "--- $dir"
+            # The base copy first. A failure here is either the case it exists for — a branch
+            # loosening the guard to certify its own evidence — or a rule this branch is deliberately
+            # correcting, and nothing in the branch can tell those apart, because everything in the
+            # branch is what is under review. Unchanged guard: that is an error. Changed guard: the
+            # diff goes in the log with a warning annotation, and a reviewer decides.
+            if [ "$from_base" = yes ] && ! node "$trusted" "$dir"; then
+              if git diff --quiet "$BASE_SHA" HEAD -- "$guard"; then
+                echo "The base commit's evidence guard refuses $dir and this branch does not change" >&2
+                echo "the guard, so this is the committed evidence failing, not a rule being changed." >&2
+                exit 1
+              fi
+              echo "::warning title=Evidence guard changed::The base commit's guard refuses $dir and this pull request changes the guard. CI cannot tell a corrected rule from a weakened one; a human reviewer decides."
+              echo "--- how the guard changes in this pull request ---"
+              git --no-pager diff "$BASE_SHA" HEAD -- "$guard"
+            fi
             # `node`, not `npm run`. This step runs before `npm install` on purpose (see the step
             # comment), and `npm run evidence:guard` would reintroduce the same hole from the other
             # side: npm executes a `preevidence:guard` hook if one is ever added, which is
             # repository-controlled code running immediately before the check reads the files. The
             # guard imports only node: builtins, so it needs no dependencies — verified by deleting
             # node_modules and running it.
-            node scripts/evidence-guard.mjs "$dir"
+            node "$guard" "$dir"
           done
       # Also before `npm install`, and for a reason the guard above does not cover. That step is
       # scoped to the evidence a change touches, so a change that ships no dated folder takes the
@@ -287,5 +325,11 @@ jobs:
       # way and running check, build and the full suite.
       - name: Install dependencies
         run: npm ci --ignore-scripts
+      # `--script-shell` on the command line, which beats a project `.npmrc`. npm reads that file
+      # before it runs anything, and `script-shell=/bin/true` in it turns this command into one that
+      # exits 0 having executed no stage at all — with `package.json` untouched, so every check above
+      # still passes. Reproduced against this repository. `chain-intact.mjs` refuses that key in the
+      # committed `.npmrc` as well; the two answer different halves, since a check says the config is
+      # clean and this says what runs regardless.
       - name: Verify
-        run: npm run verify
+        run: npm --script-shell=/bin/bash run verify

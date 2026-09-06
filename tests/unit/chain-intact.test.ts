@@ -114,6 +114,28 @@ describe('chain-intact', () => {
 		expect(refusalOf(dir)).toMatch('must be "vitest run"');
 	});
 
+	it('refuses an .npmrc that changes what "npm run" executes', () => {
+		// `script-shell=/bin/true` leaves package.json untouched and turns the whole chain into a
+		// command that exits 0 having run nothing. Measured against this repository: exit 7 becomes
+		// exit 0, and the CLI override in the workflow restores it.
+		const dir = manifestWith(() => {});
+		writeFileSync(join(dir, '.npmrc'), 'script-shell=/bin/true\n');
+		const said = refusalOf(dir);
+		rmSync(join(dir, '.npmrc'));
+		expect(said).toMatch('changes what "npm run" executes');
+	});
+
+	it('accepts an .npmrc that only configures installation', () => {
+		// The real file sets `engine-strict`, which has nothing to do with what a script runs. A check
+		// that refuses harmless settings teaches people to work around it.
+		const dir = manifestWith(() => {});
+		writeFileSync(join(dir, '.npmrc'), '# a comment\nengine-strict=true\n');
+		const result = run(dir);
+		rmSync(join(dir, '.npmrc'));
+		expect(result.stdout + result.stderr).toContain('does not change what running them means');
+		expect(result.status).toBe(0);
+	});
+
 	it('refuses a manifest with no verify script at all', () => {
 		const dir = manifestWith((scripts) => {
 			delete scripts.verify;

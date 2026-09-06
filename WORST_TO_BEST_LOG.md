@@ -9318,3 +9318,46 @@ forever.
 named `expect` (which reads as an assertion to the analyser and to a person) and a rule body over the
 complexity limit, both **before** the push this time rather than after. 39 tests across the two
 suites.
+
+### Addendum, round 54 — the config that unmakes the command, and two checkers judging themselves
+
+Six findings. The sharpest is not in the guard at all.
+
+**`npm run verify` can be made to run nothing without touching `package.json`.** A project `.npmrc`
+containing `script-shell=/bin/true` leaves the manifest exactly as the checker demands, and the
+chain exits 0 having executed no stage. Measured here: a script that exits 7 exits 0 under that
+setting, and `npm --script-shell=/bin/bash run …` restores the 7. The workflow now passes that flag
+explicitly, and `chain-intact.mjs` refuses the key in the committed `.npmrc` — two halves of the same
+answer, since a check says the config is clean and the flag holds even if the check is bypassed.
+`ignore-scripts` and `foreground-scripts` were tried and do **not** neutralise `npm run`, so they are
+not in the list: a check that refuses harmless settings teaches people to work around it.
+
+> **Everything I had checked was the text of a command. What runs it is configuration, and the
+> configuration was in the branch too.**
+
+**The evidence guard was still judging itself.** The base-revision mechanism went onto
+`chain-intact.mjs` last round and not onto the guard beside it — the eighth sibling defect on this
+branch. Both copies now run: the base commit's, which this pull request has not touched, and the
+branch's own. A base failure with an unchanged guard is an error; a base failure when the guard is
+part of the change gets the warning annotation and the diff, because a rule being *corrected* and a
+rule being *weakened* look identical from inside the branch.
+
+Four more in the artifacts, each reproduced first:
+
+| Defeat | What the rule asked | What it asks now |
+|---|---|---|
+| `overallStatus: ok` over `1 missing` | that the headline says ok | the headline against its own counters |
+| Ledger, chain and their summaries all emptied together | that the chain and the ledger agree | both against `chamber-lock.json`, written by another stage |
+| `chamber-lock.json` stamped a year earlier | that the tape is not older than the lock | each stage's own stamp against the folder's date |
+| An uninventoried `ci-verify.txt` carrying a failure | that every entry describes a file | that every file has an entry |
+
+**And the trusted copy could not load.** Copying `evidence-guard.mjs` alone into a temp directory
+dies with `ERR_MODULE_NOT_FOUND`: it imports `./evidence-reporting.mjs`. `chain-intact.mjs` imports
+only node builtins, which is exactly why the same shape worked there and hid this. The step now
+extracts the whole `scripts/` directory from the base commit.
+
+> **A trusted copy has to bring what it depends on.** Found by running the step rather than reading
+> it — the same lesson as the `mktemp` failure two rounds ago, and it paid for itself immediately.
+
+`sonarjs` recommended clean (two complexity findings in the new code, split before the push) ·
+45 tests across the two suites · all six findings re-run against the fix.
