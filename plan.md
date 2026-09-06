@@ -22,8 +22,15 @@ future run should weigh.
 
 | File | Action | What changes |
 |---|---|---|
-| `WORST_TO_BEST_LOG.md` | [MODIFY] | one appended section; no existing line edited |
-| `plan.md` | [MODIFY] | this micro plan, and Run 12's own plan retired below it |
+| `WORST_TO_BEST_LOG.md` | [MODIFY] | the appended close-out section, **and a correction to the existing Run 12 entry** — its "no link anywhere in the application" claim, which the same entry disproves |
+| `plan.md` | [MODIFY] | this micro plan, Run 12's own plan retired below it, and a correction to that plan's definition of done |
+| `CHANGELOG.md`, `CLAUDE.md` | [MODIFY] | the same "no link anywhere" correction, in the two other places it was written |
+
+*(This table originally said "one appended section; no existing line edited", and by the time the
+scope had grown to include the review corrections that was false — the plan described a narrower
+change than the diff made. A CodeRabbit review caught it. Corrected here rather than left, because a
+plan that does not match its own diff is worth less than no plan: it certifies a scope nobody
+checked.)*
 
 **Anti-goals:** no file under `src/`, `tests/`, `contracts/`, `probes/`, `fixtures/`,
 `src/lib/mocks/`, `src/lib/adapters/`, `src/lib/seams/`, `static/` or `docs/evidence/`. No evidence

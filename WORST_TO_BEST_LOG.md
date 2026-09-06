@@ -11046,8 +11046,18 @@ branch is out.
 
 ### The worst mistake this run made: it merged past a review it had not read
 
-**CodeRabbit posted a full review with four actionable comments at 18:57:59. PR #315 was merged at
-19:01:26. The review was sitting in an undelivered notification queue the whole time.**
+**CodeRabbit posted a full review with four actionable comments at 18:57:56Z. PR #315 was merged at
+19:01:24Z — three and a half minutes later. The review was sitting in an undelivered notification
+queue the whole time.**
+
+*(Both timestamps corrected. The first version of this paragraph said 18:57:59 and 19:01:26, which
+were the instants the **notification queue** stamped the events — not GitHub's. The authoritative
+values are `submitted_at` on `GET /pulls/315/reviews` and `merged_at` on `GET /pulls/315`, and a
+CodeRabbit review on the close-out pull request caught the discrepancy. Two or three seconds change
+nothing about the argument, which is the point: the numbers were wrong in a way that could not
+matter, in a paragraph whose entire subject is being accurate, and they were wrong because they came
+from the nearest source rather than the authoritative one. That is the same mistake as the one the
+paragraph describes, one level down. **Timestamps in this log come from the GitHub API.**)*
 
 What happened, precisely: asking `@coderabbitai review` produced *two* separate outputs. The first
 was a targeted reply to the two questions the request named, and it said *"No actionable findings."*
@@ -11072,6 +11082,27 @@ All four findings were addressed in the close-out pull request, which is where t
 
 The first two are the kind of defect this log exists to catch — a claim wider than its own evidence,
 and a completion gate narrower than the work. Both were in prose *this run wrote about accuracy*.
+
+**And then the review of this entry found two more of exactly the same kind.** Reviewing the
+close-out pull request, CodeRabbit reported:
+
+| Finding | Verdict | Action |
+|---|---|---|
+| The micro plan's file table said `WORST_TO_BEST_LOG.md` gets "one appended section; no existing line edited" — but the corrections above edit the existing Run 12 entry | **Correct.** The plan described a narrower change than its own diff | Fixed in `plan.md`, marked as a correction |
+| The two timestamps in this section did not match GitHub's API — `18:57:59`/`19:01:26` against `18:57:56Z`/`19:01:24Z` | **Correct.** They were the notification queue's stamps, not GitHub's | Fixed above and independently re-verified against `submitted_at` and `merged_at` before accepting |
+
+Neither changes an argument. Both are the same failure at a smaller scale: **a plan that no longer
+matched its diff, and a precise-looking number taken from the nearest source instead of the
+authoritative one.** Three review rounds on this run have now produced four real findings, and
+*every one of them* was a documentation claim that outran its evidence — none was in the code. That
+is the honest shape of this run: the implementation held up to an eleven-thousand-boundary
+independent check, and the prose about it needed four corrections.
+
+Method note for the next run, earned the hard way: **verify a reviewer's factual claim against the
+primary source before accepting it, and against the primary source before writing it.** The
+timestamps here were re-read from `GET /pulls/315/reviews` and `GET /pulls/315` rather than taken on
+the reviewer's word — which happened to confirm it, but is the step that would have caught the error
+in the first place.
 
 ### What the reviews cost and bought
 
