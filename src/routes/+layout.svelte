@@ -53,8 +53,26 @@ Info flow: Layout renders children -> pages render within layout.
 	};
 
 	onMount(() => {
+		let registration: ServiceWorkerRegistration | null = null;
+		const remeasure = () => {
+			if (registration) void measureOfflineCopy(registration);
+		};
+
 		const syncOnline = () => {
 			isOnline = navigator.onLine;
+			// Re-measured at the moment the banner is about to speak, rather than trusted from
+			// whenever registration happened to resolve.
+			//
+			// Honestly: the browser probe shows this is not currently *reachable*. Removing it, and
+			// a `controllerchange` listener tried alongside it, leaves the probe's banner check
+			// passing — because `register().then(…)` already resolves after `clients.claim()` has
+			// landed, so the first measurement is correct. It is kept for the one case the probe
+			// cannot stage, a reader who loses signal in the milliseconds before registration
+			// resolves, and because the whole run's rule is to measure a claim when it is made. The
+			// `controllerchange` listener was dropped instead of kept on the same reasoning: its
+			// only benefit was updating a banner already on screen, in a case nothing could produce,
+			// and a branch nothing reaches is the defect this run has already fixed once.
+			remeasure();
 		};
 		syncOnline();
 		globalThis.addEventListener('online', syncOnline);
@@ -63,7 +81,10 @@ Info flow: Layout renders children -> pages render within layout.
 		if (!dev && 'serviceWorker' in navigator) {
 			navigator.serviceWorker
 				.register('/service-worker.js')
-				.then(measureOfflineCopy)
+				.then((result) => {
+					registration = result;
+					return measureOfflineCopy(result);
+				})
 				.catch(() => {
 					// Still not surfaced as an error, because an online reader loses nothing by it.
 					// It is no longer *forgotten*: `offlineCopyReady` stays false, and that is what

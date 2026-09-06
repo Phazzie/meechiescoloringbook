@@ -9443,3 +9443,49 @@ I wrote to check the app was itself unchecked, for four rounds, because a glob s
 `check` 0/0 · `lint` exit=0 · `npm test` **1547 passed**, 1 skipped · `build` exit=0 · `test:e2e`
 **46 passed** · `npm run verify` exit=0 · `rewind -- --seam CacheSeam` 14 passed ·
 `probes/cache-seam.probe.mjs` **10/10**.
+
+### Run 10, seventh close-out — 2026-09-06 — I found a gap that was not there, and the mutation said so
+
+While CI ran I re-read the diff adversarially, on the reasoning that this run's pattern is fixes
+introducing defects. I concluded that `clients.claim()` had fixed the *worker* while leaving the
+*banner* stale: measured once after `register()`, before the claim could have landed, so a
+first-time visitor who lost signal in that session would be told there was no offline copy while a
+complete one sat on their device.
+
+It was a good story. **It was not true.** A `controllerchange` listener and a re-measure on the
+`offline` event were written, an eleventh probe check was added to pin them — and then the
+mutation check, which this codebase requires of any new guard, was run:
+
+| Mutation | Probe's banner check |
+|---|---|
+| both re-measure paths removed | **still PASS** |
+
+`register().then(…)` already resolves after `clients.claim()` has run, so the very first
+measurement is correct and neither addition changed any observable behaviour. My first attempt at
+the mutation was *also* wrong — it deleted the initial call while leaving `remeasure()` inside the
+`offline` handler, and passed for a reason I had not intended. Catching that took a second look at
+my own mutation, which is the part worth writing down: **a mutation test that passes has told you
+nothing until you have checked that it removed what you meant it to.**
+
+So the `controllerchange` listener was **deleted, not kept** — its only claimed benefit was updating
+a banner already on screen, in a case nothing could stage, and a branch nothing reaches is precisely
+the defect this run already fixed once in `service-worker.ts`. The re-measure on the `offline` event
+stays, one line, with a comment that says plainly it is unreachable in the probe and why it is kept
+anyway: a reader who loses signal in the milliseconds before registration resolves, and the run's
+own rule that a claim is measured where it is made. **That is a defensive choice stated as one, not
+a fix presented as one.**
+
+The eleventh probe check stays too, and earns its place by a different argument than the one it was
+written for: it does not prove `controllerchange`, it proves that **the banner tells a first-time
+visitor the truth** — a thing nothing else asserts, and the reassurance this whole feature exists to
+make honest.
+
+The uncomfortable observation: this is the first finding of the run that came from *me*, and it was
+the only one that turned out not to be real. Eight from Codex, four from SonarCloud, three from the
+browser probe — all genuine. One from re-reading my own diff — imagined.
+
+### Evidence after this round
+
+`check` 0/0 · `lint` exit=0 · `npm test` **1547 passed**, 1 skipped · `build` exit=0 · `test:e2e`
+**46 passed** · `npm run verify` exit=0 · `rewind -- --seam CacheSeam` 14 passed ·
+`probes/cache-seam.probe.mjs` **11/11**.

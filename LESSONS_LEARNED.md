@@ -551,3 +551,15 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
   silently covers less than the checker it stands in for reports clean for the wrong reason.
 - Action: When reproducing a checker locally, confirm the file set matches too, not just the rules —
   print what it analysed if there is any doubt.
+
+## 2026-09-06
+- Date: 2026-09-06
+- Context: Run 10 — I reasoned my way to a stale-banner bug after `clients.claim()`, wrote two fixes
+  and a probe check for it.
+- Lesson: The mutation check said both fixes were unreachable — `register().then(…)` already resolves
+  after the claim, so the first measurement was correct all along. Worse, my *first* mutation was
+  faulty: it removed the initial call but left the re-measure in the `offline` handler, so it passed
+  for a reason I had not intended and nearly confirmed a fix that fixed nothing.
+- Action: A mutation test that passes has told you nothing until you have checked it removed what
+  you meant it to. And when a defect is found by reasoning rather than by a tool, treat it as a
+  hypothesis until something fails without the fix.

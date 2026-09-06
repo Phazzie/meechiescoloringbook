@@ -237,7 +237,21 @@ const run = async () => {
 		);
 		await fallback.context.close();
 
-		// 6. The rule that keeps a cache away from anything that costs a provider call.
+		// 6. What the app *says* about all this, on the first visit — the case `clients.claim()` and
+		//    the `controllerchange` listener exist for together. The worker taking control is only
+		//    half of it; if the banner was measured before the claim landed it goes on reporting no
+		//    offline copy for the rest of the session, which is the reassurance backwards.
+		const banner = await page
+			.textContent('[data-testid="connection-banner"]', { timeout: 10000 })
+			.catch(() => '');
+		record(
+			'the banner reports the offline copy as usable on the first visit',
+			(banner ?? '').includes('saved pages') &&
+				!(banner ?? '').includes('has not finished saving'),
+			`connection-banner = ${JSON.stringify((banner ?? '').trim().slice(0, 70))}`
+		);
+
+		// 7. The rule that keeps a cache away from anything that costs a provider call.
 		const apiOffline = await page.evaluate(async () => {
 			try {
 				const response = await fetch('/api/generate', { method: 'POST', body: '{}' });

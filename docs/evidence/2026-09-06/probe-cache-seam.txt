@@ -1,5 +1,5 @@
 PASS  a versioned cache exists
-      caches.keys() = ["cb-cache-1788681813223"]
+      caches.keys() = ["cb-cache-1788682297041"]
 PASS  the cache holds the app documents, not only its assets
       14 documents of 77 entries; e.g. http://127.0.0.1:4399/, http://127.0.0.1:4399/meechie, http://127.0.0.1:4399/offline
 PASS  the offline fallback document is one of them
@@ -16,8 +16,10 @@ PASS  an unbuilt path lands on the offline page, not the browser error page
       status 200, landed /offline, offline-message = "That page needed the network and the net"
 PASS  the offline page hydrates there, so its assets resolved and its retry button is live
       offline-connection = "Still no connection."
+PASS  the banner reports the offline copy as usable on the first visit
+      connection-banner = "Offline. Your saved pages and everything already on this device still "
 PASS  an API call is never answered from the cache while offline
       POST /api/generate -> rejected: TypeError
 
-10/10 checks passed.
+11/11 checks passed.
 probe exit=0
