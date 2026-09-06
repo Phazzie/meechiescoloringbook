@@ -9783,13 +9783,22 @@ The SonarCloud security failure was diagnosed by reasoning about which of my lin
 It was wrong. The answer had been delivered to this session as a review comment naming the file and
 the line, and was sitting unread while the reasoning happened.
 
-And a third, which this close-out earned on its own account. **This entry was reviewed ten times
-across three rounds on #312, a pull request containing no code, and every finding was correct.**
-Two P1s: an open Assumption reported as absent, on the very feature that made it load-bearing; and
-a merge-gate stand-down argued from evidence this same log records a reviewer rejecting on #305.
+And a third, which this close-out earned on its own account. **As of `840df85`: ten findings across
+five Codex passes on #312 — a pull request containing no code — with a sixth pass returning clean,
+and every one of the ten correct.** The counts are stated as-of a commit on purpose, because this
+paragraph is being reviewed while it is written, and an unqualified total here would be stale the
+moment the next pass lands. An earlier draft said "reviewed ten times across three rounds", which
+was wrong twice over: it confused findings with passes, and undercounted the passes.
+
+Per pass: five findings on `8297c31`, two on `1002807`, one each on `6a5c923`, `fc8fc4b` and
+`840df85`; `180ab72` came back with none.
+
+Two were P1s: an open Assumption reported as absent, on the very feature that made it load-bearing;
+and a merge-gate stand-down argued from evidence this same log records a reviewer rejecting on #305.
 The rest were counts and capability claims — "six routes" above a list of seven, "no `CacheSeam`
 write operation" when `primeCache` is one, "no unit test could have caught" two defects whose unit
-tests this run wrote.
+tests this run wrote, a missing probe listed among the defects it failed to catch, and this
+paragraph's own round count.
 
 > **Correcting the instance is not correcting the belief.**
 
