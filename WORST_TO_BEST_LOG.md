@@ -8432,9 +8432,17 @@ this run removed, and that is worth writing at the top of the file where the nex
 `check` 0/0 · `lint` exit=0 · **1471 passed**, 1 skipped · `build` exit=0 · e2e 42 passed ·
 `verify` exit=0 · rewind 5 passed · proof tape flags nothing.
 
-### Vercel went green on its own, which settles the disposition by measurement
+### Vercel went green once, which settles the disposition by measurement
 
-The Vercel deployment has succeeded on this head. Nothing in the diff changed to cause that — the
+The Vercel deployment succeeded on `f870c3a`. Nothing in the diff changed to cause that — the
 account's 100-deployments-per-day window rolled over. That is the disposition confirmed rather than
 argued: it was an account-level cap the whole time, exactly as the standing-down comment said, and
 the proof arrived by waiting rather than by reasoning.
+
+**Corrected on the next push.** The sentence above originally read "has succeeded on this head" and
+was written as though Vercel were green from here on. It is red again on `c40b590` — the next push
+spent another deployment and re-hit the same cap. The disproof still stands, and is arguably
+stronger for having a red-green-red sequence across three heads whose source is nearly identical.
+But writing a one-off observation in the present tense, in a run whose entire subject is claims
+outliving their evidence, is the mistake this file exists to catch. One successful deploy is what
+was observed; "Vercel is green" is not what it showed.
