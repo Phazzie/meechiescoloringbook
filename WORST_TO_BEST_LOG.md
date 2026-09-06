@@ -8682,3 +8682,38 @@ in the tape, which is the same `proof-tape.mjs` schema change the digest needs. 
 `npm run evidence:guard` **8 rules** pass · seven mutation directions verified · full chain: check
 0/0, 1445 passed / 1 skipped, build ok, verify exit 0, rewind 17, Playwright 41 under the override
 with `e2e exit=0`, mandated row `e2e-mandated exit=1` under a dated waiver, probe complete.
+
+### Addendum — the guard failed CI for someone else's file
+
+The round-forty-two push turned `verify` red, and the failure was mine and worth writing down.
+
+Two changes in that commit combined badly. The CI step started diffing push events with two dots —
+correct, and the fix for a real hole — and the same commit restored `docs/evidence/2026-09-05` to
+`main`'s version, because that folder belongs to the already-merged #304, #305 and #306 and this
+branch had no business rewriting it. A two-dot push range reports a restoration as a change, so the
+guard picked up that folder and judged **another run's committed evidence by rules written after
+it**. Three of eight failed, including the mandated-row and probe-status rules added an hour earlier.
+
+Nothing was wrong with that evidence. It was correct under the conventions that existed when it was
+written, and this branch had just finished putting it back exactly as `main` has it.
+
+> **A rule applies from when it is written. Evidence is judged when it is read.** Every version of
+> this guard has been about that gap in one direction — a document outliving what it describes —
+> and here it arrived from the other side: a checker outliving the thing it checks, and failing it
+> for not having anticipated a rule that did not exist.
+
+The scope was the bug, not the rules. The step now skips any dated folder that is byte-identical to
+the default branch, because a folder this branch does not change is not this branch's to answer for.
+Codex's two-dot fix stays, since a reset of the default branch still needs it. The skip is bypassed
+when the pushed ref *is* the default branch, where there is nothing to compare against.
+
+Verified against a real repository in four directions: a restored folder is skipped, a genuinely
+changed folder in the same range is still guarded, push and pull-request ranges agree, and the filter
+does not run on the default branch.
+
+> **A fix that adds a way to pass is the one to test hardest.** This is the second `exit 0` path
+> added to this step, and both were tested for what they let through before what they let by.
+
+`npm run lint` clean · `sonarjs.configs.recommended` clean · `npm run evidence:guard` 8 rules pass ·
+full chain: check 0/0, 1445 passed / 1 skipped, build ok, verify exit 0, rewind 17, Playwright 41
+under the override, mandated row under a dated waiver, probe complete.

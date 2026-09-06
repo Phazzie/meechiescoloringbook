@@ -124,8 +124,32 @@ jobs:
           dirs=$(printf '%s\n' "$changed" \
             | grep -E '^docs/evidence/[0-9]{4}-[0-9]{2}-[0-9]{2}/' \
             | cut -d/ -f1-3 | sort -u || true)
+          # A folder this branch does not actually change is not this branch's to answer for. The
+          # range above asks what a PUSH touched, which is the right question for a reset of the
+          # default branch and the wrong one here: restoring an older folder to exactly what the
+          # default branch already has shows up as "touched", and the guard then judged an earlier
+          # run's committed evidence by rules written after it. That is a guard failing a change for
+          # someone else's file, which it did on this very branch.
+          #
+          # Skipped only for a non-default ref. On the default branch there is nothing to compare
+          # against — HEAD is the thing being defined — so every touched folder stays.
+          if [ "$REF_NAME" != "$DEFAULT_BRANCH" ]; then
+            git fetch --no-tags origin "$DEFAULT_BRANCH" >/dev/null 2>&1 || true
+            tip=$(git rev-parse FETCH_HEAD 2>/dev/null || true)
+            if [ -n "$tip" ] && git cat-file -e "$tip^{commit}" 2>/dev/null; then
+              kept=""
+              for dir in $dirs; do
+                if git diff --quiet "$tip" HEAD -- "$dir"; then
+                  echo "--- $dir is byte-identical to $DEFAULT_BRANCH; this branch does not change it."
+                else
+                  kept="$kept $dir"
+                fi
+              done
+              dirs="$kept"
+            fi
+          fi
           if [ -z "$dirs" ]; then
-            echo "No evidence folder touched by this change; nothing to guard."
+            echo "No evidence folder introduced or changed by this branch; nothing to guard."
             exit 0
           fi
           for dir in $dirs; do
