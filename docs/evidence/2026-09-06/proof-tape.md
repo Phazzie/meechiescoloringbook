@@ -5,7 +5,7 @@ Info flow: evidence files -> summary -> review.
 -->
 # Proof Tape
 
-Generated at: 2026-09-06T13:44:57.850Z
+Generated at: 2026-09-06T13:51:49.100Z
 Evidence folder: docs/evidence/2026-09-06
 
 Files included (this tape's own outputs, proof-tape.json and proof-tape.md, are written
@@ -28,10 +28,10 @@ after this inventory is taken, so they are not listed):
   Commands: meechies-coloringbook@0.1.0 rewind | node scripts/rewind.mjs --seam DriftDetectionSeam (self-contained)
 - seam-ledger.json (37511 bytes)
 - seam-ledger.md (2981 bytes)
-- shaolin-lint.json (516 bytes)
+- shaolin-lint.json (518 bytes)
 - test.txt (3232 bytes)
   Commands: meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
-- verify-outer.txt (3640 bytes) — PREDATES THIS VERIFY RUN
+- verify-outer.txt (3641 bytes) — PREDATES THIS VERIFY RUN
   Commands: meechies-coloringbook@0.1.0 verify | npm run audit:gate && node scripts/chamber-lock.mjs && node scripts/verify-runner.mjs && node scripts/shaolin-lint.mjs && node scripts/assumption-alarm.mjs && node scripts/seam-ledger.mjs && node scripts/clan-chain.mjs && node scripts/proof-tape.mjs | meechies-coloringbook@0.1.0 audit:gate | npm audit --audit-level=high | meechies-coloringbook@0.1.0 check | svelte-kit sync && svelte-check --tsconfig ./tsconfig.json | meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
 - verify.txt (3557 bytes)
   Commands: meechies-coloringbook@0.1.0 check | svelte-kit sync && svelte-check --tsconfig ./tsconfig.json | meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1

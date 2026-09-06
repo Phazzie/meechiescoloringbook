@@ -2335,6 +2335,37 @@ describe('StudioState quote vault', () => {
 		expect(studio.verdictReport.quote).toBe(toolOutput.response);
 	});
 
+	it('reopens a toolkit page saved before the producer was fixed', async () => {
+		// The records already in readers' browsers. `buildToolStudioText` used to copy the excuse's
+		// credibility score into `studioText.rating`, and those records are not rewritten by this
+		// change — `rating` is optional on the contract, so they still validate and still load. What
+		// must not happen is the card relabelling that number as situation severity, which is what
+		// the score-is-the-headline guard is for. Written as the shape a Rate This Excuse save
+		// actually had, not as a hypothetical.
+		const studio = await initVault([]);
+		const asSavedBefore: MeechieStudioTextOutput = {
+			verdict: '2/10',
+			quote: 'A dead phone with a live story is still a confession.',
+			pageTitle: 'THE PHONE HAD SERVICE',
+			pageItems: [
+				{ number: 1, label: 'CHECK THE TIMESTAMP' },
+				{ number: 2, label: 'BELIEVE THE POST' }
+			],
+			rating: 2,
+			qualityState: 'ready'
+		};
+
+		await studio.loadCreation(makeCreation('old-toolkit-page', { studioText: asSavedBefore }));
+
+		expect(studio.verdictReport.severity).toBeNull();
+		expect(studio.verdictReport.standing).toBeNull();
+		// And the record is not quietly rewritten: what it stored is what it keeps, rating included.
+		await studio.saveToVault();
+		const resaved = studio.creations.find((record) => record.id !== 'old-toolkit-page');
+		expect(resaved?.studioText?.rating).toBe(2);
+		expect(resaved?.studioText?.verdict).toBe('2/10');
+	});
+
 	it('says nothing about a standing once the verdict is gone', async () => {
 		const studio = await initVault([]);
 		studio.acceptVerdict({ ...DEFAULT_STUDIO_TEXT_OUTPUT, qualityState: 'blocked' });

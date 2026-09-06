@@ -10060,3 +10060,50 @@ That total is 1590 and not the 1591 this entry first claimed — 1589 plus the o
 adds. Arithmetic done in a sentence, corrected against the runner before the entry shipped. This
 file has been wrong about its own totals before and the habit is worth breaking rather than
 repeating.
+
+### Run 11, fourth close-out — 2026-09-06 — a P1 that says the last fix needed the seam workflow, declined with a measurement
+
+Codex on `85e54f4`, its first P1 of the run:
+
+> *When a Rate This Excuse page is saved, omitting `rating` here changes the `studioText` payload
+> persisted through `CreationStoreSeam`, so this is observable behavior across a storage seam even
+> though the plan classifies the change as having no seams … complete the full Seam-Driven
+> Development workflow.*
+
+**Declined — and declined with the grep rather than with an opinion, because "I don't think so" is
+not a reason and this log has a rule about that.**
+
+```
+$ grep -rn "rating" contracts/creation-store.contract.ts \
+    src/lib/seams/creation-store-seam/ src/lib/adapters/creation-store-seam/ \
+    src/lib/adapters/creation-store.adapter.ts src/lib/mocks/creation-store.mock.ts \
+    tests/contract/creation-store.test.ts
+(nothing)
+```
+
+**No artifact of that seam describes `rating`, so none of them is made stale.** The seam reaches
+`studioText` only as `MeechieStudioTextOutputSchema.optional()`, in which `rating` is optional and
+unchanged; the contract, probe, fixtures, mock, adapter and contract tests all still describe the
+seam's behaviour correctly, because the seam's behaviour is *store what you are given and give it
+back*. What changed is what a pure core function composes before handing a record over.
+
+And the reading does not survive being applied consistently. If composing a different value for
+storage is a seam change, then so is the `describingStudioText` exclusion in the same commit — which
+the same review did not flag — and so is Run 5's fix for laundering seed items into records, and so
+is any edit to what the app decides to save. The rule would have no boundary. **Compare Run 8, which
+did run the full workflow and had to: it added a field to the contract.** That is the line.
+
+**But the finding has a substantive half, and that half was worth the round.** Records already in
+readers' browsers were written in the old shape, and this change does not rewrite them. Rather than
+assert they are fine, there is now a test that loads one — a Rate This Excuse page carrying both
+`verdict: '2/10'` and `rating: 2`, exactly as it was saved — and asserts it still validates, still
+loads, keeps its `rating` on a resave, and has that number **suppressed rather than relabelled**.
+That is the compatibility claim the P1 was really about, and it is pinned now instead of reasoned.
+
+The disposition and the measurement are both in `DECISIONS.md`, so the next run finds the answer
+rather than re-deriving it.
+
+### Evidence after this round
+
+`check` 0/0 · `lint` exit=0 · `npm test` **1591 passed**, 1 skipped · `build` exit=0 · `test:e2e`
+**49 passed** · `npm run verify` exit=0.
