@@ -9,6 +9,14 @@ Why: This panel used to render `{code}: {message}` for every finding, show none 
      knew.
 Info flow: Parent passes the report built by `buildQualityReport` plus the two prompts; this renders
            them. Read-only — no state, no callbacks.
+Invariants: A non-empty `assembledPrompt` is NOT evidence that a prompt was sent, and nothing here
+            may infer transmission from string presence. The wig try-on flow deliberately stores a
+            human description in that field because a vault record requires a non-empty one, and it
+            never calls a provider — so provenance arrives as the separate `promptWasSent` prop and
+            both prompt branches are gated on it. Reading the string alone put that description under
+            "What Was Sent" and reported "No rewrite reported" beneath it, inventing a request that
+            never happened. Likewise, an absent `revisedPrompt` means no rewrite was *reported*, not
+            that the provider used the prompt verbatim.
 -->
 <script lang="ts">
 	import {

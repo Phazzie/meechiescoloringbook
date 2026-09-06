@@ -76,9 +76,11 @@ describe('buildQualityReport', () => {
 		});
 
 		if (report.state !== 'flagged') throw new Error('expected a flagged report');
+		// The failure is a blocker too — the seam named the missing heading — so it sorts with the
+		// other blockers rather than into a category of its own.
 		expect(report.findings.map((finding) => finding.weight)).toEqual([
 			'blocker',
-			'check-failed',
+			'blocker',
 			'note'
 		]);
 	});
@@ -99,7 +101,12 @@ describe('buildQualityReport', () => {
 		]);
 	});
 
-	it('treats a failed check as neither a blocker nor a note', () => {
+	it('reports a named missing heading as a blocker, not as an unknown state', () => {
+		// The seam's only `{ ok: false }` is `MISSING_REQUIRED_SECTION`, where it has identified the
+		// exact missing heading — a detected defect, and the most serious one it reports. Filing it
+		// as "the check did not finish" stripped its severity and offered no remedy: the worst
+		// finding rendered as the least informative state, which is the original defect one notch
+		// over.
 		const report = buildQualityReport({
 			hasPage: true,
 			driftChecked: false,
@@ -112,13 +119,16 @@ describe('buildQualityReport', () => {
 		});
 
 		if (report.state !== 'flagged') throw new Error('expected a flagged report');
-		// An incomplete check says nothing about the page in either direction, so it must not be
-		// counted among the things the page got wrong.
-		expect(report.findings[0].weight).toBe('check-failed');
+		expect(report.findings[0].weight).toBe('blocker');
+		expect(report.findings[0].source).toBe('prompt');
 		expect(report.findings[0].message).toContain('Required section missing: STYLE:');
-		expect(report.findings[0].message).toContain('The prompt could not be checked');
+		// The incompleteness is still reported — it is just carried alongside the blocker instead of
+		// replacing it.
+		expect(report.findings[0].message).toContain('the rest of the prompt was not compared');
 		expect(report.hasIncompleteCheck).toBe(true);
-		expect(describeQualityReport(report)).toBe('One check that never finished.');
+		expect(describeQualityReport(report)).toBe(
+			'1 thing wrong with the prompt and the check stopped before the rest.'
+		);
 	});
 
 	it('does not call a picture-less generation clean, however the check came back', () => {
@@ -194,8 +204,10 @@ describe('buildQualityReport', () => {
 		});
 
 		if (report.state !== 'flagged') throw new Error('expected a flagged report');
-		expect(report.findings.map((finding) => finding.weight)).toEqual(['check-failed']);
-		expect(describeQualityReport(report)).toBe('One check that never finished.');
+		expect(report.findings.map((finding) => finding.weight)).toEqual(['blocker']);
+		expect(describeQualityReport(report)).toBe(
+			'1 thing wrong with the prompt and the check stopped before the rest.'
+		);
 	});
 
 	it('does not report an unrecorded result for a record that has no page', () => {
@@ -349,7 +361,9 @@ describe('describeQualityReport', () => {
 		});
 
 		expect(describeQualityReport(report)).toBe(
-			'1 thing wrong with the prompt, 1 worth noting and one check that never finished.'
+			// Two blockers now: the real violation, and the named missing heading that used to be
+			// filed as an unknown state.
+			'2 things wrong with the prompt, 1 worth noting and the check stopped before the rest.'
 		);
 	});
 });

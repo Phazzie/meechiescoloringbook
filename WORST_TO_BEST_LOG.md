@@ -8341,3 +8341,58 @@ diagnostics only when there is no page to protect. Two tests, one per direction.
 
 `check` 0/0 · `lint` exit=0 · **1471 passed**, 1 skipped · `build` exit=0 · e2e 42 passed ·
 `verify` exit=0 · rewind 5 passed · proof tape flags nothing.
+
+---
+
+## Run 9, ninth close-out — 2026-09-06 — the original defect, one notch over
+
+Two findings on `2c60520`. The second is the one this run should be remembered for.
+
+### The worst finding was still being rendered as the least informative state
+
+`MISSING_REQUIRED_SECTION` is not the seam failing. It is the seam **succeeding** at the most serious
+thing it does: it identifies the exact heading the prompt is missing and names it. Verified rather
+than assumed — it is the adapter's only `{ ok: false }`, and a genuine inability to run would throw,
+which propagates as an exception and can never arrive as a `Result`. So every `driftCheckFailure` the
+report can ever see is a detected defect.
+
+I was filing it as `check-failed`, which meant the UI labelled it **Unchecked**, the summary said
+*"one check that never finished"*, the blocker severity was stripped, and no remedy was offered.
+
+**That is the defect this entire change exists to fix, moved one notch.** The original bug rendered
+the seam's most serious finding as *clean*. I replaced it with rendering that same finding as
+*unknown*. Better — it is at least visible — and still the same shape of error: the worst thing the
+checker can tell you, presented as the thing it has least to say about.
+
+Now a `blocker` with `source: 'prompt'`, carrying the seam's own sentence. The incompleteness is real
+and is still reported, but *alongside* the finding rather than instead of it: the message ends "The
+check stopped there, so the rest of the prompt was not compared", and the summary reads
+`1 thing wrong with the prompt and the check stopped before the rest`. `hasIncompleteCheck` no longer
+derives from a finding's weight — the blocker says what was found, the flag says the list is not
+exhaustive.
+
+The `check-failed` weight is gone entirely. It had no producer left, and leaving a dead weight in the
+union is how the next person concludes there must be a case for it.
+
+### And the third missing Invariants header
+
+`SystemTrace.svelte` had no `Invariants` block, so the `promptWasSent` rule — a non-empty
+`assembledPrompt` is *not* evidence a prompt was sent — lived only in the prop's JSDoc. Third file in
+three rounds with the same gap. Each time I fixed the file I was told about and did not check the
+others I had touched in the same change.
+
+### Verified
+
+`check` 0/0 · `lint` exit=0 · **1471 passed**, 1 skipped · `build` exit=0 · e2e 42 passed ·
+`verify` exit=0 · rewind 5 passed · proof tape flags nothing.
+
+### The single sentence this run earns
+
+Twenty-nine findings, and the pattern never once varied: **every one was a claim wider than its
+evidence.** Not a crash, not a broken test, not a wrong algorithm. The feature was broken that way
+when I found it, my fix was broken that way, and each fix to the fix was broken that way again — in
+smaller and smaller increments, by the same mechanism, for nine rounds.
+
+> Reasoning cannot catch an overclaim, because the reasoning is what produced it. Only reading the
+> thing the sentence is about, with the sentence next to it, can — and that is a different act from
+> thinking harder, which is why doing it alone is so unreliable.

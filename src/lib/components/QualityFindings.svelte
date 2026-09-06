@@ -37,14 +37,11 @@ Invariants: The fixes are rendered as their own list and are NEVER paired with a
 	/**
 	 * The word shown against a finding.
 	 *
-	 * The two unknown-state weights are tested before severity because neither is a severity: an
-	 * unfinished check and an unrecorded result each say nothing about the prompt either way, and
-	 * they are kept apart from each other because a missing record cannot tell them apart. `settings`
-	 * before the fallback because a spec problem is about the request on screen rather than the
-	 * prompt.
+	 * `unrecorded` is tested before severity because it is not one: a stored record with no findings
+	 * says nothing about the prompt either way. `settings` before the fallback because a spec problem
+	 * is about the request on screen rather than the prompt.
 	 */
 	const tagFor = (finding: QualityFinding): string => {
-		if (finding.weight === 'check-failed') return 'Unchecked';
 		if (finding.weight === 'unrecorded') return 'Unrecorded';
 		if (finding.weight === 'note') return 'Noted';
 		// "Off-spec", not "Dropped": the adapter emits `FORBIDDEN_TOKEN` for a token that is
@@ -109,7 +106,6 @@ Invariants: The fixes are rendered as their own list and are NEVER paired with a
 		color: var(--gold-bright, #f0c44a);
 	}
 
-	.findings li.check-failed .tag,
 	.findings li.unrecorded .tag {
 		color: var(--lavender, #b8aacf);
 	}

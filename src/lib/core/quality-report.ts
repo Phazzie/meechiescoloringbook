@@ -46,17 +46,21 @@ export type QualityFinding = {
 	/** The sentence shown to the reader. */
 	message: string;
 	/**
-	 * How much it matters. `blocker` is a drift `error`, `note` is a drift `warning`, and
-	 * `check-failed` is the check not completing — which is neither, because an incomplete check
-	 * says nothing about the prompt either way.
+	 * How much it matters. `blocker` is a drift `error`, `note` is a drift `warning`.
 	 *
-	 * `unrecorded` is separate from `check-failed` on purpose. A stored record with no findings
-	 * cannot distinguish a check that completed and was not persisted from one that failed, so
-	 * counting it as "a check that never finished" replaces one unknown-state overclaim with
-	 * another. It gets its own weight and its own sentence, both of which say only that nothing was
-	 * stored.
+	 * There used to be a third, `check-failed`, for a `driftCheckFailure`. It was wrong, and wrong in
+	 * the run's own signature way. The seam's only `{ ok: false }` is `MISSING_REQUIRED_SECTION`,
+	 * where it has *identified the exact missing heading* — a detected defect, and the most serious
+	 * one it reports. A genuine inability to run would throw, and a throw propagates as an exception
+	 * rather than as a `Result`, so it can never arrive here. Filing that determination as "the check
+	 * did not finish" stripped its severity, labelled it `Unchecked`, and offered no remedy: the
+	 * worst finding rendered as the least informative state. The original defect this whole change
+	 * exists to fix was the same finding rendered as *clean*; this was that mistake one notch over.
+	 *
+	 * `unrecorded` is the one genuinely unknown state left, and it is not a severity: a stored record
+	 * with no findings cannot say whether the check completed and went unsaved or never ran.
 	 */
-	weight: 'blocker' | 'note' | 'check-failed' | 'unrecorded';
+	weight: 'blocker' | 'note' | 'unrecorded';
 	/**
 	 * Which check said so, because the two are about different things and must not be counted
 	 * together.
@@ -117,9 +121,8 @@ export type QualityReport =
 /** The ordering the panel reads in: what stops the page, then what did not finish, then remarks. */
 const WEIGHT_ORDER: Record<QualityFinding['weight'], number> = {
 	blocker: 0,
-	'check-failed': 1,
-	unrecorded: 2,
-	note: 3
+	unrecorded: 1,
+	note: 2
 };
 
 const weighViolation = (violation: Violation): QualityFinding['weight'] =>
@@ -211,10 +214,14 @@ export const buildQualityReport = (input: {
 	}
 
 	if (input.driftCheckFailure) {
+		// A blocker, not an unknown state. The seam names the exact heading that is missing, which is
+		// a defect in the prompt and the most serious one it detects. The incompleteness is real and
+		// worth saying — it stopped grading there — but it is carried in the sentence and in
+		// `hasIncompleteCheck`, not by demoting the finding out of `blocker`.
 		findings.push({
 			code: input.driftCheckFailure.code,
-			message: `The prompt could not be checked against what was asked for: ${input.driftCheckFailure.message}`,
-			weight: 'check-failed',
+			message: `${input.driftCheckFailure.message}. The check stopped there, so the rest of the prompt was not compared.`,
+			weight: 'blocker',
 			source: 'prompt'
 		});
 	} else if (input.checkResultUnrecorded && input.hasPage) {
@@ -246,7 +253,9 @@ export const buildQualityReport = (input: {
 			// Gated on the check having run, which is what the fixes answer. A check that did not
 			// report has no remedies to offer, whatever is on the paper.
 			fixes: input.driftChecked ? input.recommendedFixes.map((fix) => fix.message) : [],
-			hasIncompleteCheck: ordered.some((finding) => finding.weight === 'check-failed')
+			// True when the check stopped early, which is now independent of a finding's weight: the
+			// blocker above says what was found, this says the list is not exhaustive.
+			hasIncompleteCheck: input.driftCheckFailure !== undefined
 		};
 	}
 
@@ -298,7 +307,6 @@ export const describeQualityReport = (report: QualityReport): string | null => {
 		(finding) => finding.source === 'prompt' && finding.weight === 'blocker'
 	).length;
 	const notes = report.findings.filter((finding) => finding.weight === 'note').length;
-	const failed = report.findings.filter((finding) => finding.weight === 'check-failed').length;
 	const unrecorded = report.findings.filter((finding) => finding.weight === 'unrecorded').length;
 
 	const parts: string[] = [];
@@ -316,8 +324,10 @@ export const describeQualityReport = (report: QualityReport): string | null => {
 	if (notes > 0) {
 		parts.push(`${notes} worth noting`);
 	}
-	if (failed > 0) {
-		parts.push('one check that never finished');
+	if (report.hasIncompleteCheck) {
+		// Alongside the blocker rather than instead of it: something specific was found, *and* the
+		// check stopped before comparing the rest.
+		parts.push('the check stopped before the rest');
 	}
 	if (unrecorded > 0) {
 		// Never folded into the sentence above. A record with no stored findings cannot say whether
@@ -327,7 +337,7 @@ export const describeQualityReport = (report: QualityReport): string | null => {
 	}
 
 	// `parts` cannot be empty: `flagged` guarantees a non-empty `findings`, and every finding is
-	// counted by exactly one of the five branches above.
+	// counted by exactly one of the weight branches above.
 	return `${formatList(parts)}.`;
 };
 
