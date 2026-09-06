@@ -7699,3 +7699,100 @@ disposition was reached by measurement this time rather than by citing Run 8:
 The single permitted re-run is deliberately unspent. A re-run exists to confirm a failure reproduces
 before calling it environmental; this one's cause is established directly, and it is a deterministic
 computation over the repository's unmerged branch backlog, not a flake.
+
+---
+
+## Run 9 — merge close-out — PR #309
+
+The quality report is on `main`. Two pushes, one review round, no findings against the feature work.
+
+### The gate at merge
+
+| Condition | State on `ba6244b` / the merged head |
+|---|---|
+| `npm run check` | 0 errors, 0 warnings |
+| `npm run lint` | `exit=0` |
+| `npm test` | 1458 passed, 1 skipped (94 files) |
+| `npm run build` | `exit=0` |
+| `npm run test:e2e` | 42 passed |
+| `npm run verify` | `exit=0`, transcript carries its own exit line |
+| `npm run rewind -- --seam "DriftDetectionSeam (self-contained)"` | 5 passed |
+| `verify` (CI, both jobs) | success |
+| CodeQL, both analyses | success |
+| SonarCloud quality gate | passed — **0 new issues**, 0.0% duplication |
+| Codex Code Review | completed, no findings comment |
+| Sourcery | skipped — 7-day review budget exhausted |
+| Rosentic | red, dispositioned by measurement |
+| Vercel | red, account-level 100/day deployment cap |
+
+**What the evidence covers.** It covers the *source tree*, not a hash it precedes — the commits
+after the last verify run touch `WORST_TO_BEST_LOG.md` and comments only, so no re-run could return
+a different number. Stating it that way is Run 7's correction: an entry documenting its own
+verification can never carry a transcript stamped at its own final hash, so name what the artefact
+covers instead of which commit it came before.
+
+### The two red checks, and why neither is this PR's
+
+**Rosentic.** Red on both heads. Established by measurement rather than by citing Run 8:
+
+- All nine functions it names have **zero** added-or-removed lines in `origin/main..HEAD`.
+- Its six "breaking" call sites are byte-identical to `main`'s — only line numbers moved
+  (1084→1114, 1311→1342, 1540→1571, 2073→2108, 2083→2118, 2255→2295), by exactly the lines this PR
+  inserts above them.
+- **Its suggested fix would break `main`.** `derivesDenseDecorations` does take `styleHint` there.
+  The remedy is only correct in a world where the sibling branch has already landed.
+
+One standing-down comment, the single permitted re-run deliberately unspent, no second comment on
+the repeat. That last part is worth stating: the *rule* is that a failure already dispositioned this
+way needs no second comment, and following it is what stops a disposition becoming twenty identical
+ones — which is how #304 reached 1241 review threads.
+
+**Vercel.** `api-deployments-free-per-day`, an account cap of 100/day. #304 hit the identical cap on
+a pull request containing no code at all, which is the disproof that it is a property of the account
+rather than of any diff.
+
+### What this run cost, and what it bought
+
+One review round, and it was SonarCloud's, and all three findings were in the file this run created
+— a duplicated contract import and a `[length - 1]` index. Nothing questioned the feature. That is a
+markedly cheaper run than 8's twenty-four rounds, and the reason is worth naming rather than
+enjoying: **the descriptions were written against the code as it was measured, in the same sitting,
+and the two riskiest ones were disproved before a reviewer saw them** — the fix/violation pairing,
+and the reopened-record `!== undefined`. Run 8's rounds were nearly all descriptions that had gone
+stale. Writing them last, and checking them, is what removed them.
+
+The one description that *did* drift got caught by re-reading the diff adversarially before the last
+push: the file header said `recommendedFixes` was "stored in two state classes", which is true of
+the two `$state` classes and silently omits the tools hub, which holds it in component-local `let`s.
+Three surfaces, two of them classes. Corrected in the header. Small, and exactly the shape of every
+Run 8 finding — a sentence that was accurate about the part of the system its author had in mind.
+
+### Carried forward, and deliberately
+
+- **`confidenceScore` is still computed and dropped.** `Math.max(0, 1 - violations.length / 10)`,
+  validated by the schema, asserted by a test, discarded at the pipeline because
+  `GenerateResponseSchema` has no field for it. A contract change, so the full workflow.
+- **`fixesApplied` on saved records is still written and never read.** This run fixed the display
+  half of Run 3's follow-up. The persisted half needs `CreationRecordSchema` to store fix
+  *messages* rather than codes — again a contract change.
+- **`DRIFT_CHECK_FAILED` as a reserved code is a compromise.** The right shape is a field on
+  `DriftDetectionOutputSchema`. `DECISIONS.md` says so and explicitly refuses to make it a standing
+  exemption for encoding states as codes.
+- Runs 6–8's untouched items: raw filenames in `VerdictPageStudio`/`MeechieTools`; the tools hub and
+  mode routes saving no style; `proof-tape.mjs` comparing file times against an artifact inside its
+  own chain.
+
+None of these is a recommendation for what to pick next. Measure it.
+
+### The one thing a future run should take from this
+
+Run 8 closed with an unidentified SonarCloud finding, recorded as unreadable because
+`sonarcloud.io` is blocked by the egress proxy. **Run 1 had already written down how to read them**
+— they arrive as annotations on the "SonarCloud Code Analysis" check run, and `api.github.com` is
+reachable — six close-outs earlier, in this file, under a heading that says so.
+
+That is a different failure from the one this log usually records. Not a claim that outlived its
+evidence: a lesson recorded correctly, and then not read.
+
+> This file is only worth its length if a run searches it for the problem in front of it. Appending
+> to it is the cheap half.

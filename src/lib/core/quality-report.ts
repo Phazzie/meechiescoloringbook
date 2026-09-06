@@ -3,13 +3,15 @@
 //          difference between "checked and clean" and "never checked".
 // Why: The drift and spec checks produce four things per generation: violations, their severity,
 //      recommended fixes, and (inside the drift seam) a confidence score. The studio rendered one
-//      and a half of them. `recommendedFixes` was stored in two state classes and written into
-//      vault records without ever being shown to anyone; `severity` was flattened so a warning read
+//      and a half of them. `recommendedFixes` was held in two state classes and in the tools hub's
+//      own local state, and written into vault records as `fixesApplied` — and shown to nobody in
+//      any of the three; `severity` was flattened so a warning read
 //      exactly like an error; and an empty violation list rendered as "No quality flags" whether
 //      the page had passed its checks or did not exist yet. The panel's job is to say whether the
 //      page matches what was asked for, and it could not distinguish silence from a clean bill.
 // Info flow: GenerateResponse violations + recommendedFixes (+ spec-validation issues) -> buildQualityReport
-//            -> QualityReport -> SystemTrace.svelte / VerdictPageStudio.svelte.
+//            -> QualityReport -> SystemTrace.svelte / VerdictPageStudio.svelte / MeechieTools.svelte.
+//            All three surfaces, which is the point: they were three divergent renderings before.
 // Invariants: Pure. No I/O, no clock, no randomness. Never claims a page passed a check that did not
 //             run: `state: 'unchecked'` is a distinct value from `state: 'clean'`, and the caller
 //             must say which by passing `hasGeneratedPage`. Violations and fixes are reported as two
