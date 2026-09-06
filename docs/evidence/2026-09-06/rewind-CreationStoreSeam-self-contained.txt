@@ -1,0 +1,20 @@
+# Purpose: Record the CreationStoreSeam contract run for this head.
+# Why: AGENTS.md requires single-seam contract verification for a seam-touching change, and
+#      the chain writes its own copy without an exit status; this one carries the result.
+# Info flow: npm run rewind --seam -> this transcript -> npm run evidence:guard.
+# Invariant: the last line is this run own exit status, and it is the only one.
+#
+
+> meechies-coloringbook@0.1.0 rewind
+> node scripts/rewind.mjs --seam CreationStoreSeam (self-contained)
+
+
+[1m[46m RUN [49m[22m [36mv4.1.0 [39m[90m/home/user/meechiescoloringbook[39m
+
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m17 passed[39m[22m[90m (17)[39m
+[2m   Start at [22m 03:27:51
+[2m   Duration [22m 794ms[2m (transform 150ms, setup 36ms, import 163ms, tests 17ms, environment 442ms)[22m
+
+rewind exit=0

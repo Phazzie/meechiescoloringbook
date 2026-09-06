@@ -7,15 +7,213 @@ on:
   push:
   pull_request:
 
+# Least privilege, matching `rosentic.yml`, which is the only other workflow here and already
+# declares it. This job runs `npm install`, and this repository's `prepare` script therefore runs
+# code from the branch under review — on a same-repo branch that code inherits whatever the default
+# GITHUB_TOKEN permissions are. Nothing in this workflow writes to the repository or the pull
+# request: it checks out, guards the committed evidence and runs the chain. Read is all it needs.
+permissions:
+  contents: read
+
 jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Full history: the evidence guard below diffs against the base commit, and the default
+          # shallow clone does not contain it. With fetch-depth 1 that diff fails, the folder list
+          # comes back empty, and the guard step reports "nothing to guard" and passes — which is
+          # the failure it exists to catch, in the step that catches it.
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version-file: '.nvmrc'
           cache: npm
+      # Before `npm install`, and before `verify`. Both orderings are about the same word:
+      # COMMITTED. `verify` rewrites the dated folder, so running after it would check the chain's
+      # own fresh output. And `npm install` executes this repository's `prepare` script — arbitrary
+      # code from the branch under review, running with write access to the working tree — so
+      # running after it would check bytes that a pull request had an opportunity to repair. The
+      # guard's first invariant is that it reads what the author committed; installing first quietly
+      # broke it. Scoped to the evidence folders this change actually touches, so a
+      # change that ships no evidence is not asked to justify somebody else's, and no folder has to
+      # be guessed at. Three times this repository committed evidence that proved nothing and looked
+      # fine; each was found by a person opening the file, which is what this step automates.
+      - name: Guard committed evidence
+        # Through `env`, not `${{ }}` interpolation in the script body. A ref name is attacker- and
+        # accident-shaped text: `git check-ref-format` accepts `feature/foo"bar`, and pasting that
+        # into the shell source produces an unmatched quote, so the step dies on a syntax error
+        # before any check runs. The default branch name is read the same way for the same reason.
+        # The SHAs below are hexadecimal and safe to interpolate, but the branch names are not.
+        env:
+          REF_NAME: ${{ github.ref_name }}
+          REF_TYPE: ${{ github.ref_type }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+          # A tag push introduces no evidence. It reports an all-zero `before` exactly like a new
+          # branch, so the branch-baseline logic below would compare a historical tagged snapshot
+          # against today's default branch and read every folder added since as a deletion — a red
+          # Verify run for tagging an old release, which is the guard failing a change that changed
+          # nothing.
+          if [ "${REF_TYPE:-branch}" = "tag" ]; then
+            echo "This is a tag push; it adds no evidence of its own and there is nothing to guard."
+            exit 0
+          fi
+          base="${{ github.event.pull_request.base.sha || github.event.before }}"
+          fellback=no
+          # A push that creates a branch reports an all-zero `before`, because there is no previous
+          # commit on it. That is a real event with a real answer — compare against the default
+          # branch — not the unreachable-base error below, which would turn every new branch's first
+          # push red.
+          # Two ordinary pushes name a base that cannot be diffed against, and neither is an error:
+          # creating a branch reports an all-zero `before`, and a force-push names the discarded
+          # pre-rebase head, which no ref reaches even with full history. Both mean the same thing —
+          # there is no usable previous commit on this branch — and both answer to the default
+          # branch. Treating either as the unreachable-base failure below would turn every new or
+          # rebased branch red; this branch was itself force-pushed during this run.
+          if [ "$base" = "0000000000000000000000000000000000000000" ] || \
+             { [ -n "$base" ] && ! git cat-file -e "$base^{commit}" 2>/dev/null; }; then
+            echo "Base '$base' is not usable (branch creation or force-push); falling back to the default branch."
+            fellback=yes
+            git fetch --no-tags origin "$DEFAULT_BRANCH" >/dev/null 2>&1 || true
+            base=$(git rev-parse FETCH_HEAD 2>/dev/null || true)
+            echo "Comparing against the default branch at ${base:-<unresolved>}."
+            # The fallback can resolve to the commit already checked out, and what that means depends
+            # entirely on which ref was pushed.
+            #
+            # On the default branch it is the dangerous case: force-pushing main lands here, the
+            # fetch returns main, and diffing HEAD against HEAD is empty — which this step would read
+            # as "no evidence touched" and pass, over a push that may have rewritten all of it. An
+            # unknowable comparison is not a clean one, so fail closed.
+            #
+            # On any other ref it is an ordinary event with a true answer: a branch created at, or
+            # force-pushed to, the default branch's tip carries no commits of its own, so it ships no
+            # evidence of its own and there is nothing to guard. The first version of this check did
+            # not distinguish them and would have turned that push red — a guard rejecting a branch
+            # for containing nothing, which is the same failure as passing one for the same reason.
+            if [ "$base" = "$(git rev-parse HEAD)" ]; then
+              if [ "$REF_NAME" = "$DEFAULT_BRANCH" ]; then
+                echo "The default branch was force-pushed and the fallback resolved to HEAD itself, so" >&2
+                echo "nothing can be compared. Refusing to report success for a check with no baseline." >&2
+                exit 1
+              fi
+              echo "This ref is at the default branch's tip, so it carries no commits and no evidence of its own."
+              exit 0
+            fi
+          fi
+          # An unreachable base is a failure, not an empty result. The first version of this step
+          # computed the folder list inside $( ) with a pipeline and no `pipefail`, so the exit
+          # status came from the trailing `sort` and the failing `git diff` was invisible: the diff
+          # died, `dirs` was empty, and the step announced "nothing to guard" and went green.
+          # Establish the base can be read BEFORE relying on a diff against it.
+          if [ -z "$base" ] || ! git cat-file -e "$base^{commit}" 2>/dev/null; then
+            echo "Base commit '$base' is not in this clone, so which evidence folders this change" >&2
+            echo "touches cannot be determined. Refusing to report success for a check that did not run." >&2
+            exit 1
+          fi
+          # Dated folders only. `docs/evidence/README.md` is a file, and cutting three path segments
+          # off it yields the file itself — which the guard then tries to read as a directory and
+          # dies with ENOTDIR, so editing the evidence conventions document would turn CI red.
+          # Two statements, not one pipeline. The diff runs alone so `set -e` sees it fail — an
+          # unreachable base, or two roots with no merge base, is exit 128 and must stop the step.
+          # Only the second line carries `|| true`, and it covers exactly one expected outcome:
+          # grep exits 1 when nothing matches, which is a change that touches no dated folder.
+          #
+          # The previous version put `|| true` on the whole pipeline, so a failed diff again became
+          # an empty list and "nothing to guard" — reintroducing, one round later and in this same
+          # file, the defect that adding this check was supposed to fix.
+          # Two dots on a push, three on a pull request, because they answer different questions.
+          # `A...B` compares merge-base(A,B) to B, which is what review wants: what this branch adds
+          # relative to where it forked. On a push the question is what THIS push changed, and the
+          # two are not the same — resetting the default branch backward to an ancestor that is still
+          # reachable through another ref makes `A...B` empty (the merge base is B itself) while
+          # `A..B` reports the evidence file that changed. The three-dot form then prints "nothing to
+          # guard" for a reset that rewrote evidence.
+          # Three dots when the base is a FORK POINT, two when it is this ref's previous tip.
+          #
+          # A pull request's base is a fork point, so `A...B` — merge-base to B — is what review
+          # wants. An ordinary push names the ref's own previous commit, where `A..B` is what that
+          # push did, and the difference matters for a default-branch reset.
+          #
+          # Branch creation is the third case and was being given the second's answer. Its `before`
+          # is all zeros, so the fallback above substitutes the default-branch TIP, which is a fork
+          # point, not a previous tip: two-dot then compares two endpoint trees, and every evidence
+          # folder added to the default branch since the new branch forked reads as a deletion by
+          # that branch. Folders that do not exist in its checkout would then be handed to the guard.
+          if [ -n "${{ github.event.pull_request.base.sha }}" ] || [ "$fellback" = "yes" ]; then
+            range="$base...HEAD"
+          else
+            range="$base..HEAD"
+          fi
+          changed=$(git diff --name-only "$range" -- 'docs/evidence/*')
+          dirs=$(printf '%s\n' "$changed" \
+            | grep -E '^docs/evidence/[0-9]{4}-[0-9]{2}-[0-9]{2}/' \
+            | cut -d/ -f1-3 | sort -u || true)
+          # A folder this branch does not actually change is not this branch's to answer for. The
+          # range above asks what a PUSH touched, which is the right question for a reset of the
+          # default branch and the wrong one here: restoring an older folder to exactly what the
+          # default branch already has shows up as "touched", and the guard then judged an earlier
+          # run's committed evidence by rules written after it. That is a guard failing a change for
+          # someone else's file, which it did on this very branch.
+          #
+          # Skipped only for a non-default ref. On the default branch there is nothing to compare
+          # against — HEAD is the thing being defined — so every touched folder stays.
+          if [ "$REF_NAME" != "$DEFAULT_BRANCH" ]; then
+            # The pull request's OWN base, when there is one. `pull_request` here has no branch
+            # filter, so a request can target something other than the default branch — and comparing
+            # against the default tip would then drop a folder that matches it but genuinely differs
+            # from what this request is merging into, printing "nothing to guard" for a real change.
+            tip="${{ github.event.pull_request.base.sha }}"
+            if [ -z "$tip" ]; then
+              git fetch --no-tags origin "$DEFAULT_BRANCH" >/dev/null 2>&1 || true
+              tip=$(git rev-parse FETCH_HEAD 2>/dev/null || true)
+            fi
+            if [ -n "$tip" ] && git cat-file -e "$tip^{commit}" 2>/dev/null; then
+              kept=""
+              for dir in $dirs; do
+                if git diff --quiet "$tip" HEAD -- "$dir"; then
+                  echo "--- $dir is byte-identical to $DEFAULT_BRANCH; this branch does not change it."
+                else
+                  kept="$kept $dir"
+                fi
+              done
+              dirs="$kept"
+            fi
+          fi
+          # A folder the change DELETES is still named by `git diff --name-only`, and the guard would
+          # then be pointed at a directory that does not exist in this tree and exit 1 for its
+          # absence. Removing an evidence folder is a legitimate change — most obviously the
+          # remediation when something was committed into one that should not have been — and this
+          # step must not be the reason that cannot be done.
+          present=""
+          for dir in $dirs; do
+            if [ -d "$dir" ]; then present="$present $dir"; else echo "--- $dir was removed by this change; nothing to guard in it."; fi
+          done
+          dirs="$present"
+          # A change to the guard itself ships no evidence, so nothing here would run it. That is
+          # covered by `tests/unit/evidence-guard.test.ts`, which runs inside `npm test` on every
+          # change and exercises the guard against a copy of the newest committed folder in both
+          # polarities. An earlier version of this step did it here instead, by pointing the guard at
+          # the newest dated folder — which carried a time bomb, because that folder's mandated-row
+          # waiver expires and a maintenance-only change would then have failed on a date, for
+          # evidence it never touched. A test can neutralise the clock in its own copy; this step
+          # cannot, and should not try.
+          if [ -z "$dirs" ]; then
+            echo "No evidence folder introduced or changed by this branch; nothing to guard."
+            exit 0
+          fi
+          for dir in $dirs; do
+            echo "--- $dir"
+            # `node`, not `npm run`. This step runs before `npm install` on purpose (see the step
+            # comment), and `npm run evidence:guard` would reintroduce the same hole from the other
+            # side: npm executes a `preevidence:guard` hook if one is ever added, which is
+            # repository-controlled code running immediately before the check reads the files. The
+            # guard imports only node: builtins, so it needs no dependencies — verified by deleting
+            # node_modules and running it.
+            node scripts/evidence-guard.mjs "$dir"
+          done
       - name: Install dependencies
         run: npm install
       - name: Verify
