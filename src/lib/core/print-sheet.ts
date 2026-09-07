@@ -68,8 +68,35 @@ const MAX_DOCUMENT_TITLE_LENGTH = 80;
  * platform then mangles in its own way. Replaced with a space rather than deleted, so `Who/What`
  * does not become `WhoWhat`.
  */
+// The rule is on in this repo's eslint config, and the control range here is the point of the
+// pattern. (A local `sonarjs` reproduction reports this directive as unused; that config does
+// not enable `no-control-regex`, so removing it turns `npm run lint` red.)
 // eslint-disable-next-line no-control-regex
 const FILENAME_HOSTILE = /[\u0000-\u001f<>:"/\\|?*]+/g;
+
+/** Trailing characters Windows silently drops from a filename. */
+const TRAILING_DOTS_AND_SPACES: ReadonlySet<string> = new Set(['.', ' ']);
+
+/**
+ * Those, plus the punctuation a mid-sentence truncation tends to end on.
+ *
+ * A plain space is the only whitespace listed because by the time this is used every run of
+ * whitespace has already been collapsed to one space — a tab or a newline cannot reach here.
+ */
+const TRAILING_PUNCTUATION: ReadonlySet<string> = new Set(['.', ',', ';', ':', '-', ' ']);
+
+/**
+ * Drop trailing characters in `unwanted`, scanning backwards.
+ *
+ * A loop rather than `/[. ]+$/`, which is the `X+$` shape that backtracks super-linearly on a long
+ * run of the matched characters — a title of two hundred dots is a cheap way to make a regex do
+ * quadratic work, and SonarCloud's `super-linear-regex` flags both anchored trims this replaced.
+ */
+const trimTrailing = (value: string, unwanted: ReadonlySet<string>): string => {
+	let end = value.length;
+	while (end > 0 && unwanted.has(value[end - 1])) end -= 1;
+	return value.slice(0, end);
+};
 
 /**
  * Turn a page title into something a print dialog can put in its filename field.
@@ -81,19 +108,18 @@ export const printDocumentTitle = (
 	pageTitle: string | null | undefined,
 	fallback: string = FALLBACK_PRINT_TITLE
 ): string => {
-	const cleaned = (pageTitle ?? '')
+	const collapsed = (pageTitle ?? '')
 		.replace(FILENAME_HOSTILE, ' ')
 		.replace(/\s+/g, ' ')
-		.trim()
-		.replace(/[. ]+$/, '')
 		.trim();
+	const cleaned = trimTrailing(collapsed, TRAILING_DOTS_AND_SPACES);
 	if (cleaned.length === 0) return fallback;
 	if (cleaned.length <= MAX_DOCUMENT_TITLE_LENGTH) return cleaned;
 	const sliced = cleaned.slice(0, MAX_DOCUMENT_TITLE_LENGTH).trim();
 	const lastSpace = sliced.lastIndexOf(' ');
 	// Only break on a word boundary when one is far enough in to leave a usable name behind.
 	const trimmed = lastSpace > MAX_DOCUMENT_TITLE_LENGTH / 2 ? sliced.slice(0, lastSpace) : sliced;
-	return trimmed.replace(/[.,;:\-\s]+$/, '').trim() || fallback;
+	return trimTrailing(trimmed, TRAILING_PUNCTUATION) || fallback;
 };
 
 /**

@@ -11407,3 +11407,65 @@ committing** — it does not appear in the diff.
 - `MeechieToolOutput.quoteScore` and `modelMetadata`, from Run 11's list.
 
 Do not inherit this entry's measurements. Re-measure.
+
+## Run 13, first close-out — 2026-09-07 — the SonarCloud round, run before anyone asked
+
+`sonarcloud.io` is egress-blocked from this container, so the gate was reproduced locally with the
+method Run 8 recorded and Run 12 confirmed — `eslint-plugin-sonarjs@4.2.0`, a throwaway flat config
+using **only** `sonarjs.configs.recommended.rules`, installed `--no-save` and deleted afterwards.
+Run against the four TypeScript files this pull request touches, **before** waiting for the check.
+
+Three findings. Full output in `docs/evidence/2026-09-07/sonarjs-local.txt`.
+
+| Finding | Provenance | Disposition |
+|---|---|---|
+| `print-sheet.ts:88` `super-linear-regex` — `/[. ]+$/` | **this PR** | fixed |
+| `print-sheet.ts:96` `super-linear-regex` — `/[.,;:\-\s]+$/` | **this PR** | fixed |
+| `print-sheet.ts:71` unused `eslint-disable no-control-regex` | reproduction artifact | **declined, with proof** |
+
+**Both errors were real and both were mine.** `X+$` backtracks super-linearly on a long run of the
+matched characters, and the input here is a page title — which comes back from a model. Replaced
+with `trimTrailing`, a backwards scan over a `Set`. Two hundred trailing dots are now two hundred
+steps rather than quadratic work, and the code says what it removes instead of encoding it in an
+anchored character class.
+
+**The third was the reproduction lying, and it is worth recording why.** The throwaway config
+enables only the `sonarjs` recommended rules, which do not include core ESLint's
+`no-control-regex`. This repository's own config *does* enable it. Removing the directive on that
+advice turned `npm run lint` red:
+
+```
+71:26  error  Unexpected control character(s) in regular expression: \x00, \x1f  no-control-regex
+```
+
+The directive was restored with that reason written beside it, so the next run does not delete it
+again. **A reproduction of a checker is not the checker, and the gap between them is exactly where
+a confident-looking finding is wrong.** Run 8's lesson was *reproduce the configuration, not just
+the checker*; this is its other edge — where the reproduction's configuration and the repository's
+disagree, the repository wins.
+
+### The trap Run 12 recorded, sprung one command over
+
+Run 12's environment notes warn that `npm run test:e2e 2>&1 | tail -40` reports `tail`'s exit code
+rather than Playwright's. This run read a lint result the same way — `npm run lint 2>&1 | tail -8`
+— and printed **`lint=0` directly underneath a real eslint error**. It was caught only because the
+error text was visible in the same output.
+
+The lesson had been read, written down in this run's own working notes, and applied to `test:e2e`
+specifically. It was the *command* that got remembered, not the rule. **Capture to a file and read
+`$?`** — for every command whose result a decision depends on, not for the one command a previous
+run happened to be bitten by.
+
+### Re-verified after the fix
+
+| Command | Result |
+|---|---|
+| `npm run check` | exit 0 |
+| `npm run lint` | exit 0 |
+| `npm test` | exit 0 — 1636 passed, 1 skipped |
+| `npm run build` | exit 0 |
+| `npm run verify` | exit 0 |
+| `npx playwright test` | exit 0 — 54 passed |
+| `sonarjs` recommended, second pass | **0 errors** |
+
+Every one of those exit codes was read from `$?` on an unpiped command.
