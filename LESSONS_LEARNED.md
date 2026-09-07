@@ -692,3 +692,21 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
 - Context: Found during Run 12 and deliberately not fixed — `handleModeSelect` calls `scheduleDraftSave()`, but `DraftRecordSchema` has no mode field.
 - Lesson: The reader's chosen mode is not persisted. Pick a mode, type evidence, refresh: the evidence returns under a different question, wired to a different `toolId`. The save call implies otherwise, which is why it took a schema read to notice.
 - Action: Left for a run that can hold a pull request open — `AGENTS.md` forbids auto-merging a change that carries a schema or contract change, and a scheduled run has no human to wait for. Do not half-fix it by persisting the mode outside the store seam.
+
+## 2026-09-07
+- Date: 2026-09-07
+- Context: The app told the reader to "Print it. Color it." on four surfaces and had no print support at all — no control, and no `@media print` rule anywhere in the repository.
+- Lesson: A feature can be entirely absent and still read as present in a review of the code, because the *instructions for using it* are everywhere. Grep for what the app promises, not only for what it does. `grep -rn "media print\|window.print" src/ static/` returning nothing, next to four surfaces saying "Print it", was the whole finding.
+- Action: When a run looks for the worst feature, search the app's own copy for verbs it tells the reader to perform, then check each one has an implementation.
+
+## 2026-09-07
+- Date: 2026-09-07
+- Context: Deciding what a browser prints, using `:has()` to hide everything not on the path to a marked element.
+- Lesson: Print CSS cannot be reasoned about from the source; it has to be run. Two rules that read correctly were wrong in ways only a rendered PDF showed — `break-after: page` added a trailing blank sheet, and `.studio .generated-image` (two classes) silently outranked the single-attribute image rule and stretched the picture. Both were found by `page.pdf()` and a screenshot, in minutes.
+- Action: Prototype print rules against the running app and capture a real PDF before writing them into the repository; assert page counts off the PDF in e2e, not off the DOM.
+
+## 2026-09-07
+- Date: 2026-09-07
+- Context: Measuring what is visible in print media from `page.evaluate`.
+- Lesson: `getComputedStyle(el).display !== 'none'` counts every descendant of a hidden ancestor as visible, because an element inside a `display: none` parent reports its own display. A first probe using it reported the navigation still printing when it was not.
+- Action: Measure visibility from `getBoundingClientRect()` width and height, which is what the first version of `tests/e2e/print.spec.ts` was corrected to do.

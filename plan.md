@@ -3167,3 +3167,76 @@ Cipher Gate entry is required.
   uses, but the hub never shows a dedication field beside a loading verdict. Here it does, so a
   shared token makes typing a dedication cancel an in-flight verdict request.
 
+
+## The app can put a coloring page on paper (2026-09-07)
+
+**Goal:** the app is a coloring book. `VerdictPageStudio.svelte`, `MeechieTools.svelte`,
+`MeechieModePage.svelte` and `StudioHero.svelte` all tell the reader to print the page, and the
+generate button reads "Printing the truth…" while it works. None of them could print. There was no
+print control anywhere in `src/` and not one `@media print` rule in the repository, so following
+those instructions printed the app. Measured on `main` at `f86ffdc` with Chromium in print
+emulation: the home page came out as **four US Letter sheets** carrying the navigation, the
+full-bleed hero photograph and eight photographic mode cards — **938 KB**, 43 visible buttons, 10
+form fields, 10 photographs, and nothing on any sheet anybody could colour. This run makes Print
+mean what four surfaces already claim it means.
+
+**Seams touched:** none. No file under `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`,
+`src/lib/adapters/` or `src/lib/seams/` is modified, so the full Seam-Driven Development workflow
+is not triggered and no Cipher Gate entry is required. The one browser API involved is
+`window.print()`, called from exactly one component. That follows the precedent already set by
+`navigator.clipboard.writeText`, which `studio-state.svelte.ts:2239`,
+`MeechieTools.svelte:542` and `verdict-page-state.svelte.ts:723` each call directly, and by
+`navigator.onLine` in `+layout.svelte` — browser-only calls in browser-only component code are not
+seamed in this codebase. Everything that is a *decision* rather than a call lives in a pure core
+module with unit tests.
+
+**Files:**
+- `src/lib/core/print-sheet.ts` (new) — pure print policy: whether there is anything to print, what
+  the control says, the sentence explaining why it is off, and the document title the job runs
+  under (which is the default filename for "Save as PDF").
+- `src/lib/components/PrintPageButton.svelte` (new) — the one control in the app that calls
+  `print()`, shared by all three hosting surfaces.
+- `src/routes/+layout.svelte` — the `@media print` block, the `display: contents` `.app-body`
+  boundary it needs, and the print-only fallback sheet for a screen with no page on it.
+- `src/lib/components/studio/StudioPreviewPanel.svelte`,
+  `src/lib/components/VerdictPageStudio.svelte`, `src/lib/components/MeechieTools.svelte` — mark
+  the picture already on screen with `data-print-sheet` and host the button.
+- `src/lib/components/verdict-page-state.svelte.ts` — a `pageTitle` getter reading the recipe the
+  picture was built from, not the live verdict.
+- `tests/unit/print-sheet.test.ts` (new), `tests/e2e/print.spec.ts` (new).
+- `CHANGELOG.md`, `CLAUDE.md`, `LESSONS_LEARNED.md`, `WORST_TO_BEST_LOG.md`.
+
+**Commands:** `npm run check`, `npm run lint`, `npm test`, `npm run build`, `npm run verify`,
+`npm run test:e2e`, plus driving the home studio in a real browser in both `screen` and `print`
+media at 1280x900 and capturing the actual PDF.
+
+**Self-critique:**
+- *Riskiest assumption:* that "hide everything that is not on the path to a marked element" is
+  expressible in CSS and holds on a real page. It is not obvious — CSS cannot say "ancestor of"
+  without `:has()`. **Measured rather than reasoned about**: the rule was prototyped against the
+  running app before any of it was written into the repository, and took the home page from 319
+  visible elements to 7, 43 buttons to 0, 10 fields to 0, 10 images to 1, and four sheets to one.
+  The alternative — enumerating the app's panels and hiding them by name — was rejected because
+  every panel added afterwards would silently print, which is the same defect as the download row
+  that named one hardcoded file type.
+- *What must be proven:* that the sheet is one sheet. `break-after: page` was the first attempt and
+  it produced a trailing blank page, which `page.pdf()` caught and no amount of reading the CSS
+  would have. The final rule sizes each sheet to `100vh` and lets pagination fall out of that; the
+  e2e suite asserts the page count off a real PDF rather than off the DOM.
+- *What could be wrong:* the `display: contents` wrapper around `{@render children()}`. It is there
+  so hiding the app cannot also hide the nav rule and the fallback sheet, and `display: contents`
+  was chosen over a plain `div` specifically so no page's layout changes. Verified by screenshotting
+  the home studio in screen media after the change, not by arguing that it should be fine.
+- *What I deliberately did not do:* put a caption under the printed picture. The page title, the
+  quote and the dedication are drawn *into* the coloring page by the generator
+  (`prompt-template.ts:120`), so a caption would print them a second time and take away colouring
+  room. The sheet is the picture, which is also what the packaged PDF contains — one answer, not two.
+- *A gap this leaves, stated:* the packaged print PDF bleeds its image to all four edges
+  (`output-packaging-seam/index.ts` scales to `Math.min(pageWidth/w, pageHeight/h)` with no margin),
+  so the downloaded file and the browser print now differ — the browser print has a 12mm margin and
+  the PDF does not. Fixing the PDF means changing an adapter, which is the full seam workflow and a
+  contract-carrying pull request that must not be auto-merged. Left for a run that can hold one open.
+- *A duplication tradeoff:* `tests/e2e/print.spec.ts` carries its own compact API stubs rather than
+  importing `smoke.spec.ts`'s. Extracting shared fixtures would mean editing a 1,200-line spec that
+  49 passing tests depend on, for a ~30-line saving. `page-controls.spec.ts` already sets the
+  precedent of a self-contained spec. Recorded here so it is a decision rather than an oversight.

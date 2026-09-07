@@ -11213,3 +11213,197 @@ src/lib/components` returns nothing), and `MeechieToolOutput.quoteScore` / `mode
 11's list.
 
 Do not inherit this entry's measurements. Re-measure.
+
+---
+
+## Run 13 — 2026-09-07 — Printing (the thing the app is named after)
+
+**Branch:** `claude/great-bell-ymgrrf` · **Base:** `main` at `f86ffdc`
+
+### The feature, and why it was the worst
+
+The app is called Meechie's Coloring Book. A coloring page's entire purpose is paper — you print
+it, and then you colour it. The app says so itself, everywhere:
+
+| Where | What it says |
+|---|---|
+| `VerdictPageStudio.svelte:22` | "Print it. Color it. Send it to whoever needs to see it." |
+| `MeechieTools.svelte:826` | "Print it. Color it. Send it to whoever needs to see it." |
+| `MeechieModePage.svelte:165` | "The verdict becomes the page. Print it. Color it. Dedicate it." |
+| `StudioHero.svelte:69` | "…a printable coloring page." |
+| `VerdictPageStudio.svelte:94` | The generate button, while it works: **"Printing the truth…"** |
+
+**There was no way to print.** Not a weak way — none.
+
+```
+grep -rn "media print\|window.print\|@page" src/ static/     ->  no matches
+```
+
+No print control on any surface, and not one `@media print` rule in the entire repository. The only
+route to paper was: download the PDF, leave the app, find the file, open it in something else,
+print from there. On the installed app — which Run 10 made installable and offline-capable — that
+is worse, and it is worse again on a phone.
+
+And the reader who did the obvious thing instead, and pressed their browser's own Print, did not get
+nothing. They got the app. **Measured, not reasoned about** — Chromium 1194 driven against the dev
+server at `f86ffdc`, `emulateMedia({ media: 'print' })`, `page.pdf({ format: 'Letter',
+printBackground: false })`:
+
+| | `/` before | `/who-fucked-up` before |
+|---|---|---|
+| Sheets of paper | **4** | 2 |
+| PDF size | **938 KB** | 108 KB |
+| Visible elements | 319 | 26 |
+| Visible buttons | 43 | 1 |
+| Visible form fields | 10 | 1 |
+| Visible nav links | 5 | 5 |
+| Visible images | 10 | 0 |
+| Things you could colour | **0** | **0** |
+
+Four sheets: the menu bar, the full-bleed hero photograph, eight photographic mode cards, then the
+input panels. `body` also carries `color: #fdf6e3` — cream — and browsers do not print backgrounds
+by default, so the text that did survive landed near-white on white paper.
+
+That is the widest promise-to-delivery gap left in the app, and it is not close. Every other
+feature this log has rebuilt did *something* badly. This one told the reader to do a thing, five
+times over, and then spent their ink on marketing photography when they did it.
+
+### What shipped
+
+**1. A Print button, on every surface that already promised one.** `PrintPageButton.svelte` is the
+only place in `src/` that calls `print()`. The home studio hosts it beside Save to Vault; the shared
+`VerdictPageStudio` hosts it for all four mode routes; the tools hub hosts it for its eleven tools.
+One implementation — the log records three separate occasions where a copied surface drifted
+(the download row, the drift report, the vault save), and this does not add a fourth.
+
+**2. Ctrl+P prints the page, from anywhere in the app.** This is the half that matters most, because
+it fixes the path the reader takes without being told. The rule is structural rather than a list:
+
+```css
+.app-body :not(:has([data-print-sheet])):not([data-print-sheet]):not([data-print-sheet] *) {
+    display: none !important;
+}
+```
+
+Everything that is not a marked sheet, inside one, or an *ancestor* of one disappears; `:has()` is
+what makes "ancestor of" sayable in CSS. Enumerating the app's panels to hide would have been
+correct on the day it was written and wrong from the next panel onward — the same defect as the
+download row that named one hardcoded file type.
+
+**3. The sheet is designed for paper.** `@page { margin: 12mm }`, because printers cannot reach the
+edge and a coloring page needs somewhere to be held. Each sheet is `100vh`, so one picture is one
+page. White ground, black text, the glitter overlay suppressed — it is a screen effect, and printed
+it is a grey wash over the lines you are about to put a pencil on.
+
+**4. It tells the truth when it cannot print.** No picture yet → the button is off and says why.
+Reach for the browser's own Print on such a screen and the paper says *"No coloring page on this
+screen yet. Make one first — printing puts the picture on paper, not the app."* — one constant,
+`NOTHING_TO_PRINT`, shared by the button and the sheet so they cannot drift. Without that fallback
+the new rules would have emitted a **blank sheet**, which is worse than what the app did before.
+
+**5. Saved sheets are named after the page.** `document.title` is what a print dialog puts in its
+filename field for "Save as PDF". Left alone every sheet anyone ever saved would be called the same
+thing. `printDocumentTitle` derives it from the page's own title, stripping the characters no
+filesystem accepts — Meechie's titles routinely carry `?` and `/`; the app's own nav link is "Who
+Fucked Up?" — and replacing them with spaces rather than deleting them, so `claim/reality` does not
+become `claimreality`. Restored on `afterprint`, not after `print()` returns: in several browsers
+`print()` resolves as soon as the preview opens, and restoring there renames the job out from under
+the field the reader is still looking at.
+
+**6. The picture on screen *is* the sheet.** `data-print-sheet` marks the element already rendering
+the preview. No second copy of the markup, no second copy of the image bytes, and no possibility of
+the printed page differing from the one on screen.
+
+### After
+
+Same measurement, same method, `/` with a finished page:
+
+| | before | after |
+|---|---|---|
+| Sheets of paper | 4 | **1** |
+| PDF size | 938 KB | 342 KB (the picture) |
+| Visible buttons | 43 | **0** |
+| Visible form fields | 10 | **0** |
+| Visible nav links | 5 | **0** |
+| Visible images | 10 | **1** — the coloring page |
+
+### Scope, and why this needed no seam workflow
+
+No file under `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`, `src/lib/adapters/` or
+`src/lib/seams/` is touched. No Cipher Gate entry required. The one browser API is `window.print()`,
+in a single component, following the precedent this codebase has already set three times over for
+browser-only calls in browser-only code: `navigator.clipboard.writeText` at
+`studio-state.svelte.ts:2239`, `MeechieTools.svelte:542` and `verdict-page-state.svelte.ts:723`,
+and `navigator.onLine` in `+layout.svelte`. Everything that is a *decision* rather than a call is in
+`src/lib/core/print-sheet.ts`, which is pure and has 18 unit tests.
+
+**This is also why this feature was picked over the strongest candidate Run 12 deferred.** Run 12
+left "the reader's chosen mode is not persisted" as the next pick and noted it is blocked by
+`AGENTS.md`'s rule that a pull request carrying a schema or contract change must not be auto-merged
+— `DraftRecordSchema` would have to grow a field. A scheduled run has no human to wait for and this
+one was told to merge, so taking it would have meant either leaving a pull request open or breaking
+that rule. **It is still the strongest candidate and it is still blocked. A run that can hold a
+pull request open should take it.**
+
+### What was measured rather than argued
+
+Every load-bearing claim here was run in a real browser before it was written down. Three things
+read as correct in the source and were wrong:
+
+1. **`break-after: page` produced a trailing blank sheet.** `:last-of-type` does not do what it
+   looks like it does — it matches by tag name, and the sheets are `div`s among other `div`s.
+   Removing `break-after` entirely and letting `height: 100vh` do the pagination gives exactly one
+   page. Found by counting pages in a real PDF; no amount of reading the CSS would have shown it.
+2. **`.studio .generated-image` silently outranked the sheet's image rule.** Two classes beats one
+   attribute selector, so the picture was being stretched to `height: 100%` of a box that was itself
+   `100vh`. Fixed with `!important` on the image rule, and the reason is written next to it.
+3. **The first probe reported the navigation still printing when it was not.** It measured
+   visibility with `getComputedStyle(el).display`, and an element inside a `display: none` ancestor
+   reports its *own* display. Every visibility measurement here — and in `tests/e2e/print.spec.ts` —
+   is `getBoundingClientRect()` width and height instead.
+
+The `:has()` approach itself was prototyped against the running app **before** any of it was written
+into the repository: 319 visible elements to 7, four sheets to one. That is the step this log has
+repeatedly recorded as the one that separates a claim from a finding.
+
+### Evidence
+
+| Command | Result |
+|---|---|
+| `npm run check` | 0 errors, 0 warnings |
+| `npm run lint` | clean |
+| `npm test` | **1636 passed**, 1 skipped (101 files) — 18 of them new |
+| `npm run build` | ✓ |
+| `npx playwright test` | **54 passed** — 49 existing, unchanged, plus 5 new |
+
+`playwright.config.ts` was pinned to `/opt/pw-browsers/chromium-1194/chrome-linux/chrome` to run the
+suite in this container, exactly as Run 12's environment note describes, and **restored before
+committing** — it does not appear in the diff.
+
+### Deliberately not done, and why
+
+- **No caption under the printed picture.** The page title, the quote and the dedication are drawn
+  *into* the coloring page by the generator (`prompt-template.ts:120`, `dedicationLine`), so a
+  caption would print them twice and take away colouring room. The sheet is the picture — which is
+  also exactly what the packaged PDF contains, so the two paths give one answer rather than two.
+- **No printer-availability check.** A third UI state for a browser without `window.print` would
+  have to be decided after hydration, on pages that are prerendered and replayed from the service
+  worker's cache offline — the exact bug Run 12 fixed in the mode strip. There is a `typeof` guard
+  inside the handler and no UI state for it. Run 10's deletion of the unreachable
+  `controllerchange` listener is the same reasoning.
+
+### Carried forward for the next run
+
+- **The packaged print PDF still bleeds to all four edges.** `output-packaging-seam/index.ts` scales
+  the image by `Math.min(pageWidth / w, pageHeight / h)` and centres it with **no margin**, so most
+  printers will clip it or shrink it again. The browser print now has a 12mm margin and the
+  downloaded PDF does not, so the two paths disagree. Fixing it is an adapter change: full seam
+  workflow, Cipher Gate entry, and a contract-carrying pull request that must not be auto-merged.
+- **Mode persistence** — Run 12's pick, still blocked on the same rule, still the strongest
+  candidate for a run that can hold a pull request open.
+- **`ChatInterpretationSeam` still has zero consumers.** Re-measured today:
+  `grep -rn "chatInterpretationAdapter" src/routes src/lib/components` returns nothing, against a
+  complete provider-backed billable seam with a live endpoint at `/api/chat-interpretation`.
+- `MeechieToolOutput.quoteScore` and `modelMetadata`, from Run 11's list.
+
+Do not inherit this entry's measurements. Re-measure.

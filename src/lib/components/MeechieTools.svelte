@@ -21,6 +21,7 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 	import { POST_JSON_TIMEOUTS_MS, postJson } from '$lib/core/http-client';
 	import { buildQualityReport } from '$lib/core/quality-report';
 	import QualityReportPanel from './QualityReportPanel.svelte';
+	import PrintPageButton from './PrintPageButton.svelte';
 	import type {
 		MeechieToolInput,
 		MeechieToolOutput
@@ -871,9 +872,11 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 			/>
 
 			{#if imagePreviews.length > 0}
+				<!-- Marked in place: the picture on screen is the sheet that prints. See
+				     `PrintPageButton.svelte` and the `@media print` block in `+layout.svelte`. -->
 				<div class="preview-grid" data-testid="meechie-tool-preview">
 					{#each imagePreviews as preview}
-						<figure>
+						<figure data-print-sheet>
 							<img src={preview} alt="Meechie coloring page" />
 						</figure>
 					{/each}
@@ -899,6 +902,13 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 					>
 						{isSaving ? 'Saving…' : 'Save to the vault'}
 					</button>
+					<!-- `lastRecipe`, not the live verdict: the sheet coming out of the printer is
+					     the page on screen, and the hub keeps showing page A while B generates. -->
+					<PrintPageButton
+						sheetCount={imagePreviews.length}
+						pageTitle={lastRecipe?.spec.title ?? null}
+						testId="meechie-tool-print"
+					/>
 				</div>
 				{#if vaultStatus}
 					<p class="status" data-testid="meechie-tool-vault-status">
