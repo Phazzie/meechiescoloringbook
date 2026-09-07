@@ -1,19 +1,19 @@
 {
   "tool": "shaolin-lint",
-  "generatedAt": "2026-09-07T00:44:07.776Z",
-  "latestChangeMs": 1788741377674.2493,
+  "generatedAt": "2026-09-07T00:50:22.735Z",
+  "latestChangeMs": 1788742010187.14,
   "evidence": [
     {
       "name": "verify",
       "status": "ok",
       "path": "docs/evidence/2026-09-07/verify.txt",
-      "mtimeMs": 1788741847695.1301
+      "mtimeMs": 1788742222655.1526
     },
     {
       "name": "test",
       "status": "ok",
       "path": "docs/evidence/2026-09-07/test.txt",
-      "mtimeMs": 1788741847695.1301
+      "mtimeMs": 1788742222655.1526
     }
   ],
   "summary": {

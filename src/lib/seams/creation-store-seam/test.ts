@@ -134,7 +134,12 @@ describe('CreationStoreSeam contract (self-contained)', () => {
 		const withMode = parseDraftRecord(draft);
 		expect(withMode.ok && withMode.value.modeId).toBe(draft.modeId);
 
-		const { modeId: _modeId, ...withoutMode } = draft;
+		// `delete` on a copy rather than a destructure-and-discard: the key has to be *absent*, not
+		// present-and-undefined, because that is the shape every draft written before this field
+		// existed actually has — and `modeId: undefined` would satisfy the assertion below either
+		// way, making the test pass without proving anything.
+		const withoutMode: Partial<typeof draft> = { ...draft };
+		delete withoutMode.modeId;
 		const legacy = parseDraftRecord(withoutMode);
 		expect(legacy.ok).toBe(true);
 		expect(legacy.ok && legacy.value.modeId).toBeUndefined();

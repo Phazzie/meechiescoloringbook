@@ -11344,6 +11344,54 @@ act on a sentence and cannot recover a deleted page.
 
 Evidence in `docs/evidence/2026-09-07/`.
 
+### The review rounds
+
+**SonarCloud, reproduced locally before the remote gate reported.** `sonarcloud.io` is egress-blocked
+here, so Run 8's recorded technique was reused and worked on the first try: `npm install --no-save
+eslint-plugin-sonarjs` (4.2.0) and a throwaway flat config using **only**
+`sonarjs.configs.recommended.rules`. Enabling every rule the plugin ships is what made earlier
+attempts fail; `recommended` is what Sonar runs. Five findings on the touched files, of which
+**one was mine**:
+
+| Finding | Provenance | Disposition |
+|---|---|---|
+| `creation-store-seam/test.ts:137` `no-unused-vars` — `_modeId` | **this PR** | fixed |
+| `studio-state.svelte.ts:1407` `no-nested-conditional` | `73a8f05`, on `main` | not this PR's — the same line Runs 8 and 12 dispositioned, shifted down by this diff |
+| `smoke.spec.ts:112` `no-fixed-wait-in-tests`, `:260` `super-linear-regex` | on `main` | not this PR's |
+| `smoke.spec.ts:743` `no-forced-browser-interaction` | `64739cb`, on `main` | not this PR's |
+
+Provenance for each by `git log -L <line>,<line>:<file>` then `git merge-base --is-ancestor <commit>
+origin/main`. The plugin was installed with `--no-save` and the config deleted; `package.json` and
+`package-lock.json` are unchanged in the diff.
+
+The fix is worth recording because the *rule* was right for a reason the rule does not know:
+`const { modeId: _modeId, ...withoutMode } = draft` produced an unused binding, and replacing it with
+an explicit `delete` on a copy made the test **stronger** as well as cleaner. The assertion is that a
+draft with no `modeId` still parses, and `modeId: undefined` would have satisfied it without proving
+anything — the key has to be *absent*, which is the shape a pre-change draft actually has.
+
+Note the remote `SonarCloud Code Analysis` check reported **success** on the commit that still
+carried that finding. The Quality Gate and the issue list are not the same artifact, and a green gate
+is not evidence that the local reproduction found nothing.
+
+**`Rosentic - Conflict Detection` is red, and this time it is provably not this diff's.** The
+disposition on #315 was careful to say the opposite — that check was red *because of* that change,
+which had altered two function signatures — so the bar is applied again from scratch rather than
+inherited:
+
+- All 44 findings blame `claude/sweet-mendel-LJ9Iu` (**291 commits behind `main`**) for removing
+  parameters from `getModeSpotlight`, `describeSpotlightSchedule`, `studioActionStartsRound` and two
+  further call sites, colliding with call sites this branch inherits **unchanged**.
+- `git diff origin/main...HEAD | grep -E "^[+-]"` mentions **none** of those symbols — not one added
+  or removed line.
+- The only new signatures in this diff are `restoreDraftMode`, `describeDraftRestore` and
+  `dismissDraftRestoreNotice`, all brand new, which no other branch can be calling.
+
+So: a check red on two heads for two different reasons, which is exactly the case `AGENTS.md` warns
+looks identical from the outside. The comparison is written on the pull request, per that rule. **No
+re-run was spent** — the check is deterministic over branch contents and calling it a flake would be
+a lie. The real remedy is #151 and #208 rebasing, which is their authors' call.
+
 ### The merge, and why this run stopped short of it
 
 `AGENTS.md`: *"Do not auto-merge when ... The PR carries a schema, contract, or data migration."*
