@@ -1,6 +1,6 @@
 {
   "tool": "proof-tape",
-  "generatedAt": "2026-09-07T13:11:32.021Z",
+  "generatedAt": "2026-09-07T18:52:07.810Z",
   "evidenceDir": "docs/evidence/2026-09-07",
   "runMarker": "chamber-lock.json",
   "excludedFromInventory": [
@@ -17,9 +17,13 @@
     "lint.txt",
     "redproof-share-policy.txt",
     "redproof-title-restore.txt",
+    "redproof-vault-page.txt",
     "run14-check-lint-test-build.txt",
     "sonarjs-local-run14.txt",
+    "sonarjs-local-run15.txt",
     "sonarjs-local.txt",
+    "vault-reach-after.txt",
+    "vault-reach-before.txt",
     "verify-run14.txt"
   ],
   "files": [
@@ -27,7 +31,7 @@
       "name": "assumption-alarm.json",
       "path": "docs/evidence/2026-09-07/assumption-alarm.json",
       "sizeBytes": 13941,
-      "modifiedAt": "2026-09-07T13:11:31.837Z",
+      "modifiedAt": "2026-09-07T18:52:07.635Z",
       "commands": [],
       "predatesRun": false
     },
@@ -35,7 +39,7 @@
       "name": "build.txt",
       "path": "docs/evidence/2026-09-07/build.txt",
       "sizeBytes": 12814,
-      "modifiedAt": "2026-09-07T12:21:31.586Z",
+      "modifiedAt": "2026-09-07T18:19:14.523Z",
       "commands": [
         "meechies-coloringbook@0.1.0 build",
         "vite build",
@@ -47,7 +51,7 @@
       "name": "chamber-lock.json",
       "path": "docs/evidence/2026-09-07/chamber-lock.json",
       "sizeBytes": 35315,
-      "modifiedAt": "2026-09-07T13:09:53.429Z",
+      "modifiedAt": "2026-09-07T18:50:39.375Z",
       "commands": [],
       "predatesRun": false
     },
@@ -55,7 +59,7 @@
       "name": "clan-chain.json",
       "path": "docs/evidence/2026-09-07/clan-chain.json",
       "sizeBytes": 3181,
-      "modifiedAt": "2026-09-07T13:11:31.953Z",
+      "modifiedAt": "2026-09-07T18:52:07.743Z",
       "commands": [],
       "predatesRun": false
     },
@@ -63,7 +67,7 @@
       "name": "clan-chain.md",
       "path": "docs/evidence/2026-09-07/clan-chain.md",
       "sizeBytes": 1956,
-      "modifiedAt": "2026-09-07T13:11:31.957Z",
+      "modifiedAt": "2026-09-07T18:52:07.749Z",
       "commands": [],
       "predatesRun": false
     },
@@ -71,7 +75,7 @@
       "name": "e2e-print.txt",
       "path": "docs/evidence/2026-09-07/e2e-print.txt",
       "sizeBytes": 1153,
-      "modifiedAt": "2026-09-07T12:21:31.586Z",
+      "modifiedAt": "2026-09-07T18:19:14.523Z",
       "commands": [],
       "predatesRun": true
     },
@@ -79,7 +83,7 @@
       "name": "e2e-run14.txt",
       "path": "docs/evidence/2026-09-07/e2e-run14.txt",
       "sizeBytes": 8319,
-      "modifiedAt": "2026-09-07T13:09:52.586Z",
+      "modifiedAt": "2026-09-07T18:19:14.523Z",
       "commands": [],
       "predatesRun": true
     },
@@ -87,7 +91,7 @@
       "name": "e2e.txt",
       "path": "docs/evidence/2026-09-07/e2e.txt",
       "sizeBytes": 7601,
-      "modifiedAt": "2026-09-07T12:21:31.586Z",
+      "modifiedAt": "2026-09-07T18:19:14.523Z",
       "commands": [],
       "predatesRun": true
     },
@@ -95,7 +99,7 @@
       "name": "export-row-after.txt",
       "path": "docs/evidence/2026-09-07/export-row-after.txt",
       "sizeBytes": 1678,
-      "modifiedAt": "2026-09-07T13:00:03.549Z",
+      "modifiedAt": "2026-09-07T18:19:14.523Z",
       "commands": [],
       "predatesRun": true
     },
@@ -103,7 +107,7 @@
       "name": "export-row-before.txt",
       "path": "docs/evidence/2026-09-07/export-row-before.txt",
       "sizeBytes": 1448,
-      "modifiedAt": "2026-09-07T13:00:03.549Z",
+      "modifiedAt": "2026-09-07T18:19:14.523Z",
       "commands": [],
       "predatesRun": true
     },
@@ -111,7 +115,7 @@
       "name": "lint.txt",
       "path": "docs/evidence/2026-09-07/lint.txt",
       "sizeBytes": 48,
-      "modifiedAt": "2026-09-07T12:21:31.586Z",
+      "modifiedAt": "2026-09-07T18:19:14.523Z",
       "commands": [
         "meechies-coloringbook@0.1.0 lint",
         "eslint ."
@@ -122,7 +126,7 @@
       "name": "redproof-share-policy.txt",
       "path": "docs/evidence/2026-09-07/redproof-share-policy.txt",
       "sizeBytes": 3007,
-      "modifiedAt": "2026-09-07T13:00:03.549Z",
+      "modifiedAt": "2026-09-07T18:19:14.523Z",
       "commands": [
         "243 | \texpect(calls[0].files[0].type).toBe('image/png');"
       ],
@@ -132,27 +136,52 @@
       "name": "redproof-title-restore.txt",
       "path": "docs/evidence/2026-09-07/redproof-title-restore.txt",
       "sizeBytes": 1553,
-      "modifiedAt": "2026-09-07T12:21:31.586Z",
+      "modifiedAt": "2026-09-07T18:19:14.523Z",
       "commands": [
         "288 | \tawait expect.poll(() => page.title()).toBe(appTitle);"
       ],
       "predatesRun": true
     },
     {
+      "name": "redproof-vault-page.txt",
+      "path": "docs/evidence/2026-09-07/redproof-vault-page.txt",
+      "sizeBytes": 2145,
+      "modifiedAt": "2026-09-07T18:50:16.115Z",
+      "commands": [],
+      "predatesRun": true
+    },
+    {
       "name": "run14-check-lint-test-build.txt",
       "path": "docs/evidence/2026-09-07/run14-check-lint-test-build.txt",
       "sizeBytes": 432,
-      "modifiedAt": "2026-09-07T13:00:03.549Z",
+      "modifiedAt": "2026-09-07T18:19:14.523Z",
       "commands": [
         "Using @sveltejs/adapter-vercel"
       ],
       "predatesRun": true
     },
     {
+      "name": "run15-verify.txt",
+      "path": "docs/evidence/2026-09-07/run15-verify.txt",
+      "sizeBytes": 3642,
+      "modifiedAt": "2026-09-07T18:52:07.495Z",
+      "commands": [
+        "meechies-coloringbook@0.1.0 verify",
+        "npm run audit:gate && node scripts/chamber-lock.mjs && node scripts/verify-runner.mjs && node scripts/shaolin-lint.mjs && node scripts/assumption-alarm.mjs && node scripts/seam-ledger.mjs && node scripts/clan-chain.mjs && node scripts/proof-tape.mjs",
+        "meechies-coloringbook@0.1.0 audit:gate",
+        "npm audit --audit-level=high",
+        "meechies-coloringbook@0.1.0 check",
+        "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+        "meechies-coloringbook@0.1.0 test",
+        "vitest run --pool=forks --maxWorkers=1"
+      ],
+      "predatesRun": false
+    },
+    {
       "name": "seam-ledger.json",
       "path": "docs/evidence/2026-09-07/seam-ledger.json",
       "sizeBytes": 37511,
-      "modifiedAt": "2026-09-07T13:11:31.909Z",
+      "modifiedAt": "2026-09-07T18:52:07.695Z",
       "commands": [],
       "predatesRun": false
     },
@@ -160,7 +189,7 @@
       "name": "seam-ledger.md",
       "path": "docs/evidence/2026-09-07/seam-ledger.md",
       "sizeBytes": 2981,
-      "modifiedAt": "2026-09-07T13:11:31.909Z",
+      "modifiedAt": "2026-09-07T18:52:07.695Z",
       "commands": [],
       "predatesRun": false
     },
@@ -168,7 +197,7 @@
       "name": "shaolin-lint.json",
       "path": "docs/evidence/2026-09-07/shaolin-lint.json",
       "sizeBytes": 519,
-      "modifiedAt": "2026-09-07T13:11:31.785Z",
+      "modifiedAt": "2026-09-07T18:52:07.592Z",
       "commands": [],
       "predatesRun": false
     },
@@ -176,7 +205,15 @@
       "name": "sonarjs-local-run14.txt",
       "path": "docs/evidence/2026-09-07/sonarjs-local-run14.txt",
       "sizeBytes": 3208,
-      "modifiedAt": "2026-09-07T13:00:03.549Z",
+      "modifiedAt": "2026-09-07T18:19:14.523Z",
+      "commands": [],
+      "predatesRun": true
+    },
+    {
+      "name": "sonarjs-local-run15.txt",
+      "path": "docs/evidence/2026-09-07/sonarjs-local-run15.txt",
+      "sizeBytes": 11779,
+      "modifiedAt": "2026-09-07T18:48:32.107Z",
       "commands": [],
       "predatesRun": true
     },
@@ -184,7 +221,7 @@
       "name": "sonarjs-local.txt",
       "path": "docs/evidence/2026-09-07/sonarjs-local.txt",
       "sizeBytes": 2365,
-      "modifiedAt": "2026-09-07T12:21:31.586Z",
+      "modifiedAt": "2026-09-07T18:19:14.523Z",
       "commands": [],
       "predatesRun": true
     },
@@ -192,7 +229,7 @@
       "name": "test.txt",
       "path": "docs/evidence/2026-09-07/test.txt",
       "sizeBytes": 3233,
-      "modifiedAt": "2026-09-07T13:11:31.697Z",
+      "modifiedAt": "2026-09-07T18:52:07.500Z",
       "commands": [
         "meechies-coloringbook@0.1.0 test",
         "vitest run --pool=forks --maxWorkers=1"
@@ -200,10 +237,26 @@
       "predatesRun": false
     },
     {
+      "name": "vault-reach-after.txt",
+      "path": "docs/evidence/2026-09-07/vault-reach-after.txt",
+      "sizeBytes": 2927,
+      "modifiedAt": "2026-09-07T18:44:33.691Z",
+      "commands": [],
+      "predatesRun": true
+    },
+    {
+      "name": "vault-reach-before.txt",
+      "path": "docs/evidence/2026-09-07/vault-reach-before.txt",
+      "sizeBytes": 4013,
+      "modifiedAt": "2026-09-07T18:44:51.575Z",
+      "commands": [],
+      "predatesRun": true
+    },
+    {
       "name": "verify-run14.txt",
       "path": "docs/evidence/2026-09-07/verify-run14.txt",
       "sizeBytes": 1012,
-      "modifiedAt": "2026-09-07T13:00:03.549Z",
+      "modifiedAt": "2026-09-07T18:19:14.523Z",
       "commands": [
         "meechies-coloringbook@0.1.0 verify",
         "npm run audit:gate && node scripts/chamber-lock.mjs && node scripts/verify-runner.mjs && node scripts/shaolin-lint.mjs && node scripts/assumption-alarm.mjs && node scripts/seam-ledger.mjs && node scripts/clan-chain.mjs && node scripts/proof-tape.mjs",
@@ -220,7 +273,7 @@
       "name": "verify.txt",
       "path": "docs/evidence/2026-09-07/verify.txt",
       "sizeBytes": 3558,
-      "modifiedAt": "2026-09-07T13:11:31.693Z",
+      "modifiedAt": "2026-09-07T18:52:07.500Z",
       "commands": [
         "meechies-coloringbook@0.1.0 check",
         "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",

@@ -18,6 +18,7 @@ Critical invariant: the paper on screen shows the page's OWN look, never the liv
 	import PageExportRow from '../PageExportRow.svelte';
 	import PrintPageButton from '../PrintPageButton.svelte';
 	import SharePageButton from '../SharePageButton.svelte';
+	import VaultStatusLine from '../VaultStatusLine.svelte';
 
 	let {
 		previewOutput,
@@ -194,11 +195,9 @@ Critical invariant: the paper on screen shows the page's OWN look, never the liv
 	-->
 	<PageExportRow exports={pageExports} {exportError} testIdPrefix="home" />
 
-	{#if copyStatus || vaultStatus}
-		<p class="status" data-testid="home-status">
-			{copyStatus || vaultStatus}
-		</p>
-	{/if}
+	<!-- One line for both, as before: a copy confirmation and a save confirmation never both
+	     need saying, and the save is the one that comes with somewhere to go. -->
+	<VaultStatusLine status={copyStatus || vaultStatus} testId="home-status" />
 </section>
 
 <style>

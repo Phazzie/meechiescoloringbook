@@ -1,0 +1,47 @@
+Red proof — the two load-bearing guards in src/lib/core/vault-page.ts
+
+Both guards removed at once, tests re-run, both restored.
+
+Guard 1 — `showsVaultLink` is an exact match, not a search for the word "vault".
+  Removed by replacing:
+      status === VAULT_SAVED_CONFIRMATION
+  with:
+      status.toLowerCase().includes('vault')
+
+Guard 2 — an unparseable stored date reads as the epoch, not as NaN.
+  Removed by replacing:
+      const parsed = Date.parse(entry.record.createdAtISO);
+      return Number.isNaN(parsed) ? 0 : parsed;
+  with:
+      return Date.parse(entry.record.createdAtISO);
+
+Result with both guards removed:
+
+  × offers the vault link only for the confirmation, never for a failure that says "vault"
+  × sorts a record with an unparseable date to the epoch rather than scrambling the list
+  Tests  2 failed | 20 passed (22)
+
+Result with both restored: 22 passed.
+
+---
+What this proof caught about itself, which is the part worth keeping.
+
+The FIRST run of it failed only ONE test. The NaN guard's removal changed nothing the test could
+see, because the test asserted only the `newest` order of a four-row list — and on that list a NaN
+comparator happens to return exactly the same order as the guard does. The test claimed to pin a
+guard it did not pin.
+
+Measured rather than reasoned about, with the guard removed:
+
+    newest (4 rows):   b,c,a,bad          <- identical to the guarded result. Proves nothing.
+    oldest (4 rows):   a,c,b,bad          <- guarded result is bad,a,c,b. Discriminates.
+    newest (13 rows):  r11,…,r0,bad
+    oldest (13 rows):  r0,r1,r2,r3,r4,bad,r5,…,r11   <- the corrupt row lands in the MIDDLE
+
+That middle placement is the actual damage a NaN comparator does, and it is why the guard exists:
+`NaN` from a comparator makes the whole sort's result implementation-defined, not just the one
+row's position. The test now asserts the `oldest` order as well, which is the one that
+discriminates, and says in a comment why both are there.
+
+A red proof that fails fewer tests than it removed guards has found a test that pins nothing. That
+is the finding, not a nuisance to work around.

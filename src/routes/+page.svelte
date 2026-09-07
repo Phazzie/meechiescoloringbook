@@ -19,6 +19,7 @@ Invariants: `SystemTrace` receives `promptWasSent` from the state and must never
 	import WigTryOnStudio from '$lib/components/studio/WigTryOnStudio.svelte';
 	import VerdictRow from '$lib/components/studio/VerdictRow.svelte';
 	import SystemTrace from '$lib/components/studio/SystemTrace.svelte';
+	import { VAULT_REOPEN_PARAM } from '$lib/core/vault-page';
 
 	let { data } = $props();
 
@@ -26,6 +27,15 @@ Invariants: `SystemTrace` receives `promptWasSent` from the state and must never
 
 	onMount(async () => {
 		await studio.init();
+		// A reader arriving from `/vault`, which links here rather than trying to rebuild half a
+		// studio around a list. Read here rather than in `StudioState`, following `/offline`: the
+		// URL is a browser value, and the state class is where every rule is unit-tested.
+		//
+		// After `init()`, because the page can only be found in the list `init()` loads. The
+		// parameter is deliberately left in the address bar afterwards — that makes the link a real
+		// permalink to a saved page, so a refresh or a bookmark reopens the same one.
+		const requested = new URL(globalThis.location.href).searchParams.get(VAULT_REOPEN_PARAM);
+		if (requested) await studio.openSavedPage(requested);
 	});
 
 	onDestroy(() => {
@@ -151,26 +161,13 @@ Invariants: `SystemTrace` receives `promptWasSent` from the state and must never
 	<VerdictRow
 		report={studio.verdictReport}
 		onAddEvidence={focusEvidenceField}
-		vaultEntries={studio.vaultEntries}
+		vault={studio.vault}
 		visibleVaultEntries={studio.visibleVaultEntries}
 		hiddenVaultCount={studio.hiddenVaultCount}
 		canToggleVaultShowAll={studio.canToggleVaultShowAll}
-		totalSavedCount={studio.creations.length}
 		vaultShowAll={studio.vaultShowAll}
-		vaultQuery={studio.vaultQuery}
-		vaultError={studio.vaultError}
-		vaultReadFailed={studio.vaultReadFailed}
-		pendingDeleteId={studio.pendingDeleteId}
-		undoableDeletion={studio.undoableDeletion}
-		undoableDeletionEntry={studio.undoableDeletionEntry}
+		vaultCountLabel={studio.vaultCountLabel}
 		onLoadCreation={studio.loadCreation}
-		onRequestDelete={studio.requestDeleteCreation}
-		onCancelDelete={studio.cancelDeleteCreation}
-		onConfirmDelete={studio.deleteCreation}
-		onUndoDelete={studio.undoDelete}
-		onDismissUndo={studio.dismissUndoDelete}
-		onToggleFavorite={studio.toggleFavorite}
-		onVaultQueryChange={studio.setVaultQuery}
 		onToggleShowAll={studio.toggleVaultShowAll}
 	/>
 
@@ -428,7 +425,6 @@ Invariants: `SystemTrace` receives `promptWasSent` from the state and must never
 	:global(.studio .preview-panel),
 	:global(.studio .settings-panel),
 	:global(.studio .verdict-card),
-	:global(.studio .vault-card),
 	:global(.studio .diagnostics) {
 		border: 1px solid rgba(201, 162, 39, 0.24);
 		border-radius: 8px;
@@ -829,206 +825,10 @@ Invariants: `SystemTrace` receives `promptWasSent` from the state and must never
 		font-weight: 800;
 	}
 
-	:global(.studio .vault-head) {
-		display: flex;
-		align-items: flex-start;
-		justify-content: space-between;
-		gap: 0.75rem;
-	}
-
-	:global(.studio .vault-count) {
-		flex-shrink: 0;
-		padding: 0.24rem 0.5rem;
-		border: 1px solid rgba(201, 162, 39, 0.28);
-		border-radius: 999px;
-		color: var(--gold-bright);
-		font-family: var(--font-label);
-		font-size: 0.68rem;
-		font-weight: 700;
-		letter-spacing: 0.12em;
-		text-transform: uppercase;
-	}
-
-	/* Visible label rather than a placeholder-only field: the placeholder disappears the
-	   moment anyone types, and a search box with no name is unreadable to a screen reader. */
-	:global(.studio .vault-search-label) {
-		display: block;
-		font-size: 0.68rem;
-	}
-
-	:global(.studio input.vault-search) {
-		margin: 0.3rem 0 0.75rem;
-	}
-
-	:global(.studio .vault-undo) {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: center;
-		justify-content: space-between;
-		gap: 0.5rem;
-		margin-bottom: 0.75rem;
-		padding: 0.55rem 0.7rem;
-		border: 1px solid rgba(201, 162, 39, 0.32);
-		border-radius: 6px;
-		background: rgba(201, 162, 39, 0.1);
-		color: var(--cream);
-		font-size: 0.84rem;
-	}
-
-	:global(.studio .vault-undo-actions) {
-		display: flex;
-		gap: 0.4rem;
-	}
-
-	:global(.studio .vault-list) {
-		display: grid;
-		gap: 0.5rem;
-		margin: 0;
-		padding: 0;
-		list-style: none;
-	}
-
-	/* Wraps rather than overflows: the vault card is narrow on a phone and narrow again in the
-	   desktop two-column row, so the actions drop onto their own line instead of colliding
-	   with the title. */
-	:global(.studio .vault-item) {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: center;
-		justify-content: space-between;
-		gap: 0.4rem 0.6rem;
-		border-top: 1px solid rgba(201, 162, 39, 0.14);
-		padding-top: 0.5rem;
-	}
-
-	:global(.studio .vault-item.pinned) {
-		border-top-color: rgba(240, 196, 74, 0.5);
-	}
-
-	/* The whole row is the open target, so the click area matches what a reader would aim at.
-	   It is a button, not a link: reopening a page mutates studio state, it does not navigate. */
-	:global(.studio button.vault-open) {
-		flex: 1 1 190px;
-		display: flex;
-		align-items: center;
-		gap: 0.6rem;
-		min-width: 0;
-		padding: 0.35rem;
-		border: 1px solid transparent;
-		background: transparent;
-		text-align: left;
-		text-transform: none;
-		letter-spacing: 0;
-	}
-
-	:global(.studio button.vault-open:hover),
-	:global(.studio button.vault-open:focus-visible) {
-		border-color: rgba(201, 162, 39, 0.32);
-		background: rgba(201, 162, 39, 0.08);
-	}
-
-	:global(.studio .vault-thumb) {
-		flex-shrink: 0;
-		width: 46px;
-		height: 60px;
-		border-radius: 4px;
-		border: 1px solid rgba(201, 162, 39, 0.28);
-		background: rgba(253, 246, 227, 0.92);
-		object-fit: cover;
-	}
-
-	:global(.studio .vault-thumb-empty) {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		background: rgba(7, 7, 15, 0.62);
-		color: var(--lavender);
-		font-size: 0.9rem;
-		font-weight: 800;
-	}
-
-	:global(.studio .vault-copy) {
-		display: grid;
-		gap: 0.15rem;
-		min-width: 0;
-	}
-
-	:global(.studio .vault-title) {
-		color: var(--cream);
-		font-family: var(--font-display);
-		font-size: 0.98rem;
-		font-style: italic;
-		font-weight: 800;
-		line-height: 1.2;
-	}
-
-	:global(.studio .vault-pin-mark) {
-		margin-right: 0.28rem;
-		color: var(--gold-bright);
-	}
-
-	/* One line each: the vault is a list you scan, not a place to read the page. */
-	:global(.studio .vault-quote),
-	:global(.studio .vault-meta) {
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-		color: var(--lavender);
-	}
-
-	:global(.studio .vault-quote) {
-		font-size: 0.8rem;
-	}
-
-	:global(.studio .vault-meta) {
-		font-size: 0.7rem;
-		font-family: var(--font-label);
-		letter-spacing: 0.08em;
-		text-transform: uppercase;
-	}
-
-	:global(.studio .vault-item-actions) {
-		display: flex;
-		flex: 0 1 auto;
-		flex-wrap: wrap;
-		justify-content: flex-end;
-		gap: 0.3rem;
-	}
-
-	:global(.studio .vault-item-actions button),
-	:global(.studio .vault-item-actions .button-link),
-	:global(.studio .vault-undo button) {
-		min-height: 32px;
-		padding: 0.32rem 0.55rem;
-		font-size: 0.66rem;
-	}
-
-	:global(.studio .vault-item-actions button[aria-pressed='true']) {
-		border-color: var(--gold-bright);
-		background: rgba(201, 162, 39, 0.18);
-	}
-
-	:global(.studio .vault-item-actions .danger) {
-		border-color: rgba(232, 0, 106, 0.5);
-		background: rgba(232, 0, 106, 0.16);
-		color: #ff8ab3;
-	}
-
-	:global(.studio .vault-card .link) {
-		border-color: transparent;
-		background: transparent;
-		color: var(--lavender);
-	}
-
-	:global(.studio .vault-more) {
-		width: 100%;
-		margin-top: 0.6rem;
-	}
-
-	:global(.studio .vault-card .empty) {
-		color: var(--lavender);
-		font-style: italic;
-	}
+	/* The vault's own rules moved into `VaultGallery.svelte` when the vault became a place you can
+	   go rather than a card on this page. They lived here, as `:global(.studio .vault-*)`, for
+	   fourteen runs — which is a large part of why the vault never left this page: the markup was
+	   reachable by copying and the styling was not. The same reason the export row's rules moved. */
 
 	:global(.studio .error) {
 		margin: 0.7rem 0 0;
@@ -1074,22 +874,6 @@ Invariants: `SystemTrace` receives `promptWasSent` from the state and must never
 	@media (max-width: 700px) {
 		:global(.studio) {
 			padding: 0.9rem;
-		}
-
-		/* A phone-width vault row reads top to bottom: the page, then what you can do to it. */
-		:global(.studio .vault-item) {
-			flex-direction: column;
-			align-items: stretch;
-		}
-
-		/* The 190px basis is a minimum *width* in a row; in a column it would become a
-		   190px-tall block of dead space above the buttons. */
-		:global(.studio button.vault-open) {
-			flex: 0 0 auto;
-		}
-
-		:global(.studio .vault-item-actions) {
-			justify-content: flex-start;
 		}
 
 		:global(.studio .hero) {

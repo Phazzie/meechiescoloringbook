@@ -1,0 +1,149 @@
+
+/home/user/meechiescoloringbook/src/lib/adapters/drift-detection-seam/index.ts
+  91:84  error  Refactor this function to reduce its Cognitive Complexity from 17 to the 15 allowed  sonarjs/cognitive-complexity
+
+/home/user/meechiescoloringbook/src/lib/adapters/drift-detection.adapter.ts
+  91:84  error  Refactor this function to reduce its Cognitive Complexity from 17 to the 15 allowed  sonarjs/cognitive-complexity
+
+/home/user/meechiescoloringbook/src/lib/adapters/image-generation-seam/index.ts
+  135:116  error  Refactor this code to not use nested template literals  sonarjs/no-nested-template-literals
+
+/home/user/meechiescoloringbook/src/lib/adapters/output-packaging-seam/index.ts
+  332:44  error  Refactor this function to reduce its Cognitive Complexity from 35 to the 15 allowed  sonarjs/cognitive-complexity
+
+/home/user/meechiescoloringbook/src/lib/adapters/provider-adapter-seam/index.ts
+  158:6  error  Extract this nested ternary operation into an independent statement  sonarjs/no-nested-conditional
+  231:9  error  Extract this nested ternary operation into an independent statement  sonarjs/no-nested-conditional
+  285:9  error  Extract this nested ternary operation into an independent statement  sonarjs/no-nested-conditional
+
+/home/user/meechiescoloringbook/src/lib/components/VaultGallery.svelte
+  174:17  error  Remove this use of the output from "rowBody"; "rowBody" doesn't return anything  sonarjs/no-use-of-empty-return-value
+  183:17  error  Remove this use of the output from "rowBody"; "rowBody" doesn't return anything  sonarjs/no-use-of-empty-return-value
+
+/home/user/meechiescoloringbook/src/lib/components/studio/StudioSettingsPanel.svelte
+  255:8  error  Extract this nested ternary operation into an independent statement  sonarjs/no-nested-conditional
+
+/home/user/meechiescoloringbook/src/lib/components/studio/VerdictRow.svelte
+  125:13  error  Remove unused function 'footer'  sonarjs/no-unused-vars
+
+/home/user/meechiescoloringbook/src/lib/core/coloring-page-title.ts
+  28:12  error  Simplify this regular expression to reduce its runtime, as it has super-linear performance due to backtracking  sonarjs/super-linear-regex
+
+/home/user/meechiescoloringbook/src/lib/core/http-resilience.ts
+   34:56  error  Make sure that using this pseudorandom number generator is safe here                 sonarjs/pseudo-random
+  139:22  error  Refactor this function to reduce its Cognitive Complexity from 19 to the 15 allowed  sonarjs/cognitive-complexity
+
+/home/user/meechiescoloringbook/src/lib/core/meechie-quote-scoring.ts
+  59:76   error  Refactor this function to reduce its Cognitive Complexity from 30 to the 15 allowed  sonarjs/cognitive-complexity
+  72:47   error  Extract this nested ternary operation into an independent statement                  sonarjs/no-nested-conditional
+  91:70   error  Extract this nested ternary operation into an independent statement                  sonarjs/no-nested-conditional
+  91:100  error  Extract this nested ternary operation into an independent statement                  sonarjs/no-nested-conditional
+
+/home/user/meechiescoloringbook/src/lib/core/meechie-studio-text-pipeline.ts
+  259:52  error  Refactor this function to reduce its Cognitive Complexity from 32 to the 15 allowed                             sonarjs/cognitive-complexity
+  265:23  error  Simplify this regular expression to reduce its runtime, as it has super-linear performance due to backtracking  sonarjs/super-linear-regex
+
+/home/user/meechiescoloringbook/src/lib/core/print-sheet.ts
+  74:1  warning  Unused eslint-disable directive (no problems were reported from 'no-control-regex')
+
+/home/user/meechiescoloringbook/src/lib/core/vault-gallery.ts
+  481:12  error  Simplify this regular expression to reduce its runtime, as it has super-linear performance due to backtracking  sonarjs/super-linear-regex
+
+/home/user/meechiescoloringbook/src/routes/rate-his-excuse/+page.svelte
+  56:6  error  Extract this nested ternary operation into an independent statement  sonarjs/no-nested-conditional
+  58:7  error  Extract this nested ternary operation into an independent statement  sonarjs/no-nested-conditional
+
+/home/user/meechiescoloringbook/src/routes/studio-state.svelte.ts
+  1448:7  error  Extract this nested ternary operation into an independent statement  sonarjs/no-nested-conditional
+
+/home/user/meechiescoloringbook/src/routes/vault/+page.svelte
+  84:14  error  Remove unused function 'controls'  sonarjs/no-unused-vars
+
+/home/user/meechiescoloringbook/tests/e2e/smoke.spec.ts
+  112:14  error  Replace this fixed wait with a synchronization on an observable condition                                       sonarjs/no-fixed-wait-in-tests
+  260:19  error  Simplify this regular expression to reduce its runtime, as it has super-linear performance due to backtracking  sonarjs/super-linear-regex
+  668:42  error  Remove this forced interaction and wait for the element to be actionable instead                                sonarjs/no-forced-browser-interaction
+
+/home/user/meechiescoloringbook/tests/unit/app-config-seam.test.ts
+  50:5   error  Replace these 3 tests with a single Parameterized one  sonarjs/parameterized-tests
+  68:5   error  Replace these 5 tests with a single Parameterized one  sonarjs/parameterized-tests
+  85:35  error  Remove the declaration of the unused '_' variable      sonarjs/no-unused-vars
+  92:31  error  Remove the declaration of the unused '_' variable      sonarjs/no-unused-vars
+
+/home/user/meechiescoloringbook/tests/unit/drift-detection-helpers.test.ts
+  241:5  error  Prefer "expect(result.value.recommendedFixes).toHaveLength(result.value.violations.length)" over this generic assertion for better reporting; it works on any object with a numeric length property  sonarjs/prefer-specific-assertions
+
+/home/user/meechiescoloringbook/tests/unit/http-resilience.test.ts
+  143:2  error  Move this hook above the test cases in the same scope           sonarjs/hooks-before-test-cases
+  147:2  error  Move this hook above or below the test cases in the same scope  sonarjs/hooks-before-test-cases
+  179:5  error  Replace these 3 tests with a single Parameterized one           sonarjs/parameterized-tests
+
+/home/user/meechiescoloringbook/tests/unit/image-generation-validators.test.ts
+  68:17  error  Remove the declaration of the unused '_size' variable  sonarjs/no-unused-vars
+
+/home/user/meechiescoloringbook/tests/unit/prompt-template.test.ts
+   52:6  error  Replace these 3 tests with a single Parameterized one  sonarjs/parameterized-tests
+  161:6  error  Replace these 3 tests with a single Parameterized one  sonarjs/parameterized-tests
+
+/home/user/meechiescoloringbook/tests/unit/provider-adapter-helpers.test.ts
+  33:6  error  Replace these 3 tests with a single Parameterized one  sonarjs/parameterized-tests
+
+/home/user/meechiescoloringbook/tests/unit/rate-limit-identity.test.ts
+   36:28  error  Make sure using a hardcoded IP address 2001:0db8:abcd:0012:ffff::beef is safe here           sonarjs/no-hardcoded-ip
+   83:4   error  Make sure using a hardcoded IP address ::ffff:192.0.2.44 is safe here                        sonarjs/no-hardcoded-ip
+   84:4   error  Make sure using a hardcoded IP address ::ffff:c000:22c is safe here                          sonarjs/no-hardcoded-ip
+   85:4   error  Make sure using a hardcoded IP address 0:0:0:0:0:ffff:c000:022c is safe here                 sonarjs/no-hardcoded-ip
+   86:4   error  Make sure using a hardcoded IP address 0000:0000:0000:0000:0000:ffff:c000:022c is safe here  sonarjs/no-hardcoded-ip
+  103:28  error  Make sure using a hardcoded IP address ::ffff:c000:022c is safe here                         sonarjs/no-hardcoded-ip
+  107:28  error  Make sure using a hardcoded IP address ::ffff:c000:022d is safe here                         sonarjs/no-hardcoded-ip
+  127:5   error  Make sure using a hardcoded IP address 10.0.0.1 is safe here                                 sonarjs/no-hardcoded-ip
+  127:17  error  Make sure using a hardcoded IP address 10.0.0.1 is safe here                                 sonarjs/no-hardcoded-ip
+  130:5   error  Make sure using a hardcoded IP address 2001:0db8:abcd:0012:ffff::beef is safe here           sonarjs/no-hardcoded-ip
+  131:5   error  Make sure using a hardcoded IP address 2001:DB8:ABCD:12::1 is safe here                      sonarjs/no-hardcoded-ip
+  134:5   error  Make sure using a hardcoded IP address fe80::1%eth0 is safe here                             sonarjs/no-hardcoded-ip
+  134:21  error  Make sure using a hardcoded IP address fe80:0:0:0::/64 is safe here                          sonarjs/no-hardcoded-ip
+  135:12  error  Make sure using a hardcoded IP address 0:0:0:0::/64 is safe here                             sonarjs/no-hardcoded-ip
+  136:11  error  Make sure using a hardcoded IP address 0:0:0:0::/64 is safe here                             sonarjs/no-hardcoded-ip
+  137:5   error  Make sure using a hardcoded IP address ::ffff:192.0.2.44 is safe here                        sonarjs/no-hardcoded-ip
+  138:5   error  Make sure using a hardcoded IP address ::ffff:c000:022d is safe here                         sonarjs/no-hardcoded-ip
+
+/home/user/meechiescoloringbook/tests/unit/verdict-page-state.test.ts
+  1022:3  error  Either remove this useless object instantiation of "VerdictPageState" or use it  sonarjs/constructor-for-side-effects
+
+/home/user/meechiescoloringbook/tests/unit/wig-catalog-gallery.test.ts
+  234:4  error  Prefer "expect(matches).toHaveLength(facet.count)" over this generic assertion for better reporting; it works on any object with a numeric length property  sonarjs/prefer-specific-assertions
+
+✖ 60 problems (59 errors, 1 warning)
+  0 errors and 1 warning potentially fixable with the `--fix` option.
+
+
+---
+Reproduction: eslint-plugin-sonarjs@4.2.0, installed with --no-save and removed afterwards, run
+through a throwaway flat config using ONLY `sonarjs.configs.recommended.rules`, with Run 14's
+correction in place: `languageOptions.parserOptions.parser = tsParser` for `**/*.svelte`, without
+which every component comes back as a parsing error and the coverage is silently missing.
+
+Disposition of the six findings in files this run created or changed:
+
+  1-3. `no-use-of-empty-return-value` x2 (VaultGallery.svelte) and `no-unused-vars` on the
+       `footer` (VerdictRow.svelte) and `controls` (routes/vault/+page.svelte) snippets.
+       All three are the same false positive: eslint-plugin-sonarjs does not model Svelte 5
+       snippets. `{@render rowBody()}` is how a snippet is used, and a snippet written inside a
+       component's tag IS its use — it becomes a prop. `svelte-check`, which does model them,
+       reports 0 errors and 0 warnings. These are also the first `{#snippet}` blocks in `src/`,
+       so the finding class is new to the repository and is this run's to name.
+       Not reported by SonarCloud either way: there is no `sonar-project.properties` in the
+       repository (checked, not inherited from Run 14), so analysis uses the default file
+       suffixes — .js/.jsx/.ts/.tsx/.vue — and `.svelte` is not among them.
+
+  4-5. `no-nested-conditional` x2 in `src/routes/rate-his-excuse/+page.svelte`. Pre-existing;
+       this run does not touch that file.
+
+  6.   `no-nested-conditional` at `src/routes/studio-state.svelte.ts:1448`. Pre-existing:
+       `git log -L 1448,1448` gives `6c5a151`, Run 5's wig-try-on commit. This diff shifted the
+       line. That file IS analysed by SonarCloud, and the gate has passed with this finding
+       before.
+
+The remaining findings in this file are all in pre-existing test modules and are unchanged from
+Run 14's run, including `constructor-for-side-effects` at verdict-page-state.test.ts:1022, which
+Run 14 traced to `724332b` and left alone.

@@ -18,6 +18,7 @@ Invariants: The quality report is rendered ONLY through `QualityReportPanel`, ne
 	import PageExportRow from './PageExportRow.svelte';
 	import PrintPageButton from './PrintPageButton.svelte';
 	import SharePageButton from './SharePageButton.svelte';
+	import VaultStatusLine from './VaultStatusLine.svelte';
 
 	let {
 		studio,
@@ -155,11 +156,7 @@ Invariants: The quality report is rendered ONLY through `QualityReportPanel`, ne
 				testId="verdict-page-share"
 			/>
 		</div>
-		{#if studio.vaultStatus}
-			<p class="status" data-testid="verdict-page-vault-status">
-				{studio.vaultStatus}
-			</p>
-		{/if}
+		<VaultStatusLine status={studio.vaultStatus} testId="verdict-page-vault-status" />
 	{/if}
 </section>
 
