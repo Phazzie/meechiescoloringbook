@@ -66,18 +66,16 @@ Invariant: this is the ONLY place in `src/` that calls `navigator.share`, `navig
 	 * browser: Chromium 1194 on Linux has neither, and has the clipboard — which is why the
 	 * fallback is part of the feature rather than a nicety.
 	 */
+	/** Whether this browser will take an image on the clipboard at all. */
+	const clipboardAvailable = (): boolean =>
+		typeof ClipboardItem === 'function' && typeof navigator.clipboard?.write === 'function';
+
 	const detectCapability = (): ShareCapability => {
 		if (typeof navigator === 'undefined') return 'none';
 		if (typeof navigator.share === 'function' && typeof navigator.canShare === 'function') {
 			return 'files';
 		}
-		if (
-			typeof ClipboardItem === 'function' &&
-			typeof navigator.clipboard?.write === 'function'
-		) {
-			return 'clipboard-image';
-		}
-		return 'none';
+		return clipboardAvailable() ? 'clipboard-image' : 'none';
 	};
 
 	// No reactive reads, so this runs once, in the browser, after mount.
@@ -140,16 +138,24 @@ Invariant: this is the ONLY place in `src/` that calls `navigator.share`, `navig
 		return isShareCancellation(name) ? '' : describeShareFailure(message);
 	};
 
-	/** Put one PNG on the clipboard. The path for every browser with no share sheet. */
+	/**
+	 * Put one PNG on the clipboard. The path for every browser with no share sheet.
+	 *
+	 * It makes its own selection rather than reusing the job's, because it is also the landing place
+	 * for a share sheet that looked at the job's files and refused them — and those may be a PDF,
+	 * which no clipboard takes. `chooseShareExports` is the one place that rule lives.
+	 */
 	const copyPicture = async (): Promise<void> => {
 		const rows = chooseShareExports(exports, 'clipboard-image');
-		const files = toFiles(rows);
-		if (
-			files.length === 0 ||
-			typeof ClipboardItem !== 'function' ||
-			typeof navigator.clipboard?.write !== 'function'
-		) {
+		if (rows.length === 0 || !clipboardAvailable()) {
 			shareStatus = SHARE_UNSUPPORTED;
+			return;
+		}
+		const files = toFiles(rows);
+		if (files.length === 0) {
+			// There was a file to copy and its bytes could not be read back. That is this app's
+			// fault, not the browser's, and it is not the same answer as "this browser cannot".
+			shareStatus = describeShareFailure(SHARE_UNREADABLE_DETAIL);
 			return;
 		}
 		try {
@@ -162,31 +168,41 @@ Invariant: this is the ONLY place in `src/` that calls `navigator.share`, `navig
 		}
 	};
 
+	/** Hand the share sheet the files, and say what came back. */
+	const shareFiles = async (files: File[]): Promise<void> => {
+		try {
+			await navigator.share({ files, title: job.payload.title, text: job.payload.text });
+			shareStatus = SHARE_SENT;
+		} catch (error) {
+			// Backing out of the share sheet rejects with `AbortError`. It is the reader choosing
+			// nothing, not a failure, and saying "could not send" there is the classic defect this
+			// branch exists to avoid.
+			shareStatus = outcomeForRejection(error);
+		}
+	};
+
 	const handleSend = async (): Promise<void> => {
 		if (!job.canSend) return;
 		shareStatus = '';
-		const files = toFiles(job.payload.files);
-		if (files.length === 0) {
-			shareStatus = describeShareFailure(SHARE_UNREADABLE_DETAIL);
-			return;
-		}
 
-		if (job.method === 'web-share' && navigator.canShare({ files })) {
-			try {
-				await navigator.share({ files, title: job.payload.title, text: job.payload.text });
-				shareStatus = SHARE_SENT;
-			} catch (error) {
-				// Backing out of the share sheet rejects with `AbortError`. It is the reader
-				// choosing nothing, not a failure, and saying "could not send" there is the
-				// classic defect this branch exists to avoid.
-				shareStatus = outcomeForRejection(error);
+		if (job.method === 'web-share') {
+			const files = toFiles(job.payload.files);
+			if (files.length === 0) {
+				shareStatus = describeShareFailure(SHARE_UNREADABLE_DETAIL);
+				return;
 			}
-			return;
+			// Asked of the browser rather than assumed: a share sheet can accept files in general
+			// and refuse these ones. `canShare` is synchronous, so the activation survives it.
+			if (navigator.canShare({ files })) {
+				await shareFiles(files);
+				return;
+			}
 		}
 
-		// Either this browser has no share sheet, or it looked at these exact files and refused
+		// Either this browser has no share sheet, or it looked at those exact files and refused
 		// them. Both end in the same place, and the confirmation says which one happened by naming
-		// the clipboard rather than the send.
+		// the clipboard rather than the send. The bytes are decoded here rather than reused: the
+		// clipboard's selection is not always the share sheet's.
 		await copyPicture();
 	};
 </script>
