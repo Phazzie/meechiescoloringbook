@@ -11213,3 +11213,279 @@ src/lib/components` returns nothing), and `MeechieToolOutput.quoteScore` / `mode
 11's list.
 
 Do not inherit this entry's measurements. Re-measure.
+
+## Run 13 — 2026-09-07 — The autosaved draft (the question, not just the answer)
+
+**The feature: the studio's autosaved draft — "come back to where you left off."**
+
+Picked because it is the widest gap in the app between what a feature promises and what it does, and
+because the cost is measured in the reader's money rather than in taste. Run 12 found it, named it,
+and deliberately left it: `plan.md`'s Run 12 anti-goals say *"do not add a mode field to
+`DraftRecordSchema`, however tempting"*, because fixing it needs a contract change and `AGENTS.md`
+forbids auto-merging one. Two runs deferring the same defect is how it becomes permanent, so this run
+built it and **held the merge** instead. That disposition is the last section here.
+
+### The case, with the evidence
+
+The studio autosaves as the reader types and restores on every refresh. It stored five things:
+
+```
+src/lib/seams/creation-store-seam/contract.ts:85   updatedAtISO, intent, chatMessage, studioText, styleSelection
+src/routes/studio-state.svelte.ts:1268             saveDraft() writes exactly those five
+src/routes/studio-state.svelte.ts:2609             init() reads exactly those five
+```
+
+and not the sixth: **which of the eight modes the evidence was typed under.** `activeModeId`
+initialises to `studioModes[0].id` (`studio-state.svelte.ts:269`) and nothing moved it.
+
+So: pick *Rate His Excuse*, type "He said traffic made him three hours late", refresh. The words come
+back under **Who Fucked Up?** — that mode's heading, help line and placeholder — and the next Generate
+Verdict posts `toolId: 'red_flag_or_run'` instead of `rate_excuse`. A billable provider call
+answering a question the reader never asked, charged to them, with nothing on screen saying the
+question had changed. Seven of the eight modes are affected; the eighth is affected too, it just
+happens to land on itself.
+
+Written as two failing tests against unmodified `main` before any source file was edited:
+
+```
+AssertionError: expected 'who-fucked-up' to be 'rate-excuse'
+  tests/unit/studio-state.test.ts:725  restores the mode the draft was written under
+AssertionError: expected undefined to be 'rate-excuse'
+  tests/unit/studio-state.test.ts:739  writes the active mode into the draft it saves
+```
+
+**Why it survived twelve runs of a routine looking for exactly this.** Four of the five stored fields
+came back correctly, so the feature looked like it worked. A partial restore presents as a working
+feature; a broken one presents as a broken one. That is the transferable finding and it is now in
+`LESSONS_LEARNED.md`: *ask which of the persisted fields the others are relative to.*
+
+### What shipped
+
+Persisting the mode is one line of schema. The rest is what makes it the best feature rather than a
+patched one — **the restore used to be completely silent**, so a reader came back to text they had
+not typed in this sitting with no explanation of where it came from.
+
+- **`DraftRecordSchema` gains `modeId: NonEmptyStringSchema.optional()`.** Optional for the reason
+  `styleSelection` is: every draft already in a reader's browser was written without it. A *required*
+  field would not degrade those to a default mode, it would make them unparseable and throw the
+  reader's whole page away.
+- **A bare string, deliberately not a `z.enum` of the live mode ids.** The catalogue is application
+  data that has already changed twice. An enum would catch a typo and, in exchange, turn every future
+  rename or retirement into an unparseable stored draft — the strictest available validation
+  producing the worst available outcome. Resolving an id against a catalogue is a *decision*, not a
+  validation.
+- **`src/lib/core/draft-restore.ts`** (new, pure) holds that decision. `restoreDraftMode` returns the
+  mode the studio will open on plus a three-valued provenance: `recorded`, `unrecorded` (the draft
+  names none), `retired` (names one this build no longer has). Three rather than a boolean because
+  *"this draft is old"* and *"your question was removed"* are different facts and only the second is
+  unrecoverable.
+- **`describeDraftRestore`** produces the sentence, with `caution: string | null` as the single thing
+  the component branches on — so `StudioInputPanel` cannot put a warning tone on a restore that went
+  right, or a calm one on a substitution. It reuses `formatVaultSavedLabel` rather than growing a
+  second relative-time formatter.
+- **The notice retires itself** on dismiss, on a mode pick (including re-picking the one already
+  showing — that is still the reader answering "check the question" with a yes), and on generating. A
+  notice outliving its subject would be the same silent mismatch one level up.
+- **The draft's `updatedAtISO` moved off `new Date()` onto `ClockSeam`**, which the class already
+  holds injected. `AGENTS.md` classifies clock/time as a seam, and the stamp is now read back to date
+  the notice — so a test that drives the restore has to be able to drive the save that produced it.
+
+### The design that was wrong, and why it is the most useful part of this entry
+
+**The first version dropped the restored verdict whenever the mode could not be recognised.** The
+reasoning: a verdict is an answer, an answer detached from its question means nothing, so showing one
+under a substituted question is the very defect being fixed.
+
+The reasoning is correct. The decision was still wrong, and it only shows up when you count who it
+lands on. **Every draft written before this change is `unrecorded`** — so shipping it would have
+deleted the page of every reader upgrading into this build, exactly once, silently, in order to avoid
+a mislabelling that affected only readers who had switched modes. A total loss inflicted on everyone,
+to prevent a cosmetic error affecting some.
+
+The restore now keeps everything it kept before. The only new thing is the reporting. Generalised:
+**when a fix's cost and its benefit fall on different populations, size both before preferring the
+more principled behaviour** — and prefer adding a sentence over removing data, because a reader can
+act on a sentence and cannot recover a deleted page.
+
+### Method notes, inherited and confirmed
+
+- **The fixture was re-captured, not hand-edited.** `probes/browser-seams.probe.mjs` reads
+  `fixtures/creation-store/sample.json`'s `input` and rewrites its `output` from a real browser's
+  `localStorage`. Only the input's `modeId` was typed by hand; both output copies came back from
+  Chromium. This matters because the seam's own `reads back out of storage exactly what went in, per
+  the probe capture` test compares the two halves — hand-editing both would make it assert that my
+  expectation matches my expectation.
+- **Run 12's Chromium note held exactly.** `chromium.launch()` fails here looking for build 1208;
+  `executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome'` launches. Used twice — a
+  temporary patch to the probe, and one to `playwright.config.ts` for the e2e suite. **Both reverted;
+  `git status` confirms neither is in the diff.**
+- **Run 12's screenshot lesson was applied rather than admired.** The notice was rendered at 1280px
+  and 390px and looked at, in both the plain and the cautioned state, instead of being reasoned about
+  from the CSS. It is what confirmed the caution variant reads as a warning and that nothing overflows
+  on a phone.
+- **The red proof for the new field was verified by removing it.** With `modeId` deleted from the
+  schema, two seam contract tests go red — including the blank-id rejection, which passes trivially
+  without the field because zod objects strip unknown keys. A test that would pass either way is not
+  a proof, and this one was checked rather than assumed.
+
+### Verification
+
+| Gate | Result |
+|---|---|
+| `npm run check` | 0 errors, 0 warnings |
+| `npm run lint` | clean |
+| `npm test` | **1647 passed**, 1 skipped (was 1618 — +29) |
+| `npm run test:e2e` | **50 passed** (was 49 — +1) |
+| `npm run build` | ok |
+| `npm run verify` | exit 0 — chamber-lock 38 ok / 0 blocked / 0 missing; shaolin-lint 2 ok / 0 stale |
+| `npm run cipher:gate` | `status: ok`, every evidence path resolved |
+| `npm run rewind -- --seam CreationStoreSeam` | 4 passed (legacy flat) |
+| `npm run rewind -- --seam "CreationStoreSeam (self-contained)"` | 18 passed |
+
+Evidence in `docs/evidence/2026-09-07/`.
+
+### The review rounds
+
+**SonarCloud, reproduced locally before the remote gate reported.** `sonarcloud.io` is egress-blocked
+here, so Run 8's recorded technique was reused and worked on the first try: `npm install --no-save
+eslint-plugin-sonarjs` (4.2.0) and a throwaway flat config using **only**
+`sonarjs.configs.recommended.rules`. Enabling every rule the plugin ships is what made earlier
+attempts fail; `recommended` is what Sonar runs. Five findings on the touched files, of which
+**one was mine**:
+
+| Finding | Provenance | Disposition |
+|---|---|---|
+| `creation-store-seam/test.ts:137` `no-unused-vars` — `_modeId` | **this PR** | fixed |
+| `studio-state.svelte.ts:1407` `no-nested-conditional` | `73a8f05`, on `main` | not this PR's — the same line Runs 8 and 12 dispositioned, shifted down by this diff |
+| `smoke.spec.ts:112` `no-fixed-wait-in-tests`, `:260` `super-linear-regex` | on `main` | not this PR's |
+| `smoke.spec.ts:743` `no-forced-browser-interaction` | `64739cb`, on `main` | not this PR's |
+
+Provenance for each by `git log -L <line>,<line>:<file>` then `git merge-base --is-ancestor <commit>
+origin/main`. The plugin was installed with `--no-save` and the config deleted; `package.json` and
+`package-lock.json` are unchanged in the diff.
+
+The fix is worth recording because the *rule* was right for a reason the rule does not know:
+`const { modeId: _modeId, ...withoutMode } = draft` produced an unused binding, and replacing it with
+an explicit `delete` on a copy made the test **stronger** as well as cleaner. The assertion is that a
+draft with no `modeId` still parses, and `modeId: undefined` would have satisfied it without proving
+anything — the key has to be *absent*, which is the shape a pre-change draft actually has.
+
+Note the remote `SonarCloud Code Analysis` check reported **success** on the commit that still
+carried that finding. The Quality Gate and the issue list are not the same artifact, and a green gate
+is not evidence that the local reproduction found nothing.
+
+**`Rosentic - Conflict Detection` is red, and this time it is provably not this diff's.** The
+disposition on #315 was careful to say the opposite — that check was red *because of* that change,
+which had altered two function signatures — so the bar is applied again from scratch rather than
+inherited:
+
+- The six **breaking** findings blame `claude/sweet-mendel-LJ9Iu` (**291 commits behind `main`**)
+  for removing parameters from `getModeSpotlight`, `describeSpotlightSchedule`,
+  `studioActionStartsRound`, `derivesDenseDecorations`, `specOwnQuote` and `currentStyleSelection`,
+  colliding with call sites this branch inherits **unchanged**. The inline "possible break" comments
+  blame a *second* stale branch, `claude/trusting-volta-bb8mvr` (**also 291 commits behind**), for
+  removing parameters from three helpers in `tests/unit/studio-state.test.ts` — `buildSeedSpec`,
+  `registerInitialized`, `initFromDraft` — which this run's new tests call, unchanged, exactly as
+  every existing test in that file does.
+
+  *(Corrected. The first version of this paragraph, and the comment posted on the pull request, both
+  said "all 44 findings blame `claude/sweet-mendel-LJ9Iu`". They do not: 44 was the count on the
+  workflow's own error line, and the inline findings name the other branch. The conclusion is
+  unchanged — both branches are 291 commits behind and neither collision involves a signature this
+  diff touches — but the claim as written was wider than the evidence behind it, which is the exact
+  defect Run 12's entry spent six review rounds on. Measured, not assumed:
+  `git rev-list --count origin/claude/trusting-volta-bb8mvr..origin/main` → 291.)*
+- `git diff origin/main...HEAD | grep -E "^[+-]"` mentions **none** of those symbols — not one added
+  or removed line.
+- The only new signatures in this diff are `restoreDraftMode`, `describeDraftRestore` and
+  `dismissDraftRestoreNotice`, all brand new, which no other branch can be calling.
+
+So: a check red on two heads for two different reasons, which is exactly the case `AGENTS.md` warns
+looks identical from the outside. The comparison is written on the pull request, per that rule. **No
+re-run was spent** — the check is deterministic over branch contents and calling it a flake would be
+a lie. The real remedy is #151 and #208 rebasing, which is their authors' call.
+
+**CodeRabbit found one real defect, and it was in the thing I had been most careful about.**
+Asking explicitly was again the highest-value action of the review phase — Sourcery was over its
+250,000-character budget and Codex over its usage limit, so left alone this pull request would have
+had no code review at all, for the second run running.
+
+The finding (P2): `restoreDraftMode` took `readonly StudioMode[]` and immediately read `modes[0].id`.
+An empty catalogue would return `undefined` as a declared `string`, which `StudioState.init()`
+assigns straight into `activeModeId` and then dereferences for `activeMode.label`.
+
+What makes it worth an entry is *where* the hole was. The function's own doc comment said
+**"`modes` must be non-empty; a studio with no modes has nothing to restore into"** — I had noticed
+the invariant, written it down, and left the compiler typing the expression as `string` anyway.
+**Documenting an invariant is not enforcing it, and writing it down can be worse than not noticing,
+because the comment reads like the problem was handled.** Fixed by giving the catalogue a type that
+carries the fact: `StudioModeCatalogue = readonly [StudioMode, ...StudioMode[]]`, applied at
+`studioModes` itself so every consumer inherits it. No production call site needed changing — only
+this run's own test, which had been passing a plain array.
+
+CodeRabbit asked for an empty-catalogue test. The honest form of that is a *compile-time* one, since
+the case is now unrepresentable: a `@ts-expect-error` on `restoreDraftMode('any-id', [])`. That is a
+real assertion rather than a decorative one, and it was verified the way this run verified its other
+red proofs — by widening the parameter back to `readonly StudioMode[]` and watching `npm run check`
+fail with `Unused '@ts-expect-error' directive`. A runtime test could only reach the empty case
+through a cast, and would then be asserting the behaviour of a call the type system forbids.
+
+CodeRabbit confirmed the two design decisions it was asked about — the bare-string schema over a
+`z.enum`, and the both-directions compatibility of the optional field, including that the adapter's
+read path does not enumerate draft fields and so cannot choke on the addition.
+
+**The five findings that were declined, each measured rather than waved off.** CodeRabbit's full
+review posted six actionable comments. One was the real defect above. The other five are convention
+questions where the reviewer's rule is right in general and wrong for this repository, and the
+argument in each case is a number, not an opinion:
+
+| Finding | Measurement | Disposition |
+|---|---|---|
+| `docs/seams.md` — the Seam column must be the exact PascalCase name, so `CreationStoreSeam (self-contained)` is wrong | `scripts/rewind.mjs` matches `entry.seam === seamName` **exactly**, and 12 rows use this suffix | **Declined — the rename would break the verify tooling.** Both `CreationStoreSeam` rows would collapse to one key; `.find()` returns the first, so `npm run rewind -- --seam CreationStoreSeam` would silently run the *legacy flat* test and the self-contained seam's 18 tests would become unreachable. This run invoked that exact command as evidence |
+| `LESSONS_LEARNED.md` — four duplicate `## 2026-09-07` headings (MD024), no blank line below (MD022) | 87 bare `## YYYY-MM-DD` headings across 16 distinct dates; **8 dates were already duplicated on `main` before this PR**; markdownlint is in neither CI nor `devDependencies` | **Declined.** Four entries in a different shape would be the inconsistent ones |
+| `WORST_TO_BEST_LOG.md` — bare fences (MD040) | **70 bare to 8 tagged**, re-counted rather than inherited from Run 12's entry | **Declined**, same reason |
+| `src/lib/seams/creation-store-seam/contract.ts` — move `DraftRecordSchema` to `validators.ts`, since seam contracts should hold only plain types | This contract holds **18** schema constants, and **12 of the repo's seams** put Zod in `contract.ts`. `validators.ts` opens by saying it re-exports from the contract "rather than restated: a second copy of these shapes is a second thing to keep in step" | **Declined as out of scope.** Moving one of eighteen would split the seam across two files inconsistently, and this diff added a *field* to an existing schema rather than introducing one. The learning it cites came from `rate-limit-seam`, whose `contract.ts` has **zero** Zod usages — a seam that genuinely follows the rule, over-generalised to one that never did. Worth its own change if the owner wants the convention enforced repo-wide |
+| `plan.md` — a retrospective account must not be presented as proof the planning gate passed | — | **Accepted, and acted on.** The heading now says `RETROSPECTIVE ENTRY` and a blockquote at the top says what preceded the code (investigation, red proof, design — checkable by re-running the test diff against `origin/main`) and what did not (the prose). The clause that gave it away — "it is better than Run 12's" — is gone: a run grading its own process against the previous run's is doing something other than reporting |
+
+The pattern across all five: **a linter's rule and a repository's convention can both be right, and the
+tiebreak is a count, not a preference.** Four were declined against measurements taken this run; the
+fifth was accepted because the reviewer was describing a real way the text could mislead.
+
+### The merge, and why this run stopped short of it
+
+`AGENTS.md`: *"Do not auto-merge when ... The PR carries a schema, contract, or data migration."*
+This pull request carries a contract change. That condition is stated plainly rather than reasoned
+around, and the pull request is driven to green and to a clean review and then **held for a human**.
+
+The argument a human can approve on quickly, recorded here so they do not have to re-derive it: the
+change is additive and compatible in both directions. A draft written before it parses unchanged
+(tested). A draft written by this build parses in the *previous* build too, because zod objects
+ignore unknown keys by default — it simply loses the field that build never knew about. There is no
+migration and nothing to roll back.
+
+That is a reason for a person to say yes in one click. It is **not** a reason for an unattended run
+to decide the rule does not mean this case, which is exactly the reading a future run will be tempted
+by. If the owner would rather this routine merged such changes, the place to change it is
+`AGENTS.md`, with a `DECISIONS.md` ruling — not a run's own judgement at 3am.
+
+### Deferred, and named for the next run
+
+- **The standalone mode routes and `/m/[mode]` persist nothing at all.** They keep their mode in the
+  URL, so they cannot suffer *this* defect — but type evidence on `/m/clapback` and refresh and it is
+  gone outright. A different feature (those pages have no draft), and widening this pull request to
+  build one would have been scope this plan did not open.
+- **Schema placement is inconsistent across the seams, and it is a real finding rather than a
+  declined one.** CodeRabbit's `contract.ts` comment was declined *for this pull request* because
+  moving one of eighteen schemas mid-change would split a seam's ownership — not because the
+  underlying observation is wrong. Measured: **12 of the repo's seams declare Zod in `contract.ts`**,
+  while `rate-limit-seam` (the seam the reviewer's rule was learned from) keeps `contract.ts` to
+  plain types. Both shapes are defensible; having both is what is not. A future run could pick one
+  and apply it everywhere — that is a repo-wide refactor with no user-visible behaviour, which makes
+  it a poor fit for *this* routine and a good fit for the quick-wins one or an owner-directed change.
+  CodeRabbit offered to open an issue for it; **no issue was created**, because opening one on the
+  owner's repository is their call and this run was not asked to.
+- Still open, carried forward from Run 12 and unmeasured by this run: `ChatInterpretationSeam` (a
+  provider-backed billable seam with a live endpoint and no consumers) and
+  `MeechieToolOutput.quoteScore`.
+
+Do not inherit this entry's measurements. Re-measure.

@@ -58,6 +58,11 @@ import {
 	type AiQuotaSnapshot
 } from '$lib/core/ai-quota';
 import { compactColoringPageTitle } from '$lib/core/coloring-page-title';
+import {
+	describeDraftRestore,
+	restoreDraftMode,
+	type DraftRestoreNotice
+} from '$lib/core/draft-restore';
 import { buildQualityReport } from '$lib/core/quality-report';
 import {
 	buildVerdictReport,
@@ -267,6 +272,15 @@ export class StudioState {
 	 * default meant the prerendered document and the hydrated page could disagree about all five.
 	 */
 	activeModeId = $state(studioModes[0].id);
+	/**
+	 * What the studio says about the draft it restored, or `null` when there is nothing to say.
+	 *
+	 * Null until `init()` finds a draft, and null again the moment the reader acts — see
+	 * `dismissDraftRestoreNotice`. It is a report about one event, not a status: leaving it up after
+	 * the reader has changed the mode would make it describe a studio that no longer exists, which is
+	 * the same class of defect as the silent restore it was added to fix.
+	 */
+	draftRestoreNotice = $state<DraftRestoreNotice | null>(null);
 	// The studio's starting style and `DEFAULT_STYLE_SELECTION` were the same three values written
 	// out twice. Spread rather than shared, so one instance's voice is not another's.
 	selectedThemeId = $state(DEFAULT_STYLE_SELECTION.themeId);
@@ -1275,8 +1289,17 @@ export class StudioState {
 		try {
 			const result = await creationStoreAdapter.saveDraft({
 				draft: {
-					updatedAtISO: new Date().toISOString(),
+					// Through `ClockSeam`, not `new Date()`: `AGENTS.md` classifies clock/time as a
+					// seam, this class already holds an injected one, and the instant is now read
+					// back on restore to date the notice — so a test that drives the restore has to
+					// be able to drive the save that produced it.
+					updatedAtISO: new Date(this.clock.now()).toISOString(),
 					intent: $state.snapshot(this.spec),
+					// The question the evidence below was typed against. Written on every autosave
+					// rather than only when the mode changes, because a draft is replaced whole and
+					// a field written conditionally would go missing from every save that followed
+					// a change to anything else.
+					modeId: this.activeModeId,
 					chatMessage: this.evidence.trim().length > 0 ? this.evidence : undefined,
 					// Exactly the rule the vault uses, through the same accessor. A draft that
 					// carried text this page does not own would come back after a refresh as
@@ -1692,8 +1715,23 @@ export class StudioState {
 		this.scheduleDraftSave();
 	};
 
+	/**
+	 * Retire the restored-draft notice.
+	 *
+	 * Public because the panel gives the reader a close button, and called internally the moment the
+	 * notice stops describing the studio — see the two call sites. A notice that outlived its subject
+	 * would be the silent-mismatch defect this feature exists to remove, one level up: a sentence on
+	 * screen about a mode the reader has since changed.
+	 */
+	dismissDraftRestoreNotice = (): void => {
+		this.draftRestoreNotice = null;
+	};
+
 	handleModeSelect = (modeId: string): void => {
 		const modeChanged = modeId !== this.activeModeId;
+		// Unconditional, not inside `modeChanged`. Re-picking the mode already showing is still the
+		// reader answering the caution's "check that is the one you meant" — with a yes.
+		this.dismissDraftRestoreNotice();
 		this.activeModeId = modeId;
 		this.textError = '';
 		if (modeChanged) {
@@ -1789,6 +1827,12 @@ export class StudioState {
 			this.textError = 'Meechie needs a few facts before she can call it.';
 			return;
 		}
+
+		// After the evidence guard above, not before it. The caution asked the reader to check the
+		// question before they generate; a click that produces "Meechie needs a few facts" and no
+		// request has not answered it, and retiring the notice there would take the warning away
+		// from a reader who is still about to spend the call.
+		this.dismissDraftRestoreNotice();
 
 		this.isTextWorking = true;
 		// The instant the quota headers describe, captured before the request rather than after it.
@@ -2607,6 +2651,25 @@ export class StudioState {
 			// Before the seeding below, for the reason given in `loadCreation`.
 			this.applyRestoredStyleSelection(draft.value.styleSelection);
 			this.lastDerivesDense = derivesDenseDecorations(this.currentStyleHint());
+			// Before the evidence, and that order is the whole feature. The evidence is an answer;
+			// the mode is the question it answers. Assigning `activeModeId` directly rather than
+			// through `handleModeSelect` is deliberate — that handler exists to *retire* a verdict
+			// the reader has moved away from, and this is the opposite operation: putting the reader
+			// back where they were, verdict included.
+			//
+			// The resolution and its report are one call each, so the studio cannot open on a mode
+			// it has not accounted for. `restoreDraftMode` never returns a mode outside `this.modes`,
+			// which is why `activeMode` below is guaranteed to find it.
+			const restoredMode = restoreDraftMode(draft.value.modeId, this.modes);
+			this.activeModeId = restoredMode.modeId;
+			this.draftRestoreNotice = describeDraftRestore({
+				provenance: restoredMode.provenance,
+				// The mode now on screen, which is the one the sentence is about. In the retired
+				// case this is not the mode the draft named, and the notice says exactly that.
+				modeLabel: this.activeMode.label,
+				updatedAtISO: draft.value.updatedAtISO,
+				nowMs: this.nowMs
+			});
 			this.evidence = draft.value.chatMessage || '';
 			this.dedication = draft.value.intent.dedication ?? '';
 			this.pageSize = draft.value.intent.pageSize;

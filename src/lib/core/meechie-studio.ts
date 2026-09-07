@@ -142,7 +142,19 @@ export type StudioMode = {
 	help: string;
 };
 
-export const studioModes: StudioMode[] = [
+/**
+ * The mode catalogue, typed so that "there is always at least one mode" is a fact the compiler
+ * knows rather than a sentence in a doc comment.
+ *
+ * `getMonthlyMode` indexes it, and so does `restoreDraftMode` in `src/lib/core/draft-restore.ts`
+ * when a stored draft names a mode this build no longer has. Both read `[0]` as a fallback, and
+ * with a plain `StudioMode[]` that read is typed `StudioMode` while being able to produce
+ * `undefined` — a hole a review found in the restore path, where the value goes straight into
+ * `activeModeId` and is then dereferenced for its label.
+ */
+export type StudioModeCatalogue = readonly [StudioMode, ...StudioMode[]];
+
+export const studioModes: StudioModeCatalogue = [
 	{
 		id: 'who-fucked-up',
 		label: 'Who Fucked Up?',

@@ -5,12 +5,15 @@ Info flow: User edits evidence/dedication → bind propagates up → callbacks t
 -->
 <script lang="ts">
 	import { getStudioAction, type StudioTextActionId, type StudioMode } from '$lib/core/meechie-studio';
+	import type { DraftRestoreNotice } from '$lib/core/draft-restore';
 
 	let {
 		evidence = $bindable(),
 		dedication = $bindable(),
 		evidenceField = $bindable(null),
 		activeMode,
+		draftRestoreNotice,
+		onDismissDraftRestoreNotice,
 		revisionBudget,
 		aiQuotaMessage,
 		hasVerdict,
@@ -38,6 +41,16 @@ Info flow: User edits evidence/dedication → bind propagates up → callbacks t
 		 */
 		evidenceField: HTMLTextAreaElement | null;
 		activeMode: StudioMode;
+		/**
+		 * What was restored from the autosaved draft, or `null` when this sitting started clean.
+		 *
+		 * The panel renders it and never decides it: whether the studio is showing the reader's own
+		 * question is a fact about the draft, settled in `src/lib/core/draft-restore.ts`. All this
+		 * component reads is `caution === null`, which is why it cannot put a warning tone on a
+		 * restore that went right.
+		 */
+		draftRestoreNotice: DraftRestoreNotice | null;
+		onDismissDraftRestoreNotice: () => void;
 		/** Rewrites left for the verdict on screen. Meaningless until there is one — see `hasVerdict`. */
 		revisionBudget: number;
 		/** The server's own quota reading, already worded. Empty string when it has not reported one. */
@@ -72,6 +85,42 @@ Info flow: User edits evidence/dedication → bind propagates up → callbacks t
 		<h2 data-testid="home-active-mode-heading">{activeMode.label}</h2>
 		<p>{activeMode.help}</p>
 	</div>
+
+	<!--
+		Above the evidence box and below the heading, which is where it belongs: it is a statement
+		about that heading and that box. `role="status"` rather than `alert` even when cautioning —
+		nothing is broken and nothing is waiting on the reader, so it is announced politely at the
+		next pause instead of interrupting them.
+	-->
+	{#if draftRestoreNotice}
+		<div
+			class="draft-restored"
+			class:cautioned={draftRestoreNotice.caution !== null}
+			role="status"
+			data-testid="home-draft-restored"
+		>
+			<div class="draft-restored-text">
+				<p class="draft-restored-headline">
+					{draftRestoreNotice.headline}
+					<span class="draft-restored-when">{draftRestoreNotice.savedLabel}</span>
+				</p>
+				{#if draftRestoreNotice.caution}
+					<p class="draft-restored-caution" data-testid="home-draft-restored-caution">
+						{draftRestoreNotice.caution}
+					</p>
+				{/if}
+			</div>
+			<button
+				type="button"
+				class="draft-restored-dismiss"
+				data-testid="home-draft-restored-dismiss"
+				onclick={onDismissDraftRestoreNotice}
+				aria-label="Dismiss the restored draft notice"
+			>
+				×
+			</button>
+		</div>
+	{/if}
 
 	<label for="evidence">What happened?</label>
 	<textarea

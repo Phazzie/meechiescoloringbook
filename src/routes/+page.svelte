@@ -79,6 +79,8 @@ Invariants: `SystemTrace` receives `promptWasSent` from the state and must never
 			bind:dedication={studio.dedication}
 			bind:evidenceField
 			activeMode={studio.activeMode}
+			draftRestoreNotice={studio.draftRestoreNotice}
+			onDismissDraftRestoreNotice={studio.dismissDraftRestoreNotice}
 			revisionBudget={studio.revisionBudget}
 			aiQuotaMessage={studio.aiQuotaMessage}
 			hasVerdict={!!studio.textOutput}
@@ -489,6 +491,82 @@ Invariants: `SystemTrace` receives `promptWasSent` from the state and must never
 	:global(.studio select:focus) {
 		outline: 2px solid rgba(240, 196, 74, 0.48);
 		outline-offset: 1px;
+	}
+
+	/* The restored-draft notice. Gold by default, because a restore that went right is good news
+	   and the app's affirmative colour is gold; the cautioned variant below is the only thing that
+	   changes, and it changes because `caution` is non-null — never because of anything this
+	   stylesheet decides. */
+	:global(.studio .draft-restored) {
+		display: flex;
+		align-items: flex-start;
+		gap: 0.6rem;
+		margin: 0 0 0.9rem;
+		padding: 0.7rem 0.78rem;
+		border: 1px solid rgba(201, 162, 39, 0.3);
+		border-left-width: 3px;
+		border-radius: 6px;
+		background: rgba(201, 162, 39, 0.09);
+	}
+
+	/* Pink rather than gold, matching `.error` above — the same colour the studio already uses for
+	   "read this before you go on". The wording carries the meaning; the colour only has to make
+	   the reader stop, and reusing the established one means it does not have to be learned. */
+	:global(.studio .draft-restored.cautioned) {
+		border-color: rgba(255, 138, 179, 0.42);
+		background: rgba(255, 138, 179, 0.1);
+	}
+
+	:global(.studio .draft-restored-text) {
+		flex: 1;
+		min-width: 0;
+	}
+
+	:global(.studio .draft-restored-headline) {
+		margin: 0;
+		color: var(--gold-bright);
+		font-weight: 700;
+	}
+
+	:global(.studio .draft-restored.cautioned .draft-restored-headline) {
+		color: #ff8ab3;
+	}
+
+	/* Quieter than the headline it sits on the end of: when the draft was saved is context, not
+	   the point. */
+	:global(.studio .draft-restored-when) {
+		margin-left: 0.4rem;
+		color: var(--lavender);
+		font-size: 0.84rem;
+		font-weight: 600;
+		white-space: nowrap;
+	}
+
+	:global(.studio .draft-restored-caution) {
+		margin: 0.3rem 0 0;
+		color: var(--cream);
+		font-size: 0.84rem;
+	}
+
+	/* A plain glyph, sized to the 44px touch target the rest of the studio's controls meet. The
+	   generic `.studio button` rules would give it a bordered pill, which would read as an action
+	   of the same weight as Generate Verdict. */
+	:global(.studio .draft-restored-dismiss) {
+		flex: none;
+		min-width: 44px;
+		min-height: 44px;
+		margin: -0.35rem -0.35rem 0 0;
+		padding: 0;
+		border: 0;
+		background: none;
+		color: var(--lavender);
+		font-size: 1.2rem;
+		line-height: 1;
+		cursor: pointer;
+	}
+
+	:global(.studio .draft-restored-dismiss:hover) {
+		color: var(--cream);
 	}
 
 	/* Two readings stacked rather than run together: the rewrite allowance is the studio's own

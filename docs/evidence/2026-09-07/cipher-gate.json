@@ -1,0 +1,70 @@
+{
+  "tool": "cipher-gate",
+  "generatedAt": "2026-09-07T01:07:12.968Z",
+  "cipher": {
+    "date": "2026-09-07",
+    "seams": "CreationStoreSeam (self-contained) — contract, fixtures, mock inputs and contract tests changed; CreationStoreSeam (legacy flat) re-exports it unchanged; ClockSeam — consulted, not modified",
+    "evidence": [
+      {
+        "path": "plan.md",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-09-07/verify-outer.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-09-07/test.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-09-07/lint.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-09-07/build.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-09-07/e2e.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-09-07/chamber-lock.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-09-07/shaolin-lint.json",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-09-07/rewind-CreationStoreSeam.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-09-07/rewind-CreationStoreSeam(self-contained).txt",
+        "exists": true
+      },
+      {
+        "path": "fixtures/creation-store/sample.json",
+        "exists": true
+      },
+      {
+        "path": "fixtures/creation-store/fault.json",
+        "exists": true
+      },
+      {
+        "path": "src/lib/seams/creation-store-seam/test.ts",
+        "exists": true
+      },
+      {
+        "path": "tests/unit/draft-restore.test.ts",
+        "exists": true
+      }
+    ],
+    "summary": "Added an optional `modeId` to `DraftRecordSchema` so an autosaved draft records the question its evidence was typed under, re-captured the sample fixture's outputs from a real browser through `probes/browser-seams.probe.mjs`, and moved every judgement about a stored id — live, absent, or retired — into pure `src/lib/core/draft-restore.ts`, which also produces the sentence the studio now shows about what it restored. The draft's `updatedAtISO` moved from an unseamed `new Date()` to `ClockSeam`.",
+    "risks": "The field is optional, so a draft can still arrive with no mode and the studio still opens on the default for it — the mitigation is that it now says so rather than substituting silently, and both non-recorded cases are covered by contract, unit and end-to-end tests. A blank `modeId` is refused by `NonEmptyStringSchema` (red proof: `rejected.draftWithBlankModeId` in `fixtures/creation-store/fault.json`), so corruption cannot masquerade as age. This pull request carries a contract change and is therefore held rather than auto-merged, per `AGENTS.md`."
+  },
+  "latestChangeMs": 1788741623203.117,
+  "status": "ok"
+}

@@ -114,6 +114,41 @@ describe('CreationStoreSeam contract (self-contained)', () => {
 		expect(parseDraftRecord({ updatedAtISO: 'not a draft' }).ok).toBe(false);
 	});
 
+	/**
+	 * `modeId` is the question the draft's evidence was typed against, and it is optional because
+	 * every draft already in a reader's browser was written without it.
+	 *
+	 * Both halves are asserted, because only together do they say what the field means. A draft
+	 * carrying one must keep it — that is the feature. A draft carrying none must still parse — that
+	 * is the promise to every draft written before the field existed, and breaking it would not
+	 * degrade the studio to a default mode, it would throw the reader's whole page away.
+	 *
+	 * The stored id is deliberately *not* checked against the live catalogue here. A retired mode
+	 * has to survive storage so the consumer can tell the reader its question is gone; a schema that
+	 * rejected it would turn that into an unparseable record.
+	 */
+	it('stores the question a draft was written under, and still accepts a draft that names none', () => {
+		const draft = creationStoreSampleFixture.input.saveDraft.draft;
+		expect(draft.modeId).toBeDefined();
+
+		const withMode = parseDraftRecord(draft);
+		expect(withMode.ok && withMode.value.modeId).toBe(draft.modeId);
+
+		// `delete` on a copy rather than a destructure-and-discard: the key has to be *absent*, not
+		// present-and-undefined, because that is the shape every draft written before this field
+		// existed actually has — and `modeId: undefined` would satisfy the assertion below either
+		// way, making the test pass without proving anything.
+		const withoutMode: Partial<typeof draft> = { ...draft };
+		delete withoutMode.modeId;
+		const legacy = parseDraftRecord(withoutMode);
+		expect(legacy.ok).toBe(true);
+		expect(legacy.ok && legacy.value.modeId).toBeUndefined();
+
+		// A mode this build does not have is stored, not refused — see the doc comment above.
+		const retired = parseDraftRecord({ ...draft, modeId: 'a-mode-that-was-retired' });
+		expect(retired.ok && retired.value.modeId).toBe('a-mode-that-was-retired');
+	});
+
 	it('throws where a failure is a programming error rather than bad stored data', () => {
 		expect(validateCreationRecord(creationStoreSampleFixture.input.saveCreation.record)).toEqual(
 			creationStoreSampleFixture.input.saveCreation.record
@@ -139,15 +174,24 @@ describe('CreationStoreSeam contract (self-contained)', () => {
 	// record whose stored style is wrong. These drive the fixture's `rejected` payloads through the
 	// validators the adapter uses, which is the red proof the style field never had.
 	it('refuses every record the fault fixture says it must, through the adapter’s own validators', () => {
-		const { creationWithUnacceptableVoice, creationWithEmptyThemeId, draftWithStyleSelectionAsText } =
-			creationStoreRejectedFixtures;
+		const {
+			creationWithUnacceptableVoice,
+			creationWithEmptyThemeId,
+			draftWithStyleSelectionAsText,
+			draftWithBlankModeId
+		} = creationStoreRejectedFixtures;
 
 		expect(parseCreationRecord(creationWithUnacceptableVoice).ok).toBe(false);
 		expect(parseCreationRecord(creationWithEmptyThemeId).ok).toBe(false);
 		expect(parseDraftRecord(draftWithStyleSelectionAsText).ok).toBe(false);
+		// The red proof for `modeId`. A blank id is not "no mode recorded" — it is a mode id that
+		// matches nothing, and letting it through would make a corrupted draft indistinguishable at
+		// the consumer from an old one, which are two different sentences to the reader.
+		expect(parseDraftRecord(draftWithBlankModeId).ok).toBe(false);
 
 		expect(() => validateCreationRecord(creationWithUnacceptableVoice)).toThrow();
 		expect(() => validateDraftRecord(draftWithStyleSelectionAsText)).toThrow();
+		expect(() => validateDraftRecord(draftWithBlankModeId)).toThrow();
 	});
 
 	// Driven through the MOCK, not only through the validators. The mock used to return its canned

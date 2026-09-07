@@ -60,7 +60,14 @@ const fixtureSchema = z.object({
 const rejectedSchema = z.object({
 	creationWithUnacceptableVoice: z.unknown(),
 	creationWithEmptyThemeId: z.unknown(),
-	draftWithStyleSelectionAsText: z.unknown()
+	draftWithStyleSelectionAsText: z.unknown(),
+	// A blank `modeId` rather than a wrongly-typed one, because the type is the half a reader's
+	// storage is least likely to get wrong and the half TypeScript already guards. An empty string
+	// is what a draft acquires when something upstream writes a falsy id, and it is the case that
+	// would otherwise round-trip as a mode id matching nothing — indistinguishable, at the consumer,
+	// from a draft that recorded no mode at all. Those two must not converge: one is an old draft
+	// and the other is a broken one, and `NonEmptyStringSchema` is what keeps the second out.
+	draftWithBlankModeId: z.unknown()
 });
 
 export const creationStoreSampleFixture = fixtureSchema.parse(sampleJson);
