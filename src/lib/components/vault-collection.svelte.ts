@@ -245,6 +245,14 @@ export class VaultCollection {
 	//     timer can be throttled or deferred, so the boundary timer alone cannot be relied on to
 	//     have fired on time; reading the clock on the way back in fixes the label immediately.
 	startSavedLabelRefresh(): void {
+		// Idempotent, because it is public and a second host would otherwise have to *know* it may
+		// only be called once. Arming twice would overwrite `stopVisibilityWatch` and leave the
+		// first subscription attached for the life of the tab with nothing holding a handle to it —
+		// `destroy()` can only cancel the one it can still see. No production path calls this twice
+		// today (raised on PR #331 as hardening, not as a reachable defect), and an assumption that
+		// holds only because nobody has broken it yet is worth removing rather than documenting.
+		// The day-boundary timer already cancels its own predecessor inside `scheduleNextDay…`.
+		this.stopVisibilityWatch?.();
 		this.scheduleNextDayBoundaryRefresh();
 		this.stopVisibilityWatch = this.visibility.onVisible(() => {
 			this.nowMs = this.clock.now();

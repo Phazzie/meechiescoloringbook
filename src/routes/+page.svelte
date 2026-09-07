@@ -835,10 +835,11 @@ Invariants: `SystemTrace` receives `promptWasSent` from the state and must never
 		color: #ff8ab3;
 	}
 
-	:global(.studio .status) {
-		color: var(--emerald);
-		font-weight: 700;
-	}
+	/* `.status` moved into `VaultStatusLine.svelte` with the line it styles. The rule that was
+	   here reached, by the end, only into that component — which styles itself — and a host
+	   styling a component that owns its own look is the arrangement this whole change exists to
+	   undo. The two `.status` spans left in the app (`VerdictPageStudio`, `MeechieTools`) are
+	   copy-status lines outside `.studio`, each styled in its own file. */
 
 	:global(.studio .diagnostics) {
 		margin-top: 1rem;

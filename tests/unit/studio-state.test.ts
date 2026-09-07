@@ -1289,6 +1289,27 @@ describe('StudioState quote vault', () => {
 		expect(visibility.subscriberCount()).toBe(0);
 	});
 
+	it('arming the label refresh twice leaves exactly one visibility subscriber', async () => {
+		// `startSavedLabelRefresh` is public, so a second host could call it. Arming twice used to
+		// overwrite the stored unsubscribe and strand the first subscription for the life of the
+		// tab, where `destroy()` could never reach it. Raised on PR #331 as hardening; pinned here
+		// so it stays hardened.
+		const visibility = createMockPageVisibilitySeam('visible');
+		const studio = await initVault([makeCreation('overnight', { createdAtISO: OVERNIGHT_SAVE })], {
+			clock: createMockClockSeam(BEFORE_MIDNIGHT),
+			visibility
+		});
+
+		studio.vault.startSavedLabelRefresh();
+		studio.vault.startSavedLabelRefresh();
+
+		expect(visibility.subscriberCount()).toBe(1);
+
+		studio.destroy();
+
+		expect(visibility.subscriberCount()).toBe(0);
+	});
+
 	it('stops the day-boundary refresh when the studio is destroyed', async () => {
 		const clock = createMockClockSeam(BEFORE_MIDNIGHT);
 		const studio = await initVault([makeCreation('overnight', { createdAtISO: OVERNIGHT_SAVE })], {

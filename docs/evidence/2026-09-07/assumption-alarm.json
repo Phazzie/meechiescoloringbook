@@ -1,6 +1,6 @@
 {
   "tool": "assumption-alarm",
-  "generatedAt": "2026-09-07T18:52:07.640Z",
+  "generatedAt": "2026-09-07T19:02:03.844Z",
   "blockedSeams": [
     "ImageGenerationSeam",
     "RateLimitSeam",
