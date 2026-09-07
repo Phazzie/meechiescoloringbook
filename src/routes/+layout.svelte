@@ -13,6 +13,7 @@ Info flow: Layout renders children -> pages render within layout.
 		offlineCopyIsReady,
 		offlineNotice
 	} from '$lib/core/offline-cache';
+	import { NOTHING_TO_PRINT } from '$lib/core/print-sheet';
 
 	let { children } = $props();
 
@@ -164,7 +165,28 @@ Info flow: Layout renders children -> pages render within layout.
 	{/if}
 </header>
 
-{@render children()}
+<!--
+	`display: contents`, so this wrapper changes nothing about how any page lays out. It exists for
+	one reason: it is the boundary the print rules below draw around "the app", so that hiding the
+	app for printing cannot also hide the nav's own rule or the fallback sheet underneath it.
+-->
+<div class="app-body">
+	{@render children()}
+</div>
+
+<!--
+	The sheet that comes out when the reader uses their browser's own Print command on a screen with
+	no coloring page on it.
+
+	Without it that reader gets a blank sheet of paper, because the print rules below hide
+	everything that is not on the path to a `data-print-sheet` and on such a screen there is no
+	such path. A blank sheet is a worse answer than the app was giving before, so this says what to
+	do instead — in the same words the disabled Print button carries, from the same constant.
+-->
+<div class="print-fallback" data-testid="print-fallback">
+	<p class="print-fallback-title">Meechie's Coloring Book</p>
+	<p>{NOTHING_TO_PRINT}</p>
+</div>
 
 <style>
 	.site-nav {
@@ -402,5 +424,152 @@ Info flow: Layout renders children -> pages render within layout.
 	:global(*::before),
 	:global(*::after) {
 		box-sizing: border-box;
+	}
+
+	.app-body {
+		display: contents;
+	}
+
+	/* Exists only on paper. */
+	.print-fallback {
+		display: none;
+	}
+
+	/*
+	 * ============================================================================================
+	 * Paper.
+	 * ============================================================================================
+	 *
+	 * The app is a coloring book. Every surface that makes a page says "Print it. Color it." and
+	 * the generate button says "Printing the truth…" while it works. Before this block there was
+	 * not one `@media print` rule in the repository, so following that instruction printed the
+	 * *app*: measured on `main` at `f86ffdc` with Chromium in print emulation, the home page came
+	 * out as four US Letter sheets carrying the navigation, the full-bleed hero photograph and
+	 * eight photographic mode cards — 938 KB of ink, 43 buttons, 10 form fields, and nothing on any
+	 * sheet that anybody could colour.
+	 *
+	 * The rule below is the whole fix, and it is structural rather than a list of things to hide.
+	 * A component marks the element holding a finished picture with `data-print-sheet`; everything
+	 * that is neither that element, nor inside it, nor an ancestor of it disappears. Enumerating
+	 * the app's panels instead would mean every panel added afterwards silently prints — which is
+	 * the same class of defect as the download row that named one hardcoded file type: correct on
+	 * the day it was written and wrong from the next change onward.
+	 *
+	 * `:has()` is what makes "ancestor of" expressible in CSS. It is required for this to work, and
+	 * it is available in every browser that can run the rest of this app.
+	 */
+	@page {
+		/* Printers cannot reach the edge of the sheet, and a coloring page needs somewhere to be
+		   held. The packaged PDF bleeds its image to all four edges; this does not. */
+		margin: 12mm;
+	}
+
+	@media print {
+		:global(html),
+		:global(body) {
+			background: #fff !important;
+			color: #000 !important;
+			/* `min-height: 100vh` on the body is a full extra blank sheet in paged media. */
+			min-height: 0 !important;
+			height: auto !important;
+		}
+
+		.site-nav,
+		.connection-banner {
+			display: none !important;
+		}
+
+		/* The app, minus the branch holding the picture. */
+		.app-body
+			:global(
+				:not(:has([data-print-sheet])):not([data-print-sheet]):not([data-print-sheet] *)
+			) {
+			display: none !important;
+		}
+
+		/* The ancestors that survive stop being panels and become plain containers, so the sheet
+		   starts at the top of the paper instead of inside a card with a gold border. */
+		.app-body :global(:has([data-print-sheet])) {
+			display: block !important;
+			position: static !important;
+			margin: 0 !important;
+			padding: 0 !important;
+			border: 0 !important;
+			background: none !important;
+			box-shadow: none !important;
+			max-width: none !important;
+			width: auto !important;
+			min-height: 0 !important;
+			height: auto !important;
+			overflow: visible !important;
+		}
+
+		/* One picture, one sheet. `100vh` is the page box in paged media, so each sheet fills its
+		   own page and the next one starts on the next — without a `break-after`, which would add
+		   a trailing blank page after the last sheet. */
+		:global([data-print-sheet]) {
+			display: flex !important;
+			flex-direction: column;
+			align-items: center;
+			justify-content: center;
+			height: 100vh;
+			margin: 0 !important;
+			padding: 0 !important;
+			border: 0 !important;
+			border-radius: 0 !important;
+			background: none !important;
+			box-shadow: none !important;
+			overflow: visible !important;
+			break-inside: avoid;
+			/* The home studio's paper is a fixed 8.5:11 box with a 420px floor. On paper the sheet
+			   IS the page, so both have to go or the picture is sized to a box inside a box. */
+			aspect-ratio: auto !important;
+			min-height: 0 !important;
+			max-height: none !important;
+		}
+
+		/* Scaled to fit the paper in both directions, never cropped and never enlarged past its
+		   own resolution. `!important` throughout because the studio's own `.studio
+		   .generated-image` rule is a two-class selector that otherwise outranks this one and
+		   stretches the picture to `height: 100%`. */
+		:global([data-print-sheet] img) {
+			display: block !important;
+			flex: 0 1 auto;
+			min-height: 0 !important;
+			max-width: 100% !important;
+			max-height: 100% !important;
+			width: auto !important;
+			height: auto !important;
+			object-fit: contain !important;
+		}
+
+		/* The glitter overlay is a screen effect. Printed, it is a grey wash over the line art the
+		   reader is about to put a pencil on. */
+		:global([data-print-sheet]::after),
+		:global([data-print-sheet] figure::after) {
+			display: none !important;
+		}
+
+		/* Shown only when this screen has no page on it — see the element's own comment. */
+		.print-fallback {
+			display: block !important;
+			padding: 24mm 0 0;
+			color: #000 !important;
+			font-family: 'Bricolage Grotesque', 'Avenir Next', 'Segoe UI', sans-serif;
+			font-size: 11pt;
+			line-height: 1.5;
+		}
+
+		.print-fallback-title {
+			margin: 0 0 0.6rem;
+			font-family: 'Fraunces', Georgia, 'Times New Roman', serif;
+			font-size: 15pt;
+			font-style: italic;
+			font-weight: 800;
+		}
+
+		:global(body:has([data-print-sheet])) .print-fallback {
+			display: none !important;
+		}
 	}
 </style>

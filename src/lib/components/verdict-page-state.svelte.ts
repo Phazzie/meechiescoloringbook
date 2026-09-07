@@ -302,6 +302,20 @@ export class VerdictPageState {
 	}
 
 	/**
+	 * The title of the page currently on the paper, or `null` before there is one.
+	 *
+	 * Read off `lastRecipe` — the recipe the picture was actually built from — rather than off
+	 * `verdict`, which is the *live* verdict and changes the instant a replacement arrives. The
+	 * print job names the sheet coming out of the printer, so it has to name the page on screen;
+	 * taking it from `verdict` would title a saved sheet after a verdict that never printed. This
+	 * is the same distinction `pageVerdict` exists to hold, and the same one the export row learned
+	 * when a US Letter PDF was being labelled "A4" from a live control.
+	 */
+	get pageTitle(): string | null {
+		return this.lastRecipe?.spec.title ?? null;
+	}
+
+	/**
 	 * True when a save would actually be attempted, so the button can explain itself instead.
 	 *
 	 * `!isGenerating` is load-bearing since `makePage` stopped clearing the page on entry: page A

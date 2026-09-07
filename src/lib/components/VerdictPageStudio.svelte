@@ -15,6 +15,7 @@ Invariants: The quality report is rendered ONLY through `QualityReportPanel`, ne
 <script lang="ts">
 	import type { VerdictPageState } from './verdict-page-state.svelte';
 	import QualityReportPanel from './QualityReportPanel.svelte';
+	import PrintPageButton from './PrintPageButton.svelte';
 
 	let {
 		studio,
@@ -104,8 +105,11 @@ Invariants: The quality report is rendered ONLY through `QualityReportPanel`, ne
 	{#if studio.imagePreviews.length > 0}
 		<div class="preview-grid" data-testid="verdict-page-preview">
 			<!-- Unkeyed for the same reason: two variations of one spec can render byte-identical. -->
+			<!-- Each finished picture is its own printed sheet, marked in place rather than copied
+			     into a second print-only block that could show a different page than the one on
+			     screen. -->
 			{#each studio.imagePreviews as preview}
-				<figure class:sparkle={glitter}>
+				<figure class:sparkle={glitter} data-print-sheet>
 					<img src={preview} alt="Meechie coloring page" />
 				</figure>
 			{/each}
@@ -131,6 +135,11 @@ Invariants: The quality report is rendered ONLY through `QualityReportPanel`, ne
 			>
 				{studio.isSaving ? 'Saving…' : 'Save to the vault'}
 			</button>
+			<PrintPageButton
+				sheetCount={studio.imagePreviews.length}
+				pageTitle={studio.pageTitle}
+				testId="verdict-page-print"
+			/>
 		</div>
 		{#if studio.vaultStatus}
 			<p class="status" data-testid="verdict-page-vault-status">

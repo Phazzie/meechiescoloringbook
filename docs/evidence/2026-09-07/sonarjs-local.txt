@@ -1,0 +1,49 @@
+# SonarCloud reproduction, 2026-09-07, Run 13 (printing).
+#
+# sonarcloud.io is egress-blocked from this container, so the gate is reproduced locally with the
+# rule set SonarCloud actually runs, per the method Run 8 recorded and Run 12 confirmed:
+#
+#   npm install --no-save eslint-plugin-sonarjs            # 4.2.0
+#   # throwaway flat config using ONLY sonarjs.configs.recommended.rules
+#   npx eslint --no-config-lookup -c sonar.config.mjs <touched .ts files>
+#
+# The plugin was installed with --no-save and the config deleted afterwards; package.json and
+# package-lock.json are unchanged in the diff.
+
+## First run - three findings, all in this PR's own new code
+
+src/lib/core/print-sheet.ts
+  71:1   warning  Unused eslint-disable directive (no problems reported from 'no-control-regex')
+  88:12  error    sonarjs/super-linear-regex   /[. ]+$/
+  96:25  error    sonarjs/super-linear-regex   /[.,;:\-\s]+$/
+
+## Disposition
+
+Both errors were real and both were mine. `X+$` is the shape that backtracks super-linearly on a
+long run of the matched characters, and a page title is attacker-adjacent input - it comes back
+from a model. Replaced with `trimTrailing`, a backwards scan over a `Set`, which is also clearer
+about what it removes and why.
+
+The warning is a FALSE POSITIVE of the reproduction, not a finding: this throwaway config enables
+only `sonarjs.configs.recommended.rules`, which does not include core ESLint's `no-control-regex`.
+The repo's own config DOES enable it, and removing the directive turns `npm run lint` red:
+
+  src/lib/core/print-sheet.ts
+    71:26  error  Unexpected control character(s) in regular expression: \x00, \x1f  no-control-regex
+
+So the directive is load-bearing and was restored, with that reason written beside it. Recorded
+here because "the checker said it was unused" is exactly the kind of finding a later run would
+otherwise re-derive and act on wrongly.
+
+## Second run - clean
+
+src/lib/core/print-sheet.ts
+  74:1  warning  Unused eslint-disable directive   <- the same false positive, see above
+
+0 errors.
+
+## A method note
+
+The first attempt at reading the lint result used `npm run lint 2>&1 | tail -8`, which reports
+`tail`'s exit code and printed `lint=0` over a real eslint error. Run 12 recorded this exact trap
+for `test:e2e` and it caught this run anyway, one command over. Capture to a file and read `$?`.

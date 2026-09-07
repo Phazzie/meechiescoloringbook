@@ -15,6 +15,7 @@ Critical invariant: the paper on screen shows the page's OWN look, never the liv
 	import type { StudioTheme } from '$lib/core/meechie-studio';
 	import type { MeechieStudioTextOutput } from '$lib/seams/meechie-studio-text-seam/contract';
 	import type { PageExport } from '$lib/core/page-exports';
+	import PrintPageButton from '../PrintPageButton.svelte';
 
 	let {
 		previewOutput,
@@ -82,7 +83,19 @@ Critical invariant: the paper on screen shows the page's OWN look, never the liv
 		<img src={activeTheme.image} alt="" />
 	</div>
 
-	<div class="paper" class:glitter>
+	<!--
+		The paper on screen is the sheet that prints — the same element, marked, rather than a second
+		copy of the picture rendered for the printer. A second copy would be a second answer to
+		"which page is this?", free to drift, and would download the image bytes twice.
+
+		Marked only when a generated page is actually on it. Without that condition the demo example
+		and the text-only preview would print as though they were the reader's page.
+	-->
+	<div
+		class="paper"
+		class:glitter
+		data-print-sheet={imagePreviews.length > 0 ? '' : undefined}
+	>
 		{#if imagePreviews.length > 0}
 			<img
 				class="generated-image"
@@ -149,6 +162,13 @@ Critical invariant: the paper on screen shows the page's OWN look, never the liv
 			disabled={!canSaveToVault}
 			>{getStudioAction('save_to_vault').label}</button
 		>
+		<!-- Beside the downloads rather than inside the export list: this is not a file you take
+		     away, it is the page going straight to paper. -->
+		<PrintPageButton
+			sheetCount={imagePreviews.length}
+			pageTitle={previewOutput?.pageTitle ?? null}
+			testId="home-print-page"
+		/>
 	</div>
 
 	<!--

@@ -11213,3 +11213,310 @@ src/lib/components` returns nothing), and `MeechieToolOutput.quoteScore` / `mode
 11's list.
 
 Do not inherit this entry's measurements. Re-measure.
+
+---
+
+## Run 13 — 2026-09-07 — Printing (the thing the app is named after)
+
+**Branch:** `claude/great-bell-ymgrrf` · **Base:** `main` at `f86ffdc`
+
+### The feature, and why it was the worst
+
+The app is called Meechie's Coloring Book. A coloring page's entire purpose is paper — you print
+it, and then you colour it. The app says so itself, everywhere:
+
+| Where | What it says |
+|---|---|
+| `VerdictPageStudio.svelte:22` | "Print it. Color it. Send it to whoever needs to see it." |
+| `MeechieTools.svelte:826` | "Print it. Color it. Send it to whoever needs to see it." |
+| `MeechieModePage.svelte:165` | "The verdict becomes the page. Print it. Color it. Dedicate it." |
+| `StudioHero.svelte:69` | "…a printable coloring page." |
+| `VerdictPageStudio.svelte:94` | The generate button, while it works: **"Printing the truth…"** |
+
+**There was no way to print.** Not a weak way — none.
+
+```
+grep -rn "media print\|window.print\|@page" src/ static/     ->  no matches
+```
+
+No print control on any surface, and not one `@media print` rule in the entire repository. The only
+route to paper was: download the PDF, leave the app, find the file, open it in something else,
+print from there. On the installed app — which Run 10 made installable and offline-capable — that
+is worse, and it is worse again on a phone.
+
+And the reader who did the obvious thing instead, and pressed their browser's own Print, did not get
+nothing. They got the app. **Measured, not reasoned about** — Chromium 1194 driven against the dev
+server at `f86ffdc`, `emulateMedia({ media: 'print' })`, `page.pdf({ format: 'Letter',
+printBackground: false })`:
+
+| | `/` before | `/who-fucked-up` before |
+|---|---|---|
+| Sheets of paper | **4** | 2 |
+| PDF size | **938 KB** | 108 KB |
+| Visible elements | 319 | 26 |
+| Visible buttons | 43 | 1 |
+| Visible form fields | 10 | 1 |
+| Visible nav links | 5 | 5 |
+| Visible images | 10 | 0 |
+| Things you could colour | **0** | **0** |
+
+Four sheets: the menu bar, the full-bleed hero photograph, eight photographic mode cards, then the
+input panels. `body` also carries `color: #fdf6e3` — cream — and browsers do not print backgrounds
+by default, so the text that did survive landed near-white on white paper.
+
+That is the widest promise-to-delivery gap left in the app, and it is not close. Every other
+feature this log has rebuilt did *something* badly. This one told the reader to do a thing, five
+times over, and then spent their ink on marketing photography when they did it.
+
+### What shipped
+
+**1. A Print button, on every surface that already promised one.** `PrintPageButton.svelte` is the
+only place in `src/` that calls `print()`. The home studio hosts it beside Save to Vault; the shared
+`VerdictPageStudio` hosts it for all four mode routes; the tools hub hosts it for its eleven tools.
+One implementation — the log records three separate occasions where a copied surface drifted
+(the download row, the drift report, the vault save), and this does not add a fourth.
+
+**2. Ctrl+P prints the page, from anywhere in the app.** This is the half that matters most, because
+it fixes the path the reader takes without being told. The rule is structural rather than a list:
+
+```css
+.app-body :not(:has([data-print-sheet])):not([data-print-sheet]):not([data-print-sheet] *) {
+    display: none !important;
+}
+```
+
+Everything that is not a marked sheet, inside one, or an *ancestor* of one disappears; `:has()` is
+what makes "ancestor of" sayable in CSS. Enumerating the app's panels to hide would have been
+correct on the day it was written and wrong from the next panel onward — the same defect as the
+download row that named one hardcoded file type.
+
+**3. The sheet is designed for paper.** `@page { margin: 12mm }`, because printers cannot reach the
+edge and a coloring page needs somewhere to be held. Each sheet is `100vh`, so one picture is one
+page. White ground, black text, the glitter overlay suppressed — it is a screen effect, and printed
+it is a grey wash over the lines you are about to put a pencil on.
+
+**4. It tells the truth when it cannot print.** No picture yet → the button is off and says why.
+Reach for the browser's own Print on such a screen and the paper says *"No coloring page on this
+screen yet. Make one first — printing puts the picture on paper, not the app."* — one constant,
+`NOTHING_TO_PRINT`, shared by the button and the sheet so they cannot drift. Without that fallback
+the new rules would have emitted a **blank sheet**, which is worse than what the app did before.
+
+**5. Saved sheets are named after the page.** `document.title` is what a print dialog puts in its
+filename field for "Save as PDF". Left alone every sheet anyone ever saved would be called the same
+thing. `printDocumentTitle` derives it from the page's own title, stripping the characters no
+filesystem accepts — Meechie's titles routinely carry `?` and `/`; the app's own nav link is "Who
+Fucked Up?" — and replacing them with spaces rather than deleting them, so `claim/reality` does not
+become `claimreality`. Restored on `afterprint`, not after `print()` returns: in several browsers
+`print()` resolves as soon as the preview opens, and restoring there renames the job out from under
+the field the reader is still looking at.
+
+**6. The picture on screen *is* the sheet.** `data-print-sheet` marks the element already rendering
+the preview. No second copy of the markup, no second copy of the image bytes, and no possibility of
+the printed page differing from the one on screen.
+
+### After
+
+Same measurement, same method, `/` with a finished page:
+
+| | before | after |
+|---|---|---|
+| Sheets of paper | 4 | **1** |
+| PDF size | 938 KB | 342 KB (the picture) |
+| Visible buttons | 43 | **0** |
+| Visible form fields | 10 | **0** |
+| Visible nav links | 5 | **0** |
+| Visible images | 10 | **1** — the coloring page |
+
+### Scope, and why this needed no seam workflow
+
+No file under `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`, `src/lib/adapters/` or
+`src/lib/seams/` is touched. No Cipher Gate entry required. The one browser API is `window.print()`,
+in a single component, following the precedent this codebase has already set three times over for
+browser-only calls in browser-only code: `navigator.clipboard.writeText` at
+`studio-state.svelte.ts:2239`, `MeechieTools.svelte:542` and `verdict-page-state.svelte.ts:723`,
+and `navigator.onLine` in `+layout.svelte`. Everything that is a *decision* rather than a call is in
+`src/lib/core/print-sheet.ts`, which is pure and has 18 unit tests.
+
+**This is also why this feature was picked over the strongest candidate Run 12 deferred.** Run 12
+left "the reader's chosen mode is not persisted" as the next pick and noted it is blocked by
+`AGENTS.md`'s rule that a pull request carrying a schema or contract change must not be auto-merged
+— `DraftRecordSchema` would have to grow a field. A scheduled run has no human to wait for and this
+one was told to merge, so taking it would have meant either leaving a pull request open or breaking
+that rule. **It is still the strongest candidate and it is still blocked. A run that can hold a
+pull request open should take it.**
+
+### What was measured rather than argued
+
+Every load-bearing claim here was run in a real browser before it was written down. Three things
+read as correct in the source and were wrong:
+
+1. **`break-after: page` produced a trailing blank sheet.** `:last-of-type` does not do what it
+   looks like it does — it matches by tag name, and the sheets are `div`s among other `div`s.
+   Removing `break-after` entirely and letting `height: 100vh` do the pagination gives exactly one
+   page. Found by counting pages in a real PDF; no amount of reading the CSS would have shown it.
+2. **`.studio .generated-image` silently outranked the sheet's image rule.** Two classes beats one
+   attribute selector, so the picture was being stretched to `height: 100%` of a box that was itself
+   `100vh`. Fixed with `!important` on the image rule, and the reason is written next to it.
+3. **The first probe reported the navigation still printing when it was not.** It measured
+   visibility with `getComputedStyle(el).display`, and an element inside a `display: none` ancestor
+   reports its *own* display. Every visibility measurement here — and in `tests/e2e/print.spec.ts` —
+   is `getBoundingClientRect()` width and height instead.
+
+The `:has()` approach itself was prototyped against the running app **before** any of it was written
+into the repository: 319 visible elements to 7, four sheets to one. That is the step this log has
+repeatedly recorded as the one that separates a claim from a finding.
+
+### Evidence
+
+| Command | Result |
+|---|---|
+| `npm run check` | 0 errors, 0 warnings |
+| `npm run lint` | clean |
+| `npm test` | **1636 passed**, 1 skipped (101 files) — 18 of them new |
+| `npm run build` | ✓ |
+| `npx playwright test` | **54 passed** — 49 existing, unchanged, plus 5 new |
+
+`playwright.config.ts` was pinned to `/opt/pw-browsers/chromium-1194/chrome-linux/chrome` to run the
+suite in this container, exactly as Run 12's environment note describes, and **restored before
+committing** — it does not appear in the diff.
+
+### Deliberately not done, and why
+
+- **No caption under the printed picture.** The page title, the quote and the dedication are drawn
+  *into* the coloring page by the generator (`prompt-template.ts:120`, `dedicationLine`), so a
+  caption would print them twice and take away colouring room. The sheet is the picture — which is
+  also exactly what the packaged PDF contains, so the two paths give one answer rather than two.
+- **No printer-availability check.** A third UI state for a browser without `window.print` would
+  have to be decided after hydration, on pages that are prerendered and replayed from the service
+  worker's cache offline — the exact bug Run 12 fixed in the mode strip. There is a `typeof` guard
+  inside the handler and no UI state for it. Run 10's deletion of the unreachable
+  `controllerchange` listener is the same reasoning.
+
+### Carried forward for the next run
+
+- **The packaged print PDF still bleeds to all four edges.** `output-packaging-seam/index.ts` scales
+  the image by `Math.min(pageWidth / w, pageHeight / h)` and centres it with **no margin**, so most
+  printers will clip it or shrink it again. The browser print now has a 12mm margin and the
+  downloaded PDF does not, so the two paths disagree. Fixing it is an adapter change: full seam
+  workflow, Cipher Gate entry, and a contract-carrying pull request that must not be auto-merged.
+- **Mode persistence** — Run 12's pick, still blocked on the same rule, still the strongest
+  candidate for a run that can hold a pull request open.
+- **`ChatInterpretationSeam` still has zero consumers.** Re-measured today:
+  `grep -rn "chatInterpretationAdapter" src/routes src/lib/components` returns nothing, against a
+  complete provider-backed billable seam with a live endpoint at `/api/chat-interpretation`.
+- `MeechieToolOutput.quoteScore` and `modelMetadata`, from Run 11's list.
+
+Do not inherit this entry's measurements. Re-measure.
+
+## Run 13, first close-out — 2026-09-07 — the SonarCloud round, run before anyone asked
+
+`sonarcloud.io` is egress-blocked from this container, so the gate was reproduced locally with the
+method Run 8 recorded and Run 12 confirmed — `eslint-plugin-sonarjs@4.2.0`, a throwaway flat config
+using **only** `sonarjs.configs.recommended.rules`, installed `--no-save` and deleted afterwards.
+Run against the four TypeScript files this pull request touches, **before** waiting for the check.
+
+Three findings. Full output in `docs/evidence/2026-09-07/sonarjs-local.txt`.
+
+| Finding | Provenance | Disposition |
+|---|---|---|
+| `print-sheet.ts:88` `super-linear-regex` — `/[. ]+$/` | **this PR** | fixed |
+| `print-sheet.ts:96` `super-linear-regex` — `/[.,;:\-\s]+$/` | **this PR** | fixed |
+| `print-sheet.ts:71` unused `eslint-disable no-control-regex` | reproduction artifact | **declined, with proof** |
+
+**Both errors were real and both were mine.** `X+$` backtracks super-linearly on a long run of the
+matched characters, and the input here is a page title — which comes back from a model. Replaced
+with `trimTrailing`, a backwards scan over a `Set`. Two hundred trailing dots are now two hundred
+steps rather than quadratic work, and the code says what it removes instead of encoding it in an
+anchored character class.
+
+**The third was the reproduction lying, and it is worth recording why.** The throwaway config
+enables only the `sonarjs` recommended rules, which do not include core ESLint's
+`no-control-regex`. This repository's own config *does* enable it. Removing the directive on that
+advice turned `npm run lint` red:
+
+```
+71:26  error  Unexpected control character(s) in regular expression: \x00, \x1f  no-control-regex
+```
+
+The directive was restored with that reason written beside it, so the next run does not delete it
+again. **A reproduction of a checker is not the checker, and the gap between them is exactly where
+a confident-looking finding is wrong.** Run 8's lesson was *reproduce the configuration, not just
+the checker*; this is its other edge — where the reproduction's configuration and the repository's
+disagree, the repository wins.
+
+### The trap Run 12 recorded, sprung one command over
+
+Run 12's environment notes warn that `npm run test:e2e 2>&1 | tail -40` reports `tail`'s exit code
+rather than Playwright's. This run read a lint result the same way — `npm run lint 2>&1 | tail -8`
+— and printed **`lint=0` directly underneath a real eslint error**. It was caught only because the
+error text was visible in the same output.
+
+The lesson had been read, written down in this run's own working notes, and applied to `test:e2e`
+specifically. It was the *command* that got remembered, not the rule. **Capture to a file and read
+`$?`** — for every command whose result a decision depends on, not for the one command a previous
+run happened to be bitten by.
+
+### Re-verified after the fix
+
+| Command | Result |
+|---|---|
+| `npm run check` | exit 0 |
+| `npm run lint` | exit 0 |
+| `npm test` | exit 0 — 1636 passed, 1 skipped |
+| `npm run build` | exit 0 |
+| `npm run verify` | exit 0 |
+| `npx playwright test` | exit 0 — 54 passed |
+| `sonarjs` recommended, second pass | **0 errors** |
+
+Every one of those exit codes was read from `$?` on an unpiped command.
+
+## Run 13, second close-out — 2026-09-07 — the bug found by asking a reviewer to look for it
+
+Asking CodeRabbit for a review meant writing down what was worth an adversarial look. One of the
+two questions was about the `document.title` swap in `PrintPageButton.svelte`:
+
+> Is there a worse failure mode I have missed — a listener that accumulates across repeated prints,
+> or a restore that lands on the wrong value if the reader prints twice in a row before the first
+> `afterprint` fires?
+
+**Writing the question answered it.** There was, and it was the second one:
+
+1. First click: capture `previousTitle` = `"Meechie's Coloring Book Studio"`, register listener A,
+   set the title to `"Receipt Energy"`, call `print()` — which in several browsers **resolves as
+   soon as the preview opens**.
+2. Second click before `afterprint` arrives: capture `previousTitle` = **`"Receipt Energy"`**, the
+   already-swapped value. Register listener B.
+3. `afterprint` fires. A restores the app title, then B overwrites it with `"Receipt Energy"`.
+
+The tab is then named after one coloring page **permanently**, until the next navigation — strictly
+worse than the documented worst case, which was a title left stale until `afterprint` arrives.
+
+Fixed by moving the restore target to `<script module>` scope: one pending restore and one
+listener per burst, so the second print neither re-captures nor re-registers. Module scope rather
+than instance scope on purpose — `document.title` is one global thing, and the value being
+protected is what it was before *any* print started.
+
+**Red-proofed rather than asserted.** The guard was removed (`if (pendingTitleRestore === null)`
+→ `if (true)`, which is exactly the pre-fix behaviour) and the new test re-run:
+
+```
+Expected: "Meechie's Coloring Book Studio"
+Received: "Receipt Energy"
+1 failed
+```
+
+Output in `docs/evidence/2026-09-07/redproof-title-restore.txt`. The test drives two prints with no
+`afterprint` between them, against a stubbed `print()` that records the title each job ran under —
+a real one opens a dialog the test cannot dismiss. 55 e2e tests now, 6 of them this run's.
+
+### The transferable part
+
+This is the second time in one run that **writing the reasoning down found the defect before the
+reviewer did** — the first was the `super-linear-regex` pair, found by running the checker's own
+rules rather than waiting for the check. The pattern is not "review your own work harder". It is
+that *naming the failure mode you are unsure about, in enough detail to hand to someone else*, is
+itself the check. The question above had to state the interleaving to be answerable, and stating the
+interleaving is what made it obviously reachable.
+
+Worth carrying: when a pull request asks a reviewer to look at something specific, write the
+question as if the answer were "yes, here is how" — then go and see whether it is.
