@@ -12335,3 +12335,140 @@ there is no `sonar-project.properties` in the repository, so analysis uses the d
 - The unidentified SonarCloud issue from Run 13/14, still down to the one named candidate.
 
 Do not inherit this entry's measurements. Re-measure.
+
+## Run 15 — merge close-out — PR #331 merged as `b43bd01`
+
+**Head merged:** `cce7293` · **Base:** `main` at `d29ef4e` · 2 commits, 42 files, +2605 / −665.
+Squash-merged at 19:12Z.
+
+### Gate state at merge
+
+| Check | Conclusion |
+|---|---|
+| `verify` (push run 2333 and pull_request run 2334) | success |
+| `SonarCloud` | **Quality Gate passed** — 0 new issues, 0 security hotspots, **0.0% duplication on new code** |
+| `CodeQL` (`PR #331`) | success |
+| **`Rosentic - Conflict Detection`** | **success**, on the first head and on the fix head |
+| `Vercel` (commit **status**, not a check run) | success |
+| `CodeRabbit` | **reviewed on request — no blocking issue**, one hardening (acted on) |
+| `Codex` | rate-limited — no findings |
+| `Sourcery` | 7-day review budget spent; produced a guide, not a review |
+
+`mergeable_state` was `clean`. Both surfaces read at the moment of merging, per the rule that a
+deployment reports as a commit status and can be red while every check run is green. Review threads:
+`get_review_comments` returned **zero**. Open Assumptions in `DECISIONS.md`: **zero**. No schema,
+contract or migration in the diff.
+
+### An API-staleness trap worth recording
+
+`actions_get`/`list_workflow_jobs` reported both `verify` runs as `in_progress` for **ten minutes
+after they had finished**, with `updated_at` frozen at the second they started. Polling those
+endpoints would have waited indefinitely on a job that was already green.
+
+What settled it was reading the **job log**, which showed `Post job cleanup` and
+`Cleaning up orphan processes` at `19:05:41` — the run had completed nine minutes earlier. A
+`list_workflow_runs` call filtered on `status=success` then returned all four runs as
+`completed/success` while the per-run `get` still said `in_progress`.
+
+**A run's own status endpoint can be staler than its logs and staler than a filtered list of the
+same runs.** When a job looks hung, read its log tail before believing the status field. Recorded
+because the obvious reading — "my commit made verify hang" — was wrong, and acting on it would have
+meant debugging a green build.
+
+### Where the findings came from, and where they did not
+
+| Round | Found by | Finding | Outcome |
+|---|---|---|---|
+| 0 | **The repo's own test suite** | `tests/unit/security-headers.test.ts` walks the route tree, so `/vault` failed the build until `vercel.json` named it | fixed before the first push — a new route that would otherwise have shipped with **no security headers** |
+| 1 | **The red proof** | The NaN-date guard's removal failed nothing: the test pinned nothing | test strengthened before the first push |
+| 2 | **Re-reading my own diff** | `:global(.studio .status)` had one target left, and that target styles itself | fixed in `cce7293` |
+| 3 | **CodeRabbit**, asked four named questions | `startSavedLabelRefresh` is public and not idempotent — hardening, no reachable defect | fixed in `cce7293`, with a test that reports **3 subscribers where it expects 1** without the guard |
+
+Zero of the four came from a human. **One came from a test that already existed** — the most
+valuable finding of the run, because a route silently missing `X-Frame-Options` and
+`Strict-Transport-Security` is the kind of thing no reviewer reads a diff closely enough to catch.
+Run 14 observed that five of its eight findings came from a checker it had to repair first; this run
+adds the complement: **a check that already works is worth more than a review, and this repo's
+route-tree walk is one.**
+
+### The red proof is a check on the tests, not a formality
+
+Removing both guards failed **one** test. That mismatch — two guards out, one failure — is the
+finding. The NaN-date test asserted only the `newest` order of a four-row list, and on that list a
+`NaN` comparator returns exactly the guarded result.
+
+Measured with the guard out rather than reasoned about:
+
+```
+newest (4 rows):   b,c,a,bad                       <- identical to guarded. Proves nothing.
+oldest (4 rows):   a,c,b,bad                       <- guarded is bad,a,c,b. Discriminates.
+oldest (13 rows):  r0,r1,r2,r3,r4,bad,r5,…,r11     <- the corrupt row lands in the MIDDLE
+```
+
+That middle placement is the real damage: `NaN` from a comparator makes the whole sort's result
+implementation-defined, not just one row's position. Both lessons are in `LESSONS_LEARNED.md`.
+
+### What CodeRabbit was asked, and why the questions were again the useful part
+
+Automatic review is off below 10 stars, so left alone this pull request would have merged with no
+independent review. One `@coderabbitai review` naming four things the source cannot show produced
+traced answers on all four — accessor tracking through `$derived`, teardown coverage, what can reach
+the prerendered document, and the `init()` → `openSavedPage` ordering — plus the one hardening. Run
+13's lesson holds for the third run running: **the question you write is most of the value.** Asking
+"is the teardown right?" gets a summary; asking "is there a path where a collection is armed but
+`destroy()` never runs?" gets the enumeration of construction sites that found the public method.
+
+### What was measured rather than argued
+
+- **The before-probe's first run was wrong and looked like a bigger finding.** Seeded records used
+  `pageSize: 'us_letter'` and `border: 'thin'`; neither is in the schema's enums, so all seven were
+  rejected and *every* surface reported zero — including the home page, which works. Re-seeded from
+  `fixtures/creation-store/sample.json`. Checked only because a probe that finds the known-good case
+  broken is measuring itself.
+- **`vault.html` exists** in `prerendered/pages/` after the build. The offline claim rests on that
+  file, not on the `prerender` flag.
+- **`jscpd` at Sonar's own 100-token threshold before pushing**: 27 TypeScript clones, 780 duplicated
+  lines — byte-identical to Run 14's post-fix baseline, none naming a new file. SonarCloud then
+  reported **0.0% duplication on new code**. The local stand-in agreed exactly, for the second run
+  running.
+- **The mobile vault rules.** The original used a **700px** breakpoint and `flex: 0 0 auto`; the
+  first draft of `VaultGallery` had written 720px and `1 1 auto` from memory. Both corrected against
+  the original.
+- **No `sonar-project.properties`** in the repository, so `.svelte` is not analysed. Checked this
+  run rather than inherited from Run 14.
+
+### Deliberately left, with the reasoning
+
+- **The home card still previews four and expands in place.** Making "Show all" navigate to `/vault`
+  was the first design and was dropped: it removes working behaviour and rewrites a passing test to
+  no purpose. The card is a preview inside a studio; the route is the vault.
+- **No bulk export of the vault.** The `/vault` footnote says plainly that clearing site data clears
+  the pages, and every row has its own Download. "Download all fifty" is a real feature and a
+  different one.
+- **The three Svelte-snippet SonarJS findings.** All false positives — the rule does not model Svelte
+  5 snippets, `svelte-check` reports 0/0, and `.svelte` is not analysed by SonarCloud. These are the
+  first `{#snippet}` blocks in `src/`, so the finding class is new and is this run's to name. The
+  `rowBody` snippet exists to keep the link and button branches from duplicating twenty lines of
+  markup, which is the disease this run is treating.
+
+### Carried forward for the next run
+
+- **The packaged print PDF still bleeds to all four edges.** `output-packaging-seam/index.ts` scales
+  by `Math.min(pageWidth / w, pageHeight / h)` with no margin, so the browser print (12mm) and the
+  downloaded PDF disagree. Adapter change: full seam workflow, Cipher Gate entry, and a
+  contract-carrying pull request that must not be auto-merged.
+- **Mode persistence** — Run 12's pick, blocked on the same rule for the fourth run running.
+- **Vault capacity is not knowable from outside the adapter**, which is what leaves the
+  orphaned-records gap: `undoDelete`'s check counts only the current owner's records while the
+  adapter caps the whole stored array. Same seam workflow; the comment moved with the code into
+  `vault-collection.svelte.ts` and still says so.
+- **`ChatInterpretationSeam` has zero consumers.** Re-measured this run: `/api/chat-interpretation`
+  is a live, billable endpoint with a full pipeline and **no UI anywhere in `src/`**. Considered as
+  this run's pick and passed over — a feature no reader can reach costs the reader nothing — but it
+  costs the owner money and attack surface, which is a real case for a run that wants it.
+- **The `chat` packaging variant has zero consumers**, with Run 14's reasoning.
+- `MeechieToolOutput.quoteScore` and `modelMetadata`, from Run 11's list.
+- The unidentified SonarCloud issue from Runs 13/14, still down to the one named candidate
+  (`constructor-for-side-effects` at `verdict-page-state.test.ts:1022`, pre-existing at `724332b`).
+
+Do not inherit this entry's measurements. Re-measure.
