@@ -11520,3 +11520,175 @@ interleaving is what made it obviously reachable.
 
 Worth carrying: when a pull request asks a reviewer to look at something specific, write the
 question as if the answer were "yes, here is how" — then go and see whether it is.
+
+## Run 13 — merge close-out — PR #318 merged as `9593eca`
+
+**Head merged:** `87d1537` · **Base:** `main` at `f86ffdc` · 3 commits, 31 files, +5224 / −4.
+Squash-merged at 07:04Z.
+
+### Gate state at merge
+
+| Check | Conclusion |
+|---|---|
+| `verify` (both workflow runs) | success |
+| `SonarCloud` / `SonarCloud Code Analysis` | success — Quality Gate passed |
+| `CodeQL`, `Analyze (actions)`, `Analyze (javascript-typescript)` | success |
+| `Vercel` deployment (commit **status**, not a check run) | success |
+| `Vercel Preview Comments` | success |
+| `Codex` | rate-limited — no findings |
+| `Sourcery review` | skipped — 250,000-character 7-day budget spent |
+| `CodeRabbit` | **reviewed on request — one finding, already fixed** |
+| **`Rosentic - Conflict Detection`** | **failure — dispositioned, see below** |
+
+`mergeable_state` was `unstable`, not `blocked`. Both surfaces were read, per the rule that a
+deployment reports as a commit status and can be red while every check run is green — here the
+`Vercel` status was `success` on `87d1537`.
+
+### All three review bots were quiet again, and asking was again the highest-value action
+
+Exactly as Run 12 recorded: **Codex over its usage limit, Sourcery over its diff budget, CodeRabbit's
+automatic review off for repositories under 10 stars.** Left alone this pull request would have
+merged with no independent code review at all. One `@coderabbitai review` comment produced a real
+finding.
+
+Run 12's harder lesson — *a reviewer's answer to the question you asked is not the same artifact as
+its review of your diff* — was applied: the review threads, the reviews list, the comment list and
+both CI surfaces were all re-read at the moment of merging rather than trusted from the notification
+queue. `get_review_comments` returned zero threads; the only submitted review was Sourcery's
+rate-limit notice.
+
+### What the review found, and what had already found it
+
+CodeRabbit reported **one** issue, against `d952087`: the `afterprint` listener in
+`PrintPageButton.svelte` re-registering per click, so a second print before the first `afterprint`
+captures the already-swapped title and strands the tab name permanently.
+
+**It was already fixed in `87d1537`, pushed at 07:00:24Z — about five minutes before the review
+landed at 06:55:51Z on the previous commit.** Not luck: the fix came from writing the review request
+itself, which asked whether exactly that interleaving was reachable. Two independent routes to one
+defect, described the same way, with the same prescription. Recorded because the agreement is worth
+more than either account alone.
+
+CodeRabbit also checked the structural print selector against the current DOM and reported it
+preserves each marked sheet, its descendants and every ancestor path, hides sibling branches, and
+that it found **no reachable marker placement that exposes non-sheet content or hides the marked
+image**. That was the question this run was least able to answer from the source.
+
+### The red check, and the prediction it came with
+
+`Rosentic - Conflict Detection` failed on all three heads. **All six findings named
+`claude/sweet-mendel-LJ9Iu` and `claude/great-bell-k1i146`. This branch, `claude/great-bell-ymgrrf`,
+appeared in none of them** — a materially different case from Run 12, where two findings did name
+that diff, which is why "Rosentic is noise" was not inherited and the case was established from
+scratch.
+
+Established rather than asserted: the diff touches none of `src/routes/studio-state.svelte.ts`,
+`src/lib/core/meechie-studio.ts` or `tests/unit/studio-state.test.ts`, and mentions none of
+`currentStyleSelection`, `derivesDenseDecorations`, `specOwnQuote`, `getModeSpotlight`,
+`studioActionStartsRound`, `describeSpotlightSchedule` — both greps over `origin/main...HEAD`
+returned nothing. `claude/sweet-mendel-LJ9Iu` is **291 commits behind `main`** (last commit
+2026-06-08); `claude/great-bell-k1i146` is current (last commit 2026-09-07, a concurrent run of this
+same routine). No re-run was spent: the check is deterministic over branch contents and compared 91
+of 91 pairs.
+
+The comment on #318 states a **falsifiable prediction**: if the disposition is right the check stays
+red after this merges, because it tracks those two branches and not this one. **The close-out pull
+request carrying this entry is the test.** If it comes back green, the disposition was wrong and the
+next entry must say so.
+
+### One SonarCloud issue remains, and this run could not identify it
+
+The Quality Gate **passed**, and the count fell 3 → 1 across the `super-linear-regex` fix — which
+accounts for two of the three. `sonarcloud.io` is egress-blocked from this container, so the
+remaining one could not be read. The local `sonarjs` reproduction reports **0 errors** on the touched
+files under `recommended`. Running the plugin with *every* rule enabled — not what SonarCloud runs,
+so these are candidates and nothing more — surfaces three:
+
+| Candidate | Assessment |
+|---|---|
+| `sonarjs/shorthand-property-grouping` at `print-sheet.ts` — shorthand keys interleaved with longhand in `describePrintJob`'s return | The most plausible. Cosmetic; a reorder would fix it |
+| `sonarjs/no-tab` | The whole repository is tab-indented by its Prettier config; this would flag every file, not one new issue |
+| `sonarjs/file-header` | The file has the repository's own Purpose/Why/Info-flow header |
+
+**No speculative push was made for it.** The gate passed, the issue is non-blocking, and it could not
+be confirmed — pushing a cosmetic reorder on a guess would spend a CI cycle to fix something that
+might not be the finding. Recorded here so the next run starts from these three candidates rather
+than re-deriving them. **A run that can reach `sonarcloud.io` should just read it.**
+
+### What this run got wrong, and the shape of it
+
+Three defects, all in this run's own new code, all caught before a reviewer saw them, and **all three
+by running something rather than reading something**:
+
+1. `break-after: page` added a trailing blank sheet — caught by counting pages in a real PDF.
+2. `.studio .generated-image` (two classes) silently outranked the sheet's image rule.
+3. The first visibility probe used `getComputedStyle().display` and reported the navigation printing
+   when it was not, because an element inside a `display: none` ancestor reports its own display.
+
+Then two more in review rounds: the `super-linear-regex` pair, and the title-restore interleaving.
+
+**Five defects, zero of them found by reading the code.** Every one came from executing it — a
+browser, a PDF, a checker's own rule set, or a test with its guard removed. That is the single most
+transferable thing this run has to hand forward, and it is a sharper version of what Run 12 recorded
+about measuring rather than reasoning.
+
+### A trap that was read, written down, and sprung anyway
+
+Run 12's environment notes warn that piping through `tail` reports `tail`'s exit code. This run read
+that note, applied it to `test:e2e` specifically — and then read a lint result with
+`npm run lint 2>&1 | tail -8`, which printed **`lint=0` over a real eslint error**. The *command* got
+remembered; the *rule* did not. Every exit code in the final verification was read from `$?` on an
+unpiped command.
+
+### Environment notes, re-confirmed for the next run
+
+- `sonarcloud.io` remains egress-blocked. The local `eslint-plugin-sonarjs@4.2.0` + `recommended`
+  reproduction still works and still reproduces real findings — but see below.
+- **The reproduction is not the checker.** It reported this run's `no-control-regex` disable
+  directive as unused; that config does not enable the rule, the repository's does, and removing the
+  directive turned `npm run lint` red. Run 8's lesson was *reproduce the configuration*; this is its
+  other edge — where the two configurations disagree, the repository wins.
+- Playwright still needs `executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome'`
+  (container ships 1194, `@playwright/test@1.58.2` wants 1208, `npx playwright install` not
+  permitted). `playwright.config.ts` was restored before every commit and is not in the diff.
+- `page.emulateMedia({ media: 'print' })` and `page.pdf()` both work in this container and are how
+  every print claim in this run was measured.
+
+### Carried forward
+
+- **The packaged print PDF bleeds to all four edges.** `output-packaging-seam/index.ts` scales by
+  `Math.min(pageWidth / w, pageHeight / h)` with no margin, so the browser print (12mm margin) and the
+  downloaded PDF now disagree. Adapter change: full seam workflow, Cipher Gate entry, and a
+  contract-carrying pull request that must not be auto-merged.
+- **Mode persistence** — Run 12's pick, still blocked on the same rule, still the strongest candidate
+  for a run that can hold a pull request open.
+- **`ChatInterpretationSeam` still has zero consumers.** Re-measured this run.
+- `MeechieToolOutput.quoteScore` and `modelMetadata`, from Run 11's list.
+- The unidentified SonarCloud issue above.
+
+Do not inherit this entry's measurements. Re-measure.
+
+## Run 13, addendum — 2026-09-07 — the Rosentic prediction was tested, and held
+
+The close-out above committed to a falsifiable claim: if `Rosentic - Conflict Detection` was red on
+#318 for reasons that had nothing to do with that branch, it should still be red on the close-out
+pull request — prose only, cut from the `main` that now carries the merged print change.
+
+**It is red on #319, with the identical six findings**, still naming only `claude/sweet-mendel-LJ9Iu`
+and `claude/great-bell-k1i146`, still never `claude/great-bell-ymgrrf`. Same "91 of 91 pairs
+compared", same symbols, same line numbers. Head `b06e41f`, check run `101652779256`.
+
+That is the disposition confirmed by the experiment it implied, not by re-reading the argument.
+
+**And it is the opposite result from Run 12's, on the same check** — which is exactly why this had to
+be tested rather than inherited. Run 12's red *did* track its own signature change: two findings named
+its diff, and the check came back **green** on its close-out once `main` carried the change. Run 13's
+red never named this diff at all, and stayed red on a branch carrying no code.
+
+So the two runs together establish something neither could alone: **`Rosentic` is neither noise nor
+always-right. It reports what it says it reports.** The only way to know which case you are in is to
+read the findings and check whether they name your branch — and then to predict what the check will
+do next and see whether it does it.
+
+The remedy is still `claude/sweet-mendel-LJ9Iu` (291 commits behind `main`, last touched
+2026-06-08) rebasing or being closed. That is its author's call.
