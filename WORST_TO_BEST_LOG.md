@@ -11667,3 +11667,28 @@ unpiped command.
 - The unidentified SonarCloud issue above.
 
 Do not inherit this entry's measurements. Re-measure.
+
+## Run 13, addendum — 2026-09-07 — the Rosentic prediction was tested, and held
+
+The close-out above committed to a falsifiable claim: if `Rosentic - Conflict Detection` was red on
+#318 for reasons that had nothing to do with that branch, it should still be red on the close-out
+pull request — prose only, cut from the `main` that now carries the merged print change.
+
+**It is red on #319, with the identical six findings**, still naming only `claude/sweet-mendel-LJ9Iu`
+and `claude/great-bell-k1i146`, still never `claude/great-bell-ymgrrf`. Same "91 of 91 pairs
+compared", same symbols, same line numbers. Head `b06e41f`, check run `101652779256`.
+
+That is the disposition confirmed by the experiment it implied, not by re-reading the argument.
+
+**And it is the opposite result from Run 12's, on the same check** — which is exactly why this had to
+be tested rather than inherited. Run 12's red *did* track its own signature change: two findings named
+its diff, and the check came back **green** on its close-out once `main` carried the change. Run 13's
+red never named this diff at all, and stayed red on a branch carrying no code.
+
+So the two runs together establish something neither could alone: **`Rosentic` is neither noise nor
+always-right. It reports what it says it reports.** The only way to know which case you are in is to
+read the findings and check whether they name your branch — and then to predict what the check will
+do next and see whether it does it.
+
+The remedy is still `claude/sweet-mendel-LJ9Iu` (291 commits behind `main`, last touched
+2026-06-08) rebasing or being closed. That is its author's call.
