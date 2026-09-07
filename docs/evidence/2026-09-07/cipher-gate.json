@@ -1,6 +1,6 @@
 {
   "tool": "cipher-gate",
-  "generatedAt": "2026-09-07T01:03:20.884Z",
+  "generatedAt": "2026-09-07T01:07:12.968Z",
   "cipher": {
     "date": "2026-09-07",
     "seams": "CreationStoreSeam (self-contained) — contract, fixtures, mock inputs and contract tests changed; CreationStoreSeam (legacy flat) re-exports it unchanged; ClockSeam — consulted, not modified",

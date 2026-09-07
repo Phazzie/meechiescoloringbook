@@ -11474,6 +11474,16 @@ by. If the owner would rather this routine merged such changes, the place to cha
   URL, so they cannot suffer *this* defect — but type evidence on `/m/clapback` and refresh and it is
   gone outright. A different feature (those pages have no draft), and widening this pull request to
   build one would have been scope this plan did not open.
+- **Schema placement is inconsistent across the seams, and it is a real finding rather than a
+  declined one.** CodeRabbit's `contract.ts` comment was declined *for this pull request* because
+  moving one of eighteen schemas mid-change would split a seam's ownership — not because the
+  underlying observation is wrong. Measured: **12 of the repo's seams declare Zod in `contract.ts`**,
+  while `rate-limit-seam` (the seam the reviewer's rule was learned from) keeps `contract.ts` to
+  plain types. Both shapes are defensible; having both is what is not. A future run could pick one
+  and apply it everywhere — that is a repo-wide refactor with no user-visible behaviour, which makes
+  it a poor fit for *this* routine and a good fit for the quick-wins one or an owner-directed change.
+  CodeRabbit offered to open an issue for it; **no issue was created**, because opening one on the
+  owner's repository is their call and this run was not asked to.
 - Still open, carried forward from Run 12 and unmeasured by this run: `ChatInterpretationSeam` (a
   provider-backed billable seam with a live endpoint and no consumers) and
   `MeechieToolOutput.quoteScore`.
