@@ -1,0 +1,44 @@
+Probe of the export row before the rebuild, run against the dev server on main at 7fbb57d.
+Chromium 1194, real browser, layout-rect visibility.
+
+HOME {
+  "downloadCount": 3,
+  "downloadText": [
+    "Printable PDF US Letter — ready to print · 946 B",
+    "Square PNG square crop — for posting · 26 KB",
+    "Original PNG exactly what the generator sent · 68 B"
+  ],
+  "downloadFilenames": [
+    "meechie-coloring-page-ba225c4a-970d-430f-b06a-4b3e1b2d9fd7.pdf",
+    "meechie-coloring-page-ba225c4a-970d-430f-b06a-4b3e1b2d9fd7-square.png",
+    "meechie-coloring-page-ba225c4a-970d-430f-b06a-4b3e1b2d9fd7-original.png"
+  ],
+  "shareControls": 0,
+  "webShareAvailable": false,
+  "canShareAvailable": false,
+  "clipboardWriteAvailable": true,
+  "clipboardItemAvailable": true
+}
+  ✓  2 [chromium] › tests/e2e/probe-before.spec.ts:113:1 › BEFORE: home export row (2.2s)
+
+
+
+WHO-FUCKED-UP {
+  "downloadCount": 2,
+  "downloadText": [
+    "meechie-who-fucked-up-1788784316892.pdf",
+    "meechie-who-fucked-up-1788784316892-square.png"
+  ],
+  "downloadFilenames": [
+    "meechie-who-fucked-up-1788784316892.pdf",
+    "meechie-who-fucked-up-1788784316892-square.png"
+  ],
+  "shareControls": 0,
+  "webShareAvailable": false,
+  "canShareAvailable": false,
+  "clipboardWriteAvailable": true,
+  "clipboardItemAvailable": true
+}
+  ✓  1 [chromium] › tests/e2e/probe-before.spec.ts:101:1 › BEFORE: /who-fucked-up export row (2.2s)
+
+  1 passed (7.2s)

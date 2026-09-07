@@ -1,0 +1,16 @@
+npm run check / npm run lint / npm test / npm run build — Run 14, 2026-09-07
+Exit codes read from $? on unpiped commands.
+
+$ npm run check    -> 0
+svelte-check found 0 errors and 0 warnings
+
+$ npm run lint     -> 0 (no output is a clean eslint run)
+
+$ npm test         -> 0
+ Test Files  101 passed | 1 skipped (102)
+      Tests  1663 passed | 1 skipped (1664)
+
+$ npm run build    -> 0
+
+> Using @sveltejs/adapter-vercel
+  ✔ done

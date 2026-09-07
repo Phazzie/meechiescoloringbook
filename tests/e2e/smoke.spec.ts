@@ -132,7 +132,7 @@ const makeToolkitPage = async (page: Page): Promise<void> => {
 /** The page, its preview and its download are all present. */
 const expectPageOnScreen = async (page: Page): Promise<void> => {
 	await expect(page.locator('.preview-grid img')).toBeVisible();
-	await expect(page.getByTestId('meechie-tool-download').first()).toBeVisible();
+	await expect(page.getByTestId('meechie-tool-export-link').first()).toBeVisible();
 };
 
 /** Fulfil `/api/tools` normally, optionally holding the nth call open. */
@@ -162,7 +162,7 @@ const makePageAndKeepIt = async (page: Page): Promise<void> => {
 	await page.getByTestId('verdict-page-dedication').fill('For the group chat');
 	await page.getByTestId('verdict-page-generate').click();
 	await expect(page.locator('.preview-grid img')).toBeVisible();
-	await expect(page.getByTestId('verdict-page-download').first()).toBeVisible();
+	await expect(page.getByTestId('verdict-page-export-link').first()).toBeVisible();
 
 	// The mode routes report a clean check, not just a drifted one. Rendering only `flagged` here
 	// left a page that passed every check and a page nothing had ever looked at producing identical
@@ -768,7 +768,7 @@ test('editing the dedication drops the page it was not generated with', async ({
 
 	await page.getByTestId('verdict-page-dedication').fill('Second thoughts');
 	await expect(page.locator('.preview-grid img')).toHaveCount(0);
-	await expect(page.getByTestId('verdict-page-download')).toHaveCount(0);
+	await expect(page.getByTestId('verdict-page-export-link')).toHaveCount(0);
 });
 
 test('Another one drops a dedication chosen for the previous saying', async ({
@@ -827,7 +827,7 @@ test('a failed re-ask on a mode route does not destroy the page already on scree
 	// The verdict and the page it produced are both still there.
 	await expect(page.getByTestId('who-result')).toContainText('Fault: them');
 	await expect(page.locator('.preview-grid img')).toBeVisible();
-	await expect(page.getByTestId('verdict-page-download').first()).toBeVisible();
+	await expect(page.getByTestId('verdict-page-export-link').first()).toBeVisible();
 	await expect(page.getByTestId('who-again')).toBeEnabled();
 });
 
@@ -881,7 +881,7 @@ test('every toolkit verdict becomes a coloring page that downloads and saves', a
 	await page.getByTestId('meechie-tool-dedication').fill('For Ray');
 	await page.getByTestId('meechie-tool-make-page').click();
 	await expect(page.locator('.preview-grid img')).toBeVisible();
-	await expect(page.getByTestId('meechie-tool-download').first()).toBeVisible();
+	await expect(page.getByTestId('meechie-tool-export-link').first()).toBeVisible();
 
 	await page.getByTestId('meechie-tool-save-vault').click();
 	await expect(page.getByTestId('meechie-tool-vault-status')).toContainText(
@@ -953,7 +953,7 @@ test('a slow page generation cannot land under a different verdict', async ({
 
 	// The load-bearing assertion: tool A's page must not have appeared under tool B's verdict.
 	await expect(page.locator('.preview-grid img')).toHaveCount(0);
-	await expect(page.getByTestId('meechie-tool-download')).toHaveCount(0);
+	await expect(page.getByTestId('meechie-tool-export-link')).toHaveCount(0);
 });
 
 test('editing the dedication drops the page it was not generated with, and drift is surfaced', async ({
@@ -1022,7 +1022,7 @@ test('editing the dedication drops the page it was not generated with, and drift
 	// download or save offering Alice's page under Bob's name.
 	await page.getByTestId('meechie-tool-dedication').fill('For Bob');
 	await expect(page.locator('.preview-grid img')).toHaveCount(0);
-	await expect(page.getByTestId('meechie-tool-download')).toHaveCount(0);
+	await expect(page.getByTestId('meechie-tool-export-link')).toHaveCount(0);
 	await expect(page.getByTestId('meechie-tool-save-vault')).toHaveCount(0);
 	await expect(page.getByTestId('meechie-tool-violations')).toHaveCount(0);
 });

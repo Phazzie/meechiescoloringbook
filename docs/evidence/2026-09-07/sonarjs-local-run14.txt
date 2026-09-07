@@ -1,0 +1,58 @@
+Local SonarCloud reproduction — 2026-09-07 (Run 14)
+eslint-plugin-sonarjs@4.2.0, installed --no-save, throwaway flat config using ONLY
+sonarjs.configs.recommended.rules. sonarcloud.io remains egress-blocked from this container.
+
+This run extended the reproduction to .svelte files by giving eslint-plugin-svelte's parser the
+TypeScript sub-parser. Run 13's version could only parse .ts, and reported every component as a
+parsing error — four of the five findings below are in components and would have been missed.
+
+--- FIRST PASS (before any fix) ---
+/home/user/meechiescoloringbook/src/lib/components/MeechieTools.svelte
+  28:14  error  Parsing error: Unexpected token {
+
+/home/user/meechiescoloringbook/src/lib/components/PageExportRow.svelte
+  23:14  error  Parsing error: Unexpected token {
+
+/home/user/meechiescoloringbook/src/lib/components/SharePageButton.svelte
+  28:8  error  Parsing error: Unexpected token ShareCapability
+
+/home/user/meechiescoloringbook/src/lib/components/VerdictPageStudio.svelte
+  16:14  error  Parsing error: Unexpected token {
+
+/home/user/meechiescoloringbook/src/lib/components/studio/StudioPreviewPanel.svelte
+  15:14  error  Parsing error: Unexpected token {
+
+/home/user/meechiescoloringbook/src/lib/core/share-page.ts
+  237:41  error  Extract this nested ternary operation into an independent statement  sonarjs/no-nested-conditional
+
+/home/user/meechiescoloringbook/tests/e2e/share.spec.ts
+  201:24  error  Simplify this regular expression to reduce its runtime, as it has super-linear performance due to backtracking  sonarjs/super-linear-regex
+
+✖ 7 problems (7 errors, 0 warnings)
+
+
+--- SECOND PASS (after the ternary and regex fixes, components now parsing) ---
+/home/user/meechiescoloringbook/src/lib/components/SharePageButton.svelte
+  102:3   error  Remove this use of the "void" operator                                               sonarjs/void-use
+  148:28  error  Extract this nested ternary operation into an independent statement                  sonarjs/no-nested-conditional
+  152:45  error  Refactor this function to reduce its Cognitive Complexity from 16 to the 15 allowed  sonarjs/cognitive-complexity
+  172:29  error  Extract this nested ternary operation into an independent statement                  sonarjs/no-nested-conditional
+
+/home/user/meechiescoloringbook/tests/e2e/share.spec.ts
+  201:24  error  Simplify this regular expression to reduce its runtime, as it has super-linear performance due to backtracking  sonarjs/super-linear-regex
+
+/home/user/meechiescoloringbook/tests/unit/verdict-page-state.test.ts
+  1022:3  error  Either remove this useless object instantiation of "VerdictPageState" or use it  sonarjs/constructor-for-side-effects
+
+✖ 6 problems (6 errors, 0 warnings)
+
+
+--- FINAL ---
+/home/user/meechiescoloringbook/tests/unit/verdict-page-state.test.ts
+  1022:3  error  Either remove this useless object instantiation of "VerdictPageState" or use it  sonarjs/constructor-for-side-effects
+
+✖ 1 problem (1 error, 0 warnings)
+
+
+The one remaining finding is pre-existing: verdict-page-state.test.ts constructor-for-side-effects
+comes from 724332b, confirmed an ancestor of origin/main. This diff shifted the line by one.

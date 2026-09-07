@@ -20,6 +20,14 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 <script lang="ts">
 	import { POST_JSON_TIMEOUTS_MS, postJson } from '$lib/core/http-client';
 	import { buildQualityReport } from '$lib/core/quality-report';
+	import {
+		describeOriginalImageExport,
+		describePackagedExports,
+		summarisePageExportFailures
+	} from '$lib/core/page-exports';
+	import type { PageExportAttempt } from '$lib/core/page-exports';
+	import PageExportRow from './PageExportRow.svelte';
+	import SharePageButton from './SharePageButton.svelte';
 	import QualityReportPanel from './QualityReportPanel.svelte';
 	import PrintPageButton from './PrintPageButton.svelte';
 	import type {
@@ -143,8 +151,27 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 	let isGenerating = false;
 	let generateError = '';
 	let imagePreviews: string[] = [];
-	let packagedFiles: PackagedFile[] = [];
+	// What each packaging call was asked for and what it produced — the stored record the export row
+	// and its failure sentence are both derived from, exactly as the home studio has done since the
+	// row was rebuilt there. Keeping the attempts rather than only their files is what lets a
+	// download name the paper it was packaged for, and lets a failure be described by the variant
+	// that was *requested* rather than by a file that does not exist to read a type off.
+	let packageAttempts: PageExportAttempt[] = [];
 	let generatedImages: GeneratedImage[] = [];
+	// The base name every download for the page on screen shares, and the provider's own image.
+	// That image is the one download involving no re-rendering at all, and until now the home page
+	// was the only surface in the app that offered it.
+	let pageFileBaseName = '';
+	let pageOriginalImage: GeneratedImage | null = null;
+	$: packagedExports = describePackagedExports(packageAttempts);
+	$: originalExport = describeOriginalImageExport(pageOriginalImage, pageFileBaseName);
+	// The original comes last and is derived rather than stored, so it appears and disappears with
+	// the page it belongs to and can never be left behind by a reset.
+	$: pageExports = originalExport ? [...packagedExports, originalExport] : packagedExports;
+	// A separate value from `generateError`, which is where both used to be written: a page that
+	// generated perfectly and then failed to become a square PNG showed the same crimson box, in
+	// the same place, as a page that never generated at all.
+	$: exportError = summarisePageExportFailures(packageAttempts);
 	let assembledPrompt = '';
 	let revisedPrompt = '';
 	// Drift diagnostics from `/api/generate`. The provider's revised prompt can drop an exact-text
@@ -212,7 +239,9 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 		isGenerating = false;
 		generateError = '';
 		imagePreviews = [];
-		packagedFiles = [];
+		packageAttempts = [];
+		pageOriginalImage = null;
+		pageFileBaseName = '';
 		generatedImages = [];
 		assembledPrompt = '';
 		revisedPrompt = '';
@@ -402,7 +431,9 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 			imagePreviews = usable
 				.map((entry) => entry.preview)
 				.filter((url): url is string => url !== null);
-			packagedFiles = [];
+			packageAttempts = [];
+			pageOriginalImage = null;
+			pageFileBaseName = '';
 
 			// Two calls, not one with `variants: ['print', 'square']`. The adapter builds the print
 			// file first and then returns the square failure *without* its accumulated files, so a
@@ -413,6 +444,11 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 			// `Result` — pdf-lib and the canvas both throw. A rejection from the square call used to
 			// escape to the outer catch and discard the print PDF that had already been built.
 			const fileBaseName = `meechie-${verdict.toolId}-${Date.now()}`;
+			// Named before packaging, not after: the provider's own image is downloadable the moment
+			// the page lands, and naming it only once the PDF exists hands anyone who grabbed it
+			// early a file named after no page in particular.
+			pageFileBaseName = fileBaseName;
+			pageOriginalImage = images[0] ?? null;
 			const packageVariant = async (
 				variant: 'print' | 'square'
 			): Promise<{ files: PackagedFile[]; error: string | null }> => {
@@ -441,12 +477,14 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 			const share = await packageVariant('square');
 			if (isStale()) return;
 
-			packagedFiles = [...print.files, ...share.files];
-			if (print.error !== null) {
-				generateError = `Page made, but the printable download could not be built: ${print.error}`;
-			} else if (share.error !== null) {
-				generateError = `Page and PDF are ready; the square share image could not be built: ${share.error}`;
-			}
+			// Recorded as attempts, and not into `generateError`. Packaging runs after the paid
+			// generation has already succeeded, so a failure here never means the page failed —
+			// and reporting it in the field a failed generation uses, above the button that buys
+			// another one, is an invitation to pay again for a free local render.
+			packageAttempts = [
+				{ variant: 'print', files: print.files, error: print.error, pageSize: recipe.spec.pageSize },
+				{ variant: 'square', files: share.files, error: share.error, pageSize: recipe.spec.pageSize }
+			];
 		} catch (requestError) {
 			if (isStale()) return;
 			generateError =
@@ -882,17 +920,15 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 					{/each}
 				</div>
 
+				<!--
+					The shared export row. This hub used to render `{#each packagedFiles as file}` with
+					`{file.filename}` as the link text, so eleven tools each ended in two links reading
+					`meechie-who-fucked-up-1788784316892.pdf` — no idea what either file was for, no
+					size, and no way at all to get the provider's own image.
+				-->
+				<PageExportRow {exportError} exports={pageExports} testIdPrefix="meechie-tool" />
+
 				<div class="page-actions">
-					{#each packagedFiles as file}
-						<a
-							class="download-link"
-							data-testid="meechie-tool-download"
-							href={`data:${file.mimeType};base64,${file.dataBase64}`}
-							download={file.filename}
-						>
-							{file.filename}
-						</a>
-					{/each}
 					<button
 						class="ghost"
 						type="button"
@@ -908,6 +944,14 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 						sheetCount={imagePreviews.length}
 						pageTitle={lastRecipe?.spec.title ?? null}
 						testId="meechie-tool-print"
+					/>
+					<!-- `pageVerdict`, not `output`: the hub keeps showing page A while B generates,
+					     and sending from the live verdict would caption A's picture with B's words. -->
+					<SharePageButton
+						exports={pageExports}
+						pageTitle={lastRecipe?.spec.title ?? null}
+						quote={pageVerdict?.headline ?? null}
+						testId="meechie-tool-share"
 					/>
 				</div>
 				{#if vaultStatus}
@@ -1332,26 +1376,8 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 		flex-wrap: wrap;
 	}
 
-	.download-link {
-		font-family: var(--font-label, 'Barlow Condensed', sans-serif);
-		font-size: 0.82rem;
-		font-weight: 700;
-		letter-spacing: 0.08em;
-		text-transform: uppercase;
-		text-decoration: none;
-		padding: 0.38rem 0.75rem;
-		border-radius: 4px;
-		border: 1px solid rgba(201, 162, 39, 0.3);
-		color: var(--gold-bright, #f0c44a);
-		transition:
-			border-color 0.15s ease,
-			background 0.15s ease;
-	}
-
-	.download-link:hover {
-		border-color: rgba(201, 162, 39, 0.6);
-		background: rgba(201, 162, 39, 0.07);
-	}
+	/* `.download-link` lived here, styling a row of links whose text was a raw filename. The row
+	   is `PageExportRow` now and owns its own styling. */
 
 	.ghost:disabled {
 		opacity: 0.5;

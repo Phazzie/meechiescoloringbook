@@ -3240,3 +3240,94 @@ media at 1280x900 and capturing the actual PDF.
   importing `smoke.spec.ts`'s. Extracting shared fixtures would mean editing a 1,200-line spec that
   49 passing tests depend on, for a ~30-line saving. `page-controls.spec.ts` already sets the
   precedent of a self-contained spec. Recorded here so it is a decision rather than an oversight.
+
+## Taking the finished page away, on the twelve surfaces that are not the home page (2026-09-07)
+
+**Goal:** the last step of every journey in this app is the same — you made a coloring page, now
+leave with it. Run 6 rebuilt that step for the home studio and built a pure module,
+`src/lib/core/page-exports.ts`, that decides what every download is called, what it is for, how big
+it is, and how a packaging failure is worded so it can never be read as "your generation failed".
+**Exactly one surface uses it.** The other twelve — `/who-fucked-up`, `/rate-his-excuse`, `/random`,
+the eight `/m/<slug>` mode pages (all five through `VerdictPageStudio.svelte`) and the eleven-tool
+hub at `/meechie` — still render the row Run 6 deleted: `{#each packagedFiles as file}` with
+`{file.filename}` as the link text.
+
+Measured on `main` at `7fbb57d`:
+
+| | home `/` | the other twelve |
+|---|---|---|
+| Downloads offered | 3 | 2 |
+| The provider's own image (`original`) | yes | **not available at all** |
+| Link text | "Printable PDF · US Letter — ready to print · 412 KB" | `meechie-who-fucked-up-1757251200000.pdf` |
+| A packaging failure renders as | a notice, in its own field (`exportError`) | a crimson `.error` box, in `generateError` — the same field and the same box a failed generation uses, directly under the generate button |
+| A way to send the page to anybody | none | none |
+
+Three separate facts, one panel. The third is the app's own: `studioActions` in
+`src/lib/core/meechie-studio.ts` lists twelve things a reader can do with a finished page —
+`download_pdf`, `export_png`, `copy_quote`, `save_to_vault`, four page controls — and **sending is
+not one of them**. `grep -rn "navigator.share\|canShare" src/ tests/ static/` returns **0 matches**
+in the whole repository, while `/random` and `/meechie` both tell the reader in as many words:
+*"Print it. Color it. Send it to whoever needs to see it."* Run 13 made the first two clauses true.
+This makes the third true, and makes the row underneath it say what it is handing you.
+
+**Seams touched:** none. No file under `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`,
+`src/lib/adapters/` or `src/lib/seams/` is modified, so the full Seam-Driven Development workflow is
+not triggered and no Cipher Gate entry is required. `OutputPackagingSeam` is *consumed* through its
+existing adapter exactly as it already is, with the variants it already builds. The browser APIs
+involved — `navigator.share`, `navigator.canShare`, `navigator.clipboard.write` — are called from
+exactly one new component, following the precedent this codebase has now set five times over for
+browser-only calls in browser-only code: `navigator.clipboard.writeText` at
+`studio-state.svelte.ts:2236`, `MeechieTools.svelte:542` and `verdict-page-state.svelte.ts:723`,
+`navigator.onLine` in `+layout.svelte`, and `window.print()` in `PrintPageButton.svelte`. Everything
+that is a *decision* rather than a call lives in a pure core module with unit tests.
+
+**Files:**
+- `src/lib/core/share-page.ts` **[NEW]** — pure send policy: whether there is anything to send,
+  which packaged file to send and why that one, what the control says, the sentence explaining why
+  it is off, the share payload's title and text, and what each outcome (sent, copied, cancelled,
+  failed) tells the reader. Reads no DOM and calls no browser API.
+- `src/lib/components/SharePageButton.svelte` **[NEW]** — the only place in `src/` that calls
+  `navigator.share`. Decodes the chosen file to a `File` synchronously so the user gesture survives,
+  falls back to copying the picture to the clipboard where the Web Share API cannot take files, and
+  treats a cancelled share as the non-event it is rather than an error.
+- `src/lib/components/PageExportRow.svelte` **[NEW]** — the one export row: labelled downloads, the
+  export-failure notice, Save to the vault, Print, Send. Hosted by all thirteen page-making
+  surfaces so a fourteenth cannot drift.
+- `src/lib/components/verdict-page-state.svelte.ts` **[MODIFY]** — keep packaging results as
+  `PageExportAttempt[]`, derive `pageExports` and `exportError` from them through
+  `page-exports.ts`, and stop writing packaging failures into `generateError`.
+- `src/lib/components/MeechieTools.svelte` **[MODIFY]** — the same change, and host the shared row.
+- `src/lib/components/VerdictPageStudio.svelte`, `src/lib/components/studio/StudioPreviewPanel.svelte`
+  **[MODIFY]** — host the shared row in place of their own copies.
+- `tests/unit/share-page.test.ts` **[NEW]**, `tests/unit/verdict-page-state.test.ts`,
+  `tests/unit/studio-state.test.ts` **[MODIFY]**, `tests/e2e/share.spec.ts` **[NEW]**.
+
+**Do not touch:** `src/lib/adapters/output-packaging-seam/index.ts` (the packaged PDF's missing
+margin is a real defect and is a seam change — it stays on the carried-forward list); the
+`OutputPackagingSeam` contract; `DraftRecordSchema` or any stored record shape; the `@media print`
+block's structural selector; any localStorage key.
+
+**Self-critique — what could be wrong, and what will prove it:**
+- *Riskiest assumption:* that `navigator.share` with a `files` payload is reachable at all from this
+  app. It requires a secure context, a transient user activation, and a browser that supports Level
+  2 file sharing — and it is **absent from the container's Chromium**, which is the browser every
+  end-to-end test runs in. That is the reason the fallback is part of the feature rather than a
+  nicety, and the reason capability is resolved at click time from the real API rather than assumed.
+  Proven by: an end-to-end test that injects a stub `navigator.share`, asserts the exact payload it
+  receives, and a second that removes it and asserts the clipboard path — plus a test that a
+  rejected `AbortError` leaves no error on screen.
+- *What could be wrong:* moving packaging failures out of `generateError` could silence a real
+  generation failure if the two are ever written in the same pass. They are not — `attachDownloads`
+  runs after the page is installed and never clears it — but the tests at
+  `tests/unit/verdict-page-state.test.ts:407-463` assert the old field, and each one is being moved
+  rather than deleted.
+- *What must be proven, not argued:* that the twelve surfaces really do render what this plan says
+  they render. Before/after counted in a real browser against the running app, not read off the
+  source — every claim in the last three runs that turned out to be wrong was read rather than run.
+- *Scope risk:* this is one panel and one moment in the journey, but it is two changes to it. If the
+  send half cannot be made honest in this container, the labelled-row half still ships complete and
+  the send half is recorded as carried forward rather than half-landed.
+
+**Definition of done:** `npm run check`, `npm run lint`, `npm test`, `npm run build`,
+`npm run verify` and `npx playwright test` all exit 0, with evidence in
+`docs/evidence/2026-09-07/`.

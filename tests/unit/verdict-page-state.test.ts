@@ -407,6 +407,39 @@ describe('makePage', () => {
 		expect(state.packagedFiles).toEqual([printFile, shareFile]);
 	});
 
+	it('describes every download, and offers the provider’s own image alongside them', async () => {
+		// Until this run these eleven routes rendered `{file.filename}` as the link text and had no
+		// way at all to reach the original — the one file that involves no re-rendering. Measured in
+		// a real browser on `main` at `7fbb57d`, `/who-fucked-up` offered exactly two links, both
+		// reading `meechie-who-fucked-up-1788784316892[-square].pdf`.
+		const state = await withPage();
+		expect(state.pageExports.map((item) => item.kind)).toEqual(['print', 'square', 'original']);
+		for (const item of state.pageExports) {
+			// Every row says what it is, what it is for and how big it is — none of which a filename
+			// can be read for.
+			expect(item.label.length).toBeGreaterThan(0);
+			expect(item.purpose.length).toBeGreaterThan(0);
+			expect(item.sizeLabel).toMatch(/^\d+(?:\.\d)? (?:B|KB|MB)$/);
+			expect(item.href.startsWith('data:')).toBe(true);
+		}
+		const original = state.pageExports[2];
+		expect(original.filename.endsWith('-original.png')).toBe(true);
+		// Named after the route's own slug, so it lands in a downloads folder saying which page it is.
+		expect(original.filename.startsWith('meechie-who-fucked-up-')).toBe(true);
+		// Nothing failed, so there is no notice.
+		expect(state.exportError).toBe('');
+	});
+
+	it('takes the whole export row away with the page it belonged to', async () => {
+		const state = await withPage();
+		expect(state.pageExports).not.toEqual([]);
+		state.resetPage();
+		// Including the original, which is derived rather than stored precisely so a reset cannot
+		// leave it behind pointing at a page that is gone.
+		expect(state.pageExports).toEqual([]);
+		expect(state.exportError).toBe('');
+	});
+
 	it('keeps the printable PDF when only the square share image fails', async () => {
 		// The single-call version returned the square failure *without* the print file it had
 		// already built, so a browser that could not encode the share canvas lost the product.
@@ -421,9 +454,13 @@ describe('makePage', () => {
 		);
 		const state = await withPage();
 		expect(state.packagedFiles).toEqual([printFile]);
-		expect(state.generateError).toContain(
-			'square share image could not be built'
-		);
+		// Reported as an export failure, not a generation one. Both used to be written to
+		// `generateError`, so a page that generated perfectly and then failed to become a square
+		// PNG rendered in the same crimson box, in the same place, as a page that never generated —
+		// directly above the button that buys another generation.
+		expect(state.exportError).toContain('The square share image could not be built');
+		expect(state.exportError).toContain('Your page is on the paper.');
+		expect(state.generateError).toBe('');
 	});
 
 	it('keeps the page and the print PDF when the square packaging call throws', async () => {
@@ -443,10 +480,9 @@ describe('makePage', () => {
 		expect(state.hasPage).toBe(true);
 		expect(state.imagePreviews).toHaveLength(1);
 		expect(state.packagedFiles).toEqual([printFile]);
-		expect(state.generateError).toContain(
-			'square share image could not be built'
-		);
-		expect(state.generateError).toContain('canvas is tainted');
+		expect(state.exportError).toContain('The square share image could not be built');
+		expect(state.exportError).toContain('canvas is tainted');
+		expect(state.generateError).toBe('');
 	});
 
 	it('keeps the page when the print packaging call throws too', async () => {
@@ -459,9 +495,8 @@ describe('makePage', () => {
 		expect(state.hasPage).toBe(true);
 		expect(state.imagePreviews).toHaveLength(1);
 		expect(state.packagedFiles).toEqual([]);
-		expect(state.generateError).toContain(
-			'printable download could not be built'
-		);
+		expect(state.exportError).toContain('The printable download could not be built');
+		expect(state.generateError).toBe('');
 	});
 
 	it('drops an image the browser cannot decode before it becomes a saveable page', async () => {

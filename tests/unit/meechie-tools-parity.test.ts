@@ -58,11 +58,18 @@ describe('Meechie Tools Parity', () => {
 		for (const testId of [
 			'meechie-tool-page-factory',
 			'meechie-tool-make-page',
-			'meechie-tool-download',
 			'meechie-tool-save-vault',
-			'meechie-tool-copy'
+			'meechie-tool-copy',
+			'meechie-tool-print',
+			'meechie-tool-share'
 		]) {
 			expect(svelteFile).toContain(testId);
 		}
+		// The downloads are a shared component now, so the literal `meechie-tool-download` this
+		// used to look for no longer appears in this file — the ids are built from the prefix
+		// inside `PageExportRow`. Asserting the host and the prefix is the same guarantee: without
+		// both, the hub has no download row.
+		expect(svelteFile).toContain('<PageExportRow');
+		expect(svelteFile).toContain('testIdPrefix="meechie-tool"');
 	});
 });

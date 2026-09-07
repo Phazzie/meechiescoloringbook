@@ -710,3 +710,21 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
 - Context: Measuring what is visible in print media from `page.evaluate`.
 - Lesson: `getComputedStyle(el).display !== 'none'` counts every descendant of a hidden ancestor as visible, because an element inside a `display: none` parent reports its own display. A first probe using it reported the navigation still printing when it was not.
 - Action: Measure visibility from `getBoundingClientRect()` width and height, which is what the first version of `tests/e2e/print.spec.ts` was corrected to do.
+
+## 2026-09-07
+- Date: 2026-09-07
+- Context: Run 6 rebuilt the home studio's export row and put every decision behind it in a pure, tested module. Twelve runs later that module had exactly one consumer, and the twelve other page-making surfaces still rendered the raw-filename row it replaced.
+- Lesson: Extracting the *logic* does not spread a fix; extracting the *component* does. The rules that made the good row good were `:global(.studio .export-*)` in `+page.svelte`, so any surface that copied the markup rendered it unstyled and its author rewrote it into something plainer instead. A shared behaviour whose styling is owned by one host is not shared — it is a copy waiting to happen, and it happened twelve times.
+- Action: When a run rebuilds a surface that exists on more than one route, ship the component and its own styling together, and check the other hosts in the same change. `grep -rn "class=\"[^\"]*<the-class>" src/` before finishing: a class name used in one file and styled `:global` in another is the signature.
+
+## 2026-09-07
+- Date: 2026-09-07
+- Context: Reproducing the SonarCloud gate locally, per the method Runs 8, 12 and 13 recorded.
+- Lesson: That method could only ever see `.ts` files. The throwaway config gave `eslint-plugin-svelte` no TypeScript sub-parser, so every component came back as `Parsing error: Unexpected token {` — which reads like a config problem to skip past, not like coverage silently missing. Adding `languageOptions.parserOptions.parser` surfaced four real findings in new component code that three runs of this reproduction would have missed.
+- Action: `...svelte.configs['flat/recommended']` followed by `{ files: ['**/*.svelte'], languageOptions: { parserOptions: { parser: tsParser } }, plugins: { sonarjs }, rules: sonarjs.configs.recommended.rules }`. Treat a parsing error in a checker reproduction as a failed check, never as a skipped file.
+
+## 2026-09-07
+- Date: 2026-09-07
+- Context: Adding a Web Share API call, and needing the button's label to be true before it is pressed.
+- Lesson: Two constraints pull against each other. `navigator.share` needs transient user activation, so nothing may be awaited between the click and the call — which forces the file bytes to be prepared synchronously. And every page route here is prerendered, so a capability measured at build time would be the build machine's and would be replayed to every reader by the service worker. What resolves both: prepare bytes from the `data:` URLs already in memory (no await needed), and report "no page" *before* "no capability", so the prerendered document — which can never contain a finished page — says the same sentence as the hydrated one.
+- Action: For any browser-capability-dependent control on a prerendered route, find the state that makes the capability irrelevant and answer with that first. Assert it: `describeShareJob` returns the same `blockedReason` for all three capabilities when there is no page.
