@@ -8,6 +8,7 @@ Info flow: Changes -> entries -> release communication.
 All notable user-visible changes for this repo.
 
 ## Unreleased
+- Meechie Tools and the Studio wording tool now block requests describing suicide or extremist material, same as the rest of the app already did — those two topics were only ever caught on one of the app's three moderated endpoints.
 - **You can print a coloring page now.** The app is a coloring book, every screen that makes a page has always told you to "Print it. Color it.", and the button that makes one says "Printing the truth…" while it works — but there was no way to print. The only route to paper was downloading the PDF, leaving the app, finding the file and printing it from something else.
 - There is a Print button beside the downloads on the home studio, on all four mode pages and in Meechie's Tools. It sends the picture straight to your printer, and if you pick "Save as PDF" instead, the file is named after your page rather than after the app.
 - Using your browser's own Print command now works too, from anywhere in the app. It used to print the *app*: four sheets of the menu bar, the big photograph at the top and the eight mode cards, and nothing on any of them you could colour. It now prints the coloring page and only the coloring page — white paper, the picture centred and sized to fit, with a margin wide enough to hold.
