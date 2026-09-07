@@ -253,3 +253,37 @@ test('one finished picture is one sheet of paper', async ({ page }) => {
 	// Was four on `main`: the nav, the hero, the mode cards and the panels.
 	expect(pageCount).toBe(1);
 });
+
+test('the print job is named after the page, and a second print does not strand the tab name', async ({
+	page
+}) => {
+	await stub(page);
+	await makeHomePage(page);
+
+	// Stand in for the printer: a real `print()` opens a dialog this test cannot dismiss, and what
+	// is being measured is the title the job runs under, which is what the browser offers as the
+	// filename for "Save as PDF".
+	await page.evaluate(() => {
+		(globalThis as unknown as { titlesSeen: string[] }).titlesSeen = [];
+		globalThis.print = () => {
+			(globalThis as unknown as { titlesSeen: string[] }).titlesSeen.push(document.title);
+		};
+	});
+
+	const appTitle = await page.title();
+	const print = page.getByTestId('home-print-page');
+
+	// Twice, with no `afterprint` in between. `print()` resolves as soon as the preview opens in
+	// several browsers, so this is reachable — and capturing the title per click would capture the
+	// already-swapped one the second time and restore the wrong value for good.
+	await print.click();
+	await print.click();
+
+	const seen = await page.evaluate(
+		() => (globalThis as unknown as { titlesSeen: string[] }).titlesSeen
+	);
+	expect(seen).toEqual(['Receipt Energy', 'Receipt Energy']);
+
+	await page.evaluate(() => globalThis.dispatchEvent(new Event('afterprint')));
+	await expect.poll(() => page.title()).toBe(appTitle);
+});

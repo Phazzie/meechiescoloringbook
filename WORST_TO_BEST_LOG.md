@@ -11469,3 +11469,54 @@ run happened to be bitten by.
 | `sonarjs` recommended, second pass | **0 errors** |
 
 Every one of those exit codes was read from `$?` on an unpiped command.
+
+## Run 13, second close-out — 2026-09-07 — the bug found by asking a reviewer to look for it
+
+Asking CodeRabbit for a review meant writing down what was worth an adversarial look. One of the
+two questions was about the `document.title` swap in `PrintPageButton.svelte`:
+
+> Is there a worse failure mode I have missed — a listener that accumulates across repeated prints,
+> or a restore that lands on the wrong value if the reader prints twice in a row before the first
+> `afterprint` fires?
+
+**Writing the question answered it.** There was, and it was the second one:
+
+1. First click: capture `previousTitle` = `"Meechie's Coloring Book Studio"`, register listener A,
+   set the title to `"Receipt Energy"`, call `print()` — which in several browsers **resolves as
+   soon as the preview opens**.
+2. Second click before `afterprint` arrives: capture `previousTitle` = **`"Receipt Energy"`**, the
+   already-swapped value. Register listener B.
+3. `afterprint` fires. A restores the app title, then B overwrites it with `"Receipt Energy"`.
+
+The tab is then named after one coloring page **permanently**, until the next navigation — strictly
+worse than the documented worst case, which was a title left stale until `afterprint` arrives.
+
+Fixed by moving the restore target to `<script module>` scope: one pending restore and one
+listener per burst, so the second print neither re-captures nor re-registers. Module scope rather
+than instance scope on purpose — `document.title` is one global thing, and the value being
+protected is what it was before *any* print started.
+
+**Red-proofed rather than asserted.** The guard was removed (`if (pendingTitleRestore === null)`
+→ `if (true)`, which is exactly the pre-fix behaviour) and the new test re-run:
+
+```
+Expected: "Meechie's Coloring Book Studio"
+Received: "Receipt Energy"
+1 failed
+```
+
+Output in `docs/evidence/2026-09-07/redproof-title-restore.txt`. The test drives two prints with no
+`afterprint` between them, against a stubbed `print()` that records the title each job ran under —
+a real one opens a dialog the test cannot dismiss. 55 e2e tests now, 6 of them this run's.
+
+### The transferable part
+
+This is the second time in one run that **writing the reasoning down found the defect before the
+reviewer did** — the first was the `super-linear-regex` pair, found by running the checker's own
+rules rather than waiting for the check. The pattern is not "review your own work harder". It is
+that *naming the failure mode you are unsure about, in enough detail to hand to someone else*, is
+itself the check. The question above had to state the interleaving to be answerable, and stating the
+interleaving is what made it obviously reachable.
+
+Worth carrying: when a pull request asks a reviewer to look at something specific, write the
+question as if the answer were "yes, here is how" — then go and see whether it is.

@@ -13,6 +13,24 @@ Invariant: this is the ONLY place in `src/` that calls `print()`. The decisions 
            comes out of the printer is not decided here either — that is the `@media print` block in
            `+layout.svelte`, which reveals the elements marked `data-print-sheet` and hides the app.
 -->
+<script module lang="ts">
+	/**
+	 * The document title to put back once the print job is done, or `null` when none is in flight.
+	 *
+	 * Module scope, not instance scope, because `document.title` is one global thing and the value
+	 * being protected is "what it was before *any* of this started". Two facts make this necessary
+	 * rather than tidy:
+	 *
+	 * 1. `print()` resolves as soon as the preview opens in several browsers, so a second print can
+	 *    begin before the first `afterprint` arrives. Capturing the title per click would capture
+	 *    the *already swapped* title the second time, and the restore would then put the page title
+	 *    back rather than the app's — leaving it wrong permanently instead of briefly.
+	 * 2. Registering a listener per click means several restores running on one event, in order,
+	 *    with the last one winning. One pending restore, one listener.
+	 */
+	let pendingTitleRestore: string | null = null;
+</script>
+
 <script lang="ts">
 	import { describePrintJob } from '$lib/core/print-sheet';
 
@@ -44,19 +62,26 @@ Invariant: this is the ONLY place in `src/` that calls `print()`. The decisions 
 		// from the service worker's cache offline.
 		if (typeof globalThis.print !== 'function') return;
 
-		const previousTitle = globalThis.document.title;
 		// Restored on `afterprint`, not straight after `print()` returns. In several browsers
 		// `print()` resolves as soon as the preview opens, so restoring there would rename the job
 		// out from under the filename field the reader is still looking at. If a browser never
 		// fires `afterprint` the tab keeps the page's title until the next navigation, which costs
 		// the reader nothing.
-		globalThis.addEventListener(
-			'afterprint',
-			() => {
-				globalThis.document.title = previousTitle;
-			},
-			{ once: true }
-		);
+		//
+		// Only the first print of a burst captures and registers — see `pendingTitleRestore`.
+		if (pendingTitleRestore === null) {
+			pendingTitleRestore = globalThis.document.title;
+			globalThis.addEventListener(
+				'afterprint',
+				() => {
+					if (pendingTitleRestore !== null) {
+						globalThis.document.title = pendingTitleRestore;
+						pendingTitleRestore = null;
+					}
+				},
+				{ once: true }
+			);
+		}
 		globalThis.document.title = job.documentTitle;
 		globalThis.print();
 	};
