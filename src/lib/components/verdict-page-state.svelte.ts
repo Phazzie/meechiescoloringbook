@@ -37,6 +37,12 @@ import {
 import type { ToolPageRecipe } from '$lib/core/tool-page-recipe';
 import { buildQualityReport } from '$lib/core/quality-report';
 import {
+	describeOriginalImageExport,
+	describePackagedExports,
+	summarisePageExportFailures
+} from '$lib/core/page-exports';
+import type { PageExport, PageExportAttempt } from '$lib/core/page-exports';
+import {
 	MeechieToolInputSchema,
 	MeechieToolResultSchema
 } from '../../../contracts/meechie-tool.contract';
@@ -234,7 +240,53 @@ export class VerdictPageState {
 	isGenerating = $state(false);
 	generateError = $state('');
 	imagePreviews = $state<string[]>([]);
-	packagedFiles = $state<PackagedFile[]>([]);
+	/**
+	 * What each packaging call was asked for and what it produced.
+	 *
+	 * The stored record, from which the row and its failure sentence are both derived — the same
+	 * arrangement the home studio has had since Run 6. Keeping the attempts rather than only their
+	 * files is what lets a download name the paper it was actually packaged for, and what lets a
+	 * failure be described by the variant that was *requested* rather than by a file that does not
+	 * exist to read a type off.
+	 */
+	packageAttempts = $state<PageExportAttempt[]>([]);
+	/** The bytes of every file packaged for the page on the paper. */
+	packagedFiles = $derived<PackagedFile[]>(
+		this.packageAttempts.flatMap((attempt) => attempt.files)
+	);
+	/**
+	 * The provider's own image for the page on screen, kept reactive so the export row can offer it.
+	 *
+	 * Separate from the private `generatedImages`, which is a plain field and therefore invisible to
+	 * a `$derived`. This is the one download that involves no re-rendering at all, and until now it
+	 * was available on the home page and nowhere else.
+	 */
+	private pageOriginalImage = $state<GeneratedImage | null>(null);
+	/** The base name every download for the page on screen shares. */
+	private pageFileBaseName = $state('');
+	/**
+	 * The export row: each packaged file, then the provider's own image, every one of them carrying
+	 * what it is, what it is for and how big it is.
+	 *
+	 * The original comes last and is derived rather than stored, so it appears and disappears with
+	 * the page it belongs to and can never be left behind by a reset.
+	 */
+	pageExports = $derived.by((): PageExport[] => {
+		// No page size passed: each attempt carries the one it was packaged for, so the row cannot
+		// describe a file as paper it was not made on.
+		const packaged = describePackagedExports(this.packageAttempts);
+		const original = describeOriginalImageExport(this.pageOriginalImage, this.pageFileBaseName);
+		return original ? [...packaged, original] : packaged;
+	});
+	/**
+	 * What could not be packaged, phrased so it can never be read as "the generation failed".
+	 *
+	 * A separate field from `generateError`, which is where both used to be written — so a page that
+	 * generated perfectly and then failed to become a square PNG showed the same crimson box, in the
+	 * same place, as a page that never generated at all, directly above the button that buys another
+	 * generation.
+	 */
+	exportError = $derived(summarisePageExportFailures(this.packageAttempts));
 	assembledPrompt = $state('');
 	revisedPrompt = $state('');
 	/**
@@ -316,6 +368,18 @@ export class VerdictPageState {
 	}
 
 	/**
+	 * Meechie's line for the page on the paper, for the message that travels with a sent picture.
+	 *
+	 * Read off `pageVerdict` — the verdict the picture was built from — for the same reason
+	 * `pageTitle` is read off `lastRecipe`: `verdict` is the *live* one and changes the instant a
+	 * replacement arrives, so sending from it would caption the picture on screen with a verdict
+	 * that never became a page.
+	 */
+	get pageHeadline(): string | null {
+		return this.pageVerdict?.headline ?? null;
+	}
+
+	/**
 	 * True when a save would actually be attempted, so the button can explain itself instead.
 	 *
 	 * `!isGenerating` is load-bearing since `makePage` stopped clearing the page on entry: page A
@@ -385,7 +449,9 @@ export class VerdictPageState {
 		this.isGenerating = false;
 		this.generateError = '';
 		this.imagePreviews = [];
-		this.packagedFiles = [];
+		this.packageAttempts = [];
+		this.pageOriginalImage = null;
+		this.pageFileBaseName = '';
 		this.assembledPrompt = '';
 		this.revisedPrompt = '';
 		this.violations = [];
@@ -594,7 +660,11 @@ export class VerdictPageState {
 			this.imagePreviews = usable
 				.map((entry) => entry.preview)
 				.filter((url): url is string => url !== null);
-			this.packagedFiles = [];
+			this.packageAttempts = [];
+			// The provider's own bytes are downloadable the moment the page lands; packaging takes
+			// seconds. Waiting for it would hide the one file that needs no rendering at all behind
+			// the two that do.
+			this.pageOriginalImage = images[0] ?? null;
 
 			await this.attachDownloads(images, recipe.spec.pageSize, token);
 		} catch (requestError) {
@@ -622,6 +692,11 @@ export class VerdictPageState {
 	): Promise<void> {
 		const isStale = (): boolean => token !== this.pageToken;
 		const fileBaseName = `meechie-${this.fileBaseSlug}-${Date.now()}`;
+		// Set before packaging, not after: the provider's own image is already downloadable, and
+		// naming it only once the PDF exists would hand anyone who grabbed it early a file named
+		// after no page in particular. Cleared by `resetPage` on its way past, so a late attempt for
+		// a replaced page cannot revive it.
+		this.pageFileBaseName = fileBaseName;
 		const print = await packageOneVariant(
 			'print',
 			images,
@@ -640,12 +715,15 @@ export class VerdictPageState {
 		);
 		if (isStale()) return;
 
-		this.packagedFiles = [...print.files, ...share.files];
-		if (print.error !== null) {
-			this.generateError = `Page made, but the printable download could not be built: ${print.error}`;
-		} else if (share.error !== null) {
-			this.generateError = `Page and PDF are ready; the square share image could not be built: ${share.error}`;
-		}
+		// Recorded as attempts, and *not* into `generateError`. Both used to go there: a page that
+		// generated perfectly and then failed to become a square PNG rendered in the same crimson
+		// box, in the same place, as a page that never generated — directly above the button that
+		// buys another generation, for a failure in a free local render. `exportError` is derived
+		// from these and worded so it cannot be read that way, exactly as the home studio's is.
+		this.packageAttempts = [
+			{ variant: 'print', files: print.files, error: print.error, pageSize },
+			{ variant: 'square', files: share.files, error: share.error, pageSize }
+		];
 	}
 
 	/** Keep the page: write it into the same owner-scoped vault the studio saves to. */

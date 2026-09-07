@@ -1,6 +1,6 @@
 {
   "tool": "proof-tape",
-  "generatedAt": "2026-09-07T06:58:38.608Z",
+  "generatedAt": "2026-09-07T12:56:29.107Z",
   "evidenceDir": "docs/evidence/2026-09-07",
   "runMarker": "chamber-lock.json",
   "excludedFromInventory": [
@@ -11,7 +11,12 @@
     "build.txt",
     "e2e-print.txt",
     "e2e.txt",
+    "export-row-after.txt",
+    "export-row-before.txt",
     "lint.txt",
+    "redproof-share-policy.txt",
+    "redproof-title-restore.txt",
+    "sonarjs-local-run14.txt",
     "sonarjs-local.txt"
   ],
   "files": [
@@ -19,7 +24,7 @@
       "name": "assumption-alarm.json",
       "path": "docs/evidence/2026-09-07/assumption-alarm.json",
       "sizeBytes": 13941,
-      "modifiedAt": "2026-09-07T06:58:38.439Z",
+      "modifiedAt": "2026-09-07T12:56:28.933Z",
       "commands": [],
       "predatesRun": false
     },
@@ -27,7 +32,7 @@
       "name": "build.txt",
       "path": "docs/evidence/2026-09-07/build.txt",
       "sizeBytes": 12814,
-      "modifiedAt": "2026-09-07T06:53:52.792Z",
+      "modifiedAt": "2026-09-07T12:21:31.586Z",
       "commands": [
         "meechies-coloringbook@0.1.0 build",
         "vite build",
@@ -39,7 +44,7 @@
       "name": "chamber-lock.json",
       "path": "docs/evidence/2026-09-07/chamber-lock.json",
       "sizeBytes": 35315,
-      "modifiedAt": "2026-09-07T06:57:04.246Z",
+      "modifiedAt": "2026-09-07T12:54:50.353Z",
       "commands": [],
       "predatesRun": false
     },
@@ -47,7 +52,7 @@
       "name": "clan-chain.json",
       "path": "docs/evidence/2026-09-07/clan-chain.json",
       "sizeBytes": 3181,
-      "modifiedAt": "2026-09-07T06:58:38.553Z",
+      "modifiedAt": "2026-09-07T12:56:29.045Z",
       "commands": [],
       "predatesRun": false
     },
@@ -55,23 +60,39 @@
       "name": "clan-chain.md",
       "path": "docs/evidence/2026-09-07/clan-chain.md",
       "sizeBytes": 1956,
-      "modifiedAt": "2026-09-07T06:58:38.553Z",
+      "modifiedAt": "2026-09-07T12:56:29.045Z",
       "commands": [],
       "predatesRun": false
     },
     {
       "name": "e2e-print.txt",
       "path": "docs/evidence/2026-09-07/e2e-print.txt",
-      "sizeBytes": 1003,
-      "modifiedAt": "2026-09-07T06:46:50.928Z",
+      "sizeBytes": 1153,
+      "modifiedAt": "2026-09-07T12:21:31.586Z",
       "commands": [],
       "predatesRun": true
     },
     {
       "name": "e2e.txt",
       "path": "docs/evidence/2026-09-07/e2e.txt",
-      "sizeBytes": 7449,
-      "modifiedAt": "2026-09-07T06:53:52.815Z",
+      "sizeBytes": 7601,
+      "modifiedAt": "2026-09-07T12:21:31.586Z",
+      "commands": [],
+      "predatesRun": true
+    },
+    {
+      "name": "export-row-after.txt",
+      "path": "docs/evidence/2026-09-07/export-row-after.txt",
+      "sizeBytes": 1678,
+      "modifiedAt": "2026-09-07T12:50:25.009Z",
+      "commands": [],
+      "predatesRun": true
+    },
+    {
+      "name": "export-row-before.txt",
+      "path": "docs/evidence/2026-09-07/export-row-before.txt",
+      "sizeBytes": 1448,
+      "modifiedAt": "2026-09-07T12:33:02.018Z",
       "commands": [],
       "predatesRun": true
     },
@@ -79,7 +100,7 @@
       "name": "lint.txt",
       "path": "docs/evidence/2026-09-07/lint.txt",
       "sizeBytes": 48,
-      "modifiedAt": "2026-09-07T06:53:52.794Z",
+      "modifiedAt": "2026-09-07T12:21:31.586Z",
       "commands": [
         "meechies-coloringbook@0.1.0 lint",
         "eslint ."
@@ -87,10 +108,30 @@
       "predatesRun": true
     },
     {
+      "name": "redproof-share-policy.txt",
+      "path": "docs/evidence/2026-09-07/redproof-share-policy.txt",
+      "sizeBytes": 3007,
+      "modifiedAt": "2026-09-07T12:48:22.298Z",
+      "commands": [
+        "243 | \texpect(calls[0].files[0].type).toBe('image/png');"
+      ],
+      "predatesRun": true
+    },
+    {
+      "name": "redproof-title-restore.txt",
+      "path": "docs/evidence/2026-09-07/redproof-title-restore.txt",
+      "sizeBytes": 1553,
+      "modifiedAt": "2026-09-07T12:21:31.586Z",
+      "commands": [
+        "288 | \tawait expect.poll(() => page.title()).toBe(appTitle);"
+      ],
+      "predatesRun": true
+    },
+    {
       "name": "seam-ledger.json",
       "path": "docs/evidence/2026-09-07/seam-ledger.json",
       "sizeBytes": 37511,
-      "modifiedAt": "2026-09-07T06:58:38.507Z",
+      "modifiedAt": "2026-09-07T12:56:28.997Z",
       "commands": [],
       "predatesRun": false
     },
@@ -98,7 +139,7 @@
       "name": "seam-ledger.md",
       "path": "docs/evidence/2026-09-07/seam-ledger.md",
       "sizeBytes": 2981,
-      "modifiedAt": "2026-09-07T06:58:38.507Z",
+      "modifiedAt": "2026-09-07T12:56:28.997Z",
       "commands": [],
       "predatesRun": false
     },
@@ -106,15 +147,23 @@
       "name": "shaolin-lint.json",
       "path": "docs/evidence/2026-09-07/shaolin-lint.json",
       "sizeBytes": 519,
-      "modifiedAt": "2026-09-07T06:58:38.391Z",
+      "modifiedAt": "2026-09-07T12:56:28.881Z",
       "commands": [],
       "predatesRun": false
+    },
+    {
+      "name": "sonarjs-local-run14.txt",
+      "path": "docs/evidence/2026-09-07/sonarjs-local-run14.txt",
+      "sizeBytes": 3208,
+      "modifiedAt": "2026-09-07T12:52:24.797Z",
+      "commands": [],
+      "predatesRun": true
     },
     {
       "name": "sonarjs-local.txt",
       "path": "docs/evidence/2026-09-07/sonarjs-local.txt",
       "sizeBytes": 2365,
-      "modifiedAt": "2026-09-07T06:53:52.820Z",
+      "modifiedAt": "2026-09-07T12:21:31.586Z",
       "commands": [],
       "predatesRun": true
     },
@@ -122,7 +171,7 @@
       "name": "test.txt",
       "path": "docs/evidence/2026-09-07/test.txt",
       "sizeBytes": 3233,
-      "modifiedAt": "2026-09-07T06:58:38.312Z",
+      "modifiedAt": "2026-09-07T12:56:28.797Z",
       "commands": [
         "meechies-coloringbook@0.1.0 test",
         "vitest run --pool=forks --maxWorkers=1"
@@ -133,7 +182,7 @@
       "name": "verify.txt",
       "path": "docs/evidence/2026-09-07/verify.txt",
       "sizeBytes": 3558,
-      "modifiedAt": "2026-09-07T06:58:38.307Z",
+      "modifiedAt": "2026-09-07T12:56:28.797Z",
       "commands": [
         "meechies-coloringbook@0.1.0 check",
         "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",

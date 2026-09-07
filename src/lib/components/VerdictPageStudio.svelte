@@ -15,7 +15,9 @@ Invariants: The quality report is rendered ONLY through `QualityReportPanel`, ne
 <script lang="ts">
 	import type { VerdictPageState } from './verdict-page-state.svelte';
 	import QualityReportPanel from './QualityReportPanel.svelte';
+	import PageExportRow from './PageExportRow.svelte';
 	import PrintPageButton from './PrintPageButton.svelte';
+	import SharePageButton from './SharePageButton.svelte';
 
 	let {
 		studio,
@@ -115,17 +117,20 @@ Invariants: The quality report is rendered ONLY through `QualityReportPanel`, ne
 			{/each}
 		</div>
 
+		<!--
+			The shared export row. This surface — and the eleven routes behind it — used to render
+			`{#each studio.packagedFiles as file}` with `{file.filename}` as the link text, so the
+			reader was offered `meechie-who-fucked-up-1788784316892.pdf` and nothing else: no idea
+			what either file was for, no size, and no way at all to get the provider's own image. The
+			home studio has had the labelled row since Run 6; this is the same one.
+		-->
+		<PageExportRow
+			exports={studio.pageExports}
+			exportError={studio.exportError}
+			testIdPrefix="verdict-page"
+		/>
+
 		<div class="page-actions">
-			{#each studio.packagedFiles as file}
-				<a
-					class="download-link"
-					data-testid="verdict-page-download"
-					href={`data:${file.mimeType};base64,${file.dataBase64}`}
-					download={file.filename}
-				>
-					{file.filename}
-				</a>
-			{/each}
 			<button
 				class="ghost"
 				type="button"
@@ -139,6 +144,15 @@ Invariants: The quality report is rendered ONLY through `QualityReportPanel`, ne
 				sheetCount={studio.imagePreviews.length}
 				pageTitle={studio.pageTitle}
 				testId="verdict-page-print"
+			/>
+			<!-- The page's own title and Meechie's own line, not the live verdict's: this surface
+			     keeps showing page A while a replacement verdict loads, and sending from the live
+			     one would caption A's picture with B's words. -->
+			<SharePageButton
+				exports={studio.pageExports}
+				pageTitle={studio.pageTitle}
+				quote={studio.pageHeadline}
+				testId="verdict-page-share"
 			/>
 		</div>
 		{#if studio.vaultStatus}
@@ -369,24 +383,7 @@ Invariants: The quality report is rendered ONLY through `QualityReportPanel`, ne
 		gap: 0.6rem;
 	}
 
-	.download-link {
-		display: inline-flex;
-		align-items: center;
-		padding: 0.6rem 1.1rem;
-		border-radius: 999px;
-		border: 1px solid var(--gold-border, rgba(201, 162, 39, 0.35));
-		background: rgba(201, 162, 39, 0.08);
-		color: var(--gold-bright, #f0c44a);
-		text-decoration: none;
-		font-size: 0.88rem;
-		font-weight: 600;
-		transition:
-			border-color 0.2s ease,
-			background-color 0.2s ease;
-	}
-
-	.download-link:hover {
-		border-color: var(--gold, #c9a227);
-		background: rgba(201, 162, 39, 0.15);
-	}
+	/* `.download-link` lived here, styling a row of links whose text was a raw filename. The row is
+	   `PageExportRow` now and owns its own styling, so the rule went with the markup rather than
+	   staying behind to be inherited by whatever picked the class name up next. */
 </style>

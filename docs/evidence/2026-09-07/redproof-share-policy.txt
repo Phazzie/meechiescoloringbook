@@ -1,0 +1,53 @@
+RED PROOF for the send policy — 2026-09-07
+
+Two guards were removed from src/lib/core/share-page.ts and the suites re-run:
+  1. SHARE_PREFERENCE reordered so the print PDF wins over the square PNG.
+  2. isShareCancellation() forced to false, so a dismissed share sheet reports a failure.
+
+Result: 2 of 7 end-to-end tests failed and 4 of 25 unit tests failed — the two that assert
+the file chosen and the two that assert a cancelled send is not an error. Both guards restored
+afterwards and every suite is green; see test.txt and e2e.txt.
+
+Note: the clipboard test stayed green under the reordered preference, correctly — that path
+filters to image/png before the preference is consulted, so a PDF was never eligible for it.
+
+RED PROOF — both guards removed from share-page.ts:
+  1. SHARE_PREFERENCE reordered so the print PDF wins over the square PNG.
+  2. isShareCancellation() forced to false, so a dismissed share sheet reports a failure.
+
+
+Running 7 tests using 2 workers
+
+  ✓  1 [chromium] › tests/e2e/share.spec.ts:208:1 › the send control explains itself before there is a page (2.6s)
+  ✓  2 [chromium] › tests/e2e/share.spec.ts:187:1 › a mode route describes every download, and offers the original (2.7s)
+  ✘  3 [chromium] › tests/e2e/share.spec.ts:225:1 › sending hands the share sheet the picture and the words that go with it (2.1s)
+  ✓  5 [chromium] › tests/e2e/share.spec.ts:267:1 › a browser with no share sheet copies the picture instead (1.6s)
+  ✘  4 [chromium] › tests/e2e/share.spec.ts:252:1 › backing out of the share sheet is not an error (6.8s)
+  ✓  6 [chromium] › tests/e2e/share.spec.ts:290:1 › the tools hub and the home studio get the same row and the same control (3.5s)
+  ✓  7 [chromium] › tests/e2e/share.spec.ts:317:1 › the send control never reaches the paper (1.7s)
+
+
+  1) [chromium] › tests/e2e/share.spec.ts:225:1 › sending hands the share sheet the picture and the words that go with it 
+
+    Error: expect(received).toBe(expected) // Object.is equality
+
+    Expected: "image/png"
+    Received: "application/pdf"
+
+      241 | 	// One file: the square PNG. Not the PDF, which no messenger previews, and not both.
+      242 | 	expect(calls[0].files).toHaveLength(1);
+    > 243 | 	expect(calls[0].files[0].type).toBe('image/png');
+          | 	                               ^
+      244 | 	expect(calls[0].files[0].name).toMatch(/-square\.png$/);
+      245 | 	// A real payload, not an empty file: the bytes came out of the same `data:` URL the download
+      246 | 	// link points at.
+        at /home/user/meechiescoloringbook/tests/e2e/share.spec.ts:243:33
+
+    Error Context: test-results/share-sending-hands-the-sh-6665e-d-the-words-that-go-with-it-chromium/error-context.md
+
+  2) [chromium] › tests/e2e/share.spec.ts:252:1 › backing out of the share sheet is not an error ───
+
+    Error: expect(locator).toHaveCount(expected) failed
+
+    Locator:  getByTestId('verdict-page-share-status')
+    Expected: 0

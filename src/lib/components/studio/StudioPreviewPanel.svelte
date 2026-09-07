@@ -15,7 +15,9 @@ Critical invariant: the paper on screen shows the page's OWN look, never the liv
 	import type { StudioTheme } from '$lib/core/meechie-studio';
 	import type { MeechieStudioTextOutput } from '$lib/seams/meechie-studio-text-seam/contract';
 	import type { PageExport } from '$lib/core/page-exports';
+	import PageExportRow from '../PageExportRow.svelte';
 	import PrintPageButton from '../PrintPageButton.svelte';
+	import SharePageButton from '../SharePageButton.svelte';
 
 	let {
 		previewOutput,
@@ -162,12 +164,19 @@ Critical invariant: the paper on screen shows the page's OWN look, never the liv
 			disabled={!canSaveToVault}
 			>{getStudioAction('save_to_vault').label}</button
 		>
-		<!-- Beside the downloads rather than inside the export list: this is not a file you take
-		     away, it is the page going straight to paper. -->
+		<!-- Beside the downloads rather than inside the export list: neither of these is a file you
+		     take away. One is the page going straight to paper; the other is the page going straight
+		     to somebody else. -->
 		<PrintPageButton
 			sheetCount={imagePreviews.length}
 			pageTitle={previewOutput?.pageTitle ?? null}
 			testId="home-print-page"
+		/>
+		<SharePageButton
+			exports={pageExports}
+			pageTitle={previewOutput?.pageTitle ?? null}
+			quote={previewOutput?.quote ?? null}
+			testId="home-share-page"
 		/>
 	</div>
 
@@ -178,46 +187,12 @@ Critical invariant: the paper on screen shows the page's OWN look, never the liv
 		link handing back the provider's raw bytes under a constant filename. What each file is, what
 		it is for and how big it is are all read off the file itself now, so the row cannot describe a
 		page it is not carrying.
+
+		Now the shared component rather than this panel's own copy: for twelve runs it was this
+		panel's own copy, and the twelve other surfaces that make a page kept the raw-filename row
+		this one replaced.
 	-->
-	<!-- Labelled with the same words it shows, so what a screen reader announces and what a sighted
-	     reader sees are one string rather than two that can drift apart. -->
-	<section class="exports" aria-labelledby="home-export-heading">
-		<p class="eyebrow" id="home-export-heading">Take it with you</p>
-		{#if pageExports.length > 0}
-			<ul class="export-list" data-testid="home-export-list">
-				<!-- Deliberately unkeyed. Filenames are unique by construction today, but a key that
-				     turns out to be duplicated is a runtime error in Svelte, and this list is three
-				     rows long — there is nothing for a key to buy. -->
-				{#each pageExports as item}
-					<li>
-						<a
-							class="button-link export-link"
-							data-testid="home-export-link"
-							data-export-kind={item.kind}
-							href={item.href}
-							download={item.filename}
-						>
-							<span class="export-label">{item.label}</span>
-							<span class="export-meta">{item.purpose} · {item.sizeLabel}</span>
-						</a>
-					</li>
-				{/each}
-			</ul>
-		{:else}
-			<p class="export-empty" data-testid="home-export-empty">
-				Make a page — its printable PDF, its share image and the original all land
-				here.
-			</p>
-		{/if}
-		{#if exportError}
-			<!-- A notice, not an error: the page above it is finished and worth keeping. Styled and
-			     worded apart from `generationError` so nobody reads a failed PDF as a failed
-			     generation and pays for a second one. -->
-			<p class="export-notice" data-testid="home-export-error" role="status">
-				{exportError}
-			</p>
-		{/if}
-	</section>
+	<PageExportRow exports={pageExports} {exportError} testIdPrefix="home" />
 
 	{#if copyStatus || vaultStatus}
 		<p class="status" data-testid="home-status">

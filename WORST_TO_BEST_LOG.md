@@ -11692,3 +11692,242 @@ do next and see whether it does it.
 
 The remedy is still `claude/sweet-mendel-LJ9Iu` (291 commits behind `main`, last touched
 2026-06-08) rebasing or being closed. That is its author's call.
+
+## Run 14 — 2026-09-07 — Taking the page away (the export row on twelve surfaces, and the send that was never there)
+
+**Branch:** `claude/great-bell-yy6z0z` · **Base:** `main` at `7fbb57d`
+
+### The feature, and why it was the worst
+
+Every journey in this app ends the same way: you made a coloring page, now leave with it. That is
+one panel — the downloads, Print, Save to the vault — and it sits at the bottom of thirteen
+page-making surfaces: `/`, `/meechie`, `/who-fucked-up`, `/rate-his-excuse`, `/random`, and the
+eight `/m/<slug>` mode pages.
+
+Run 6 rebuilt that panel for the home studio and put every decision behind it in
+`src/lib/core/page-exports.ts` — pure, 33 unit tests, deciding what each download is called, what it
+is for, how big it is, and how a packaging failure is worded so it can never be read as "your
+generation failed". **Exactly one surface ever used it.** The other twelve still rendered the row
+Run 6 deleted:
+
+```svelte
+{#each studio.packagedFiles as file}
+  <a class="download-link" href={…} download={file.filename}>{file.filename}</a>
+{/each}
+```
+
+**Measured in a real browser, not read off the source** — Chromium 1194 against the dev server at
+`7fbb57d`, same stubbed page, layout-rect visibility (`docs/evidence/2026-09-07/export-row-before.txt`):
+
+| | home `/` | `/who-fucked-up` |
+|---|---|---|
+| Downloads offered | **3** | 2 |
+| First link's text | `Printable PDF · US Letter — ready to print · 946 B` | `meechie-who-fucked-up-1788784316892.pdf` |
+| The provider's own image (`original`) | yes | **not available at all** |
+| Send controls | 0 | 0 |
+
+Three separate costs, one panel:
+
+1. **The row did not say what it was handing you.** Two links, both named after a millisecond
+   timestamp. Nothing on screen told a reader which file was the printable one, which was the square
+   one for posting, or how big either was.
+2. **The original was unreachable on twelve of thirteen surfaces.** It is the provider's own bytes —
+   the one download that involves no re-rendering, and the highest-quality file there is.
+3. **A packaging failure was reported as a generation failure.** Both were written to
+   `generateError`, rendered in the crimson `.error` box, **above the generate button**. A page that
+   generated perfectly and then failed to become a square PNG looked exactly like a page that never
+   generated — and the natural response to that is to buy another generation for a free local render.
+   That is the precise defect Run 6 named and fixed, still live on twelve surfaces.
+
+And then the fourth, which is the app's own words rather than mine. `/random` and `/meechie` both
+end with **"Print it. Color it. Send it to whoever needs to see it."** Run 13 made the first two
+clauses true. The third had never been true anywhere:
+
+```
+grep -rn "navigator.share\|canShare\|ClipboardItem" src/ static/ tests/     ->  0 matches
+```
+
+`studioActions` in `meechie-studio.ts` is the app's own list of what a reader can do with a finished
+page — `download_pdf`, `export_png`, `copy_quote`, `save_to_vault`, four page controls, four
+rewrites. Twelve entries. **Sending is not one of them.** The route to another person's phone was:
+download a file, leave the app, find it, attach it by hand — worst of all on the installed app Run
+10 built, on a phone, which is where a receipt about somebody actually gets sent.
+
+### Why this and not the two candidates carried forward
+
+Both are still blocked for the same reason as before, and this run is still a scheduled one that was
+told to merge. **Mode persistence** needs `DraftRecordSchema` to grow a field; **the packaged PDF's
+missing margin** is an adapter change. `AGENTS.md` forbids auto-merging a pull request carrying a
+schema or contract change. Taking either would mean leaving a pull request open or breaking that
+rule. They are re-listed below, unchanged.
+
+### What shipped
+
+**1. One export row, on all thirteen surfaces.** `PageExportRow.svelte` — labelled downloads, the
+empty state, the failure notice. Adopted by the home studio, `VerdictPageStudio` (the three
+standalone routes and the eight mode pages) and the tools hub.
+
+**And it owns its own CSS**, which is the part that matters more than the markup. The rules that
+made the good row good were `:global(.studio .export-*)` in `+page.svelte`. That is a large part of
+*why* the row stayed the home page's alone for twelve runs: the markup was reachable by copying and
+the styling was not, so any surface that copied it rendered unstyled and was rewritten into
+something plainer. Extracting the logic did not spread the fix. Extracting the component does.
+
+**2. The original, everywhere.** `verdict-page-state.svelte.ts` and `MeechieTools.svelte` now keep
+`PageExportAttempt[]` — the same stored record the home studio has kept since Run 6 — and derive the
+row and the original from it. The original is derived rather than stored, so it appears and
+disappears with the page it belongs to and a reset cannot leave it behind.
+
+**3. A packaging failure is a notice again.** `exportError`, derived through
+`summarisePageExportFailures`, worded so it opens by affirming the page. Nothing writes packaging
+into `generateError` any more.
+
+**4. A Send button, beside Print, on every surface that promised one.** `SharePageButton.svelte` is
+the only place in `src/` that calls `navigator.share`, `navigator.canShare` or
+`navigator.clipboard.write`. It hands the share sheet the square PNG, the page's title, and Meechie's
+own line.
+
+- **Why the square PNG.** Read out of the adapter rather than assumed: `drawImageToCanvas` fills
+  white and draws at `Math.min(width/w, height/h)` — it *letterboxes* the page onto 1080×1080, it
+  does not crop it. So nothing is cut off, it is a PNG on every platform, and it is what previews
+  inline in a chat. The print PDF is last in the preference order because it is the one file no
+  messenger previews. The choice is made on the export's `kind`, never by sniffing a filename, for
+  the reason `page-exports.ts` gives at length.
+- **The page's own title and verdict, not the live ones.** These surfaces keep showing page A while
+  a replacement verdict loads. `pageHeadline` reads `pageVerdict`, the same distinction `pageTitle`
+  already makes.
+- **The bytes are decoded synchronously.** `navigator.share` needs transient user activation, and an
+  await between the click and the call spends it in several browsers. Everything needed is already
+  in memory as the `data:` URL the download link points at, so what is sent is byte-for-byte what a
+  download hands over.
+- **A dismissed share sheet is silent.** `AbortError` is the reader choosing nothing. Reporting it
+  as a failure is the classic defect in share implementations, and there is a test that fails if the
+  guard is removed.
+
+**5. It is honest on a browser that cannot share.** Measured, not assumed: this container's
+Chromium has **no `navigator.share` and no `navigator.canShare`**, and **does** have
+`navigator.clipboard.write` and `ClipboardItem`. So the fallback is part of the feature: the button
+becomes "Copy the picture" and puts the PNG on the clipboard, ready to paste into any chat. Where
+neither exists it goes off and points at the downloads. Where the browser looks at the actual files
+and refuses them, it falls through to the clipboard rather than failing.
+
+### After
+
+Same probe, same browser, same page (`docs/evidence/2026-09-07/export-row-after.txt`):
+
+| | `/who-fucked-up` before | after |
+|---|---|---|
+| Downloads offered | 2 | **3** |
+| First link's text | `meechie-who-fucked-up-1788784316892.pdf` | `Printable PDF · US Letter — ready to print · 945 B` |
+| The original | absent | `Original PNG · exactly what the generator sent` |
+| Send controls | 0 | **1** — "Copy the picture", `data-share-method="clipboard-image"` |
+
+`/who-fucked-up` and `/` now return byte-identical rows for the same page.
+
+### Scope, and why this needed no seam workflow
+
+No file under `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`, `src/lib/adapters/` or
+`src/lib/seams/` is touched. No Cipher Gate entry required. `OutputPackagingSeam` is *consumed*
+through its existing adapter, asking for the variants it already builds. The browser APIs live in
+one component, following the precedent this codebase has now set five times over for browser-only
+calls in browser-only code: `navigator.clipboard.writeText` at `studio-state.svelte.ts:2236`,
+`MeechieTools.svelte:542` and `verdict-page-state.svelte.ts:723`, `navigator.onLine` in
+`+layout.svelte`, and `window.print()` in `PrintPageButton.svelte`. Every *decision* is in
+`src/lib/core/share-page.ts`, which is pure and has 25 unit tests.
+
+### Evidence
+
+| Command | Result |
+|---|---|
+| `npm run check` | 0 errors, 0 warnings |
+| `npm run lint` | clean |
+| `npm test` | **1663 passed**, 1 skipped (101 files) — 27 of them new |
+| `npm run build` | ✓ |
+| `npm run verify` | exit 0, evidence refreshed in `docs/evidence/2026-09-07/` |
+| `npx playwright test` | **62 passed** — 55 existing, unchanged, plus 7 new |
+
+Every exit code read from `$?` on an unpiped command — Run 13 recorded reading that rule and then
+breaking it in the same run. `playwright.config.ts` was pinned to
+`/opt/pw-browsers/chromium-1194/chrome-linux/chrome` to run the suite in this container and
+**restored before committing**; it is not in the diff.
+
+**Red proof** (`docs/evidence/2026-09-07/redproof-share-policy.txt`): the two load-bearing guards
+were removed — the preference order reversed so the PDF wins, and `isShareCancellation` forced to
+`false` — and **2 of 7 end-to-end tests and 4 of 25 unit tests failed**, the ones that assert exactly
+those two things. Both restored; everything green. The clipboard test correctly stayed green under
+the reordered preference, because that path filters to `image/png` before the preference is
+consulted, so a PDF was never eligible for it.
+
+### The SonarCloud round, run before anyone asked — and a correction to the method
+
+`sonarcloud.io` is still egress-blocked. The local reproduction was rebuilt from Run 13's recipe
+(`eslint-plugin-sonarjs@4.2.0`, `--no-save`, a throwaway flat config using **only**
+`sonarjs.configs.recommended.rules`, deleted afterwards) — and **the recipe was wrong in a way three
+runs did not notice.** It gave `eslint-plugin-svelte` no TypeScript sub-parser, so every `.svelte`
+file came back as `Parsing error: Unexpected token {`. That reads like a config wrinkle to skip past.
+It is coverage silently missing.
+
+Adding `languageOptions: { parserOptions: { parser: tsParser } }` for `**/*.svelte` surfaced **four
+findings in new component code** that Runs 8, 12 and 13's version of this reproduction could not have
+seen. Six findings in total, five of them this run's:
+
+| Finding | Where | Disposition |
+|---|---|---|
+| `no-nested-conditional` | `share-page.ts` — a ternary chain over `ShareCapability` | fixed: a `Record<ShareCapability, ShareMethod>`, which is also total by construction |
+| `no-nested-conditional` ×2 | `SharePageButton.svelte` — the same rejection branch written twice | fixed: one `outcomeForRejection`, which also removes the second copy of the "a dismissed sheet is silent" rule |
+| `cognitive-complexity` 16/15 | `SharePageButton.svelte` | fixed by the same extraction |
+| `void-use` | `SharePageButton.svelte` — `void pageKey` to make an effect track it | fixed: compare against the key the confirmation belongs to, which is what the effect actually means |
+| `super-linear-regex` | `share.spec.ts` — `/\d+(\.\d+)? (B\|KB\|MB)/` | fixed by deleting the regex: split on `·` and check the number and the unit |
+| `constructor-for-side-effects` | `verdict-page-state.test.ts:1022` | **not this run's** — `git log -L` gives `724332b`, and `git merge-base --is-ancestor 724332b origin/main` confirms it. This diff shifted the line by one |
+
+Full output in `docs/evidence/2026-09-07/sonarjs-local-run14.txt`.
+
+### What was measured rather than argued
+
+- **The promise count was checked and was smaller than it looked.** The first draft of this entry was
+  going to say the "Send it to whoever needs to see it" sentence renders on eleven surfaces, because
+  it is `VerdictPageStudio`'s default subheading. It does not: `who-fucked-up`,
+  `rate-his-excuse` and `MeechieModePage` all override it with a "Dedicate it" variant, so the
+  sentence actually renders on **two** surfaces. The claim was cut before it was written down, and
+  the case rests on what the app *does* — zero send controls on thirteen surfaces, and no send in its
+  own action catalogue — rather than on a count that was wrong.
+- **The square variant letterboxes, it does not crop.** Read out of `drawImageToCanvas` before the
+  preference order was written, because "send the square one" is only correct if it is the whole
+  page.
+- **This browser's actual capabilities.** `navigator.share` absent, `navigator.canShare` absent,
+  `navigator.clipboard.write` present, `ClipboardItem` present. That measurement is the reason the
+  fallback exists and the reason the end-to-end suite can exercise the real capability check rather
+  than only a stub.
+- **The before and after rows.** Both probed in a running browser, and the "after" probe deleted
+  before committing; its output is the evidence file.
+
+### Deliberately not done, and why
+
+- **The `chat` variant still has no consumer.** `OutputPackagingSeam` builds a 720px "smaller square
+  — for sending", `page-exports.ts` has a label for it, and nothing requests it — re-measured this
+  run: the only reference in the whole repository is one unit test. It is the obvious thing for a
+  send to use. It is not used, because packaging a third variant on every generation spends a canvas
+  rasterisation on a file most readers never send, and packaging it lazily at the click **spends the
+  transient activation** that `navigator.share` requires. The square PNG already exists, is already
+  a whole page, and costs nothing extra. Recorded so the next run does not re-derive this.
+- **No permission pre-flight for the clipboard.** A third UI state decided after hydration, on
+  prerendered routes replayed offline, is the exact bug Run 12 fixed in the mode strip. The write is
+  attempted and its rejection is handled.
+- **`.button-link` was left in `+page.svelte`.** Three other panels still use it. Only the export
+  row's rules moved.
+
+### Carried forward for the next run
+
+- **The packaged print PDF still bleeds to all four edges.** `output-packaging-seam/index.ts` scales
+  by `Math.min(pageWidth / w, pageHeight / h)` with no margin, so the browser print (12mm) and the
+  downloaded PDF still disagree. Adapter change: full seam workflow, Cipher Gate entry, and a
+  contract-carrying pull request that must not be auto-merged.
+- **Mode persistence** — Run 12's pick, blocked on the same rule for the third run running, and still
+  the strongest candidate for a run that can hold a pull request open.
+- **`ChatInterpretationSeam` still has zero consumers.** Re-measured today:
+  `grep -rn "chatInterpretationAdapter" src/routes src/lib/components` returns nothing.
+- **The `chat` packaging variant has zero consumers**, with the reasoning above.
+- `MeechieToolOutput.quoteScore` and `modelMetadata`, from Run 11's list.
+- The unidentified SonarCloud issue Run 13 recorded. This run could not read `sonarcloud.io` either.
+
+Do not inherit this entry's measurements. Re-measure.
