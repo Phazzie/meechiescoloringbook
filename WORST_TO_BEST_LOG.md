@@ -11931,3 +11931,194 @@ Full output in `docs/evidence/2026-09-07/sonarjs-local-run14.txt`.
 - The unidentified SonarCloud issue Run 13 recorded. This run could not read `sonarcloud.io` either.
 
 Do not inherit this entry's measurements. Re-measure.
+
+## Run 14 — merge close-out — PR #329 merged as `ec58a72`
+
+**Head merged:** `aca8587` · **Base:** `main` at `7fbb57d` · 3 commits, 38 files, +2555 / −329.
+Squash-merged at 13:14:41Z.
+
+### Gate state at merge
+
+| Check | Conclusion |
+|---|---|
+| `verify` (both workflow runs) | success |
+| `SonarCloud` / `SonarCloud Code Analysis` | **success — Quality Gate passed** |
+| `CodeQL`, `Analyze (actions)`, `Analyze (javascript-typescript)` | success |
+| `Vercel` deployment (commit **status**, not a check run) | success |
+| `Vercel Preview Comments` | success |
+| **`Rosentic - Conflict Detection`** | **success** |
+| `Codex` | rate-limited — no findings |
+| `Sourcery review` | skipped — 7-day diff budget spent; it produced a guide, not a review |
+| `CodeRabbit` | **reviewed on request — no blocking issue** |
+
+`mergeable_state` was `clean`. Both surfaces were read at the moment of merging, per the rule that
+a deployment reports as a commit status and can be red while every check run is green. Review
+threads: `get_review_comments` returned **zero**. Open Assumptions in `DECISIONS.md`: **zero**
+(`grep -c "Status: open"`). No schema, contract or migration in the diff.
+
+### Rosentic was green, and that is the third distinct result in three runs
+
+Run 12's red **did** name its own diff and went green on its close-out. Run 13's red named only two
+other branches and **stayed** red on a prose-only close-out — the prediction it published, and the
+experiment confirmed it. Run 14's is simply **green on the first head that carried the finished
+work**.
+
+Three runs, three outcomes, one conclusion getting steadily better evidence: **`Rosentic` reports
+what it says it reports.** Whether it is "noise" is not a property of the check; it is a property of
+whether its findings name your branch. Read them. This run needed no disposition because there was
+nothing to dispose of.
+
+**And it is green on this close-out pull request too**, which is where Run 13's stayed red — the
+exact inverse of that experiment, on the same shape of change (prose only, cut from a `main` that
+now carries the merged work).
+
+The obvious explanation is wrong, and was checked rather than assumed. **Both branches Run 13's six
+findings named still exist:** `claude/sweet-mendel-LJ9Iu` is untouched since 2026-06-08 and 285
+commits behind `main`; `claude/great-bell-k1i146` is 3 behind, last committed 2026-09-07. So the red
+did not go away because the stale branch was cleaned up — it is still there. What changed is the
+*content* of the pair, `k1i146` having moved on since. Not chased further, because nothing in this
+run depends on it; recorded so the next run starts from the measurement rather than from Run 13's
+remedy, which is **not** what fixed this.
+
+### Three review rounds, and where each finding actually came from
+
+| Round | Found by | Finding | Outcome |
+|---|---|---|---|
+| 1 | The local `sonarjs` reproduction, **after correcting it** | `no-nested-conditional` ×3, `cognitive-complexity` 16/15, `void-use`, `super-linear-regex` | all five fixed before the first push |
+| 2 | **Re-reading my own diff** | the clipboard path decoded the same base64 twice, and reported "this browser cannot" for a failure that was this app's | fixed in `d8763cd` |
+| 3 | **SonarCloud** | Quality Gate failed: 5.5% duplication on new code, limit 3% | fixed in `aca8587`, 5.5% → **0.0%** |
+
+Zero of the eight came from a human. One came from a review bot. **Five came from a checker this run
+had to repair before it could see anything**, and two came from reading the diff again with the
+question "what would a reviewer reject?"
+
+### The correction that mattered most, and how close it came to being missed
+
+Runs 8, 12 and 13 all recorded the local SonarCloud reproduction as a working technique. It was
+working on `.ts` files and **silently blind to every `.svelte` file in the repository** — the config
+gave `eslint-plugin-svelte` no TypeScript sub-parser, so each component came back as:
+
+```
+src/lib/components/SharePageButton.svelte
+  28:8  error  Parsing error: Unexpected token ShareCapability
+```
+
+That is easy to read as "the throwaway config is a bit rough" and move on. It is a failed check
+wearing the costume of a config wrinkle. One line —
+`languageOptions: { parserOptions: { parser: tsParser } }` — turned it into four real findings in new
+component code, in a run whose entire new UI is components.
+
+**A parsing error in a checker reproduction is a failed check, never a skipped file.** Written into
+`LESSONS_LEARNED.md`.
+
+### The duplication gate was located, not guessed at
+
+Run 13 ended with an unidentified SonarCloud issue and three candidates, because `sonarcloud.io` is
+egress-blocked and it had no way to look. This run had the same blindness and a harder failure — a
+*gate*, not an issue — and did not guess. `jscpd` at Sonar's own 100-token threshold named the pair
+outright:
+
+```
+print.spec.ts [38:36 - 92:6] (55 lines, 184 tokens)
+share.spec.ts [54:36 - 105:6]
+```
+
+55 lines is ~5.5% of this pull request's new code, which is the reported number to one decimal
+place. The stub block and load helper moved to `tests/e2e/support/page-fixtures.ts` and both specs
+import it. Re-measured after: 27 clones → 26, 814 duplicated lines → 760, no clone naming either
+spec. **The gate then read 0.0%.**
+
+Two things worth carrying:
+
+1. **The duplication came from copying a fixture, not from copying logic.** Run 13 recorded leaving
+   `print.spec.ts` self-contained as a deliberate tradeoff. Adding a *second* copy is where a
+   tradeoff becomes a finding, and the gate is what noticed.
+2. **`jscpd` is the local stand-in for that gate.** `npx jscpd --min-tokens 100`, `--no-save`,
+   uninstalled after. It agreed with SonarCloud to a decimal place on the first try. Recorded so the
+   next run does not have to rediscover it.
+
+### What CodeRabbit was asked, and why the questions were the useful part
+
+Automatic review is off for repositories under 10 stars, so — as in Runs 12 and 13 — left alone this
+pull request would have merged with no independent review at all. One `@coderabbitai review` comment
+naming four specific things the source cannot show produced a real verification:
+
+1. **Transient user activation.** Traced `handleSend` and confirmed no `await` lands before
+   `navigator.share(...)`, the `$derived` read of `job`, `toFiles(...)` and `canShare(...)` all being
+   synchronous — and confirmed the clipboard fallback preserves it too, because `copyPicture()` is
+   invoked synchronously and reaches `clipboard.write(...)` before its first `await`.
+2. **The status-clearing effect.** Confirmed `shareStatus = SHARE_SENT` cannot be clobbered unless
+   `pageKey` changes, and that the capability effect cannot re-trigger it. Named one real limitation:
+   two pages with byte-identical ordered filenames would keep the prior confirmation. Unreachable —
+   the base name carries `Date.now()` or a UUID — but correctly stated as a contract, not a bug.
+3. **The `pageFileBaseName` staleness window.** Confirmed sound, with the reasoning spelled out: a
+   stale `attachDownloads` cannot overwrite it because no later assignment exists, and `resetPage`
+   clears the image the original export requires.
+4. **Duplicate `testIdPrefix`.** Confirmed no route mounts two rows today, and that the requirement
+   survives as a contract for the next host.
+
+Run 13's lesson holds and is worth restating: **the question you write is most of the value.** Asking
+"is this correct?" gets a summary. Asking "is there a path through `handleSend` where an await lands
+before `share()`?" gets a traced answer, and — as Run 13 found — sometimes surfaces the defect while
+you are still writing the question.
+
+### What this run got wrong
+
+Two, both caught before anyone saw them, and neither by a test:
+
+1. **A claim that was false, cut before it was written down.** The draft case said the "Send it to
+   whoever needs to see it" sentence renders on eleven surfaces, because it is `VerdictPageStudio`'s
+   default subheading. Three of its callers override it. It renders on **two**. Checked because the
+   number felt too convenient — which is the only reason it was checked at all.
+2. **A blanket `str.replace` in an edit script put two lines at the wrong indentation** inside
+   `MeechieTools.svelte`, and a redundant double base64 decode survived every checker. Both were
+   found by reading the diff, which is the step that catches what nothing else is looking for.
+
+### Environment notes, re-confirmed
+
+- `sonarcloud.io` remains egress-blocked. The local `eslint-plugin-sonarjs@4.2.0` + `recommended`
+  reproduction works **only with the Svelte parser fix above**.
+- `jscpd --min-tokens 100` reproduces the duplication gate. New this run.
+- SonarCloud runs here as the GitHub App with **automatic analysis and no `sonar-project.properties`
+  in the repository**, so its file suffixes are the defaults — `.js/.jsx/.ts/.tsx/.vue`. **`.svelte`
+  is not analysed.** That is why the near-identical button CSS in `PrintPageButton.svelte` and
+  `SharePageButton.svelte` is not a duplication finding, and it is checked rather than assumed.
+- Playwright still needs `executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome'`, and
+  `playwright.config.ts` must be restored before committing. **Restoring it also breaks the next
+  run**: a suite run after the restore fails all 7 tests in 2ms, which looks like a code failure and
+  is a browser-launch failure. Re-pin, run, restore — in that order, every time.
+- `navigator.share` and `navigator.canShare` are **absent** from this container's Chromium;
+  `navigator.clipboard.write` and `ClipboardItem` are **present**.
+
+### Deliberately left, with the reasoning
+
+- **The pill CSS in `SharePageButton.svelte` duplicates `PrintPageButton.svelte`'s**, about 30 lines.
+  Not a Sonar finding (`.svelte` is not analysed, established above), and every way of sharing it is
+  worse: a `:global` rule in a host is the exact arrangement that kept the export row trapped on one
+  page for twelve runs, and a wrapper component for a border-radius is not a component. Recorded as a
+  decision, not an oversight — if these two ever disagree, that is the moment to extract.
+- **One new SonarCloud issue remains** and the gate passed with it. The single candidate is
+  `constructor-for-side-effects` at `verdict-page-state.test.ts:1022` — the only finding the local
+  reproduction reports, in a file this diff touched. It is pre-existing (`724332b`, an ancestor of
+  `main`) and the discarded construction **is the point of that test**: it asserts the constructor
+  does nothing. Not fixed, because a cosmetic push to unrelated pre-existing test code on an
+  unconfirmed guess is exactly the speculative push Run 13 declined to make. A run that can reach
+  `sonarcloud.io` should read it and settle it.
+
+### Carried forward for the next run
+
+- **The packaged print PDF still bleeds to all four edges.** `output-packaging-seam/index.ts` scales
+  by `Math.min(pageWidth / w, pageHeight / h)` with no margin, so the browser print (12mm) and the
+  downloaded PDF disagree. Adapter change: full seam workflow, Cipher Gate entry, and a
+  contract-carrying pull request that must not be auto-merged.
+- **Mode persistence** — Run 12's pick, blocked on the same rule for the third run running, and still
+  the strongest candidate for a run that can hold a pull request open.
+- **`ChatInterpretationSeam` still has zero consumers.** Re-measured this run.
+- **The `chat` packaging variant has zero consumers.** A 720px "smaller square — for sending" that
+  nothing requests. This run deliberately sent the existing square PNG instead, because a third
+  rasterisation per generation is spent on a file most readers never send, and packaging it lazily at
+  the click spends the transient activation `navigator.share` requires.
+- `MeechieToolOutput.quoteScore` and `modelMetadata`, from Run 11's list.
+- The unidentified SonarCloud issue above, now down to one named candidate.
+
+Do not inherit this entry's measurements. Re-measure.
