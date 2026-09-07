@@ -1,0 +1,49 @@
+=== Can a reader get back to a page they saved? (7 pages seeded)
+┌─────────┬──────────────────────┬────────┬────────────┬────────┬────────┬────────────┐
+│ (index) │ route                │ status │ savedShown │ search │ reopen │ saveButton │
+├─────────┼──────────────────────┼────────┼────────────┼────────┼────────┼────────────┤
+│ 0       │ '/'                  │ 200    │ 4          │ 1      │ 4      │ 1          │
+│ 1       │ '/who-fucked-up'     │ 200    │ 0          │ 0      │ 0      │ 0          │
+│ 2       │ '/rate-his-excuse'   │ 200    │ 0          │ 0      │ 0      │ 0          │
+│ 3       │ '/random'            │ 200    │ 0          │ 0      │ 0      │ 0          │
+│ 4       │ '/meechie'           │ 200    │ 0          │ 0      │ 0      │ 0          │
+│ 5       │ '/m/who-fucked-up'   │ 200    │ 0          │ 0      │ 0      │ 0          │
+│ 6       │ '/m/rate-his-excuse' │ 200    │ 0          │ 0      │ 0      │ 0          │
+│ 7       │ '/vault'             │ 404    │ '-'        │ '-'    │ '-'    │            │
+└─────────┴──────────────────────┴────────┴────────────┴────────┴────────┴────────────┘
+=== Nav links: ["WHO FUCKED UP?","RATE HIS EXCUSE","RANDOM","MEECHIE'S TOOLS"]
+=== Vault card top offset (px from document top): 2902
+=== Home document height (px): 3553
+=== Viewport height (px): 900
+
+---
+Probe: scratch `probe-keep.mjs` (deleted before committing; this file is its output).
+Browser: /opt/pw-browsers/chromium-1194, against `npm run dev` on 127.0.0.1:4173.
+Head: `main` at d29ef4e, before any of this run's changes — a clean tree.
+Method: seven valid CreationRecords seeded into `cb_creations_v1` under the session id in
+        `cb_session_id_v1`, via `context.addInitScript`, then each route visited and its
+        *visible* controls counted by layout rect. The records are the repo's own
+        `fixtures/creation-store/sample.json` record with the id, title, quote, date and image
+        varied.
+
+What this says, and it is the whole case for the pick:
+
+  - Seven pages saved. The one surface that can show them shows FOUR, and the card that shows
+    them starts 2902px down a 3553px document on a 900px-tall viewport — past the third screen.
+  - Twelve other page-making surfaces show ZERO. Three of them have a Save button (`/`,
+    `VerdictPageStudio` on eight mode routes and three standalone routes, `MeechieTools`); the
+    other twelve can put a page in and cannot show you one.
+  - `/vault` is a 404. The vault has no address: nothing can link to it, bookmark it, or send
+    anybody to it.
+  - The nav has four links and none of them is the vault.
+
+The `saveButton` column reads 1/0/0/... because the probe visited these routes with no verdict
+on screen, so the mode routes' Save button has not been rendered yet. The save *path* on those
+routes is covered by the existing end-to-end suite; what this probe is measuring is the read
+side, which is where the gap is.
+
+First attempt at this probe reported 0 saved pages on `/` as well, because the seeded records
+used `pageSize: 'us_letter'` and `border: 'thin'` — neither is in the schema's enums, so
+`parseCreationRecord` rejected every one and the vault correctly rendered as empty. Recorded
+because it is the failure mode of every storage probe in this repo: a seed that does not parse
+measures the empty state and looks like a finding.

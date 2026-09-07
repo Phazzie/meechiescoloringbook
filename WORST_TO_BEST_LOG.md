@@ -12122,3 +12122,216 @@ Two, both caught before anyone saw them, and neither by a test:
 - The unidentified SonarCloud issue above, now down to one named candidate.
 
 Do not inherit this entry's measurements. Re-measure.
+
+## Run 15 — 2026-09-07 — "Keep" (the Quote Vault, which had no address)
+
+**Branch:** `claude/great-bell-mn9jut` · **Base:** `main` at `d29ef4e`
+
+### The feature, and why it was the worst
+
+The README says what this app is for, in four verbs: a page you can **print, color, keep, or send
+to whoever needs to see it.** Run 13 made *print* true. Run 14 made *send* true. **Keep** was the
+one left, and it was the worst thing in the app because the vault is the only feature that is
+supposed to still be there tomorrow — and it had nowhere to be.
+
+Measured in a real browser, not read off the source. Chromium 1194 against the dev server at
+`d29ef4e`, seven valid `CreationRecord`s seeded into `cb_creations_v1`, visible controls counted by
+layout rect (`docs/evidence/2026-09-07/vault-reach-before.txt`):
+
+| | before |
+|---|---|
+| `/vault` | **404** |
+| Nav links to saved pages | **0** of 4 |
+| Surfaces that can *save* a page | 13 |
+| Surfaces that can *show* you one | **1** |
+| Of 7 saved pages, how many that one surface shows | **4** |
+| Where that card starts on a 900px viewport | **2902px** down a 3553px document |
+
+Four costs, one feature:
+
+1. **The vault had no address.** `/vault` was a 404. Nothing could link to it, bookmark it, or send
+   anybody to it, and it was in no nav menu on any of the thirteen surfaces.
+2. **Twelve surfaces punted.** `verdict-page-state.svelte.ts` and `MeechieTools.svelte` both ended a
+   successful save with the literal string **"Saved to the vault. Find it on the home page."** That
+   sentence is accurate and useless: it names a destination and gives no way to get there, on the
+   twelve screens furthest from it. The home studio said something different again — "Saved to the
+   quote vault." — so one event had two wordings and neither was a link.
+3. **The one surface that had it buried it.** Past the third screen, showing four of fifty.
+4. **And the reason it had never moved is in the stylesheet.** The vault card's markup was in
+   `VerdictRow.svelte`; its **43 style rules were `:global(.studio .vault-*)` in `+page.svelte`.**
+   That is the exact trap Run 14 named for the export row — *"the markup was reachable by copying
+   and the styling was not, so any surface that copied it rendered unstyled and was rewritten into
+   something plainer."* The vault sat in that trap for fourteen runs.
+
+### Why this is not Run 1 again
+
+Run 1 rebuilt what the vault *card* contains — thumbnails, dates, search, pin, undo, restoring the
+picture. It did that well, and this run's before-probe confirms every one of those still works. What
+Run 1 did not do, and nobody has done since, is give the vault a **place**. That is a different
+defect: not "the card is bad" but "there is only a card." The three candidates carried forward from
+Run 14 were passed over for the same reason as last time — mode persistence needs `DraftRecordSchema`
+to grow a field and the PDF margin is an adapter change, and `AGENTS.md` forbids auto-merging a pull
+request carrying a schema or contract change, which a scheduled run told to merge cannot do.
+
+### What shipped
+
+**1. `/vault` — prerendered, so it works offline.** Every saved page, searched and sorted, not a
+preview of four. `+page.ts` sets `prerender = true`, which puts `vault.html` on disk (confirmed in
+the build output), and `planPrecache` pushes every prerendered page into the critical set — so an
+installed copy opens the vault with no network, which is the one moment your saved pages matter most
+and the network cannot help. `vercel.json` learned the path, because
+`tests/unit/security-headers.test.ts` walks the route tree and **failed the build until it did** —
+a new route that silently shipped without the app's security headers.
+
+**2. `VaultCollection` — the vault is no longer the studio's.** The list, search, pin, two-step
+delete, undo and day-boundary label refresh moved out of `StudioState` (2,678 lines, which also
+generates pages and tries wigs on) into a class a route with no studio in it can hold.
+`StudioState` keeps `saveToVault` and `loadCreation`, which genuinely need the page on screen, and
+**forwards the rest through accessors** — so its whole public surface is unchanged and all 268
+existing studio-state tests passed on the extraction commit without one edit.
+
+**3. `VaultGallery.svelte` — markup and CSS together.** Including the card frame, the label
+typography, the input and the button rules it used to inherit from `.studio`. That is the part that
+matters: extracting the logic would not have spread the fix, and extracting the markup alone would
+have shipped an unstyled vault. A row is a `<button>` in the studio, where reopening mutates state,
+and an `<a>` on `/vault`, where it genuinely navigates — one component, one branch, styled
+identically.
+
+**4. Every save confirmation is a link now.** `VaultStatusLine.svelte` is the single rendering of
+that line on all four hosts, and `showsVaultLink` — in core, unit-tested — decides when the link
+appears. **An exact match against the confirmation, never a search for "vault"**, because several
+failure messages on that same line contain the word while meaning the page never got there.
+
+**5. A saved page has a permalink.** `/vault` links to `/?creation=<id>`; the studio reads it after
+`init()` and reopens that page. The parameter is left in the address bar, which makes it a real
+permalink. An id this device does not hold **says so** — saved pages live in the browser they were
+made in and are never uploaded, so a shared link cannot work for anyone else, and silence there
+would look like a broken studio.
+
+### After
+
+Same probe, same browser, same seven pages (`docs/evidence/2026-09-07/vault-reach-after.txt`):
+
+| | before | after |
+|---|---|---|
+| `/vault` | 404 | **200, showing 7 of 7**, with search and sort |
+| Nav link to the vault | absent | **on all 8 routes probed** |
+| Save confirmation | "Find it on the home page." | **"Saved to the vault." + a link** |
+| Home card | 4 of 7 | 4 of 7, unchanged — it is a preview, and now it has somewhere to point |
+
+### Scope, and why this needed no seam workflow
+
+No file under `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`, `src/lib/adapters/` or
+`src/lib/seams/` is touched. No Cipher Gate entry required. `CreationStoreSeam` is *consumed*
+through its existing adapter.
+
+### Evidence
+
+| Command | Result |
+|---|---|
+| `npm run check` | 0 errors, 0 warnings |
+| `npm run lint` | clean |
+| `npm test` | **1688 passed**, 1 skipped (102 files) — 24 of them new |
+| `npm run build` | ✓, and `vault.html` is written to `prerendered/pages/` |
+| `npm run verify` | exit 0, evidence refreshed in `docs/evidence/2026-09-07/` |
+| `npx playwright test` | **67 passed** — 62 existing, unchanged, plus 5 new |
+| `jscpd --min-tokens 100` | **27 TypeScript clones, 780 duplicated lines — identical to Run 14's post-fix baseline.** No clone names a file this run created |
+
+Every exit code read from `$?` on an unpiped command. `playwright.config.ts` was pinned to
+`/opt/pw-browsers/chromium-1194/chrome-linux/chrome` and **restored before committing**; it is not
+in the diff.
+
+### The red proof found a test of mine that pinned nothing
+
+Both load-bearing guards in `vault-page.ts` were removed at once
+(`docs/evidence/2026-09-07/redproof-vault-page.txt`). **Only one test failed.** The NaN-date guard's
+removal changed nothing the suite could see.
+
+Measured rather than argued about, with that guard removed:
+
+```
+newest (4 rows):   b,c,a,bad                       <- identical to the guarded result
+oldest (4 rows):   a,c,b,bad                       <- guarded result is bad,a,c,b
+oldest (13 rows):  r0,r1,r2,r3,r4,bad,r5,…,r11     <- the corrupt row lands in the MIDDLE
+```
+
+The test asserted only the `newest` order of a four-row list, which a NaN comparator happens to
+return unchanged. It was passing for a reason that had nothing to do with the guard. The test now
+asserts `oldest` too — the order that discriminates — plus a comment saying why both are there.
+
+**A red proof that fails fewer tests than it removed guards has found a test that pins nothing.**
+That is the finding, not a nuisance to work around. Written into `LESSONS_LEARNED.md`.
+
+### The SonarCloud round, run before anyone asked
+
+`sonarcloud.io` is still egress-blocked. Rebuilt from Run 14's recipe *including its correction* —
+`eslint-plugin-sonarjs@4.2.0`, `--no-save`, throwaway flat config, `recommended` rules only, and
+`languageOptions.parserOptions.parser = tsParser` for `**/*.svelte`, without which every component
+is a parsing error and the coverage is silently missing. Uninstalled afterwards; `package.json` and
+the lockfile are unchanged. Six findings in files this run created or changed
+(`docs/evidence/2026-09-07/sonarjs-local-run15.txt`):
+
+| Finding | Where | Disposition |
+|---|---|---|
+| `no-use-of-empty-return-value` ×2 | `VaultGallery.svelte` — `{@render rowBody()}` | **False positive.** The rule does not model Svelte 5 snippets; `{@render}` is how a snippet is used |
+| `no-unused-vars` on `footer` / `controls` | `VerdictRow.svelte`, `routes/vault/+page.svelte` | **False positive**, same cause: a snippet written inside a component's tag *is* its use — it becomes a prop |
+| `no-nested-conditional` ×2 | `routes/rate-his-excuse/+page.svelte` | **Not this run's** — that file is not in the diff |
+| `no-nested-conditional` | `studio-state.svelte.ts:1448` | **Not this run's** — `git log -L 1448,1448` gives `6c5a151`, Run 5's commit. This diff shifted the line |
+
+The three false positives are the **first `{#snippet}` blocks in `src/`**, so the finding class is
+new to the repository and is this run's to name. `svelte-check`, which does model snippets, reports
+0 errors and 0 warnings. And they will not reach SonarCloud either way: **checked, not inherited** —
+there is no `sonar-project.properties` in the repository, so analysis uses the default suffixes
+(`.js/.jsx/.ts/.tsx/.vue`) and `.svelte` is not among them.
+
+### What was measured rather than argued
+
+- **The before-probe's first run reported 0 saved pages on the home page too**, which looked like a
+  much bigger finding than the real one. The seeded records used `pageSize: 'us_letter'` and
+  `border: 'thin'` — neither is in the schema's enums — so `parseCreationRecord` rejected all seven
+  and the vault correctly rendered as empty. Re-seeded from the repository's own
+  `fixtures/creation-store/sample.json`. **A storage probe whose seed does not parse measures the
+  empty state and looks like a defect.**
+- **Where the vault card actually sits**: 2902px down, by bounding box, not by scrolling and
+  guessing.
+- **That `/vault` is genuinely prerendered**: `.svelte-kit/output/prerendered/pages/vault.html`
+  exists after the build. The offline claim rests on that file, not on the `prerender` flag.
+- **That the extraction duplicated nothing**: `jscpd` at Sonar's own threshold, before and after.
+- **That the mobile vault rules are unchanged**: the original used a **700px** breakpoint and
+  `flex: 0 0 auto` on the open target. The first draft of `VaultGallery` had written 720px and
+  `1 1 auto` from memory. Both corrected against the original before committing.
+
+### Deliberately not done, and why
+
+- **The home card still shows a preview of four, and still expands in place.** Making "Show all"
+  navigate to `/vault` was the first design and was dropped: it removes working behaviour and
+  changes an existing test to no purpose. The card is a preview inside a studio; the route is the
+  vault. Both now exist, and the reader can get from one to the other.
+- **No bulk export of the vault.** The footnote on `/vault` says plainly that clearing site data
+  clears the pages, and every row has its own Download. A "download all fifty" button is a real
+  feature and a different one.
+- **The orphaned-records gap is still open.** `undoDelete`'s capacity check counts only records
+  matching the current owner while the adapter caps the whole stored array, so pages orphaned under
+  a previous session id occupy slots the count cannot see. Closing it means deciding capacity inside
+  `CreationStoreSeam` — a contract change. The comment moved with the code and still says so.
+
+### Carried forward for the next run
+
+- **The packaged print PDF still bleeds to all four edges.** `output-packaging-seam/index.ts` scales
+  by `Math.min(pageWidth / w, pageHeight / h)` with no margin, so the browser print (12mm) and the
+  downloaded PDF disagree. Adapter change: full seam workflow, Cipher Gate entry, and a
+  contract-carrying pull request that must not be auto-merged.
+- **Mode persistence** — Run 12's pick, blocked on the same rule for the fourth run running, and
+  still the strongest candidate for a run that can hold a pull request open.
+- **Vault capacity is not knowable from outside the adapter**, which is what leaves the
+  orphaned-records gap above. Same seam workflow. These two are now the same shape of blocked work.
+- **`ChatInterpretationSeam` still has zero consumers.** Re-measured this run: `/api/chat-interpretation`
+  is a live, billable endpoint with a full pipeline behind it and **no UI anywhere in `src/`**. It
+  was considered as this run's pick and passed over because a feature no reader can reach costs the
+  reader nothing — but it costs the *owner* money and attack surface, and that is a real case for a
+  run that wants it.
+- **The `chat` packaging variant has zero consumers**, with Run 14's reasoning.
+- `MeechieToolOutput.quoteScore` and `modelMetadata`, from Run 11's list.
+- The unidentified SonarCloud issue from Run 13/14, still down to the one named candidate.
+
+Do not inherit this entry's measurements. Re-measure.

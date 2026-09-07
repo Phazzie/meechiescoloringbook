@@ -1155,6 +1155,30 @@ describe('StudioState quote vault', () => {
 		vi.restoreAllMocks();
 	});
 
+	describe('reopening a saved page from /vault', () => {
+		it('restores the page named by the link', async () => {
+			const studio = await initVault([makeCreation('kept-1'), makeCreation('kept-2')]);
+
+			await studio.openSavedPage('kept-2');
+
+			expect(studio.spec.title).toBe('SAVED PAGE kept-2');
+			expect(studio.vaultStatus).toContain('SAVED PAGE kept-2');
+		});
+
+		it('says the page is not on this device rather than leaving an empty studio', async () => {
+			// The commonest reasons an id misses — the page was deleted, or the link came from
+			// somebody else's browser — are both invisible without a sentence, because the vault is
+			// per-device and never uploaded.
+			const studio = await initVault([makeCreation('kept-1')]);
+			const before = studio.spec.title;
+
+			await studio.openSavedPage('a-page-from-another-phone');
+
+			expect(studio.vaultStatus).toContain('not on this device');
+			expect(studio.spec.title).toBe(before);
+		});
+	});
+
 	/**
 	 * The opening both try-on vault tests share: a studio holding a portrait, turned into a page.
 	 * Extracted rather than repeated — repeating a test's opening is how this repository has tripped
@@ -1257,6 +1281,27 @@ describe('StudioState quote vault', () => {
 			clock: createMockClockSeam(BEFORE_MIDNIGHT),
 			visibility
 		});
+
+		expect(visibility.subscriberCount()).toBe(1);
+
+		studio.destroy();
+
+		expect(visibility.subscriberCount()).toBe(0);
+	});
+
+	it('arming the label refresh twice leaves exactly one visibility subscriber', async () => {
+		// `startSavedLabelRefresh` is public, so a second host could call it. Arming twice used to
+		// overwrite the stored unsubscribe and strand the first subscription for the life of the
+		// tab, where `destroy()` could never reach it. Raised on PR #331 as hardening; pinned here
+		// so it stays hardened.
+		const visibility = createMockPageVisibilitySeam('visible');
+		const studio = await initVault([makeCreation('overnight', { createdAtISO: OVERNIGHT_SAVE })], {
+			clock: createMockClockSeam(BEFORE_MIDNIGHT),
+			visibility
+		});
+
+		studio.vault.startSavedLabelRefresh();
+		studio.vault.startSavedLabelRefresh();
 
 		expect(visibility.subscriberCount()).toBe(1);
 
@@ -1998,7 +2043,7 @@ describe('StudioState quote vault', () => {
 
 		await studio.saveToVault();
 
-		expect(studio.vaultStatus).toBe('Saved to the quote vault.');
+		expect(studio.vaultStatus).toBe('Saved to the vault.');
 		expect(studio.creations).toHaveLength(1);
 		const saved = studio.creations[0];
 		expect(saved.intent.title).toBe('Wig Try-On - Sample Wig');

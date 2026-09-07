@@ -1,0 +1,28 @@
+=== Can a reader get back to a page they saved? (7 pages seeded)
+┌─────────┬──────────────────────┬────────┬────────────┬────────┬────────┬────────────┬─────────┐
+│ (index) │ route                │ status │ savedShown │ search │ reopen │ saveButton │ navLink │
+├─────────┼──────────────────────┼────────┼────────────┼────────┼────────┼────────────┼─────────┤
+│ 0       │ '/'                  │ 200    │ 4          │ 1      │ 4      │ 1          │ 1       │
+│ 1       │ '/who-fucked-up'     │ 200    │ 0          │ 0      │ 0      │ 0          │ 1       │
+│ 2       │ '/rate-his-excuse'   │ 200    │ 0          │ 0      │ 0      │ 0          │ 1       │
+│ 3       │ '/random'            │ 200    │ 0          │ 0      │ 0      │ 0          │ 1       │
+│ 4       │ '/meechie'           │ 200    │ 0          │ 0      │ 0      │ 0          │ 1       │
+│ 5       │ '/m/who-fucked-up'   │ 200    │ 0          │ 0      │ 0      │ 0          │ 1       │
+│ 6       │ '/m/rate-his-excuse' │ 200    │ 0          │ 0      │ 0      │ 0          │ 1       │
+│ 7       │ '/vault'             │ 200    │ 7          │ 1      │ 7      │ 0          │ 1       │
+└─────────┴──────────────────────┴────────┴────────────┴────────┴────────┴────────────┴─────────┘
+=== Nav links: ["WHO FUCKED UP?","RATE HIS EXCUSE","RANDOM","MEECHIE'S TOOLS","VAULT"]
+=== Vault card top offset (px from document top): 2902
+=== Home document height (px): 3553
+=== Viewport height (px): 900
+
+---
+Probe: tests/scratch `probe-keep.mjs` (deleted before committing; this file is its output).
+Browser: /opt/pw-browsers/chromium-1194, against `npm run dev` on 127.0.0.1:4173.
+Method: seven valid CreationRecords seeded into `cb_creations_v1` under the session id in
+        `cb_session_id_v1`, via `context.addInitScript`, then each route visited and its
+        *visible* controls counted by layout rect. The records are the repo's own
+        `fixtures/creation-store/sample.json` record with the id, title, quote, date and image
+        varied — an invented spec is rejected by `parseCreationRecord` and renders as an empty
+        vault, which is what the first attempt at this probe measured.
+Head: the Run 15 working tree.

@@ -46,6 +46,8 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 	import type { GenerateResponseValue } from '../../../contracts/generate.contract';
 	import { outputPackagingAdapter } from '$lib/adapters/output-packaging-seam';
 	import { creationStoreAdapter } from '$lib/adapters/creation-store-seam';
+	import { VAULT_SAVED_CONFIRMATION } from '$lib/core/vault-page';
+	import VaultStatusLine from '$lib/components/VaultStatusLine.svelte';
 	import { sessionAdapter } from '$lib/adapters/session-seam';
 	import {
 		buildToolPageRecipe,
@@ -557,9 +559,7 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 				}
 			});
 			if (isStaleSave()) return;
-			vaultStatus = result.ok
-				? 'Saved to the vault. Find it on the home page.'
-				: result.error.message;
+			vaultStatus = result.ok ? VAULT_SAVED_CONFIRMATION : result.error.message;
 		} catch (saveError) {
 			if (isStaleSave()) return;
 			vaultStatus =
@@ -954,11 +954,7 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 						testId="meechie-tool-share"
 					/>
 				</div>
-				{#if vaultStatus}
-					<p class="status" data-testid="meechie-tool-vault-status">
-						{vaultStatus}
-					</p>
-				{/if}
+				<VaultStatusLine status={vaultStatus} testId="meechie-tool-vault-status" />
 			{/if}
 		</section>
 	{/if}

@@ -102,5 +102,11 @@ export const openRoute = async (page: Page, path: string): Promise<void> => {
 	await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {
 		// Some asset pipelines keep a request open; hydration still completes.
 	});
-	if (path === '/') await page.waitForSelector('[data-hydrated="true"]');
+	// Asked of the document rather than matched against a list of paths. `/` and `/vault` both
+	// render `data-hydrated="false"` server-side and flip it on mount; a hardcoded list of which
+	// routes do that is a second copy of a fact, and the next route to announce hydration would
+	// silently go back to racing it.
+	if ((await page.locator('[data-hydrated]').count()) > 0) {
+		await page.waitForSelector('[data-hydrated="true"]');
+	}
 };

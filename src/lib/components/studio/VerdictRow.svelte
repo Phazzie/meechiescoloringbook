@@ -24,56 +24,35 @@ Invariants: Nothing here reads `textOutput.qualityState`. A standing is shown on
 	import type { CreationRecord } from '$lib/seams/creation-store-seam/contract';
 	import type { VaultEntry } from '$lib/core/vault-gallery';
 	import { ADD_EVIDENCE_LABEL, type VerdictReport } from '$lib/core/verdict-report';
+	import VaultGallery from '$lib/components/VaultGallery.svelte';
+	import type { VaultCollection } from '$lib/components/vault-collection.svelte';
 
 	let {
 		report,
 		onAddEvidence,
-		vaultEntries,
+		vault,
 		visibleVaultEntries,
 		hiddenVaultCount,
 		canToggleVaultShowAll,
-		totalSavedCount,
 		vaultShowAll,
-		vaultQuery,
-		vaultError,
-		vaultReadFailed,
-		pendingDeleteId,
-		undoableDeletion,
-		undoableDeletionEntry,
+		vaultCountLabel,
 		onLoadCreation,
-		onRequestDelete,
-		onCancelDelete,
-		onConfirmDelete,
-		onUndoDelete,
-		onDismissUndo,
-		onToggleFavorite,
-		onVaultQueryChange,
 		onToggleShowAll
 	}: {
 		/** Everything the card says about the answer on screen. Built in core; rendered here. */
 		report: VerdictReport;
 		/** Takes the reader back to the evidence box. Offered only when Meechie asked for more. */
 		onAddEvidence: () => void;
-		vaultEntries: VaultEntry[];
+		/** The saved pages. Passed whole to `VaultGallery`, which owns every operation on them. */
+		vault: VaultCollection;
+		/** The preview slice this card shows — the studio's decision, not the vault's. */
 		visibleVaultEntries: VaultEntry[];
 		hiddenVaultCount: number;
 		canToggleVaultShowAll: boolean;
-		totalSavedCount: number;
 		vaultShowAll: boolean;
-		vaultQuery: string;
-		vaultError: string;
-		vaultReadFailed: boolean;
-		pendingDeleteId: string | null;
-		undoableDeletion: CreationRecord | null;
-		undoableDeletionEntry: VaultEntry | null;
+		/** The count sentence, built in core so this card and `/vault` word it identically. */
+		vaultCountLabel: string;
 		onLoadCreation: (_creation: CreationRecord) => Promise<void>;
-		onRequestDelete: (_id: string) => void;
-		onCancelDelete: () => void;
-		onConfirmDelete: (_id: string) => Promise<void>;
-		onUndoDelete: () => Promise<void>;
-		onDismissUndo: () => void;
-		onToggleFavorite: (_creation: CreationRecord) => Promise<void>;
-		onVaultQueryChange: (_value: string) => void;
 		onToggleShowAll: () => void;
 	} = $props();
 </script>
@@ -136,162 +115,14 @@ Invariants: Nothing here reads `textOutput.qualityState`. A standing is shown on
 		{/if}
 	</article>
 
-	<article class="vault-card">
-		<div class="vault-head">
-			<div>
-				<p class="eyebrow">Quote Vault</p>
-				<h2>Saved Pages</h2>
-			</div>
-			{#if totalSavedCount > 0}
-				<span class="vault-count" data-testid="home-vault-count"
-					>{totalSavedCount} saved</span
-				>
-			{/if}
-		</div>
-
-		{#if totalSavedCount > 0}
-			<label class="vault-search-label" for="vault-search">Search the vault</label>
-			<input
-				id="vault-search"
-				class="vault-search"
-				type="search"
-				data-testid="home-vault-search"
-				placeholder="Title, quote, or a line off the page"
-				value={vaultQuery}
-				oninput={(event) => onVaultQueryChange(event.currentTarget.value)}
-			/>
-		{/if}
-
-		{#if undoableDeletion}
-			<div class="vault-undo" data-testid="home-vault-undo">
-				<span>"{undoableDeletion.intent.title}" is gone.</span>
-				<div class="vault-undo-actions">
-					<button
-						type="button"
-						data-testid="home-vault-undo-restore"
-						onclick={onUndoDelete}>Put it back</button
-					>
-					<!-- The held page is out of the list, so this is the only place it can be saved
-					     from. When the vault is full "Put it back" refuses and says to download it
-					     first; that instruction needs somewhere to point. -->
-					{#if undoableDeletionEntry?.imageSource}
-						<a
-							class="link"
-							data-testid="home-vault-undo-download"
-							href={undoableDeletionEntry.imageSource}
-							download={undoableDeletionEntry.downloadName}>Download it</a
-						>
-					{/if}
-					<button type="button" class="link" onclick={onDismissUndo}>Dismiss</button>
-				</div>
-			</div>
-		{/if}
-
-		{#if vaultError}
-			<p class="error" data-testid="home-vault-error">{vaultError}</p>
-		{/if}
-
-		{#if vaultReadFailed && totalSavedCount === 0}
-			<!-- A failed read leaves `creations` empty, so without this the storage error would sit
-			     directly above "No saved pages yet" — telling the reader their pages do not exist
-			     when the truth is the app could not read them. Keyed on the read specifically: a
-			     failed *write* into an empty vault also sets `vaultError`, and there the pages
-			     really are gone, so claiming otherwise would be the same lie in reverse. -->
-			<p class="empty" data-testid="home-vault-unreadable">
-				Your saved pages could not be read. They are not gone — see above.
-			</p>
-		{:else if totalSavedCount === 0}
-			<p class="empty" data-testid="home-vault-empty">
-				No saved pages yet. Make one and hit Save to Vault.
-			</p>
-		{:else if vaultEntries.length === 0}
-			<p class="empty" data-testid="home-vault-no-matches">
-				Nothing in the vault matches "{vaultQuery.trim()}".
-			</p>
-		{:else}
-			<ul class="vault-list" data-testid="home-vault-list">
-				{#each visibleVaultEntries as entry (entry.id)}
-					<li class="vault-item" class:pinned={entry.favorite}>
-						<button
-							type="button"
-							class="vault-open"
-							data-testid="home-vault-load"
-							onclick={() => onLoadCreation(entry.record)}
-						>
-							{#if entry.imageSource}
-								<img
-									class="vault-thumb"
-									data-testid="home-vault-thumb"
-									src={entry.imageSource}
-									alt="Saved coloring page: {entry.title}"
-									loading="lazy"
-								/>
-							{:else}
-								<span class="vault-thumb vault-thumb-empty" aria-hidden="true">
-									{entry.itemCount || '—'}
-								</span>
-							{/if}
-							<span class="vault-copy">
-								<span class="vault-title">
-									{#if entry.favorite}<span class="vault-pin-mark" aria-hidden="true"
-											>★</span
-										>{/if}{entry.title}
-								</span>
-								{#if entry.quote}
-									<span class="vault-quote">"{entry.quote}"</span>
-								{/if}
-								<span class="vault-meta">{entry.savedLabel}</span>
-							</span>
-						</button>
-
-						<!-- While a delete is armed the row shows only the decision, so the
-						     confirm button never sits next to an unrelated control. -->
-						<div class="vault-item-actions">
-							{#if pendingDeleteId === entry.id}
-								<button
-									type="button"
-									class="danger"
-									data-testid="home-vault-delete-confirm"
-									onclick={() => onConfirmDelete(entry.id)}>Delete for real</button
-								>
-								<button
-									type="button"
-									data-testid="home-vault-delete-cancel"
-									onclick={onCancelDelete}>Keep it</button
-								>
-							{:else}
-								{#if entry.imageSource}
-									<a
-										class="button-link"
-										data-testid="home-vault-download"
-										href={entry.imageSource}
-										download={entry.downloadName}
-										aria-label="Download {entry.title}">Download</a
-									>
-								{/if}
-								<button
-									type="button"
-									data-testid="home-vault-pin"
-									aria-pressed={entry.favorite}
-									aria-label={entry.favorite
-										? `Unpin ${entry.title}`
-										: `Pin ${entry.title}`}
-									onclick={() => onToggleFavorite(entry.record)}
-								>
-									{entry.favorite ? 'Unpin' : 'Pin'}
-								</button>
-								<button
-									type="button"
-									data-testid="home-vault-delete"
-									aria-label="Delete {entry.title}"
-									onclick={() => onRequestDelete(entry.id)}>Delete</button
-								>
-							{/if}
-						</div>
-					</li>
-				{/each}
-			</ul>
-
+	<VaultGallery
+		{vault}
+		entries={visibleVaultEntries}
+		testIdPrefix="home"
+		countLabel={vaultCountLabel}
+		onOpen={onLoadCreation}
+	>
+		{#snippet footer()}
 			{#if canToggleVaultShowAll}
 				<button
 					type="button"
@@ -302,8 +133,8 @@ Invariants: Nothing here reads `textOutput.qualityState`. A standing is shown on
 					{vaultShowAll ? 'Show fewer' : `Show ${hiddenVaultCount} more`}
 				</button>
 			{/if}
-		{/if}
-	</article>
+		{/snippet}
+	</VaultGallery>
 </section>
 
 <style>
@@ -407,5 +238,13 @@ Invariants: Nothing here reads `textOutput.qualityState`. A standing is shown on
 	.idle {
 		color: var(--lavender);
 		font-style: italic;
+	}
+
+	/* Rendered through `VaultGallery`'s `footer` snippet but compiled in this component's scope,
+	   because the snippet is written here. It is this card's control, not the vault's: the gallery
+	   shows the rows it is handed, and only a preview inside a studio has anything to expand. */
+	.vault-more {
+		width: 100%;
+		margin-top: 0.6rem;
 	}
 </style>

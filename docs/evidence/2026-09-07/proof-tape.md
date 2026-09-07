@@ -5,7 +5,7 @@ Info flow: evidence files -> summary -> review.
 -->
 # Proof Tape
 
-Generated at: 2026-09-07T13:11:32.021Z
+Generated at: 2026-09-07T19:02:04.004Z
 Evidence folder: docs/evidence/2026-09-07
 
 Files included (this tape's own outputs, proof-tape.json and proof-tape.md, are written
@@ -19,6 +19,7 @@ after this inventory is taken, so they are not listed):
 - clan-chain.md (1956 bytes)
 - e2e-print.txt (1153 bytes) — PREDATES THIS VERIFY RUN
 - e2e-run14.txt (8319 bytes) — PREDATES THIS VERIFY RUN
+- e2e-run15.txt (9044 bytes) — PREDATES THIS VERIFY RUN
 - e2e.txt (7601 bytes) — PREDATES THIS VERIFY RUN
 - export-row-after.txt (1678 bytes) — PREDATES THIS VERIFY RUN
 - export-row-before.txt (1448 bytes) — PREDATES THIS VERIFY RUN
@@ -28,21 +29,27 @@ after this inventory is taken, so they are not listed):
   Commands: 243 | 	expect(calls[0].files[0].type).toBe('image/png');
 - redproof-title-restore.txt (1553 bytes) — PREDATES THIS VERIFY RUN
   Commands: 288 | 	await expect.poll(() => page.title()).toBe(appTitle);
+- redproof-vault-page.txt (2145 bytes) — PREDATES THIS VERIFY RUN
 - run14-check-lint-test-build.txt (432 bytes) — PREDATES THIS VERIFY RUN
   Commands: Using @sveltejs/adapter-vercel
+- run15-verify.txt (3642 bytes)
+  Commands: meechies-coloringbook@0.1.0 verify | npm run audit:gate && node scripts/chamber-lock.mjs && node scripts/verify-runner.mjs && node scripts/shaolin-lint.mjs && node scripts/assumption-alarm.mjs && node scripts/seam-ledger.mjs && node scripts/clan-chain.mjs && node scripts/proof-tape.mjs | meechies-coloringbook@0.1.0 audit:gate | npm audit --audit-level=high | meechies-coloringbook@0.1.0 check | svelte-kit sync && svelte-check --tsconfig ./tsconfig.json | meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
 - seam-ledger.json (37511 bytes)
 - seam-ledger.md (2981 bytes)
 - shaolin-lint.json (519 bytes)
 - sonarjs-local-run14.txt (3208 bytes) — PREDATES THIS VERIFY RUN
+- sonarjs-local-run15.txt (11779 bytes) — PREDATES THIS VERIFY RUN
 - sonarjs-local.txt (2365 bytes) — PREDATES THIS VERIFY RUN
 - test.txt (3233 bytes)
   Commands: meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
+- vault-reach-after.txt (2927 bytes) — PREDATES THIS VERIFY RUN
+- vault-reach-before.txt (4013 bytes) — PREDATES THIS VERIFY RUN
 - verify-run14.txt (1012 bytes) — PREDATES THIS VERIFY RUN
   Commands: meechies-coloringbook@0.1.0 verify | npm run audit:gate && node scripts/chamber-lock.mjs && node scripts/verify-runner.mjs && node scripts/shaolin-lint.mjs && node scripts/assumption-alarm.mjs && node scripts/seam-ledger.mjs && node scripts/clan-chain.mjs && node scripts/proof-tape.mjs | meechies-coloringbook@0.1.0 audit:gate | npm audit --audit-level=high | meechies-coloringbook@0.1.0 check | svelte-kit sync && svelte-check --tsconfig ./tsconfig.json | meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
 - verify.txt (3558 bytes)
   Commands: meechies-coloringbook@0.1.0 check | svelte-kit sync && svelte-check --tsconfig ./tsconfig.json | meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
 
-Older than this run's chamber-lock.json: build.txt, e2e-print.txt, e2e-run14.txt, e2e.txt, export-row-after.txt, export-row-before.txt, lint.txt, redproof-share-policy.txt, redproof-title-restore.txt, run14-check-lint-test-build.txt, sonarjs-local-run14.txt, sonarjs-local.txt, verify-run14.txt.
+Older than this run's chamber-lock.json: build.txt, e2e-print.txt, e2e-run14.txt, e2e-run15.txt, e2e.txt, export-row-after.txt, export-row-before.txt, lint.txt, redproof-share-policy.txt, redproof-title-restore.txt, redproof-vault-page.txt, run14-check-lint-test-build.txt, sonarjs-local-run14.txt, sonarjs-local-run15.txt, sonarjs-local.txt, vault-reach-after.txt, vault-reach-before.txt, verify-run14.txt.
 These files were written by an earlier run, so they describe a different run than
 the one this tape summarizes. Regenerate them or read them as history, not as proof
 of the current change.

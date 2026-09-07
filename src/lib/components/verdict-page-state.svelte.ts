@@ -52,6 +52,7 @@ import type {
 } from '../../../contracts/meechie-tool.contract';
 import { GenerateResultSchema } from '../../../contracts/generate.contract';
 import type { GenerateResponseValue } from '../../../contracts/generate.contract';
+import { VAULT_SAVED_CONFIRMATION } from '$lib/core/vault-page';
 import type { CreationOwner } from '$lib/seams/creation-store-seam/contract';
 import type { GeneratedImage } from '../../../contracts/image-generation.contract';
 import type { PackagedFile } from '$lib/seams/output-packaging-seam/contract';
@@ -790,9 +791,7 @@ export class VerdictPageState {
 				}
 			});
 			if (token !== this.pageToken) return;
-			this.vaultStatus = result.ok
-				? 'Saved to the vault. Find it on the home page.'
-				: result.error.message;
+			this.vaultStatus = result.ok ? VAULT_SAVED_CONFIRMATION : result.error.message;
 		} catch (saveError) {
 			if (token !== this.pageToken) return;
 			this.vaultStatus =

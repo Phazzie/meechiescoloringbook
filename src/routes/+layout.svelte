@@ -14,6 +14,7 @@ Info flow: Layout renders children -> pages render within layout.
 		offlineNotice
 	} from '$lib/core/offline-cache';
 	import { NOTHING_TO_PRINT } from '$lib/core/print-sheet';
+	import { VAULT_PATH } from '$lib/core/vault-page';
 
 	let { children } = $props();
 
@@ -138,11 +139,18 @@ Info flow: Layout renders children -> pages render within layout.
 			<span class="badge">Meechie's</span>
 			<span class="brand-sub">Coloring Book</span>
 		</a>
+		<!--
+			The vault is in the nav because it is the app's memory and until now it had no link
+			anywhere: thirteen surfaces could save a page into it, and the only way to see one was to
+			scroll three screens down the home page. Both menus carry the same links, so a phone is
+			not a smaller app.
+		-->
 		<nav class="links">
 			<a href="/who-fucked-up" onclick={closeMenu}>Who Fucked Up?</a>
 			<a href="/rate-his-excuse" onclick={closeMenu}>Rate His Excuse</a>
 			<a href="/random" onclick={closeMenu}>Random</a>
 			<a href="/meechie" class="link-tools" onclick={closeMenu}>Meechie's Tools</a>
+			<a href={VAULT_PATH} class="link-vault" onclick={closeMenu}>Vault</a>
 		</nav>
 		<button
 			class="hamburger"
@@ -161,6 +169,7 @@ Info flow: Layout renders children -> pages render within layout.
 			<a href="/rate-his-excuse" onclick={closeMenu}>Rate His Excuse</a>
 			<a href="/random" onclick={closeMenu}>Random</a>
 			<a href="/meechie" class="link-tools" onclick={closeMenu}>Meechie's Tools</a>
+			<a href={VAULT_PATH} class="link-vault" onclick={closeMenu}>Vault</a>
 		</nav>
 	{/if}
 </header>
@@ -280,6 +289,20 @@ Info flow: Layout renders children -> pages render within layout.
 	.links a.link-tools:hover {
 		background: rgba(201, 162, 39, 0.15);
 		border-color: rgba(201, 162, 39, 0.6);
+	}
+
+	/* Marked apart from the four mode links, because it is not a fifth thing to make — it is
+	   where everything you already made went. */
+	.links a.link-vault {
+		color: var(--lavender);
+		border-color: rgba(139, 22, 194, 0.45);
+		background: rgba(139, 22, 194, 0.12);
+	}
+
+	.links a.link-vault:hover {
+		color: var(--cream);
+		border-color: rgba(139, 22, 194, 0.75);
+		background: rgba(139, 22, 194, 0.22);
 	}
 
 	/* Hamburger button — hidden on wide viewports */

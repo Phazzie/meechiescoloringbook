@@ -387,7 +387,7 @@ test('wig try-on demo works end to end without provider traffic', async ({
 	// with the tab while every other surface reached the vault.
 	await page.getByTestId('home-save-vault').click();
 	await expect(page.getByTestId('home-status')).toContainText(
-		'Saved to the quote vault.'
+		'Saved to the vault.'
 	);
 	await expect(page.getByTestId('home-vault-load')).toContainText(
 		'Wig Try-On - Sleek Straight Goddess'
@@ -555,7 +555,7 @@ test('home quote vault can save, load, pin, and delete creations', async ({
 	);
 	await page.getByTestId('home-save-vault').click();
 	await expect(page.getByTestId('home-status')).toContainText(
-		'Saved to the quote vault.'
+		'Saved to the vault.'
 	);
 	await expect(page.getByTestId('home-vault-load')).toContainText(
 		'RECEIPT ENERGY'
@@ -601,7 +601,7 @@ test('home quote vault searches saved pages and reveals the ones past the previe
 		await page.getByLabel('Shoutout').fill(shoutout);
 		await page.getByTestId('home-save-vault').click();
 		await expect(page.getByTestId('home-status')).toContainText(
-			'Saved to the quote vault.'
+			'Saved to the vault.'
 		);
 	}
 
