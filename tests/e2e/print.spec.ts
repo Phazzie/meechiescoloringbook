@@ -10,92 +10,13 @@
 //      screen one. `emulateMedia` is what makes the difference, and a test added below that forgets
 //      it is asserting nothing about paper.
 import { expect, test, type Page } from '@playwright/test';
+// The stubbed endpoints and the load helper, shared with `share.spec.ts`. They used to be a copy
+// in each file; SonarCloud's duplication gate measured the pair at 5.5% of new code against a 3%
+// limit and failed the pull request that added the second one.
+import { openRoute as open, stubPageApis as stub, STUB_QUOTE } from './support/page-fixtures';
 
 test.setTimeout(120000);
 test.describe.configure({ mode: 'parallel' });
-
-const png1x1 =
-	'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=';
-
-/** Just enough of each endpoint to get a picture on screen. */
-const stub = async (page: Page): Promise<void> => {
-	await page.route('**/api/meechie-studio-text', (route) =>
-		route.fulfill({
-			json: {
-				ok: true,
-				value: {
-					verdict: 'Meechie clocked the timeline.',
-					quote: 'The story folded before the receipt opened.',
-					pageTitle: 'Receipt Energy',
-					// Two, not one: `MeechieStudioTextOutputSchema` bounds `pageItems` at 2..6, and a
-					// one-item fixture is rejected client-side as an unreadable response.
-					pageItems: [
-						{ number: 1, label: 'CHECK THE TIMELINE' },
-						{ number: 2, label: 'KEEP THE RECEIPT' }
-					],
-					rating: 2,
-					qualityState: 'ready',
-					revisionNote: 'Print fixture.',
-					modelMetadata: { provider: 'test', model: 'stub' }
-				}
-			}
-		})
-	);
-	await page.route('**/api/generate', (route) =>
-		route.fulfill({
-			json: {
-				ok: true,
-				value: {
-					prompt: 'Stub coloring page prompt.',
-					templateVersion: 'v2',
-					images: [
-						{
-							id: 'image-1',
-							format: 'png',
-							mimeType: 'image/png',
-							data: png1x1,
-							encoding: 'base64'
-						}
-					],
-					revisedPrompt: 'Stub revised prompt.',
-					modelMetadata: { provider: 'test', model: 'stub-image' },
-					violations: [],
-					recommendedFixes: []
-				}
-			}
-		})
-	);
-	// The verdict echoes the tool that was asked for: the hub and the mode routes each send their
-	// own `toolId`, and a reply naming a different one is a reply to a question nobody asked.
-	await page.route('**/api/tools', async (route) => {
-		const body = route.request().postDataJSON() as { toolId?: string };
-		await route.fulfill({
-			json: {
-				ok: true,
-				value: {
-					toolId: body.toolId ?? 'unknown',
-					headline: 'Red flag',
-					response: 'Fault: them. Consequence: access gets reduced until facts improve.'
-				}
-			}
-		});
-	});
-};
-
-/**
- * Load a route and wait until it can be driven.
- *
- * The home page announces hydration; the others do not, so the wait there is on the control the
- * test is about to click actually being live. A fixed timeout races the hydration it is standing
- * in for, which is how a print test comes to fail for a reason that has nothing to do with print.
- */
-const open = async (page: Page, path: string): Promise<void> => {
-	await page.goto(path, { waitUntil: 'domcontentloaded' });
-	await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {
-		// Some asset pipelines keep a request open; hydration still completes.
-	});
-	if (path === '/') await page.waitForSelector('[data-hydrated="true"]');
-};
 
 /**
  * Take the home studio from a cold load to a finished picture on the paper.
@@ -109,7 +30,7 @@ const makeHomePage = async (page: Page): Promise<void> => {
 	await page.getByTestId('home-evidence').fill('He said he was asleep at 2am.');
 	await page.getByTestId('home-generate-verdict').click();
 	await expect(page.getByTestId('home-verdict-quote')).toContainText(
-		'The story folded before the receipt opened.'
+		STUB_QUOTE
 	);
 	await page.getByTestId('home-create-page').click();
 	await expect(page.getByTestId('home-generated-image')).toBeVisible();
@@ -153,7 +74,7 @@ test('the home studio prints the coloring page, not the app', async ({ page }) =
 	await page.getByTestId('home-evidence').fill('He said he was asleep at 2am.');
 	await page.getByTestId('home-generate-verdict').click();
 	await expect(page.getByTestId('home-verdict-quote')).toContainText(
-		'The story folded before the receipt opened.'
+		STUB_QUOTE
 	);
 	await page.getByTestId('home-create-page').click();
 	await expect(page.getByTestId('home-generated-image')).toBeVisible();

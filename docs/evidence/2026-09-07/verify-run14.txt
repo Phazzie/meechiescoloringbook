@@ -27,6 +27,6 @@ svelte-check found 0 errors and 0 warnings
 
  Test Files  101 passed | 1 skipped (102)
       Tests  1663 passed | 1 skipped (1664)
-   Start at  12:55:01
-   Duration  86.88s (transform 3.36s, setup 839ms, import 6.33s, tests 7.25s, environment 56.35s)
+   Start at  13:10:04
+   Duration  86.84s (transform 3.23s, setup 831ms, import 6.19s, tests 7.08s, environment 56.68s)
 

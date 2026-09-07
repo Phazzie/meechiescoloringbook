@@ -12,12 +12,11 @@
 //      test here that asserts a real share sheet opened is asserting something no browser in this
 //      project can do.
 import { expect, test, type Page } from '@playwright/test';
+// The stubbed endpoints and the load helper, shared with `print.spec.ts`.
+import { openRoute as open, stubPageApis as stub, STUB_QUOTE } from './support/page-fixtures';
 
 test.setTimeout(120000);
 test.describe.configure({ mode: 'parallel' });
-
-const png1x1 =
-	'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=';
 
 /** One recorded call to a share or clipboard API, flattened to what can cross into Node. */
 type RecordedShare = {
@@ -33,68 +32,6 @@ declare global {
 		__shareRejectsWith?: string;
 	}
 }
-
-/** Just enough of each endpoint to get a picture on screen. */
-const stub = async (page: Page): Promise<void> => {
-	await page.route('**/api/meechie-studio-text', (route) =>
-		route.fulfill({
-			json: {
-				ok: true,
-				value: {
-					verdict: 'Meechie clocked the timeline.',
-					quote: 'The story folded before the receipt opened.',
-					pageTitle: 'Receipt Energy',
-					// Two, not one: `MeechieStudioTextOutputSchema` bounds `pageItems` at 2..6.
-					pageItems: [
-						{ number: 1, label: 'CHECK THE TIMELINE' },
-						{ number: 2, label: 'KEEP THE RECEIPT' }
-					],
-					rating: 2,
-					qualityState: 'ready',
-					revisionNote: 'Share fixture.',
-					modelMetadata: { provider: 'test', model: 'stub' }
-				}
-			}
-		})
-	);
-	await page.route('**/api/generate', (route) =>
-		route.fulfill({
-			json: {
-				ok: true,
-				value: {
-					prompt: 'Stub coloring page prompt.',
-					templateVersion: 'v2',
-					images: [
-						{
-							id: 'image-1',
-							format: 'png',
-							mimeType: 'image/png',
-							data: png1x1,
-							encoding: 'base64'
-						}
-					],
-					revisedPrompt: 'Stub revised prompt.',
-					modelMetadata: { provider: 'test', model: 'stub-image' },
-					violations: [],
-					recommendedFixes: []
-				}
-			}
-		})
-	);
-	await page.route('**/api/tools', async (route) => {
-		const body = route.request().postDataJSON() as { toolId?: string };
-		await route.fulfill({
-			json: {
-				ok: true,
-				value: {
-					toolId: body.toolId ?? 'unknown',
-					headline: 'Red flag',
-					response: 'Fault: them. Consequence: access gets reduced until facts improve.'
-				}
-			}
-		});
-	});
-};
 
 /**
  * Install a Web Share API this browser does not have, and record what it is handed.
@@ -158,14 +95,6 @@ const installClipboardRecorder = async (page: Page): Promise<void> => {
 			}
 		});
 	});
-};
-
-const open = async (page: Page, path: string): Promise<void> => {
-	await page.goto(path, { waitUntil: 'domcontentloaded' });
-	await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {
-		// Some asset pipelines keep a request open; hydration still completes.
-	});
-	if (path === '/') await page.waitForSelector('[data-hydrated="true"]');
 };
 
 /** Take `/who-fucked-up` from a cold load to a finished picture and its export row. */
@@ -310,7 +239,7 @@ test('the tools hub and the home studio get the same row and the same control', 
 	await open(page, '/');
 	await page.getByTestId('home-evidence').fill('He said he was asleep at 2am.');
 	await page.getByTestId('home-generate-verdict').click();
-	await expect(page.getByTestId('home-verdict-quote')).toContainText('The story folded');
+	await expect(page.getByTestId('home-verdict-quote')).toContainText(STUB_QUOTE);
 	await page.getByTestId('home-create-page').click();
 	await expect(page.getByTestId('home-generated-image')).toBeVisible();
 	await expect(page.getByTestId('home-export-link')).toHaveCount(3);
