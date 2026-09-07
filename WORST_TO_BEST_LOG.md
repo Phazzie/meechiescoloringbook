@@ -11434,6 +11434,23 @@ CodeRabbit confirmed the two design decisions it was asked about — the bare-st
 `z.enum`, and the both-directions compatibility of the optional field, including that the adapter's
 read path does not enumerate draft fields and so cannot choke on the addition.
 
+**The five findings that were declined, each measured rather than waved off.** CodeRabbit's full
+review posted six actionable comments. One was the real defect above. The other five are convention
+questions where the reviewer's rule is right in general and wrong for this repository, and the
+argument in each case is a number, not an opinion:
+
+| Finding | Measurement | Disposition |
+|---|---|---|
+| `docs/seams.md` — the Seam column must be the exact PascalCase name, so `CreationStoreSeam (self-contained)` is wrong | `scripts/rewind.mjs` matches `entry.seam === seamName` **exactly**, and 12 rows use this suffix | **Declined — the rename would break the verify tooling.** Both `CreationStoreSeam` rows would collapse to one key; `.find()` returns the first, so `npm run rewind -- --seam CreationStoreSeam` would silently run the *legacy flat* test and the self-contained seam's 18 tests would become unreachable. This run invoked that exact command as evidence |
+| `LESSONS_LEARNED.md` — four duplicate `## 2026-09-07` headings (MD024), no blank line below (MD022) | 87 bare `## YYYY-MM-DD` headings across 16 distinct dates; **8 dates were already duplicated on `main` before this PR**; markdownlint is in neither CI nor `devDependencies` | **Declined.** Four entries in a different shape would be the inconsistent ones |
+| `WORST_TO_BEST_LOG.md` — bare fences (MD040) | **70 bare to 8 tagged**, re-counted rather than inherited from Run 12's entry | **Declined**, same reason |
+| `src/lib/seams/creation-store-seam/contract.ts` — move `DraftRecordSchema` to `validators.ts`, since seam contracts should hold only plain types | This contract holds **18** schema constants, and **12 of the repo's seams** put Zod in `contract.ts`. `validators.ts` opens by saying it re-exports from the contract "rather than restated: a second copy of these shapes is a second thing to keep in step" | **Declined as out of scope.** Moving one of eighteen would split the seam across two files inconsistently, and this diff added a *field* to an existing schema rather than introducing one. The learning it cites came from `rate-limit-seam`, whose `contract.ts` has **zero** Zod usages — a seam that genuinely follows the rule, over-generalised to one that never did. Worth its own change if the owner wants the convention enforced repo-wide |
+| `plan.md` — a retrospective account must not be presented as proof the planning gate passed | — | **Accepted, and acted on.** The heading now says `RETROSPECTIVE ENTRY` and a blockquote at the top says what preceded the code (investigation, red proof, design — checkable by re-running the test diff against `origin/main`) and what did not (the prose). The clause that gave it away — "it is better than Run 12's" — is gone: a run grading its own process against the previous run's is doing something other than reporting |
+
+The pattern across all five: **a linter's rule and a repository's convention can both be right, and the
+tiebreak is a count, not a preference.** Four were declined against measurements taken this run; the
+fifth was accepted because the reviewer was describing a real way the text could mislead.
+
 ### The merge, and why this run stopped short of it
 
 `AGENTS.md`: *"Do not auto-merge when ... The PR carries a schema, contract, or data migration."*
