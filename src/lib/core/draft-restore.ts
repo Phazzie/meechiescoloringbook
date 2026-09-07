@@ -7,7 +7,7 @@
  * Invariants: Pure. Reads no clock, no storage, no catalogue of its own — the caller supplies the
  *             instant and the modes, so every rule here is drivable from a test.
  */
-import type { StudioMode } from './meechie-studio';
+import type { StudioModeCatalogue } from './meechie-studio';
 import { formatVaultSavedLabel } from './vault-gallery';
 
 /**
@@ -44,12 +44,16 @@ export type DraftModeRestoration = {
  * defect being fixed here was a silent substitution, and a fix that substituted just as silently
  * under a wider set of conditions would be no fix at all.
  *
- * `modes` must be non-empty; a studio with no modes has nothing to restore into and the caller has a
- * bigger problem than this function can describe.
+ * `StudioModeCatalogue` rather than `readonly StudioMode[]`, and that is a correction: the first
+ * version of this function took a plain array and stated "must be non-empty" in this comment. A
+ * review pointed out that the compiler was then typing `modes[0].id` as `string` while an empty
+ * array would hand back `undefined` — which `StudioState.init()` assigns straight to `activeModeId`
+ * and then dereferences for a label. Declaring the invariant in prose is what let the hole exist;
+ * the tuple type is the same invariant in a form that cannot be ignored at a call site.
  */
 export const restoreDraftMode = (
 	storedModeId: string | undefined,
-	modes: readonly StudioMode[]
+	modes: StudioModeCatalogue
 ): DraftModeRestoration => {
 	const fallbackId = modes[0].id;
 	if (storedModeId === undefined) {

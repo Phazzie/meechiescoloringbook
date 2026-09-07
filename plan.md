@@ -43,7 +43,8 @@ is the reading that satisfies both instructions.
 | `src/lib/seams/creation-store-seam/fixtures.ts` | [MODIFY] | the new rejected key |
 | `src/lib/seams/creation-store-seam/test.ts` | [MODIFY] | one test for the field's two halves (stored, and absent-but-still-parsing), and the blank id added to the fault sweep |
 | `src/lib/core/draft-restore.ts` | [NEW] | pure: `restoreDraftMode`, `describeDraftRestore`, `DraftModeProvenance`, `DraftRestoreNotice` |
-| `tests/unit/draft-restore.test.ts` | [NEW] | 12 tests |
+| `src/lib/core/meechie-studio.ts` | [MODIFY] | `StudioModeCatalogue = readonly [StudioMode, ...StudioMode[]]`, applied to `studioModes` — added under review, so the "at least one mode" invariant is checked rather than described |
+| `tests/unit/draft-restore.test.ts` | [NEW] | 13 tests, one of them a compile-time `@ts-expect-error` assertion that an empty catalogue is unrepresentable |
 | `src/routes/studio-state.svelte.ts` | [MODIFY] | saves `modeId`; restores through the core module; `draftRestoreNotice` state and `dismissDraftRestoreNotice`; the draft stamp moves from `new Date()` to `this.clock.now()` |
 | `src/lib/components/studio/StudioInputPanel.svelte` | [MODIFY] | renders the notice above the evidence box; two new props |
 | `src/routes/+page.svelte` | [MODIFY] | wires the two props; the `.draft-restored*` rules |

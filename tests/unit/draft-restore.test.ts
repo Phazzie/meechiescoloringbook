@@ -8,7 +8,10 @@ import {
 	restoreDraftMode,
 	type DraftModeProvenance
 } from '../../src/lib/core/draft-restore';
-import { studioModes } from '../../src/lib/core/meechie-studio';
+import {
+	studioModes,
+	type StudioModeCatalogue
+} from '../../src/lib/core/meechie-studio';
 
 // A real mode that is deliberately not `studioModes[0]`, so "restored the stored one" and "fell
 // back to the default" can never both satisfy the same assertion.
@@ -66,7 +69,7 @@ describe('restoreDraftMode', () => {
 	});
 
 	it('resolves against the catalogue it is handed, not the app-wide one', () => {
-		const narrowed = [OTHER_MODE];
+		const narrowed: StudioModeCatalogue = [OTHER_MODE];
 
 		expect(restoreDraftMode(OTHER_MODE.id, narrowed).provenance).toBe('recorded');
 		// A live mode of the real catalogue, absent from this one, is retired as far as this
@@ -76,6 +79,28 @@ describe('restoreDraftMode', () => {
 			modeId: OTHER_MODE.id,
 			provenance: 'retired'
 		});
+	});
+
+	/**
+	 * The empty catalogue, asserted where it can actually be asserted: at compile time.
+	 *
+	 * This function falls back to `modes[0]`, so an empty catalogue would return `undefined` as a
+	 * declared `string` — `StudioState.init()` assigns that to `activeModeId` and then reads
+	 * `activeMode.label` off it. A review found that hole while the parameter was
+	 * `readonly StudioMode[]` and the non-empty requirement lived only in a doc comment.
+	 *
+	 * `StudioModeCatalogue` is `readonly [StudioMode, ...StudioMode[]]`, so the case is now
+	 * unrepresentable rather than untested, and `@ts-expect-error` is the assertion that says so:
+	 * `npm run check` fails if this line ever stops being an error, which is exactly what would
+	 * happen if the parameter were widened back to a plain array. A runtime test could only reach
+	 * this case through a cast, and would then be asserting the behaviour of a call the type system
+	 * forbids.
+	 */
+	it('rejects an empty catalogue at the type level', () => {
+		// @ts-expect-error an empty array is not a StudioModeCatalogue
+		const rejected = () => restoreDraftMode('any-id', []);
+
+		expect(rejected).toBeTypeOf('function');
 	});
 });
 

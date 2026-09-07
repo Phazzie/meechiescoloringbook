@@ -11334,7 +11334,7 @@ act on a sentence and cannot recover a deleted page.
 |---|---|
 | `npm run check` | 0 errors, 0 warnings |
 | `npm run lint` | clean |
-| `npm test` | **1646 passed**, 1 skipped (was 1618 — +28) |
+| `npm test` | **1647 passed**, 1 skipped (was 1618 — +29) |
 | `npm run test:e2e` | **50 passed** (was 49 — +1) |
 | `npm run build` | ok |
 | `npm run verify` | exit 0 — chamber-lock 38 ok / 0 blocked / 0 missing; shaolin-lint 2 ok / 0 stale |
@@ -11379,9 +11379,22 @@ disposition on #315 was careful to say the opposite — that check was red *beca
 which had altered two function signatures — so the bar is applied again from scratch rather than
 inherited:
 
-- All 44 findings blame `claude/sweet-mendel-LJ9Iu` (**291 commits behind `main`**) for removing
-  parameters from `getModeSpotlight`, `describeSpotlightSchedule`, `studioActionStartsRound` and two
-  further call sites, colliding with call sites this branch inherits **unchanged**.
+- The six **breaking** findings blame `claude/sweet-mendel-LJ9Iu` (**291 commits behind `main`**)
+  for removing parameters from `getModeSpotlight`, `describeSpotlightSchedule`,
+  `studioActionStartsRound`, `derivesDenseDecorations`, `specOwnQuote` and `currentStyleSelection`,
+  colliding with call sites this branch inherits **unchanged**. The inline "possible break" comments
+  blame a *second* stale branch, `claude/trusting-volta-bb8mvr` (**also 291 commits behind**), for
+  removing parameters from three helpers in `tests/unit/studio-state.test.ts` — `buildSeedSpec`,
+  `registerInitialized`, `initFromDraft` — which this run's new tests call, unchanged, exactly as
+  every existing test in that file does.
+
+  *(Corrected. The first version of this paragraph, and the comment posted on the pull request, both
+  said "all 44 findings blame `claude/sweet-mendel-LJ9Iu`". They do not: 44 was the count on the
+  workflow's own error line, and the inline findings name the other branch. The conclusion is
+  unchanged — both branches are 291 commits behind and neither collision involves a signature this
+  diff touches — but the claim as written was wider than the evidence behind it, which is the exact
+  defect Run 12's entry spent six review rounds on. Measured, not assumed:
+  `git rev-list --count origin/claude/trusting-volta-bb8mvr..origin/main` → 291.)*
 - `git diff origin/main...HEAD | grep -E "^[+-]"` mentions **none** of those symbols — not one added
   or removed line.
 - The only new signatures in this diff are `restoreDraftMode`, `describeDraftRestore` and
@@ -11391,6 +11404,35 @@ So: a check red on two heads for two different reasons, which is exactly the cas
 looks identical from the outside. The comparison is written on the pull request, per that rule. **No
 re-run was spent** — the check is deterministic over branch contents and calling it a flake would be
 a lie. The real remedy is #151 and #208 rebasing, which is their authors' call.
+
+**CodeRabbit found one real defect, and it was in the thing I had been most careful about.**
+Asking explicitly was again the highest-value action of the review phase — Sourcery was over its
+250,000-character budget and Codex over its usage limit, so left alone this pull request would have
+had no code review at all, for the second run running.
+
+The finding (P2): `restoreDraftMode` took `readonly StudioMode[]` and immediately read `modes[0].id`.
+An empty catalogue would return `undefined` as a declared `string`, which `StudioState.init()`
+assigns straight into `activeModeId` and then dereferences for `activeMode.label`.
+
+What makes it worth an entry is *where* the hole was. The function's own doc comment said
+**"`modes` must be non-empty; a studio with no modes has nothing to restore into"** — I had noticed
+the invariant, written it down, and left the compiler typing the expression as `string` anyway.
+**Documenting an invariant is not enforcing it, and writing it down can be worse than not noticing,
+because the comment reads like the problem was handled.** Fixed by giving the catalogue a type that
+carries the fact: `StudioModeCatalogue = readonly [StudioMode, ...StudioMode[]]`, applied at
+`studioModes` itself so every consumer inherits it. No production call site needed changing — only
+this run's own test, which had been passing a plain array.
+
+CodeRabbit asked for an empty-catalogue test. The honest form of that is a *compile-time* one, since
+the case is now unrepresentable: a `@ts-expect-error` on `restoreDraftMode('any-id', [])`. That is a
+real assertion rather than a decorative one, and it was verified the way this run verified its other
+red proofs — by widening the parameter back to `readonly StudioMode[]` and watching `npm run check`
+fail with `Unused '@ts-expect-error' directive`. A runtime test could only reach the empty case
+through a cast, and would then be asserting the behaviour of a call the type system forbids.
+
+CodeRabbit confirmed the two design decisions it was asked about — the bare-string schema over a
+`z.enum`, and the both-directions compatibility of the optional field, including that the adapter's
+read path does not enumerate draft fields and so cannot choke on the addition.
 
 ### The merge, and why this run stopped short of it
 

@@ -24,9 +24,9 @@ svelte-check found 0 errors and 0 warnings
 
 
 [2m Test Files [22m [1m[32m100 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (101)[39m
-[2m      Tests [22m [1m[32m1646 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (1647)[39m
-[2m   Start at [22m 00:49:06
-[2m   Duration [22m 75.74s[2m (transform 3.32s, setup 841ms, import 6.25s, tests 7.78s, environment 46.88s)[22m
+[2m      Tests [22m [1m[32m1647 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (1648)[39m
+[2m   Start at [22m 00:56:14
+[2m   Duration [22m 75.65s[2m (transform 3.39s, setup 793ms, import 6.37s, tests 7.73s, environment 46.94s)[22m
 
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
