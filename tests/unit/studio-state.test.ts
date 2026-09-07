@@ -702,6 +702,181 @@ describe('StudioState try-on draft provenance', () => {
 	});
 });
 
+describe('StudioState draft mode restoration', () => {
+	// A mode that is not `studioModes[0]`, so "restored the stored mode" and "fell back to the
+	// default" cannot both be true of the same assertion.
+	const OTHER_MODE = studioModes.find((mode) => mode.id === 'rate-excuse');
+	if (!OTHER_MODE) throw new Error('rate-excuse mode is missing from the catalog');
+
+	const DEFAULT_MODE = studioModes[0];
+	const EVIDENCE = 'He said traffic made him three hours late.';
+	const SAVED_AT = '2026-09-05T00:00:00.000Z';
+
+	const draftUnder = (modeId: string | undefined): DraftRecord => ({
+		updatedAtISO: SAVED_AT,
+		intent: buildSeedSpec(DEFAULT_STUDIO_TEXT_OUTPUT),
+		chatMessage: EVIDENCE,
+		...(modeId === undefined ? {} : { modeId })
+	});
+
+	/**
+	 * The whole point of the field. Evidence is written under a question; restoring the words
+	 * without the question hands them to a different tool — and `toolId` is what the next Generate
+	 * Verdict spends a provider call on, so this assertion is about the reader's money.
+	 */
+	it('restores the mode the draft was written under', async () => {
+		const restored = await initFromDraft(draftUnder(OTHER_MODE.id));
+
+		expect(restored.activeModeId).toBe(OTHER_MODE.id);
+		expect(restored.activeMode.toolId).toBe(OTHER_MODE.toolId);
+		expect(restored.evidence).toBe(EVIDENCE);
+	});
+
+	it('writes the active mode into the draft it saves', async () => {
+		const saveDraftSpy = vi.spyOn(creationStoreAdapter, 'saveDraft');
+		const studio = registerInitialized(new StudioState());
+		await studio.init();
+
+		saveDraftSpy.mockClear();
+		studio.handleModeSelect(OTHER_MODE.id);
+		await vi.waitFor(() => expect(saveDraftSpy).toHaveBeenCalled());
+
+		expect(saveDraftSpy.mock.calls.at(-1)?.[0].draft.modeId).toBe(OTHER_MODE.id);
+	});
+
+	// A round trip through the adapter rather than two assertions about it: the save and the restore
+	// are the two halves that have to agree, and testing them separately is how they came apart.
+	it('survives a save and a reload', async () => {
+		const saveDraftSpy = vi.spyOn(creationStoreAdapter, 'saveDraft');
+		const first = registerInitialized(new StudioState());
+		await first.init();
+		first.handleModeSelect(OTHER_MODE.id);
+		first.evidence = EVIDENCE;
+		first.scheduleDraftSave();
+		await vi.waitFor(() => expect(saveDraftSpy).toHaveBeenCalled());
+		saveDraftSpy.mockRestore();
+
+		const second = registerInitialized(new StudioState());
+		await second.init();
+
+		expect(second.activeModeId).toBe(OTHER_MODE.id);
+		expect(second.evidence).toBe(EVIDENCE);
+		expect(second.draftRestoreNotice?.caution).toBeNull();
+	});
+
+	it('announces the restore and names the question it came back under', async () => {
+		const restored = await initFromDraft(draftUnder(OTHER_MODE.id));
+
+		expect(restored.draftRestoreNotice?.headline).toContain(OTHER_MODE.label);
+		expect(restored.draftRestoreNotice?.caution).toBeNull();
+	});
+
+	// The two ways of not having the reader's question. Both open on the default mode, and both must
+	// say so — this is the silent substitution the whole feature exists to remove.
+	it.each([
+		['a draft written before the field existed', undefined],
+		['a draft naming a mode this build retired', 'a-mode-that-was-retired']
+	])('cautions on %s rather than substituting quietly', async (_label, modeId) => {
+		const restored = await initFromDraft(draftUnder(modeId));
+
+		expect(restored.activeModeId).toBe(DEFAULT_MODE.id);
+		// The evidence still comes back. It is the reader's own words and dropping them would be a
+		// worse answer to "we do not know the question" than telling them.
+		expect(restored.evidence).toBe(EVIDENCE);
+		expect(restored.draftRestoreNotice?.caution).toContain(DEFAULT_MODE.label);
+	});
+
+	it('gives the retired and the unrecorded case different wording', async () => {
+		const unrecorded = await initFromDraft(draftUnder(undefined));
+		// `initFromDraft` overwrites the stored draft, so the second studio reads the second one.
+		const retired = await initFromDraft(draftUnder('a-mode-that-was-retired'));
+
+		expect(unrecorded.draftRestoreNotice?.caution).not.toBe(
+			retired.draftRestoreNotice?.caution
+		);
+	});
+
+	it('says nothing when there was no draft to restore', async () => {
+		const studio = registerInitialized(new StudioState());
+		await studio.init();
+
+		expect(studio.draftRestoreNotice).toBeNull();
+	});
+
+	it('dates the notice from the injected clock rather than the host one', async () => {
+		localStorage.setItem('cb_drafts_v1', JSON.stringify(draftUnder(OTHER_MODE.id)));
+		const studio = registerInitialized(new StudioState());
+		// Three days after the draft's own stamp, so the label cannot come out as "Saved today" by
+		// accident on whatever day the suite happens to run.
+		studio.clock = createMockClockSeam(Date.parse('2026-09-08T12:00:00.000Z'));
+		await studio.init();
+
+		expect(studio.draftRestoreNotice?.savedLabel).toBe('Saved 3 days ago');
+	});
+
+	// A notice that outlived its subject would be the same silent mismatch one level up: a sentence
+	// on screen about a mode the reader has since changed.
+	it.each([
+		['the reader dismisses it', (studio: StudioState) => studio.dismissDraftRestoreNotice()],
+		['the reader picks a mode', (studio: StudioState) => studio.handleModeSelect('clapback')],
+		[
+			'the reader re-picks the mode already showing',
+			(studio: StudioState) => studio.handleModeSelect(studio.activeModeId)
+		]
+	])('retires the notice when %s', async (_label, act) => {
+		const restored = await initFromDraft(draftUnder(OTHER_MODE.id));
+		expect(restored.draftRestoreNotice).not.toBeNull();
+
+		act(restored);
+
+		expect(restored.draftRestoreNotice).toBeNull();
+	});
+
+	// The notice goes when a request actually leaves, and not before. A click that produces "Meechie
+	// needs a few facts" has not answered the caution, and taking the warning away there would strand
+	// a reader who is still about to spend the call.
+	it('keeps the notice when generate is refused for want of evidence', async () => {
+		const restored = await initFromDraft(draftUnder(OTHER_MODE.id));
+		restored.evidence = '   ';
+
+		await restored.runTextAction('generate_text');
+
+		expect(restored.textError).not.toBe('');
+		expect(restored.draftRestoreNotice).not.toBeNull();
+	});
+
+	it('retires the notice when a verdict is asked for', async () => {
+		const restored = await initFromDraft(draftUnder(OTHER_MODE.id));
+		vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+			new Response(JSON.stringify({ ok: false, error: { code: 'X', message: 'no' } }), {
+				status: 200,
+				headers: { 'content-type': 'application/json' }
+			})
+		);
+
+		await restored.runTextAction('generate_text');
+
+		expect(restored.draftRestoreNotice).toBeNull();
+	});
+
+	// The instant written into the draft is the one the notice is later dated from, so the save has
+	// to read the same seam the restore does.
+	it('stamps the saved draft from the injected clock', async () => {
+		const saveDraftSpy = vi.spyOn(creationStoreAdapter, 'saveDraft');
+		const studio = registerInitialized(new StudioState());
+		studio.clock = createMockClockSeam(Date.parse('2026-09-08T12:00:00.000Z'));
+		await studio.init();
+
+		saveDraftSpy.mockClear();
+		studio.handleModeSelect(OTHER_MODE.id);
+		await vi.waitFor(() => expect(saveDraftSpy).toHaveBeenCalled());
+
+		expect(saveDraftSpy.mock.calls.at(-1)?.[0].draft.updatedAtISO).toBe(
+			'2026-09-08T12:00:00.000Z'
+		);
+	});
+});
+
 describe('StudioState wig try-on comparison', () => {
 	const PNG_PORTRAIT = 'data:image/png;base64,ZmFrZQ==';
 	const OTHER_PORTRAIT = 'data:image/png;base64,b3RoZXI=';

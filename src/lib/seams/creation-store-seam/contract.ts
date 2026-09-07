@@ -82,12 +82,35 @@ export const CreationRecordSchema = z.object({
 	owner: CreationOwnerSchema
 });
 
+/**
+ * A draft is the reader's work in progress, autosaved as they type and restored on every refresh.
+ *
+ * `modeId` is the studio mode the draft was written under — which question Meechie was being asked.
+ * It is the field this record spent its whole life without, and its absence was not cosmetic:
+ * `chatMessage` holds the reader's evidence, and evidence only means anything against a question.
+ * Restoring the words without the question put them under whichever mode the studio happened to
+ * open on, and the next Generate Verdict spent a provider call on that mode's `toolId` — an answer
+ * to a question the reader never asked, charged to them, with nothing on screen saying so.
+ *
+ * Optional, and unversioned, for exactly the reason `styleSelection` above is: every draft already
+ * sitting in a reader's browser was written without it and must keep parsing. Absence therefore has
+ * to mean "this draft does not record its question", never "the default mode" — see
+ * `src/lib/core/draft-restore.ts`, which is the one place that distinction is decided, and which
+ * tells the reader when it applies rather than guessing quietly.
+ *
+ * A bare string rather than an enum of the live mode ids. The catalogue is application data that
+ * has already changed twice, and a schema that enumerated it would invalidate a stored draft every
+ * time a mode was renamed or retired — turning a recoverable "this mode is gone, here is the
+ * default" into an unparseable record and losing the reader's evidence with it. Resolving the id
+ * against the catalogue is the consumer's job, and it is a decision, not a validation.
+ */
 export const DraftRecordSchema = z.object({
 	updatedAtISO: NonEmptyStringSchema,
 	intent: ColoringPageSpecSchema,
 	chatMessage: NonEmptyStringSchema.optional(),
 	studioText: MeechieStudioTextOutputSchema.optional(),
-	styleSelection: StyleSelectionSchema.optional()
+	styleSelection: StyleSelectionSchema.optional(),
+	modeId: NonEmptyStringSchema.optional()
 });
 
 export const SaveCreationInputSchema = z.object({

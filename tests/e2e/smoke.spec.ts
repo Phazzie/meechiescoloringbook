@@ -659,6 +659,81 @@ test('home shoutout input debounces draft save and clears dedication', async ({
 		.toBeUndefined();
 });
 
+/**
+ * The refresh this whole feature is about, driven through a real browser rather than reasoned about.
+ *
+ * Every unit test around it stands or falls on `initFromDraft` writing the same `cb_drafts_v1` shape
+ * the adapter writes. This one never touches storage: it types under a mode, reloads the page the
+ * way a reader would, and reads the heading and the placeholder — the two things that told the
+ * reader, wrongly, which question their words were sitting under.
+ */
+test('the studio comes back on the question the evidence was typed under', async ({
+	page
+}) => {
+	const [defaultMode, switchedMode] = studioModes;
+
+	await gotoHydrated(page, '/');
+	await page.evaluate(() => localStorage.removeItem('cb_drafts_v1'));
+	await page.getByTestId(`home-mode-${switchedMode.id}`).click();
+	await page
+		.getByTestId('home-evidence')
+		.fill('He said traffic made him three hours late.');
+
+	// Wait for the debounced autosave to actually land, rather than assuming a duration.
+	await expect
+		.poll(
+			async () =>
+				page.evaluate(
+					() =>
+						JSON.parse(localStorage.getItem('cb_drafts_v1') ?? 'null')?.modeId
+				),
+			{ timeout: 5000 }
+		)
+		.toBe(switchedMode.id);
+
+	await gotoHydrated(page, '/');
+
+	await expect(page.getByTestId('home-active-mode-heading')).toHaveText(
+		switchedMode.label
+	);
+	await expect(page.getByTestId('home-evidence')).toHaveAttribute(
+		'placeholder',
+		switchedMode.placeholder
+	);
+	await expect(page.getByTestId('home-evidence')).toHaveValue(
+		'He said traffic made him three hours late.'
+	);
+	// The restore is announced, and it is announced without a caution — the studio has the reader's
+	// own question, so there is nothing for them to check.
+	await expect(page.getByTestId('home-draft-restored')).toContainText(
+		switchedMode.label
+	);
+	await expect(page.getByTestId('home-draft-restored-caution')).toHaveCount(0);
+
+	// And it does not outlive its subject.
+	await page.getByTestId('home-draft-restored-dismiss').click();
+	await expect(page.getByTestId('home-draft-restored')).toHaveCount(0);
+
+	// A draft written before `modeId` existed is the case every reader upgrading into this build
+	// hits exactly once. It still restores, it opens on the default question, and it says so.
+	await page.evaluate(() => {
+		const stored = JSON.parse(localStorage.getItem('cb_drafts_v1') ?? 'null');
+		delete stored.modeId;
+		localStorage.setItem('cb_drafts_v1', JSON.stringify(stored));
+	});
+	await gotoHydrated(page, '/');
+
+	await expect(page.getByTestId('home-active-mode-heading')).toHaveText(
+		defaultMode.label
+	);
+	await expect(page.getByTestId('home-evidence')).toHaveValue(
+		'He said traffic made him three hours late.'
+	);
+	await expect(page.getByTestId('home-draft-restored-caution')).toContainText(
+		defaultMode.label
+	);
+});
+
 test('random route tap and page generation work', async ({ page }) => {
 	await gotoHydrated(page, '/random');
 	await expect(page.getByTestId('random-tap')).toBeVisible();

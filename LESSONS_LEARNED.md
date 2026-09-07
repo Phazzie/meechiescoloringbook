@@ -692,3 +692,27 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
 - Context: Found during Run 12 and deliberately not fixed — `handleModeSelect` calls `scheduleDraftSave()`, but `DraftRecordSchema` has no mode field.
 - Lesson: The reader's chosen mode is not persisted. Pick a mode, type evidence, refresh: the evidence returns under a different question, wired to a different `toolId`. The save call implies otherwise, which is why it took a schema read to notice.
 - Action: Left for a run that can hold a pull request open — `AGENTS.md` forbids auto-merging a change that carries a schema or contract change, and a scheduled run has no human to wait for. Do not half-fix it by persisting the mode outside the store seam.
+
+## 2026-09-07
+- Date: 2026-09-07
+- Context: Run 13 built the fix the 2026-09-06 entry above deferred — `modeId` on `DraftRecordSchema`.
+- Lesson: A partial restore is worse than no restore. The draft brought back four of five fields, and the missing one — which question the evidence answered — was the one that gave the other four their meaning. Because four fields came back correctly, the result looked like a working feature rather than a broken one, which is why it survived twelve runs of a routine explicitly looking for the worst feature in the app.
+- Action: When a feature persists a set of fields, ask which of them the others are *relative to*. Restore that one first, in the code and in the reading order, and treat its absence as a fact to report rather than a value to default.
+
+## 2026-09-07
+- Date: 2026-09-07
+- Context: The first design of `restoreDraftMode` dropped the restored verdict whenever the stored mode could not be recognised.
+- Lesson: The reasoning was correct — a verdict is an answer, and an answer detached from its question means nothing — and the decision was still wrong, because of who it landed on. *Every* draft written before the change is unrecognised, so it would have deleted the page of every reader upgrading into the build, once, silently, to avoid a mislabelling that only affected readers who had switched modes. A principled rule applied to the migration cohort is a data-loss event.
+- Action: When a fix's cost and its benefit fall on different populations, size both before preferring the more principled behaviour. Prefer adding a report over removing data; the reader can act on a sentence and cannot recover a deleted page.
+
+## 2026-09-07
+- Date: 2026-09-07
+- Context: `modeId` was almost typed as a zod enum of the live studio mode ids, which would have let the schema catch a bad value.
+- Lesson: A schema that enumerates application data turns every rename or retirement into an unparseable stored record. The mode catalogue has already changed twice. An enum would have converted a recoverable "that question is gone, here is the default" into the total loss of the reader's draft — the strictest available validation producing the worst available outcome.
+- Action: Store an identifier as a bare non-empty string when the set it names is application data that changes. Resolve it against the live set at the consumer, where "no longer present" is a decision with a user-visible answer rather than a parse failure. Keep the non-empty constraint: it is what separates a corrupted id from an absent one.
+
+## 2026-09-07
+- Date: 2026-09-07
+- Context: `probes/browser-seams.probe.mjs` reads `fixtures/creation-store/sample.json`'s `input` and rewrites its `output` from a real browser's `localStorage`.
+- Lesson: The correct way to add a field to a probe-captured fixture is to hand-edit the *input* and re-run the probe, never to hand-edit both sides. The seam's `reads back out of storage exactly what went in, per the probe capture` test compares the two, and hand-editing both makes it assert that the author's expectation matches the author's expectation.
+- Action: Chromium 1194 launches here with an explicit `executablePath` (`/opt/pw-browsers/chromium-1194/chrome-linux/chrome`); patch the probe locally, run it, revert the patch. The same technique unblocks `playwright.config.ts` for `npm run test:e2e`. Neither patch may appear in a diff.

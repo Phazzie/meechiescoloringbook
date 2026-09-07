@@ -170,7 +170,8 @@
             "name": "Honey Drip",
             "style": "body wave"
           }
-        }
+        },
+        "modeId": "rate-excuse"
       }
     },
     "getDraft": {},
@@ -526,7 +527,8 @@
             "name": "Honey Drip",
             "style": "body wave"
           }
-        }
+        },
+        "modeId": "rate-excuse"
       }
     },
     "getDraft": {
@@ -596,7 +598,8 @@
             "name": "Honey Drip",
             "style": "body wave"
           }
-        }
+        },
+        "modeId": "rate-excuse"
       }
     },
     "clearDraft": {

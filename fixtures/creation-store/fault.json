@@ -253,6 +253,36 @@
         "borderThickness": 8
       },
       "styleSelection": "crown energy, loud, glittery"
+    },
+    "draftWithBlankModeId": {
+      "updatedAtISO": "2026-01-22T00:00:00.000Z",
+      "intent": {
+        "title": "Dream Big",
+        "items": [
+          {
+            "number": 1,
+            "label": "Shine"
+          }
+        ],
+        "alignment": "left",
+        "numberAlignment": "strict",
+        "whitespaceScale": 50,
+        "textSize": "small",
+        "colorMode": "black_and_white_only",
+        "decorations": "none",
+        "illustrations": "none",
+        "shading": "none",
+        "variations": 1,
+        "outputFormat": "pdf",
+        "pageSize": "US_Letter",
+        "listMode": "list",
+        "listGutter": "normal",
+        "fontStyle": "rounded",
+        "textStrokeWidth": 6,
+        "border": "plain",
+        "borderThickness": 8
+      },
+      "modeId": ""
     }
   }
 }
