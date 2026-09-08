@@ -12638,3 +12638,104 @@ Two kinds, and the difference is stated because a review round caught this entry
   deliberately **not** committed, since it describes this container and not the repo.
 
 Do not inherit this entry's measurements. Re-measure.
+
+---
+
+## Run 16 — merge close-out — 2026-09-08 — PR #333 merged as `e8d4488`
+
+**Head merged:** `d7d3212` · **Base:** `main` at `e6c450b` · 4 commits, 32 files, +5306 / −75.
+Squash-merged.
+
+### Gate state at merge
+
+| Check | Conclusion |
+|---|---|
+| `verify` (push run and pull_request run) | success |
+| `SonarCloud` | **Quality Gate passed** — **0 new issues**, 0 security hotspots, 1.3% duplication on new code |
+| `CodeQL` + `Analyze (javascript-typescript)` + `Analyze (actions)` | success |
+| `Rosentic - Conflict Detection` | success on all four heads |
+| `Vercel` (commit **status**, not a check run) | success |
+| `CodeRabbit` (commit status) | success |
+| `Sourcery` | 7-day review budget spent — produced a guide, not a review |
+| `Codex` | usage limit reached — no findings |
+
+`mergeable_state` was `clean`. Both surfaces read at the moment of merging, per the rule that a
+deployment reports as a commit status. Review threads: **2, both resolved**, both confirmed as
+addressed by the reviewer. Open Assumptions in `DECISIONS.md` covering this behaviour: **zero** —
+six are open, and none names `OutputPackagingSeam`, checked by parsing their `Seams` fields rather
+than by reading past them. **No contract, probe, fixture or mock file in the diff**, confirmed by
+`git diff --name-only origin/main...HEAD` against those directories.
+
+### Where the findings came from, and what they cost
+
+| Round | Found by | Finding | Outcome |
+|---|---|---|---|
+| 0 | **My own red proof, run properly** | The margin invariant asserted against the constant under test: zeroing it failed only 4 of 27 | Re-anchored to an independent floor before the first push; the same edit then failed 20 of 27 |
+| 0 | **The repo's existing suite** | Moving the canvas guard behind `onload` hung 20 tests at 5s each | Fixed before the first push |
+| 1 | **SonarCloud annotations** | 3 new issues (regex backtracking, regex complexity 24/20, an inline union written four times) | 2 fixed in `224561f` |
+| 2 | **SonarCloud annotations again** | The backtracking finding **came back**: the rewrite fixed the complexity metric, not the property | Rewritten as a token scan in `0b08af6` |
+| 3 | **CodeRabbit**, asked five named questions | Four confirmed; one real gap in the `@page` drift guard | Fixed in `224561f` |
+| 4 | **CodeRabbit** | `build.txt` and `lint.txt` two commits behind, cited as one run with the current artifacts | Fixed in `d7d3212` |
+
+**Zero came from a human.** Two of the six came from me checking my own work rather than from any
+reviewer, and both were the more serious kind — a red proof that proved nothing, and a guard moved
+behind an event that never fires.
+
+### Fixing the metric is not fixing the property
+
+The finding worth carrying forward. Round 1 rewrote a six-capture regex as one repeated group. That
+**fixed the complexity number** (24 → under 20) and left the backtracking finding standing, because
+a bounded `{6}` repetition wrapping unbounded `\d+` and `\s+` quantifiers is still quadratic across
+start positions. I had treated the two findings as one problem with one cause.
+
+It only surfaced because the annotations were read on the *new* head instead of trusting
+"Quality Gate passed" — the gate passes with open issues, so the gate alone hides this. The real fix
+was to stop using a regex: split the content stream into tokens once and walk them, which is linear
+and is also the simpler description of what a PDF content stream is.
+
+**Read the annotations, not the gate.** Three times this run the gate said "passed" while carrying
+open issues.
+
+### Two self-checks that were worth the time, and one that was not enough
+
+- **Reversing the matrix composition order** fails 6 of 7 byte-level tests with numbers ~500× off —
+  so the tests discriminate on the real numbers, not by coincidence of `pdf-lib`'s interleaved
+  identity matrices. Re-run after *every* parser rewrite, because a change to how a test reads its
+  subject can quietly stop it measuring.
+- **The `@page` regex probe**: six degenerate CSS forms, all failing closed. I reported that as
+  "fails closed in every case" — and it was not exhaustive. **The comment case was not among the
+  six**, and it was the live hole: a `/* margin: 12mm; was the old value */` inside the block made
+  the guard read 12 while the declaration said 8. The probe was real evidence; the conclusion drawn
+  from it was wider than the evidence supported.
+
+### The one instruction I did not follow, and why
+
+The evidence finding asked to regenerate the build, lint, E2E **and margin** artifacts.
+`print-margin-before.txt` measures `main` at `e6c450b` — *before* the change. It is the entire case
+against the old behaviour and the source of this entry's six-row table. Regenerating it would have
+replaced the record of what was wrong with a record of what is now right and left that table
+unsupported. The other four were regenerated; that one was labelled instead, and both records now
+separate the categories.
+
+**"Stale" and "historical" look identical from outside, and only one of them is a defect.** An
+evidence file whose value is that it is old has to say so.
+
+### Carried forward for the next run
+
+- **`ChatInterpretationSeam` has zero consumers.** Re-measured this run and unchanged: a live,
+  billable endpoint with a full pipeline and no UI anywhere in `src/`. Costs the reader nothing and
+  the owner money and attack surface.
+- **Mode persistence** — Run 12's pick, blocked on the seam rule for the fifth run running.
+- **Vault capacity is not knowable from outside the adapter**, leaving the orphaned-records gap in
+  `undoDelete`. Same seam workflow.
+- **The provider is asked for a 1024x1024 square** (`image-generation-pipeline.ts:20`) and the page
+  is portrait, so a square is letterboxed onto a portrait sheet at ~140dpi with large top and bottom
+  margins. Asking for a portrait image at a higher resolution would use the paper and roughly double
+  the print resolution. `placedDpi` exists to report it. That is an image-generation change and a
+  strong candidate for a future run — the geometry is now ready for it and will need no edit.
+- **The `chat` packaging variant has zero consumers**, with Run 14's reasoning.
+- `MeechieToolOutput.quoteScore` and `modelMetadata`, from Run 11's list.
+- The unidentified SonarCloud issue from Runs 13/14/15 — this run read annotations successfully on
+  every head, so a future run can settle it the same way rather than inheriting it as unreadable.
+
+Do not inherit this entry's measurements. Re-measure.

@@ -8,6 +8,41 @@ Info flow: User request -> execution specs -> implementation -> review evidence.
 
 Current active plan is listed first. Older dated entries remain below as historical context and are not active unless explicitly reselected.
 
+## Run 16 close-out (2026-09-08) — micro plan, PR for the merge record
+
+Required by `AGENTS.md` L108: a governance-only documentation change still needs a plan listing the
+seams, files, commands, and how behaviour stays unchanged. Run 11's close-out recorded that PR #312
+opened without one and a review caught it; writing this first is the point of that finding existing.
+
+**Goal:** record the Run 16 merge close-out in the append-only log — the gate state at merge, where
+each finding came from, the two self-checks that were worth running and the one whose conclusion
+outran its evidence, the one reviewer instruction deliberately not followed, and the candidates a
+future run should weigh.
+
+**Seams:** none. No seam is named, read or changed.
+
+| File | Action | What changes |
+|---|---|---|
+| `WORST_TO_BEST_LOG.md` | [MODIFY] | one appended close-out section; no existing line edited |
+| `plan.md` | [MODIFY] | this micro plan, with Run 16's own plan retired below it |
+
+**Anti-goals:** no file under `src/`, `tests/`, `contracts/`, `probes/`, `fixtures/`,
+`src/lib/mocks/`, `src/lib/seams/`, `static/` or `docs/evidence/`. **No evidence regeneration** — the
+chain already ran on the head that merged and its outputs describe that code; re-running it here
+would replace evidence for the change with evidence for a Markdown append, which is the exact defect
+the review round on this pull request found in the first place.
+
+**How behaviour stays unchanged:** the diff is prose. No import, export, route, contract, schema,
+constant or test is touched, so no runtime path can differ.
+
+**Self-critique:** the risk is that the close-out overstates what was proven. Guarded by naming the
+one probe whose conclusion outran its evidence (the `@page` regex sweep, which missed the comment
+case that turned out to be the live hole) rather than only the checks that worked.
+
+**Definition of done (literal):** `npm run check && npm run lint && npm test`
+
+---
+
 ## Run 16 (2026-09-08) — the packaged print download
 
 **Goal:** the file the whole app funnels into — the download labelled "Printable PDF · US Letter —
