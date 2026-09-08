@@ -39,6 +39,24 @@ export const STUDIO_TEXT_QUOTA_COST = 2;
 export const CHAT_INTERPRETATION_QUOTA_COST = 1;
 
 /**
+ * What one Meechie tool verdict charges the text bucket.
+ *
+ * `runToolsPipeline` makes one billable provider call, so one verdict costs one unit. Here rather
+ * than in the pipeline for the same reason as the two above: the server charges it and the mode
+ * routes and the toolkit hub divide the remaining units by it to say how many more verdicts the
+ * reader can ask for. `tools-pipeline.ts` imports this constant; there is no second definition.
+ */
+export const MEECHIE_TOOL_QUOTA_COST = 1;
+
+/**
+ * What one wig try-on charges the IMAGE bucket.
+ *
+ * The same eight units a minute that fund coloring pages. `wig-try-on-pipeline.ts` imports it, and
+ * the studio needs it to say what a try-on costs a reader who is also making pages.
+ */
+export const WIG_TRY_ON_QUOTA_COST = 1;
+
+/**
  * What one picture charges the image bucket.
  *
  * `runGeneratePipeline` calls `consumeQuota(imageRequest.variations)` — the same value that becomes
@@ -245,14 +263,64 @@ export const emptyAiQuotaLedger = (): AiQuotaLedger => ({
 });
 
 /**
+ * How far apart two `resetAtMs` values may be and still describe the same window.
+ *
+ * `RateLimit-Reset` is whole seconds, `Math.ceil`-ed by the guard, and each reading anchors it to
+ * its own request instant — so two responses from the same window land on the same absolute reset
+ * instant give or take that rounding. Two seconds covers the ceil at both ends with room to spare,
+ * and is far below the 60-second window it has to distinguish.
+ */
+export const QUOTA_WINDOW_MATCH_TOLERANCE_MS = 2_000;
+
+/**
+ * Whether `incoming` describes the bucket more recently than `stored` does.
+ *
+ * Needed because responses do not arrive in the order the server charged them. Two requests that
+ * spend the same bucket can be in flight at once — on the home studio a coloring page and a wig
+ * try-on both charge `image`, guarded by separate `isGenerating` / `isTryingOn` flags — and a
+ * generation that charged first routinely returns *after* a try-on that charged second. Taking
+ * whichever landed last would then put the older, higher `remaining` back on screen: a meter
+ * reporting more allowance than the reader has, which is the failure this whole module exists to
+ * prevent.
+ *
+ * Two rules, in order:
+ *
+ * 1. **A later window wins outright.** A greater `resetAtMs` means the bucket has refilled since,
+ *    so the reading is newer whatever its `remaining` says — and an earlier window is stale even
+ *    when its numbers look healthier.
+ * 2. **Within one window, the lower `remaining` is the newer reading.** A fixed window only ever
+ *    counts down, so a smaller number cannot predate a larger one. Ties keep the incoming reading,
+ *    which carries the fresher `exhausted` flag at no cost to the count.
+ */
+const supersedes = (
+	incoming: AiQuotaSnapshot,
+	stored: AiQuotaSnapshot | null
+): boolean => {
+	if (stored === null) return true;
+	if (incoming.resetAtMs > stored.resetAtMs + QUOTA_WINDOW_MATCH_TOLERANCE_MS) {
+		return true;
+	}
+	if (incoming.resetAtMs < stored.resetAtMs - QUOTA_WINDOW_MATCH_TOLERANCE_MS) {
+		return false;
+	}
+	return incoming.remaining <= stored.remaining;
+};
+
+/**
  * File a reading under the bucket it names, leaving the other slot untouched.
  *
  * Pure, and returns a new ledger rather than mutating: the snapshot itself says where it belongs,
  * so no caller ever chooses the slot, and a caller therefore cannot file an image reading under
  * `text`. That is the whole reason `bucket` is carried on the snapshot instead of being passed
  * alongside it here.
+ *
+ * A reading that does not `supersede` the one already filed is **discarded**, and the ledger is
+ * returned unchanged — identity included, so a caller can tell nothing happened.
  */
 export const recordQuotaReading = (
 	ledger: AiQuotaLedger,
 	snapshot: AiQuotaSnapshot
-): AiQuotaLedger => ({ ...ledger, [snapshot.bucket]: snapshot });
+): AiQuotaLedger =>
+	supersedes(snapshot, ledger[snapshot.bucket])
+		? { ...ledger, [snapshot.bucket]: snapshot }
+		: ledger;

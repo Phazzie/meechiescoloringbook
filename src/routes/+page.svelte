@@ -120,6 +120,7 @@ Invariants: `SystemTrace` receives `promptWasSent` from the state and must never
 			activeTheme={studio.activeTheme}
 			pageCaution={studio.verdictReport.pageCaution ?? ''}
 			pageQuotaMessage={studio.pageQuotaMessage}
+			pageQuotaExhausted={studio.pageQuotaExhausted}
 			onGeneratePage={studio.handleGeneratePage}
 			onCopyQuote={studio.copyQuote}
 			onSaveToVault={studio.saveToVault}
@@ -152,6 +153,7 @@ Invariants: `SystemTrace` receives `promptWasSent` from the state and must never
 		tryOnError={studio.tryOnError}
 		isTryingOn={studio.isTryingOn}
 		canTryOn={studio.canTryOn}
+		tryOnQuotaMessage={studio.tryOnQuotaMessage}
 		isGenerating={studio.isGenerating}
 		onWigSelect={studio.selectWigForTryOn}
 		onSelfieUpload={studio.setSelfieForTryOn}

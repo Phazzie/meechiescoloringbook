@@ -36,6 +36,7 @@ Critical invariant: the paper on screen shows the page's OWN look, never the liv
 		activeTheme,
 		pageCaution,
 		pageQuotaMessage,
+		pageQuotaExhausted,
 		onGeneratePage,
 		onCopyQuote,
 		onSaveToVault
@@ -78,6 +79,8 @@ Critical invariant: the paper on screen shows the page's OWN look, never the liv
 		 * runs, describing a different bucket on a different window.
 		 */
 		pageQuotaMessage: string;
+		/** The server has said the image bucket cannot fund another page. See `pageQuotaMessage`. */
+		pageQuotaExhausted: boolean;
 		onGeneratePage: () => Promise<void>;
 		onCopyQuote: () => Promise<void>;
 		onSaveToVault: () => Promise<void>;
@@ -158,7 +161,7 @@ Critical invariant: the paper on screen shows the page's OWN look, never the liv
 			data-testid="home-create-page"
 			onclick={onGeneratePage}
 			aria-describedby={pageQuotaMessage ? 'page-budget' : undefined}
-			disabled={!textOutput || isGenerating}
+			disabled={!textOutput || isGenerating || pageQuotaExhausted}
 		>
 			{isGenerating ? 'Creating...' : 'Create Coloring Page'}
 		</button>

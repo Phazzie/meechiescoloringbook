@@ -50,6 +50,7 @@ import {
 } from '$lib/core/meechie-studio';
 import { POST_JSON_TIMEOUTS_MS, postJson } from '$lib/core/http-client';
 import { AiQuotaMeter } from '$lib/components/ai-quota-meter.svelte';
+import { WIG_TRY_ON_QUOTA_COST } from '$lib/core/ai-quota';
 import { compactColoringPageTitle } from '$lib/core/coloring-page-title';
 import { buildQualityReport } from '$lib/core/quality-report';
 import {
@@ -828,6 +829,24 @@ export class StudioState {
 	 */
 	pageQuotaMessage = $derived(this.quota.pictureMessage(this.spec?.variations ?? 1));
 	/**
+	 * The server will refuse the next coloring page.
+	 *
+	 * The image-bucket twin of `aiQuotaExhausted`, which gates the verdict and rewrite buttons and
+	 * reads the text bucket. Two buttons, two buckets, two gates — a single one would disable the
+	 * wrong control.
+	 */
+	pageQuotaExhausted = $derived(
+		this.quota.pictureExhausted(this.spec?.variations ?? 1)
+	);
+	/** What the image bucket has left, counted in try-ons rather than in pages. */
+	tryOnQuotaMessage = $derived(
+		this.quota.pictureMessage(WIG_TRY_ON_QUOTA_COST)
+	);
+	/** The image bucket also funds wig try-ons, so the try-on control answers to it too. */
+	tryOnQuotaExhausted = $derived(
+		this.quota.pictureExhausted(WIG_TRY_ON_QUOTA_COST)
+	);
+	/**
 	 * The server has told us, and not yet un-told us, that it will refuse the next AI call.
 	 *
 	 * Only ever true while a reading is both present and unexpired — the expiry timer nulls the
@@ -951,7 +970,12 @@ export class StudioState {
 	 * a page that never generated — above the finished page itself.
 	 */
 	exportError = $derived(summarisePageExportFailures(this.packageAttempts));
-	canTryOn = $derived(!!this.selectedWigId && !!this.selfieBase64 && !this.isTryingOn);
+	canTryOn = $derived(
+		!!this.selectedWigId &&
+			!!this.selfieBase64 &&
+			!this.isTryingOn &&
+			!this.tryOnQuotaExhausted
+	);
 	// The portrait on screen is whichever belongs to the wig on screen. Selecting a wig that was
 	// already tried on brings its portrait back rather than showing an empty result panel.
 	tryOnPortraitUrl = $derived(
@@ -1998,6 +2022,9 @@ export class StudioState {
 			this.generationError = 'Generate Meechie words before creating the page.';
 			return;
 		}
+		// The image bucket, not the text one the buttons above this are gated on. The line under the
+		// button already says the desk is full; letting the click through anyway would contradict it.
+		if (this.pageQuotaExhausted) return;
 		// Read before `resetGeneratedPage`, which clears the restored wig provenance. Regenerating a
 		// reopened page keeps its theme, voice and glitter — those live on the controls and the reset
 		// does not touch them — so the wig has to keep pace or the paid request goes out describing a

@@ -96,9 +96,7 @@ export class DescribePageState extends PageArtifactState {
 	 * where pricing a page at a flat unit would be visibly wrong. Priced at the interpretation's own
 	 * `variations`, which is exactly what `/api/generate` charges.
 	 */
-	pageQuotaMessage = $derived(
-		this.quota.pictureMessage(this.spec?.variations ?? 1)
-	);
+	pageQuotaMessage = $derived(this.quota.pictureMessage(this.picturesPerPage));
 
 	/**
 	 * True when the server has told us the bucket cannot fund another read-back.
@@ -135,7 +133,19 @@ export class DescribePageState extends PageArtifactState {
 	 * that window is billed and then discarded.
 	 */
 	get canMakePage(): boolean {
-		return this.spec !== null && !this.isGenerating && !this.isInterpreting;
+		return (
+			this.spec !== null &&
+			!this.isGenerating &&
+			!this.isInterpreting &&
+			// The server has already said it will refuse this. Leaving the button live spends the
+			// reader's clicks on requests that cannot succeed, and contradicts the line beneath it.
+			!this.pageQuotaExhausted
+		);
+	}
+
+	/** `/describe` is the one surface whose page can ask for more than one picture. */
+	protected get picturesPerPage(): number {
+		return this.spec?.variations ?? 1;
 	}
 
 	/** Type into the box. Deliberately does not touch the interpretation — see the invariants. */
@@ -248,8 +258,4 @@ export class DescribePageState extends PageArtifactState {
 		this.resetPage();
 	}
 
-	/** Release the quota-expiry timers. Called when the surface goes away. */
-	dispose(): void {
-		this.quota.dispose();
-	}
 }

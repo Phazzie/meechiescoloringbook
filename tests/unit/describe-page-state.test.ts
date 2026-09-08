@@ -715,3 +715,68 @@ describe('the two buckets this surface spends', () => {
 		expect(state.pageQuotaMessage).toContain("Meechie's desk is full");
 	});
 });
+
+// `pictureExhausted` shipped in the first head with no production caller at all: the line said the
+// desk was full and every page button stayed live, which is the same screen-versus-server
+// disagreement the meter exists to end. These pin the gate to the control AND to the handler.
+describe('the page button answers to the image bucket', () => {
+	const spentImage = (): Record<string, string> => ({
+		'RateLimit-Limit': '8',
+		'RateLimit-Remaining': '0',
+		'RateLimit-Reset': '25',
+		'Retry-After': '25'
+	});
+
+	it('refuses the page once the server says the image bucket is spent', async () => {
+		const state = await withReadback();
+		routes.generate = okGenerate({}, spentImage());
+
+		await state.makePage();
+		await flush();
+
+		expect(state.pageQuotaExhausted).toBe(true);
+		expect(state.canMakePage).toBe(false);
+		expect(state.pageQuotaMessage).toContain("Meechie's desk is full");
+	});
+
+	it('does not send a request the server has already said it will refuse', async () => {
+		const state = await withReadback();
+		routes.generate = okGenerate({}, spentImage());
+		await state.makePage();
+		await flush();
+
+		const before = fetchCalls.filter((url) => url.includes('/api/generate')).length;
+		// The handler, not just the button: a stale render or a keyboard activation reaches this.
+		await state.makePage();
+		await flush();
+
+		expect(
+			fetchCalls.filter((url) => url.includes('/api/generate')).length
+		).toBe(before);
+	});
+
+	// A four-picture page costs four units, so three left is enough for one page and not for this
+	// one. The gate has to price the page the reader actually configured.
+	it('prices the gate at the interpretation own variations', async () => {
+		const state = await withReadback({ ...INTERPRETED, variations: 4 });
+		routes.generate = okGenerate({}, {
+			'RateLimit-Limit': '8',
+			'RateLimit-Remaining': '3',
+			'RateLimit-Reset': '25'
+		});
+
+		await state.makePage();
+		await flush();
+
+		expect(state.pageQuotaExhausted).toBe(true);
+		expect(state.canMakePage).toBe(false);
+	});
+
+	// `null` means "not known" and must never gate anything.
+	it('never blocks on a quota the server has not reported', async () => {
+		const state = await withReadback();
+
+		expect(state.pageQuotaExhausted).toBe(false);
+		expect(state.canMakePage).toBe(true);
+	});
+});

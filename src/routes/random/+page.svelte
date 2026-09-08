@@ -8,10 +8,16 @@ Info flow: Tap -> VerdictPageState.requestVerdict (random_meechie) -> saying -> 
            -> coloring page, downloads, vault.
 -->
 <script lang="ts">
+	import { onDestroy } from 'svelte';
 	import VerdictPageStudio from '$lib/components/VerdictPageStudio.svelte';
+	import AiQuotaLine from '$lib/components/AiQuotaLine.svelte';
 	import { VerdictPageState } from '$lib/components/verdict-page-state.svelte';
 
 	const studio = new VerdictPageState({ fileBaseSlug: 'random' });
+	// A quota reading arms a ClockSeam timer that outlives this screen by up to a window, and that
+	// timer holds the state — and the generated page's bytes with it. `/describe` already did this;
+	// these routes had no unmount path at all.
+	onDestroy(() => studio.dispose());
 
 	const tap = async (): Promise<void> => {
 		const installed = await studio.requestVerdict({ toolId: 'random_meechie' });
@@ -54,6 +60,12 @@ Info flow: Tap -> VerdictPageState.requestVerdict (random_meechie) -> saying -> 
 			>
 				Tap For Truth
 			</button>
+			<AiQuotaLine
+				message={studio.quota.textMessage({ actionNoun: 'verdict' })}
+				testId="random-verdict-quota"
+				id="verdict-budget"
+			/>
+
 			<p class="tap-hint">No explanation needed. She already knows.</p>
 		</div>
 	{:else if !studio.verdict}

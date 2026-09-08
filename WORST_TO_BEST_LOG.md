@@ -11392,6 +11392,63 @@ committing** — it does not appear in the diff.
   inside the handler and no UI state for it. Run 10's deletion of the unreachable
   `controllerchange` listener is the same reasoning.
 
+### The Codex round — five findings, four real
+
+| # | Finding | Outcome |
+|---|---|---|
+| 1 | P1 — using `ClockSeam.scheduleAt` requires the full Seam-Driven Development workflow and a Cipher Gate | **Answered, not taken** — see below |
+| 2 | P2 — `VerdictPageState` has no unmount path calling `quota.dispose()` | Fixed |
+| 3 | P2 — an older response can overwrite a newer quota reading | Fixed |
+| 4 | P2 — the text bucket is recorded on verdict routes and never rendered | Fixed |
+| 5 | P2 — `pictureExhausted` has no production caller | Fixed |
+
+**Findings 4 and 5 are the same defect as the feature, one level down.** This run's whole case was
+that the app *recorded* quota it never *showed*, and *showed* a number no control was gated on. I
+then shipped a first head that recorded the text bucket on four routes and rendered it on none (#4),
+and added a `pictureExhausted` check that nothing called, leaving every page button live under a
+line saying the desk was full (#5) — which the file's own invariant comment condemns in as many
+words. *Writing the diagnosis at the top of a file does not stop you committing the same defect
+eighty lines further down.*
+
+**Finding 3 is the one I would not have found.** Page generation and wig try-on both charge `image`
+and are guarded by *separate* `isGenerating` / `isTryingOn` flags, so they can be in flight at once —
+and a generation that charged first routinely answers after a try-on that charged second, putting
+the older, higher `remaining` back on screen. The fix is `supersedes` in `ai-quota.ts`: a later
+window wins outright; within one window the lower `remaining` is the newer reading, because a fixed
+window only counts down.
+
+Writing its test exposed a **pre-existing test of mine that encoded an impossible scenario** — two
+readings anchored at the same instant with resets of 30s then 25s, which would mean the window's end
+moved *backwards*. It passed before ordering existed and failed after. Corrected to a real pair
+(anchored 5s apart, resets 30s then 25s, landing on the same absolute instant). *A test that passes
+can still describe something that cannot happen, and it will keep passing until a real invariant
+lands beside it.*
+
+### The P1 declined, and the evidence for declining it
+
+Codex read `AGENTS.md:100-104` — clock/time is a seam, so any change touching it needs the full
+workflow — and concluded this change needs a ClockSeam probe and a Cipher Gate.
+
+The rule is quoted correctly. It does not reach this change, and the repository's own history is
+what says so:
+
+```
+$ git show origin/main:src/routes/studio-state.svelte.ts | grep -n "clock.scheduleAt"
+1599:  this.cancelQuotaExpiry = this.clock.scheduleAt(snapshot.resetAtMs, () => {
+$ git show origin/main:src/lib/components/describe-page-state.svelte.ts | grep -n "clock.scheduleAt"
+152:   this.cancelQuotaExpiry = this.clock.scheduleAt(snapshot.resetAtMs, () => {
+```
+
+**That exact call, for this exact purpose, was already on `main` in both files.** This change *moved*
+those two calls into one class. It consumes `ClockSeam` through its existing contract and alters no
+contract, probe, fixture, mock or adapter — the distinction `AGENTS.md:104` draws is a change that
+"alters the contract or observable behavior **across a seam boundary**". Runs 7, 12 and 17 all
+shipped `ClockSeam` consumers with no Cipher Gate, which is the same reading applied consistently.
+
+*The transferable part: a P1 citing a real rule with a real line number is still worth checking
+against what the repository already does. "Does this rule apply here?" and "is this rule real?" are
+different questions, and only the first one was in doubt.*
+
 ### Carried forward for the next run
 
 - **The packaged print PDF still bleeds to all four edges.** `output-packaging-seam/index.ts` scales

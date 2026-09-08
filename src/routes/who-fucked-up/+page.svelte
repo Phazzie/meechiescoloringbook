@@ -9,10 +9,16 @@ Info flow: Situation input -> VerdictPageState.requestVerdict (red_flag_or_run) 
            VerdictPageStudio -> coloring page, downloads, vault.
 -->
 <script lang="ts">
+	import { onDestroy } from 'svelte';
 	import VerdictPageStudio from '$lib/components/VerdictPageStudio.svelte';
+	import AiQuotaLine from '$lib/components/AiQuotaLine.svelte';
 	import { VerdictPageState } from '$lib/components/verdict-page-state.svelte';
 
 	const studio = new VerdictPageState({ fileBaseSlug: 'who-fucked-up' });
+	// A quota reading arms a ClockSeam timer that outlives this screen by up to a window, and that
+	// timer holds the state — and the generated page's bytes with it. `/describe` already did this;
+	// these routes had no unmount path at all.
+	onDestroy(() => studio.dispose());
 
 	let situation = $state('');
 
@@ -75,6 +81,12 @@ Info flow: Situation input -> VerdictPageState.requestVerdict (red_flag_or_run) 
 			>
 				{studio.isWorking ? "She's reading it..." : "She's listening. Go."}
 			</button>
+			<AiQuotaLine
+				message={studio.quota.textMessage({ actionNoun: 'verdict' })}
+				testId="who-verdict-quota"
+				id="verdict-budget"
+			/>
+
 		</section>
 	{:else}
 		<header class="verdict-hero">

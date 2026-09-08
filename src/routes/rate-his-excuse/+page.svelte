@@ -9,10 +9,16 @@ Info flow: Excuse input -> VerdictPageState.requestVerdict (rate_excuse) -> scor
            VerdictPageStudio -> coloring page, downloads, vault.
 -->
 <script lang="ts">
+	import { onDestroy } from 'svelte';
 	import VerdictPageStudio from '$lib/components/VerdictPageStudio.svelte';
+	import AiQuotaLine from '$lib/components/AiQuotaLine.svelte';
 	import { VerdictPageState } from '$lib/components/verdict-page-state.svelte';
 
 	const studio = new VerdictPageState({ fileBaseSlug: 'rate-his-excuse' });
+	// A quota reading arms a ClockSeam timer that outlives this screen by up to a window, and that
+	// timer holds the state — and the generated page's bytes with it. `/describe` already did this;
+	// these routes had no unmount path at all.
+	onDestroy(() => studio.dispose());
 
 	let excuse = $state('');
 	/**
@@ -104,6 +110,12 @@ Info flow: Excuse input -> VerdictPageState.requestVerdict (rate_excuse) -> scor
 			>
 				{studio.isWorking ? 'Court is reviewing...' : 'Let Meechie Hear It'}
 			</button>
+			<AiQuotaLine
+				message={studio.quota.textMessage({ actionNoun: 'verdict' })}
+				testId="rate-verdict-quota"
+				id="verdict-budget"
+			/>
+
 		</section>
 	{:else}
 		<header class="verdict-hero">

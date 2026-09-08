@@ -12,8 +12,9 @@ Info flow: ModeConfig + reader's answers -> VerdictPageState.requestVerdict -> v
            VerdictPageStudio -> coloring page, downloads, vault.
 -->
 <script lang="ts">
-	import { untrack } from 'svelte';
+	import { untrack, onDestroy } from 'svelte';
 	import VerdictPageStudio from '$lib/components/VerdictPageStudio.svelte';
+	import AiQuotaLine from '$lib/components/AiQuotaLine.svelte';
 	import { VerdictPageState } from '$lib/components/verdict-page-state.svelte';
 	import {
 		emptyModeFieldValues,
@@ -38,6 +39,10 @@ Info flow: ModeConfig + reader's answers -> VerdictPageState.requestVerdict -> v
 	const studio = new VerdictPageState({
 		fileBaseSlug: untrack(() => config.slug)
 	});
+	// A quota reading arms a ClockSeam timer that outlives this screen by up to a window, and that
+	// timer holds the state — and the generated page's bytes with it. `/describe` already did this;
+	// these routes had no unmount path at all.
+	onDestroy(() => studio.dispose());
 
 	let values = $state(emptyModeFieldValues());
 
@@ -126,6 +131,12 @@ Info flow: ModeConfig + reader's answers -> VerdictPageState.requestVerdict -> v
 			>
 				{studio.isWorking ? "She's reading it…" : config.button}
 			</button>
+			<AiQuotaLine
+				message={studio.quota.textMessage({ actionNoun: 'verdict' })}
+				testId="mode-verdict-quota"
+				id="verdict-budget"
+			/>
+
 		</section>
 	{:else}
 		<header class="verdict-hero">

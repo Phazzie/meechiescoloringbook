@@ -173,16 +173,21 @@ describe('AiQuotaMeter expiry', () => {
 		expect(meter.pictureExhausted()).toBe(false);
 	});
 
+	// The second request is anchored five seconds later with five fewer seconds to reset, which is
+	// what a real pair from one window looks like: `RateLimit-Reset` counts down as the request
+	// instant advances, so both readings land on the SAME absolute reset instant. (An earlier draft
+	// of this case anchored both at `NOW` with resets of 30 then 25, which would mean the window's
+	// end moved backwards — impossible, and it read as a stale reading once ordering was added.)
 	it('replaces a bucket reading rather than stacking a second timer for it', () => {
 		const clock = drivenClock();
 		const meter = meterWith(clock);
 
 		meter.record(quotaHeaders(8, 5, 30), NOW, 'image');
-		meter.record(quotaHeaders(8, 4, 25), NOW, 'image');
+		meter.record(quotaHeaders(8, 4, 25), NOW + 5_000, 'image');
 
 		expect(meter.image?.remaining).toBe(4);
 		expect(clock.cancelled).toBe(1);
-		expect(clock.scheduledAt).toEqual([NOW + 25_000]);
+		expect(clock.scheduledAt).toEqual([NOW + 30_000]);
 	});
 });
 
@@ -219,5 +224,73 @@ describe('AiQuotaMeter silence', () => {
 
 		expect(clock.cancelled).toBe(2);
 		expect(clock.scheduledAt).toEqual([]);
+	});
+});
+
+// Responses do not arrive in the order the server charged them. On the home studio a coloring page
+// and a wig try-on both spend `image` behind separate `isGenerating` / `isTryingOn` guards, so a
+// generation that charged FIRST routinely returns AFTER a try-on that charged second. Taking
+// whichever landed last would put the older, higher `remaining` back on screen.
+describe('AiQuotaMeter reading order', () => {
+	it('keeps the newer reading when an older response lands last', () => {
+		const meter = meterWith(drivenClock());
+
+		// The try-on charged second and answered first: 3 left.
+		meter.record(quotaHeaders(8, 3, 30), NOW, 'image');
+		// The page charged first and answered late, still believing 5 were left.
+		meter.record(quotaHeaders(8, 5, 30), NOW, 'image');
+
+		expect(meter.image?.remaining).toBe(3);
+		expect(meter.pictureMessage()).toBe('3 pages left before T+30s.');
+	});
+
+	it('still accepts a lower reading that arrives in order', () => {
+		const meter = meterWith(drivenClock());
+		meter.record(quotaHeaders(8, 5, 30), NOW, 'image');
+		meter.record(quotaHeaders(8, 3, 30), NOW, 'image');
+
+		expect(meter.image?.remaining).toBe(3);
+	});
+
+	// A refill is the one case where a HIGHER remaining is the newer truth, and the later window is
+	// what says so. Without this rule the meter would latch at its low-water mark forever.
+	it('takes a higher reading when the window has moved on', () => {
+		const meter = meterWith(drivenClock());
+		meter.record(quotaHeaders(8, 0, 10), NOW, 'image');
+		// A later reset instant: the bucket refilled.
+		meter.record(quotaHeaders(8, 8, 60), NOW + 20_000, 'image');
+
+		expect(meter.image?.remaining).toBe(8);
+		expect(meter.pictureExhausted()).toBe(false);
+	});
+
+	it('discards a reading from a window that has already closed', () => {
+		const meter = meterWith(drivenClock());
+		meter.record(quotaHeaders(8, 8, 60), NOW + 20_000, 'image');
+		// An older window's straggler, with a healthier-looking count.
+		meter.record(quotaHeaders(8, 2, 10), NOW, 'image');
+
+		expect(meter.image?.remaining).toBe(8);
+	});
+
+	// Ordering is per bucket: a text reading must never be weighed against an image one.
+	it('orders each bucket independently', () => {
+		const meter = meterWith(drivenClock());
+		meter.record(quotaHeaders(8, 2, 30), NOW, 'image');
+		meter.record(quotaHeaders(20, 18, 30), NOW, 'text');
+
+		expect(meter.image?.remaining).toBe(2);
+		expect(meter.text?.remaining).toBe(18);
+	});
+
+	it('does not arm an expiry timer for a reading it discarded', () => {
+		const clock = drivenClock();
+		const meter = meterWith(clock);
+		meter.record(quotaHeaders(8, 3, 30), NOW, 'image');
+		meter.record(quotaHeaders(8, 5, 30), NOW, 'image');
+
+		// One reading accepted, so one timer — not two, and nothing cancelled.
+		expect(clock.scheduledAt).toEqual([NOW + 30_000]);
+		expect(clock.cancelled).toBe(0);
 	});
 });

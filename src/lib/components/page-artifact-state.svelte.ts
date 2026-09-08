@@ -357,6 +357,41 @@ export class PageArtifactState {
 		this.fileBaseSlug = options.fileBaseSlug;
 	}
 
+	/**
+	 * The server has said it will refuse the next page, and has not yet un-said it.
+	 *
+	 * Priced at the spec's own `variations`, because that is what `/api/generate` charges. Only ever
+	 * true while a reading is present and unexpired, so it un-latches when the window reopens rather
+	 * than when a request is next attempted. `null` — no reading — never blocks anything.
+	 *
+	 * It exists because the quota line and the button under it have to be reading the same number: a
+	 * panel saying the desk is full above a control that still submits is the same disagreement
+	 * between screen and server this whole feature was written to end.
+	 */
+	get pageQuotaExhausted(): boolean {
+		return this.quota.pictureExhausted(this.picturesPerPage);
+	}
+
+	/** How many pictures the page this surface would generate asks for. Overridden where it varies. */
+	protected get picturesPerPage(): number {
+		return 1;
+	}
+
+	/**
+	 * Release everything this state holds that outlives the screen.
+	 *
+	 * A quota reading arms a `ClockSeam` timer that fires up to a window later. That timer holds the
+	 * meter, the meter's clock closure holds this state, and this state holds the generated image
+	 * bytes — so a reader who makes a page on `/random` and navigates away keeps that page's bytes
+	 * alive until the window expires. `/describe` already tore its state down; the mode routes had
+	 * no unmount path at all, which is why this lives on the base class rather than on one subclass.
+	 *
+	 * Safe to call more than once, and safe to call having never recorded a quota.
+	 */
+	dispose(): void {
+		this.quota.dispose();
+	}
+
 	/** True once there is a generated page to download or save. */
 	get hasPage(): boolean {
 		return this.generatedImages.length > 0 && this.lastRecipe !== null;
@@ -487,6 +522,10 @@ export class PageArtifactState {
 	 */
 	protected async generatePage(source: PageSource): Promise<void> {
 		if (this.isGenerating) return;
+		// The guard as well as the control, because a surface can reach this without the button — a
+		// keyboard activation on a stale render, or a caller that forgot. Refusing here costs the
+		// reader nothing: the server has already said this request would be refused.
+		if (this.pageQuotaExhausted) return;
 		// Advance the token without clearing anything. Any earlier in-flight run is stale from here,
 		// but the page already on screen stays: it cost a paid generation, and until a replacement
 		// has actually arrived it is the best thing this class has. Calling `resetPage()` here meant

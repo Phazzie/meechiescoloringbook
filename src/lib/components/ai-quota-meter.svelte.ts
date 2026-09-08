@@ -118,7 +118,12 @@ export class AiQuotaMeter {
 	): void {
 		const snapshot = readAiQuota(source, requestedAtMs, { bucket });
 		if (!snapshot) return;
-		this.ledger = recordQuotaReading(this.ledger, snapshot);
+		const updated = recordQuotaReading(this.ledger, snapshot);
+		// `recordQuotaReading` returns the ledger unchanged when this reading is older than the one
+		// already filed — see `supersedes`. Rescheduling expiry off a discarded reading would arm the
+		// timer for the wrong window, so the identity check gates the timer as well as the state.
+		if (updated === this.ledger) return;
+		this.ledger = updated;
 		this.scheduleExpiry(snapshot);
 	}
 

@@ -6,6 +6,7 @@ import {
 	WigTryOnResultSchema
 } from '../../../contracts/wig-try-on.contract';
 import { z } from 'zod';
+import { WIG_TRY_ON_QUOTA_COST } from './ai-quota';
 import { toPublicProviderError } from './public-provider-error';
 import { detectRasterMimeTypeFromBytes } from './raster-image-format';
 import type { WigCatalogSeam } from '../seams/wig-catalog-seam/contract';
@@ -43,7 +44,6 @@ type PipelineDeps = {
 };
 
 /** One try-on is exactly one provider edit call, so it charges one image unit. */
-const WIG_TRY_ON_QUOTA_COST = 1;
 
 const buildError = (
 	status: number,

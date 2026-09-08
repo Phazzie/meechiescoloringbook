@@ -95,7 +95,7 @@ Invariants: The quality report is rendered ONLY through `QualityReportPanel`, ne
 		data-testid="verdict-page-generate"
 		onclick={() => studio.makePage()}
 		aria-describedby={studio.quota.pictureMessage() ? 'page-budget' : undefined}
-		disabled={studio.isGenerating || studio.isWorking}
+		disabled={studio.isGenerating || studio.isWorking || studio.pageQuotaExhausted}
 	>
 		{studio.isGenerating ? 'Printing the truth…' : 'Generate My Coloring Page'}
 	</button>

@@ -20,6 +20,7 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 <script lang="ts">
 	import { POST_JSON_TIMEOUTS_MS, postJson } from '$lib/core/http-client';
 	import { AiQuotaMeter } from './ai-quota-meter.svelte';
+	import { MEECHIE_TOOL_QUOTA_COST } from '$lib/core/ai-quota';
 	import AiQuotaLine from './AiQuotaLine.svelte';
 	import { clockSeam } from '$lib/adapters/clock-seam';
 	import { buildQualityReport } from '$lib/core/quality-report';
@@ -834,7 +835,10 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 			type="button"
 			data-testid="meechie-tool-generate"
 			on:click={handleGenerate}
-			aria-describedby={quota.textMessage({ actionNoun: 'take' })
+			aria-describedby={quota.textMessage({
+				actionNoun: 'take',
+				unitsPerAction: MEECHIE_TOOL_QUOTA_COST
+			})
 				? 'text-budget'
 				: undefined}
 			disabled={isWorking}
@@ -849,7 +853,10 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 			{/if}
 		</button>
 		<AiQuotaLine
-			message={quota.textMessage({ actionNoun: 'take' })}
+			message={quota.textMessage({
+				actionNoun: 'take',
+				unitsPerAction: MEECHIE_TOOL_QUOTA_COST
+			})}
 			testId="meechie-tool-text-quota"
 			id="text-budget"
 		/>
