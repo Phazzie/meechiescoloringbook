@@ -20,7 +20,7 @@ Invariants:
 		/** The already-worded sentence. Empty string when the server has reported no quota yet. */
 		message: string;
 		/** Optional hook so a surface's own test can find its own line. */
-		testId?: string | undefined;
+		testId?: string;
 		/**
 		 * Target for the `aria-describedby` on the button this line explains.
 		 *
@@ -28,7 +28,7 @@ Invariants:
 		 * points at the sentence that says why. A line rendered next to a button but not referenced
 		 * by it is visible to a sighted reader and absent for everyone else.
 		 */
-		id?: string | undefined;
+		id?: string;
 	} = $props();
 </script>
 

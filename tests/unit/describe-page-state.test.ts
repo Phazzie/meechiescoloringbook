@@ -745,14 +745,14 @@ describe('the page button answers to the image bucket', () => {
 		await state.makePage();
 		await flush();
 
-		const before = fetchCalls.filter((url) => url.includes('/api/generate')).length;
+		const generateCalls = (): string[] =>
+			fetchCalls.filter((url) => url === ENDPOINTS.generate);
+		const before = generateCalls();
 		// The handler, not just the button: a stale render or a keyboard activation reaches this.
 		await state.makePage();
 		await flush();
 
-		expect(
-			fetchCalls.filter((url) => url.includes('/api/generate')).length
-		).toBe(before);
+		expect(generateCalls()).toHaveLength(before.length);
 	});
 
 	// A four-picture page costs four units, so three left is enough for one page and not for this

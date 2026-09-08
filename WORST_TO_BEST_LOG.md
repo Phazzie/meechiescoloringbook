@@ -11449,6 +11449,57 @@ shipped `ClockSeam` consumers with no Cipher Gate, which is the same reading app
 against what the repository already does. "Does this rule apply here?" and "is this rule real?" are
 different questions, and only the first one was in doubt.*
 
+### The SonarCloud round — and the method Run 17 wrote down, used properly this time
+
+The first head reported **0 new issues**. The Codex-round head reported **1**, warning level, at
+`tests/unit/describe-page-state.test.ts:753` — with an **empty message**: the GitHub annotation
+carries the file, the line and a dashboard link, and no text.
+
+`sonarcloud.io` is still unreachable from this container (`curl` to its issues API returns
+`CONNECT tunnel failed, response 403`), exactly as Run 17 recorded. So the finding could be located
+and not read.
+
+Rather than guess — which is precisely what Run 17's entry warns against, having guessed three
+literals and got all three wrong — the rules were run locally:
+
+```sh
+npm install eslint-plugin-sonarjs@latest --no-save --prefix /tmp/sonarjs-probe
+# a throwaway flat config using ONLY sonarjs.configs.recommended.rules, with the repo's own
+# @typescript-eslint and svelte parsers, run over `git diff --name-only origin/main...HEAD`
+```
+
+It named the rule in one line:
+
+> `753:3 sonarjs/prefer-specific-assertions` — Prefer `expect(…).toHaveLength(before)` over this
+> generic assertion
+
+**The same run over all 26 changed files found ten findings, and eight of them are not this pull
+request's.** Each was classified by testing whether the exact line text still exists on `origin/main`
+rather than by eyeballing the diff:
+
+| Finding | Rule | Verdict |
+|---|---|---|
+| `describe-page-state.test.ts:753` | `prefer-specific-assertions` | **Mine — fixed** |
+| `AiQuotaLine.svelte:23,31` | `no-redundant-optional` | **Mine — fixed** (`?: string \| undefined`) |
+| `rate-his-excuse/+page.svelte:62,64` | `no-nested-conditional` | Pre-existing |
+| `studio-state.svelte.ts:1487` | `no-nested-conditional` | Pre-existing |
+| `smoke.spec.ts:112,260,668` | fixed wait / super-linear regex / forced interaction | Pre-existing |
+| `verdict-page-state.test.ts:931` | `constructor-for-side-effects` | Pre-existing — **the inherited finding** |
+
+Two things worth keeping:
+
+1. **`AiQuotaLine.svelte` was flagged locally and not by SonarCloud.** The local `recommended` set is
+   wider than this project's quality profile, so a local run is a superset and its extra findings are
+   candidates rather than gate failures. Both were fixed anyway — they are new code and the fix is
+   deleting four characters — but a future run should not report a local finding as a SonarCloud one.
+2. **The inherited `constructor-for-side-effects` finding was independently confirmed at line 931**,
+   which is exactly where Run 17 said the harness extraction had moved it from 1022. That entry told
+   the next run to re-measure rather than trust the number; re-measuring agreed with it.
+
+*The transferable part: "the dashboard is unreachable" was true and was never the whole story. The
+annotation endpoint gives the location, and the plugin gives the rule. Between them there is no need
+to guess, and Run 17 had already written down half of that.*
+
 ### Carried forward for the next run
 
 - **The packaged print PDF still bleeds to all four edges.** `output-packaging-seam/index.ts` scales
