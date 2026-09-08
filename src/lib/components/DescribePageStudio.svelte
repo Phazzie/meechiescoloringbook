@@ -138,10 +138,13 @@ Invariants:
 					{studio.readback.title}
 				</p>
 				{#if studio.readback.lines.length > 0}
+					<!-- In prompt order, not spec order: `footerItem` is drawn as the unnumbered second
+					     line under the headline, so it is shown there and without a number. See
+					     `ReadBackLine`. -->
 					<ul class="sheet-lines" data-testid="describe-readback-lines">
-						{#each studio.readback.lines as line (`${line.number}-${line.label}`)}
-							<li class:footer={line.isFooter}>
-								<span class="line-number">{line.number}</span>
+						{#each studio.readback.lines as line (`${line.number ?? 'second'}-${line.label}`)}
+							<li class:second-line={line.isSecondLine}>
+								<span class="line-number">{line.number ?? ''}</span>
 								<span class="line-label">{line.label}</span>
 							</li>
 						{/each}
@@ -518,10 +521,11 @@ Invariants:
 		font-size: 0.95rem;
 	}
 
-	.sheet-lines li.footer {
-		margin-top: 0.5rem;
-		padding-top: 0.5rem;
-		border-top: 1px solid rgba(201, 162, 39, 0.22);
+	.sheet-lines li.second-line {
+		margin-bottom: 0.5rem;
+		padding-bottom: 0.5rem;
+		border-bottom: 1px solid rgba(201, 162, 39, 0.22);
+		font-weight: 700;
 	}
 
 	.line-number {

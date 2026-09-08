@@ -1,9 +1,9 @@
 # Purpose: Outer transcript of the whole `npm run verify` chain for Run 17.
 # Why: AGENTS.md L141-143 requires the chain to be run and its output committed before every push.
 # Info flow: command -> stdout/stderr captured verbatim below -> this transcript, ending with the chain's own exit status.
-# Invariants: This file records the outer command's status, which the chain's own generated artifacts do not. Written under a run-scoped name so it cannot overwrite Run 16's verify-outer.txt, which DECISIONS.md cites by exact path. The chain's machine-generated artifacts beside it (chamber-lock.json, proof-tape.md, seam-ledger.md, clan-chain.*, shaolin-lint.json, assumption-alarm.json, test.txt, verify.txt) are refreshed by this run because both runs land on 2026-09-08 and the chain writes to docs/evidence/<today>/; they are statements about the repository now, and now has moved.
+# Invariants: This file records the outer command's status, which the chain's own generated artifacts do not. Written under a run-scoped name so it cannot overwrite Run 16's verify-outer.txt, which DECISIONS.md cites by exact path. The chain's machine-generated artifacts beside it are refreshed by this run because both runs land on 2026-09-08 and the chain writes to docs/evidence/<today>/; they are statements about the repository now, and now has moved.
 # Command: npm run verify
-# Head: 19ca634+working tree (pre-commit)
+# Head: 2cc74b5+working tree (pre-commit)
 # Date: 2026-09-08
 
 
@@ -32,9 +32,9 @@ svelte-check found 0 errors and 0 warnings
 
 
 [2m Test Files [22m [1m[32m106 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (107)[39m
-[2m      Tests [22m [1m[32m1789 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (1790)[39m
-[2m   Start at [22m 07:13:51
-[2m   Duration [22m 117.35s[2m (transform 4.66s, setup 1.17s, import 9.20s, tests 9.46s, environment 76.06s)[22m
+[2m      Tests [22m [1m[32m1800 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (1801)[39m
+[2m   Start at [22m 07:25:08
+[2m   Duration [22m 114.85s[2m (transform 4.47s, setup 1.10s, import 8.66s, tests 9.27s, environment 74.79s)[22m
 
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package

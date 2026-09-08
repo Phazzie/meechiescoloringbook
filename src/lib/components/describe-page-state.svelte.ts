@@ -18,7 +18,12 @@
 //     interpretation is the one and only place that stops being true, exactly as a successful
 //     verdict is in `VerdictPageState` — a failed one must never destroy a page already paid for.
 import { POST_JSON_TIMEOUTS_MS, postJson } from '$lib/core/http-client';
-import { readAiQuota, type AiQuotaSnapshot } from '$lib/core/ai-quota';
+import {
+	CHAT_INTERPRETATION_QUOTA_COST,
+	aiActionsLeft,
+	readAiQuota,
+	type AiQuotaSnapshot
+} from '$lib/core/ai-quota';
 import {
 	DESCRIBE_FILE_BASE_SLUG,
 	canInterpretMessage,
@@ -93,12 +98,31 @@ export class DescribePageState extends PageArtifactState {
 		describeReadbackQuota(this.aiQuota, (date) => this.formatTime(date))
 	);
 
-	/** True when pressing "Read it back" would actually send something. */
+	/**
+	 * True when the server has told us the bucket cannot fund another read-back.
+	 *
+	 * Read off the last reading rather than counted locally, and it un-latches on its own: the
+	 * `ClockSeam` timer in `setAiQuota` clears the snapshot at its reset instant, so this goes back
+	 * to `false` when the window actually reopens rather than when a request is attempted.
+	 */
+	quotaExhausted = $derived(
+		this.aiQuota !== null &&
+			aiActionsLeft(this.aiQuota, CHAT_INTERPRETATION_QUOTA_COST) === 0
+	);
+
+	/**
+	 * True when pressing "Read it back" would actually send something.
+	 *
+	 * Gated on the reported quota as well as on the field, because the sentence beside this button
+	 * already says the desk is full: leaving it live spends the reader's clicks on requests the
+	 * server has already told us it will refuse, and contradicts the line directly under it.
+	 */
 	get canInterpret(): boolean {
 		return (
 			canInterpretMessage(this.message) &&
 			!this.isInterpreting &&
-			!this.isGenerating
+			!this.isGenerating &&
+			!this.quotaExhausted
 		);
 	}
 
@@ -219,7 +243,9 @@ export class DescribePageState extends PageArtifactState {
 		const spec = this.spec;
 		if (!spec) return;
 		await this.generatePage({
-			recipe: { spec, styleHint: styleHintForSpec(spec) },
+			// `interpretedFrom`, not `message`: the hint must describe the page the reader approved,
+			// and the box is editable after a read-back lands.
+			recipe: { spec, styleHint: styleHintForSpec(spec, this.interpretedFrom) },
 			// A described page stores no `studioText`. `MeechieStudioTextOutputSchema` requires a
 			// `verdict` string, and the reader's own sentence is not one — writing it there would
 			// claim Meechie said something she never said, and the vault's own

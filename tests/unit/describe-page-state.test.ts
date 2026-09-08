@@ -378,6 +378,42 @@ describe('the quota the surface reports', () => {
 		expect(state.interpretError).toContain('desk is full');
 	});
 
+	it('stops offering a read-back the server has already said it will refuse', async () => {
+		// The sentence beside the button says the desk is full; leaving the button live spends the
+		// reader's clicks on requests that are known to be refused, and contradicts that line.
+		const state = newState();
+		routes.interpret = okInterpret(INTERPRETED, {
+			'RateLimit-Limit': '20',
+			'RateLimit-Remaining': '0',
+			'RateLimit-Reset': '60'
+		});
+		state.setMessage(A_MESSAGE);
+		await state.interpret();
+
+		expect(state.quotaExhausted).toBe(true);
+		expect(state.canInterpret).toBe(false);
+
+		await state.interpret();
+		expect(fetchCalls).toEqual(['/api/chat-interpretation']);
+	});
+
+	it('offers it again the moment the window reopens, without another request', async () => {
+		const state = new DescribePageState({ formatTime: () => '14:32' });
+		const clock = drivenClock();
+		state.clock = clock;
+		routes.interpret = okInterpret(INTERPRETED, {
+			'RateLimit-Limit': '20',
+			'RateLimit-Remaining': '0',
+			'RateLimit-Reset': '60'
+		});
+		state.setMessage(A_MESSAGE);
+		await state.interpret();
+		expect(state.canInterpret).toBe(false);
+
+		clock.fire();
+		expect(state.canInterpret).toBe(true);
+	});
+
 	it('stops showing a reading once its own window has closed', async () => {
 		const state = new DescribePageState({ formatTime: () => '14:32' });
 		const clock = drivenClock();
@@ -415,7 +451,25 @@ describe('turning the interpretation into a page', () => {
 		// page the reader approved.
 		expect(body.spec).toEqual(INTERPRETED);
 		expect(body.styleHint).toContain('coloring book page');
+		// The subject the spec's enums cannot hold rides in the hint, taken from the words the spec
+		// was interpreted from — not from the live box, which is editable after a read-back lands.
+		expect(body.styleHint).toContain('with roses');
 		expect(state.hasPage).toBe(true);
+	});
+
+	it('builds the hint from the interpreted words, not from a box edited since', async () => {
+		const state = await withReadback();
+		state.setMessage('something else entirely, no roses at all');
+		routes.generate = okGenerate();
+		await state.makePage();
+		await flush();
+
+		const generateCall = vi
+			.mocked(fetch)
+			.mock.calls.find(([url]) => url === '/api/generate');
+		const body = JSON.parse((generateCall?.[1] as RequestInit).body as string);
+		expect(body.styleHint).toContain('with roses');
+		expect(body.styleHint).not.toContain('something else entirely');
 	});
 
 	it('will not generate while an interpretation is in flight', async () => {

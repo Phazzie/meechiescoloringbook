@@ -12974,11 +12974,10 @@ Cipher Gate entry. `DECISIONS.md` carries the tradeoffs.
    report a quota. Fixing that is observable behaviour across a seam boundary — the full
    Seam-Driven Development workflow, for no gain — and `VerdictPageState` already calls `/api/tools`
    and `/api/generate` this exact way. The adapter is left in place with its tests.
-4. **The style hint is derived from the interpreted spec, not from the reader's sentence.** The
-   sentence is a *page* request ("a page that says X with roses around it"); putting it in
+4. **The style hint is derived from the interpreted spec, not from the reader's sentence** — the
+   sentence is a *page* request ("a page that says X with roses around it"), and putting it in
    `styleHint` hands the image model the words a second time, in the one field that is not the
-   exact-text block. Translating "with roses" into `illustrations` and `decorations` is what the
-   interpretation call already did.
+   exact-text block. **This one was wrong, and a review round overturned it.** See below.
 
 ### What this run could not prove, stated plainly
 
@@ -13075,6 +13074,67 @@ is exactly the failure Run 16's close-out named.
 extraction over copying, and it still failed — because the reasoning was applied to the source and
 not to the tests written alongside it. New tests for a newly shared class are new code, and two
 tests of one base class need one harness for the same reason the class itself needed one.
+
+### The Codex round: five findings, four real, and one of them was my own decision
+
+Codex reviewed `19ca634` and left five. Taken in order of how much they were worth:
+
+**P1 — the style hint dropped the only thing the reader asked for.** `ColoringPageSpec` has no field
+that can hold "roses". The shipped example is *"A page that says … with roses around it"*, the
+interpreter turns "with roses" into `illustrations: 'simple'`, and a hint derived from the spec
+alone carries "one simple drawing beside the words" — no roses. So the surface could not produce the
+page it advertises, and the reasoning in this entry's decision list was **the defect**, written up
+as a decision. The subject now rides in the hint, sanitized and introduced with an explicit
+instruction not to letter it.
+
+  The sanitizer strips **every colon**, which is the part worth stealing: `PROMPT_FORBIDDEN_TOKENS`
+  is `['size:', 'quality:', 'style:']` and every reserved style-hint heading ends in one, so "no
+  colon" *proves* "no forbidden token" — an invariant instead of a blocklist a new token could slip
+  past. Without it, a reader who typed "style: gothic" would have failed their own generation at the
+  assembly seam for a reason nothing on screen could explain. That failure mode was not in the
+  finding; it turned up while writing the fix.
+
+**P2 — the read-back put the footer line in the wrong place.** `prompt-assembly-seam` L55 and L83-85
+use `footerItem.label` as the **unnumbered second line directly under the headline**, and never read
+`footerItem.number` at all. The read-back rendered it last, after the list, numbered. On a surface
+whose entire justification is that the reader sees what was understood *before* paying, a read-back
+that misplaces a line is worse than no read-back. **This is the most valuable finding of the run**:
+it is the feature failing at the one thing it exists to do, and no test written from the read-back's
+own intent could have caught it — only reading the consumer could.
+
+**P2 — the read-back button stayed live on an empty quota.** The sentence under it said the desk was
+full while the button above it went on issuing requests the server had already said it would refuse.
+Now gated on `aiActionsLeft(snapshot, CHAT_INTERPRETATION_QUOTA_COST)`, and it un-latches on the
+`ClockSeam` timer that already existed rather than on a failed attempt.
+
+**P1 — pin the source text before awaiting the interpretation.** Already fixed in `2cc74b5`, found
+independently by re-reading the diff while CI ran. Two readers finding the same defect from opposite
+directions is the strongest signal in this run that it was real.
+
+**P1 — route the interpretation through `chatInterpretationAdapter`** rather than `postJson`, citing
+`AGENTS.md` L110-116. **Answered on the thread, not pushed**, and this is the one worth arguing:
+
+- The adapter uses bare `fetch` with no timeout and discards the `RateLimit-*` headers. Using it
+  costs this surface its timeout **and** its quota line — and the quota line is what the same
+  review's other finding asks to gate the button on. **The two findings are in direct tension, and
+  only one of them can be satisfied without a contract change.**
+- `ChatInterpretationSeam`'s contract is `interpret(input) => Result<Output>`. There is no place in
+  it for a timeout or for response headers, so "extend the adapter" means changing the contract —
+  which `AGENTS.md` names as a condition for **not** merging without asking, and which the
+  worst-feature routine says to take on in full or not at all.
+- The repository's own practice is unambiguous: **every** client surface that calls the app's own
+  API — `VerdictPageState`, `StudioState`, `MeechieTools.svelte` — uses `postJson` plus the contract
+  schema, and **none** uses a client-side adapter. The adapters components do use (`sessionAdapter`,
+  `creationStoreAdapter`, `outputPackagingAdapter`, `clockSeam`) wrap browser capabilities, not HTTP
+  to this app's own routes. The provider seam boundary is on the server, where
+  `ProviderAdapterSeam` is.
+
+**The finding worth carrying forward:** three of the four real findings were about a *claim the
+surface makes*, not about code that crashes — a hint that silently drops a subject, a read-back that
+misplaces a line, a button that contradicts the sentence beneath it. Every one of them passed
+`check`, `lint`, 1,789 tests, `build` and the whole `verify` chain, because none of those read a
+promise. **The reviewer that helps a surface like this is the one that reads the consumer** —
+`prompt-assembly-seam` — rather than the code under review.
 
 ### Carried forward for the next run
 

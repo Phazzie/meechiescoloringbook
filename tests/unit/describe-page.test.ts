@@ -18,8 +18,10 @@ import {
 	interpretFailureSentence,
 	readBackInterpretedPage,
 	styleHintForSpec,
+	styleSubjectFromDescription,
 	summariseReadback
 } from '../../src/lib/core/describe-page';
+import { PROMPT_FORBIDDEN_TOKENS } from '../../src/lib/core/prompt-template';
 import { MAX_TOOL_PAGE_ITEMS } from '../../src/lib/core/tool-page-recipe';
 import {
 	ColoringPageSpecSchema,
@@ -181,19 +183,33 @@ describe('readBackInterpretedPage', () => {
 			'Explaining myself twice',
 			'Waiting on a text back'
 		]);
-		expect(readback.lines.every((line) => !line.isFooter)).toBe(true);
+		expect(readback.lines.every((line) => !line.isSecondLine)).toBe(true);
 	});
 
-	it('includes the footer item, marked as one', () => {
+	it('shows the footer item where the prompt actually draws it: second, unnumbered', () => {
+		// `prompt-assembly-seam` L55 and L83-85 use `footerItem.label` as the unnumbered second line
+		// directly under the headline, and never use `footerItem.number` at all. Showing it numbered
+		// at the bottom would have the reader approve a layout the paid generation never draws.
 		const readback = readBackInterpretedPage(
 			spec({ footerItem: { number: 97, label: 'You' } })
 		);
 		expect(readback.lines).toHaveLength(3);
-		expect(readback.lines.at(-1)).toEqual({
-			number: 97,
+		expect(readback.lines[0]).toEqual({
+			number: null,
 			label: 'You',
-			isFooter: true
+			isSecondLine: true
 		});
+		expect(readback.lines.slice(1).map((line) => line.label)).toEqual([
+			'Explaining myself twice',
+			'Waiting on a text back'
+		]);
+	});
+
+	it('never shows a number the prompt does not print', () => {
+		const readback = readBackInterpretedPage(
+			spec({ footerItem: { number: 97, label: 'You' } })
+		);
+		expect(readback.lines.filter((line) => line.number === 97)).toEqual([]);
 	});
 
 	it('counts the footer in the summary, because the reader is checking the sheet', () => {
@@ -265,7 +281,58 @@ describe('readBackInterpretedPage', () => {
 	});
 });
 
+describe('styleSubjectFromDescription', () => {
+	it('strips every colon, which is what makes a forbidden token impossible', () => {
+		// `PROMPT_FORBIDDEN_TOKENS` is ['size:', 'quality:', 'style:'] and every reserved heading
+		// ends in a colon, so "no colon" proves "no forbidden token" without a blocklist a new
+		// token could slip past. A reader who writes "style: gothic" would otherwise fail their own
+		// generation at the assembly seam.
+		const subject = styleSubjectFromDescription('style: gothic, size: big, quality: high');
+		expect(subject).not.toContain(':');
+		for (const token of PROMPT_FORBIDDEN_TOKENS) {
+			expect(subject.toLowerCase()).not.toContain(token);
+		}
+	});
+
+	it('turns structural characters into spaces rather than deleting them', () => {
+		expect(styleSubjectFromDescription('roses/thorns\nand\tcrowns')).toBe(
+			'roses thorns and crowns'
+		);
+	});
+
+	it('caps the length, so one field cannot dominate the prompt', () => {
+		expect(styleSubjectFromDescription('a'.repeat(500)).length).toBeLessThanOrEqual(160);
+	});
+
+	it('returns nothing for a description with nothing usable in it', () => {
+		expect(styleSubjectFromDescription('　::: ')).toBe('');
+	});
+});
+
 describe('styleHintForSpec', () => {
+	it('carries the subject the reader asked for, which the spec has no field for', () => {
+		// The finding this answers: `ColoringPageSpec` can hold `illustrations: 'simple'` and
+		// nothing that says "roses", so a hint built from the spec alone silently drops the one
+		// thing the reader actually asked for.
+		const hint = styleHintForSpec(
+			spec({ illustrations: 'simple' }),
+			'a page that says no more, with roses around the edge'
+		);
+		expect(hint).toContain('roses around the edge');
+		expect(hint).toContain('without lettering any of these words');
+	});
+
+	it('leaves the derived hint standing when there is no usable description', () => {
+		const derived = styleHintForSpec(spec());
+		expect(styleHintForSpec(spec(), '   ')).toBe(derived);
+		expect(derived).not.toContain('without lettering');
+	});
+
+	it('never emits a colon, whatever the reader typed', () => {
+		const hint = styleHintForSpec(spec(), 'style: gothic and quality: high');
+		expect(hint).not.toContain(':');
+	});
+
 	it('always returns a hint the generate contract will accept', () => {
 		// `styleHint` is an optional *non-empty* string, so an empty hint would have to be omitted
 		// rather than sent. Every combination must clear that bar.

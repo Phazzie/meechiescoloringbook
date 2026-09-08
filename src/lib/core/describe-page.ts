@@ -131,12 +131,23 @@ export const interpretFailureSentence = (error: {
 	}
 };
 
-/** One line of the interpreted page, numbered exactly as it will be printed. */
+/**
+ * One line of the interpreted page, positioned and numbered exactly as it will be printed.
+ *
+ * `number` is `null` for the headline's second line, and that is not a cosmetic choice.
+ * `ColoringPageSpecSchema` requires a `number` on `footerItem`, but
+ * `src/lib/adapters/prompt-assembly-seam/index.ts` L55 and L83-85 use only `footerItem.label`, and
+ * it uses it as the **unnumbered second line directly under the headline** — not as a last entry
+ * after the list. A read-back that showed it numbered, at the bottom, would have the reader approve
+ * a layout the paid generation was never going to draw, which is the one thing this surface exists
+ * to prevent.
+ */
 export type ReadBackLine = {
-	number: number;
+	/** The printed number, or `null` for a line the prompt renders without one. */
+	number: number | null;
 	label: string;
-	/** True for the footer item, which prints apart from the numbered list. */
-	isFooter: boolean;
+	/** True for the headline's second line — first on the sheet, and never numbered. */
+	isSecondLine: boolean;
 };
 
 /**
@@ -198,17 +209,12 @@ const DECORATION_FACTS: Record<ColoringPageSpec['decorations'], string> = {
 export const readBackInterpretedPage = (
 	spec: ColoringPageSpec
 ): InterpretedPageReadback => {
-	const lines: ReadBackLine[] = spec.items.map((item) => ({
-		number: item.number,
-		label: item.label,
-		isFooter: false
-	}));
-	if (spec.footerItem) {
-		lines.push({
-			number: spec.footerItem.number,
-			label: spec.footerItem.label,
-			isFooter: true
-		});
+	// The second line first, because that is where the prompt puts it. See `ReadBackLine`.
+	const lines: ReadBackLine[] = spec.footerItem
+		? [{ number: null, label: spec.footerItem.label, isSecondLine: true }]
+		: [];
+	for (const item of spec.items) {
+		lines.push({ number: item.number, label: item.label, isSecondLine: false });
 	}
 
 	const facts: string[] = [
@@ -282,20 +288,58 @@ export const describeReadbackQuota = (
 	});
 
 /**
+ * Reduce the reader's sentence to something that can safely ride in a style hint.
+ *
+ * Two hard requirements, both enforced by stripping rather than by checking:
+ *
+ * 1. **No colons.** `PROMPT_FORBIDDEN_TOKENS` is `['size:', 'quality:', 'style:']` and
+ *    `RESERVED_STYLE_HINT_HEADINGS` are all headings ending in `:`. Every one of them contains a
+ *    colon, so text with no colon cannot contain any of them — a provable invariant rather than a
+ *    blocklist that a new token would slip past. A reader who writes "style: gothic" would
+ *    otherwise fail their own generation at the assembly seam.
+ * 2. **No structural characters.** Newlines and control characters could open what reads as a new
+ *    prompt section.
+ *
+ * Everything outside the allowed set becomes a space rather than vanishing, so "roses/thorns" reads
+ * as "roses thorns" and not "rosesthorns", and the result is collapsed and capped.
+ */
+const SUBJECT_MAX_LENGTH = 160;
+
+export const styleSubjectFromDescription = (description: string): string =>
+	description
+		.replace(/[^A-Za-z0-9 .,!?'"\-()]/g, ' ')
+		.replace(/\s+/g, ' ')
+		.trim()
+		.slice(0, SUBJECT_MAX_LENGTH)
+		.trim();
+
+/**
  * The style guidance sent to `/api/generate` alongside a described spec.
  *
- * Derived from the spec's own drawing fields rather than from the reader's sentence, on purpose.
- * The sentence is a *page* request — "a page that says X with roses around it" — and putting it in
- * the style hint would hand the image model the words a second time, in the one field that is not
- * the exact-text block, which is the surest way to get them drawn twice. Interpreting "with roses"
- * into `illustrations` and `decorations` is precisely the job the interpretation call already did;
- * this reads its answer instead of guessing at the question again.
+ * Built from the spec's own drawing fields **and** from the sentence the spec was interpreted from.
+ * The first draft used the spec alone, on the argument that the sentence is a *page* request and
+ * repeating it risks the model drawing those words twice. A review round was right that this loses
+ * more than it protects: `ColoringPageSpec` has no field that can hold "roses", so
+ * `illustrations: 'simple'` is all that survives of "with roses around it" and the shipped example
+ * could not produce the page it advertises. Dropping the one thing the reader actually asked for is
+ * the promise-to-delivery gap this whole surface exists to close.
+ *
+ * The subject therefore rides along, sanitized by `styleSubjectFromDescription` and introduced with
+ * an explicit instruction not to letter it — the same shape the prompt template already uses for
+ * its own blocks ("render these exact words and nothing else", "Do not draw any section label").
+ * **This is the one part of this feature that cannot be validated here:** no `XAI_API_KEY` is
+ * available, so whether a live model honours that instruction is untested. It is one pure function
+ * and one call site, so reverting to the derived-only hint is a two-line change.
  *
  * Always non-empty: `GenerateRequestSchema` types `styleHint` as an optional *non-empty* string, so
  * a hint that emptied out would have to be omitted rather than sent, and a caller that forgot the
- * difference would fail the contract at the route.
+ * difference would fail the contract at the route. A description that sanitizes away to nothing
+ * simply leaves the derived hint standing.
  */
-export const styleHintForSpec = (spec: ColoringPageSpec): string => {
+export const styleHintForSpec = (
+	spec: ColoringPageSpec,
+	description = ''
+): string => {
 	const parts = ['clean black outline coloring book page'];
 	if (spec.illustrations === 'scene') parts.push('a full drawn scene around the words');
 	else if (spec.illustrations === 'simple') parts.push('one simple drawing beside the words');
@@ -304,6 +348,10 @@ export const styleHintForSpec = (spec: ColoringPageSpec): string => {
 	if (spec.border === 'decorative') parts.push('an ornate drawn border');
 	if (spec.shading === 'hatch') parts.push('hatched shading');
 	else if (spec.shading === 'stippling') parts.push('stippled shading');
+	const subject = styleSubjectFromDescription(description);
+	if (subject.length > 0) {
+		parts.push(`draw the subject matter the reader asked for, without lettering any of these words - ${subject}`);
+	}
 	return parts.join(', ');
 };
 

@@ -9,6 +9,18 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
 
 ## 2026-09-08
 - Date: 2026-09-08
+- Context: `/describe` shows the reader a read-back of the interpreted spec before charging for a picture. Its first draft rendered `footerItem` last, after the list, with its number. `src/lib/adapters/prompt-assembly-seam/index.ts` uses `footerItem.label` as the **unnumbered second line directly under the headline**, and never reads `footerItem.number` at all.
+- Lesson: **A preview is a claim about a consumer, and it can only be checked against that consumer.** `check`, `lint`, 1,789 tests, `build` and the whole `verify` chain passed on a preview that put a line in the wrong place, because none of them reads a promise — and no test written from the preview's own intent could have caught it either, since the intent and the code agreed with each other and both disagreed with the prompt.
+- Action: When adding a surface that shows the reader what will happen, read the code that makes it happen, field by field, and write the test against *that* file's line numbers. The same round found a style hint silently dropping the subject the reader asked for, for the same reason: nobody had checked what the downstream consumer could actually carry.
+
+## 2026-09-08
+- Date: 2026-09-08
+- Context: A reviewer asked `/describe` to call `chatInterpretationAdapter` instead of `postJson`. The same reviewer, in the same round, asked the read-back button to be gated on the reported quota — which needs the `RateLimit-*` headers the adapter discards.
+- Lesson: **Two findings in one review can be individually reasonable and jointly unsatisfiable.** Taking each on its own merits would have produced a surface that reads a quota it cannot see. The resolution is not to pick the more senior-sounding one but to say which constraint the pair actually exposes: here, that the seam's contract has no place for a timeout or a response header, so "use the adapter" means "change the contract" — a different decision with a different approval bar.
+- Action: Before implementing a review finding, check it against the other findings in the same round. When two conflict, answer both on the thread with the conflict named, rather than silently satisfying one.
+
+## 2026-09-08
+- Date: 2026-09-08
 - Context: `DescribePageState.interpretedFrom` exists to pin a read-back to the words that produced it, because the message box stays editable while the request is in flight. Its first implementation assigned `this.message.trim()` *after* the await.
 - Lesson: **A value is only pinned if it is read at the moment it is pinned.** The field, its name, its doc comment and its invariant all said "pinned"; the assignment read a live field seconds later, so a reader who typed during the request got a read-back captioned with words that were never sent — the exact drift the field was added to stop. Every test written from those comments passed, because they tested the intent rather than the timing.
 - Action: Capture into a local `const` before the first await, and never read the live field again in that method. To catch it, a test has to hold the request open and change the input in between — asserting the happy path cannot distinguish "pinned at send" from "read on arrival".
