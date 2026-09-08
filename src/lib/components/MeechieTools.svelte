@@ -19,6 +19,10 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 -->
 <script lang="ts">
 	import { POST_JSON_TIMEOUTS_MS, postJson } from '$lib/core/http-client';
+	import { AiQuotaMeter } from './ai-quota-meter.svelte';
+	import { MEECHIE_TOOL_QUOTA_COST } from '$lib/core/ai-quota';
+	import AiQuotaLine from './AiQuotaLine.svelte';
+	import { clockSeam } from '$lib/adapters/clock-seam';
 	import { buildQualityReport } from '$lib/core/quality-report';
 	import {
 		describeOriginalImageExport,
@@ -208,6 +212,9 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 	// (the page) can be in flight at once, and a page-only action must not cancel a pending verdict.
 	let pageToken = 0;
 	let verdictToken = 0;
+	// Both buckets, on the surface that spends both: eleven tools charge `text`, and the page
+	// button beneath them charges `image`. The hub reported neither until now.
+	const quota = new AiQuotaMeter();
 	let dedicatedTo = '';
 	let copyStatus = '';
 	let vaultStatus = '';
@@ -329,7 +336,9 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 	};
 
 	const handleMakePage = async (): Promise<void> => {
-		if (!output || isGenerating) return;
+		// `pictureExhausted` is the gate as well as the control: this hub has its own handlers rather
+		// than `PageArtifactState`'s, so the guard there does not reach it.
+		if (!output || isGenerating || quota.pictureExhausted()) return;
 		// Advance the token without clearing anything. Any earlier in-flight run is stale from here,
 		// but the page already on screen stays: it cost a paid generation, and until a replacement
 		// has actually arrived it is the best thing this component has. Calling `resetPage()` here
@@ -352,11 +361,17 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 		const token = pageToken;
 		const isStale = (): boolean => token !== pageToken;
 		const recipe = buildToolPageRecipe(verdict, { dedication: dedicatedTo });
+		const generateRequestedAtMs = clockSeam.now();
 		try {
 			const payload = await postJson(
 				'/api/generate',
 				{ spec: recipe.spec, styleHint: recipe.styleHint },
-				{ timeoutMs: POST_JSON_TIMEOUTS_MS.generate }
+				{
+					timeoutMs: POST_JSON_TIMEOUTS_MS.generate,
+					// The image bucket. Anchored at send — see `AiQuotaMeter`'s invariants.
+					onResponseHeaders: (headers) =>
+						quota.record(headers, generateRequestedAtMs, 'image')
+				}
 			);
 			if (isStale()) return;
 			const parsed = GenerateResultSchema.safeParse(payload);
@@ -649,6 +664,7 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 	};
 
 	const handleGenerate = async (): Promise<void> => {
+		if (quota.textExhausted(MEECHIE_TOOL_QUOTA_COST)) return;
 		// Only the stale error goes now. The verdict and the page it produced are what the reader is
 		// looking at, and they cost a paid generation: clearing them up front meant an empty required
 		// field, a timeout, a provider error or an off-contract response silently destroyed a page
@@ -676,9 +692,15 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 		// read its own reset as someone else's and leave the button disabled forever.
 		let abandoned = false;
 
+		const toolRequestedAtMs = clockSeam.now();
+
 		try {
 			const payload = await postJson('/api/tools', parsedInput.data, {
-				timeoutMs: POST_JSON_TIMEOUTS_MS.tools
+				timeoutMs: POST_JSON_TIMEOUTS_MS.tools,
+				// The text bucket, which every one of the eleven tools spends. Unguarded by
+				// `isStale()`: the server charged this caller whatever the reader did next.
+				onResponseHeaders: (headers) =>
+					quota.record(headers, toolRequestedAtMs, 'text')
 			});
 			if (isStale()) {
 				abandoned = true;
@@ -816,7 +838,13 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 			type="button"
 			data-testid="meechie-tool-generate"
 			on:click={handleGenerate}
-			disabled={isWorking}
+			aria-describedby={quota.textMessage({
+				actionNoun: 'take',
+				unitsPerAction: MEECHIE_TOOL_QUOTA_COST
+			})
+				? 'text-budget'
+				: undefined}
+			disabled={isWorking || quota.textExhausted(MEECHIE_TOOL_QUOTA_COST)}
 		>
 			{#if isWorking}
 				<span class="working-inner">
@@ -827,6 +855,14 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 				Get Meechie's Take
 			{/if}
 		</button>
+		<AiQuotaLine
+			message={quota.textMessage({
+				actionNoun: 'take',
+				unitsPerAction: MEECHIE_TOOL_QUOTA_COST
+			})}
+			testId="meechie-tool-text-quota"
+			id="text-budget"
+		/>
 	</section>
 
 	{#if error}
@@ -890,7 +926,8 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 				type="button"
 				data-testid="meechie-tool-make-page"
 				on:click={handleMakePage}
-				disabled={isGenerating}
+				aria-describedby={quota.pictureMessage() ? 'page-budget' : undefined}
+				disabled={isGenerating || quota.pictureExhausted()}
 			>
 				{#if isGenerating}
 					<span class="working-inner">
@@ -901,6 +938,11 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 					Generate My Coloring Page
 				{/if}
 			</button>
+			<AiQuotaLine
+				message={quota.pictureMessage()}
+				testId="meechie-tool-page-quota"
+				id="page-budget"
+			/>
 
 			<QualityReportPanel
 				report={qualityReport}

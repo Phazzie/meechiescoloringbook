@@ -9,10 +9,17 @@ Info flow: Situation input -> VerdictPageState.requestVerdict (red_flag_or_run) 
            VerdictPageStudio -> coloring page, downloads, vault.
 -->
 <script lang="ts">
+	import { onDestroy } from 'svelte';
 	import VerdictPageStudio from '$lib/components/VerdictPageStudio.svelte';
+	import AiQuotaLine from '$lib/components/AiQuotaLine.svelte';
+	import { MEECHIE_TOOL_QUOTA_COST } from '$lib/core/ai-quota';
 	import { VerdictPageState } from '$lib/components/verdict-page-state.svelte';
 
 	const studio = new VerdictPageState({ fileBaseSlug: 'who-fucked-up' });
+	// A quota reading arms a ClockSeam timer that outlives this screen by up to a window, and that
+	// timer holds the state — and the generated page's bytes with it. `/describe` already did this;
+	// these routes had no unmount path at all.
+	onDestroy(() => studio.dispose());
 
 	let situation = $state('');
 
@@ -71,10 +78,27 @@ Info flow: Situation input -> VerdictPageState.requestVerdict (red_flag_or_run) 
 				class="cta"
 				data-testid="who-submit"
 				onclick={submit}
-				disabled={studio.isWorking || !situation.trim()}
+				aria-describedby={studio.quota.textMessage({
+					actionNoun: 'verdict',
+					unitsPerAction: MEECHIE_TOOL_QUOTA_COST
+				})
+					? 'verdict-budget'
+					: undefined}
+				disabled={studio.isWorking ||
+					!situation.trim() ||
+					studio.verdictQuotaExhausted}
 			>
 				{studio.isWorking ? "She's reading it..." : "She's listening. Go."}
 			</button>
+			<AiQuotaLine
+				message={studio.quota.textMessage({
+					actionNoun: 'verdict',
+					unitsPerAction: MEECHIE_TOOL_QUOTA_COST
+				})}
+				testId="who-verdict-quota"
+				id="verdict-budget"
+			/>
+
 		</section>
 	{:else}
 		<header class="verdict-hero">
@@ -95,10 +119,26 @@ Info flow: Situation input -> VerdictPageState.requestVerdict (red_flag_or_run) 
 					class="ghost-btn"
 					data-testid="who-again"
 					onclick={submit}
-					disabled={studio.isWorking || studio.isGenerating}
+					aria-describedby={studio.quota.textMessage({
+						actionNoun: 'verdict',
+						unitsPerAction: MEECHIE_TOOL_QUOTA_COST
+					})
+						? 'verdict-budget'
+						: undefined}
+					disabled={studio.isWorking ||
+						studio.isGenerating ||
+						studio.verdictQuotaExhausted}
 				>
 					{studio.isWorking ? 'Reading it again…' : 'Ask her again'}
 				</button>
+			<AiQuotaLine
+				message={studio.quota.textMessage({
+					actionNoun: 'verdict',
+					unitsPerAction: MEECHIE_TOOL_QUOTA_COST
+				})}
+				testId="who-verdict-quota-retry"
+				id="verdict-budget"
+			/>
 			</div>
 			{#if studio.error}
 				<p class="error" data-testid="who-error">{studio.error}</p>

@@ -13,6 +13,7 @@
 //             fix to any of it lands on every page-making surface at once. Re-implementing any of
 //             it here is how the three mode routes came to differ in the first place.
 import { POST_JSON_TIMEOUTS_MS, postJson } from '$lib/core/http-client';
+import { MEECHIE_TOOL_QUOTA_COST } from '$lib/core/ai-quota';
 import {
 	buildToolPageRecipe,
 	buildToolStudioText
@@ -63,6 +64,18 @@ export class VerdictPageState extends PageArtifactState {
 	 */
 	protected override clearSourceStatus(): void {
 		this.copyStatus = '';
+	}
+
+	/**
+	 * The server will refuse the next verdict, and has not yet said otherwise.
+	 *
+	 * The text-bucket twin of the inherited `pageQuotaExhausted`. Two buckets, two gates: this one
+	 * stops the "ask her" control, that one stops "make the page", and a single gate would disable
+	 * whichever button the *other* bucket ran out for. Priced at `MEECHIE_TOOL_QUOTA_COST`, which is
+	 * what `/api/tools` actually charges — not at the studio's two-unit rewrite cost.
+	 */
+	get verdictQuotaExhausted(): boolean {
+		return this.quota.textExhausted(MEECHIE_TOOL_QUOTA_COST);
 	}
 
 	/** Clear the verdict and everything built from it, cancelling both lifecycles. */
@@ -126,6 +139,10 @@ export class VerdictPageState extends PageArtifactState {
 		// billed for. The two guards are one rule pointing in opposite directions — never start work
 		// whose only possible effect is to throw away work already paid for.
 		if (this.isWorking || this.isGenerating) return null;
+		// The server has already said it will refuse this verdict. The line beside the button says
+		// so; letting the click through would contradict it. Priced at what `/api/tools` charges,
+		// not at the studio's rewrite cost.
+		if (this.verdictQuotaExhausted) return null;
 		this.error = '';
 		const parsedInput = MeechieToolInputSchema.safeParse(input);
 		if (!parsedInput.success) {
@@ -141,10 +158,18 @@ export class VerdictPageState extends PageArtifactState {
 		// Recorded rather than recomputed in `finally`: an abandoned request must not clear the flag
 		// the newer request is holding, and `reset()` released it already.
 		let abandoned = false;
+		const requestedAtMs = this.clock.now();
 
 		try {
 			const payload = await postJson('/api/tools', parsedInput.data, {
-				timeoutMs: POST_JSON_TIMEOUTS_MS.tools
+				timeoutMs: POST_JSON_TIMEOUTS_MS.tools,
+				// `/api/tools` spends the TEXT bucket; the generate call this class inherits spends
+				// the IMAGE one. Both readings land in the same meter, in their own slots, because a
+				// mode route spends both and a reader deserves to be told which one ran out.
+				// Unguarded by `isStale()` for the same reason as in `PageArtifactState`: the server
+				// charged this caller's bucket whatever the reader did next.
+				onResponseHeaders: (headers) =>
+					this.quota.record(headers, requestedAtMs, 'text')
 			});
 			if (isStale()) {
 				abandoned = true;

@@ -1,0 +1,85 @@
+# npx playwright test — Run 18 head 6 (fourth Codex round)
+# Date: 2026-09-08
+
+
+Running 76 tests using 2 workers
+
+[1A[2K[1/76] [chromium] › tests/e2e/describe.spec.ts:88:1 › the nav reaches the surface that had no front door
+[1A[2K[2/76] [chromium] › tests/e2e/describe.spec.ts:96:1 › the read-back appears before anything is generated
+[1A[2K[3/76] [chromium] › tests/e2e/describe.spec.ts:120:1 › the button will not spend a call on a message that is too short
+[1A[2K[4/76] [chromium] › tests/e2e/describe.spec.ts:136:1 › an example fills the box without sending anything
+[1A[2K[5/76] [chromium] › tests/e2e/describe.spec.ts:148:1 › the described page generates, previews and offers its downloads
+[1A[2K[6/76] [chromium] › tests/e2e/describe.spec.ts:167:1 › a described page can be kept in the same vault every other surface writes to
+[1A[2K[7/76] [chromium] › tests/e2e/describe.spec.ts:189:1 › a failed interpretation explains itself and leaves the page alone
+[1A[2K[8/76] [chromium] › tests/e2e/page-controls.spec.ts:20:1 › the shut panel names what it is set to, and its affordance tracks the panel
+[1A[2K[9/76] [chromium] › tests/e2e/print.spec.ts:69:1 › the home studio prints the coloring page, not the app
+[1A[2K[10/76] [chromium] › tests/e2e/page-controls.spec.ts:40:1 › the selected theme is announced, not only tinted
+[1A[2K[11/76] [chromium] › tests/e2e/print.spec.ts:103:1 › printing a screen with no coloring page says so instead of emitting blank paper
+[1A[2K[12/76] [chromium] › tests/e2e/page-controls.spec.ts:57:1 › every control explains the value it is currently set to
+[1A[2K[13/76] [chromium] › tests/e2e/print.spec.ts:121:1 › a mode route prints its page through the shared studio
+[1A[2K[14/76] [chromium] › tests/e2e/page-controls.spec.ts:78:1 › the closed panel says so when a page carries no style of its own
+[1A[2K[15/76] [chromium] › tests/e2e/print.spec.ts:150:1 › the tools hub prints its page too
+[1A[2K[16/76] [chromium] › tests/e2e/page-controls.spec.ts:151:1 › every control the panel holds reaches the shut summary
+[1A[2K[17/76] [chromium] › tests/e2e/print.spec.ts:170:1 › one finished picture is one sheet of paper
+[1A[2K[18/76] [chromium] › tests/e2e/page-controls.spec.ts:173:1 › glitter reaches the summary only when it is on
+[1A[2K[19/76] [chromium] › tests/e2e/print.spec.ts:182:1 › the file the reader downloads has a printable margin on all four edges
+[1A[2K[20/76] [chromium] › tests/e2e/print.spec.ts:219:1 › the print job is named after the page, and a second print does not strand the tab name
+[1A[2K[21/76] [chromium] › tests/e2e/share.spec.ts:116:1 › a mode route describes every download, and offers the original
+[1A[2K[22/76] [chromium] › tests/e2e/share.spec.ts:141:1 › the send control explains itself before there is a page
+[1A[2K[23/76] [chromium] › tests/e2e/share.spec.ts:158:1 › sending hands the share sheet the picture and the words that go with it
+[1A[2K[24/76] [chromium] › tests/e2e/share.spec.ts:185:1 › backing out of the share sheet is not an error
+[1A[2K[25/76] [chromium] › tests/e2e/share.spec.ts:200:1 › a browser with no share sheet copies the picture instead
+[1A[2K[26/76] [chromium] › tests/e2e/share.spec.ts:223:1 › the tools hub and the home studio get the same row and the same control
+[1A[2K[27/76] [chromium] › tests/e2e/share.spec.ts:250:1 › the send control never reaches the paper
+[1A[2K[28/76] [chromium] › tests/e2e/smoke.spec.ts:189:1 › System Trace does not call an ungenerated page clean
+[1A[2K[29/76] [chromium] › tests/e2e/smoke.spec.ts:208:1 › home mode switching and generation controls work
+[1A[2K[30/76] [chromium] › tests/e2e/smoke.spec.ts:271:1 › wig try-on demo works end to end without provider traffic
+[1A[2K[31/76] [chromium] › tests/e2e/smoke.spec.ts:399:1 › the wig catalog can be searched and filtered, and its counts never promise an empty result
+[1A[2K[32/76] [chromium] › tests/e2e/smoke.spec.ts:462:1 › the wig catalog and its affiliate links are server-rendered
+[1A[2K[33/76] [chromium] › tests/e2e/smoke.spec.ts:479:1 › a filter invalidated by a later search can still be switched off
+[1A[2K[34/76] [chromium] › tests/e2e/smoke.spec.ts:504:1 › two wigs tried on the same selfie can both be kept and compared
+[1A[2K[35/76] [chromium] › tests/e2e/smoke.spec.ts:545:1 › home quote vault can save, load, pin, and delete creations
+[1A[2K[36/76] [chromium] › tests/e2e/smoke.spec.ts:588:1 › home quote vault searches saved pages and reveals the ones past the preview
+[1A[2K[37/76] [chromium] › tests/e2e/smoke.spec.ts:623:1 › home shoutout input debounces draft save and clears dedication
+[1A[2K[38/76] [chromium] › tests/e2e/smoke.spec.ts:662:1 › random route tap and page generation work
+[1A[2K[39/76] [chromium] › tests/e2e/smoke.spec.ts:678:1 › rate and who routes submit, reset, and generate pages
+[1A[2K[40/76] [chromium] › tests/e2e/smoke.spec.ts:700:1 › the mode routes print the structure a verdict came back in
+[1A[2K[41/76] [chromium] › tests/e2e/smoke.spec.ts:740:1 › a page made on a mode route can be saved and found in the home vault
+[1A[2K[42/76] [chromium] › tests/e2e/smoke.spec.ts:754:1 › editing the dedication drops the page it was not generated with
+[1A[2K[43/76] [chromium] › tests/e2e/smoke.spec.ts:774:1 › Another one drops a dedication chosen for the previous saying
+[1A[2K[44/76] [chromium] › tests/e2e/smoke.spec.ts:796:1 › a failed re-ask on a mode route does not destroy the page already on screen
+[1A[2K[45/76] [chromium] › tests/e2e/smoke.spec.ts:834:1 › meechie toolkit tabs and lineup controls work
+[1A[2K[46/76] [chromium] › tests/e2e/smoke.spec.ts:868:1 › every toolkit verdict becomes a coloring page that downloads and saves
+[1A[2K[47/76] [chromium] › tests/e2e/smoke.spec.ts:902:1 › a slow page generation cannot land under a different verdict
+[1A[2K[48/76] [chromium] › tests/e2e/smoke.spec.ts:959:1 › editing the dedication drops the page it was not generated with, and drift is surfaced
+[1A[2K[49/76] [chromium] › tests/e2e/smoke.spec.ts:1030:1 › switching tools during a pending verdict does not wedge the button
+[1A[2K[50/76] [chromium] › tests/e2e/smoke.spec.ts:1066:1 › a structured verdict prints as a numbered list page, an unstructured one as a quote
+[1A[2K[51/76] [chromium] › tests/e2e/smoke.spec.ts:1101:1 › a failed replacement verdict does not destroy the page already on screen
+[1A[2K[52/76] [chromium] › tests/e2e/smoke.spec.ts:1136:1 › a failed regeneration does not destroy the page already on screen
+[1A[2K[53/76] [chromium] › tests/e2e/smoke.spec.ts:1164:1 › making a page does not cancel a verdict request nobody cancelled
+[1A[2K[54/76] [chromium] › tests/e2e/smoke.spec.ts:1193:1 › an unreadable generated image does not replace the page already on screen
+[1A[2K[55/76] [chromium] › tests/e2e/smoke.spec.ts:1251:1 › a focused mode page turns its verdict into a coloring page
+[1A[2K[56/76] [chromium] › tests/e2e/smoke.spec.ts:1274:1 › a mode with no input, and a mode with two, both reach a page
+[1A[2K[57/76] [chromium] › tests/e2e/smoke.spec.ts:1302:1 › walking from one mode to another does not carry the first verdict over
+[1A[2K[58/76] [chromium] › tests/e2e/smoke.spec.ts:1338:1 › a slug that names no mode is a 404, not a different mode
+[1A[2K[59/76] [chromium] › tests/e2e/smoke.spec.ts:1356:1 › a mode page does not pan sideways on a phone
+[1A[2K[60/76] [chromium] › tests/e2e/smoke.spec.ts:1373:1 › a replacement saying drops a dedication chosen for the previous one
+[1A[2K[61/76] [chromium] › tests/e2e/smoke.spec.ts:1414:1 › the AI meter reports the server quota and refills rewrites on a new verdict
+[1A[2K[62/76] [chromium] › tests/e2e/smoke.spec.ts:1475:1 › switching mode after spending the rewrites does not strand the studio
+[1A[2K[63/76] [chromium] › tests/e2e/smoke.spec.ts:1511:1 › every quota-gated button points at the meter that explains it
+[1A[2K[64/76] [chromium] › tests/e2e/smoke.spec.ts:1547:1 › each button reports the bucket it actually spends
+[1A[2K[65/76] [chromium] › tests/e2e/smoke.spec.ts:1611:1 › every page carries a description for an install prompt to read
+[1A[2K[66/76] [chromium] › tests/e2e/smoke.spec.ts:1630:1 › the offline page says what still works and offers a way back
+[1A[2K[67/76] [chromium] › tests/e2e/smoke.spec.ts:1649:1 › the offline page reports this device connection rather than asserting one
+[1A[2K[68/76] [chromium] › tests/e2e/smoke.spec.ts:1663:1 › losing the network says so, and says nothing while the network is there
+[1A[2K[69/76] [chromium] › tests/e2e/smoke.spec.ts:1691:1 › an empty verdict card says only that it is empty
+[1A[2K[70/76] [chromium] › tests/e2e/smoke.spec.ts:1704:1 › a verdict shows her severity read, her standing, and her note
+[1A[2K[71/76] [chromium] › tests/e2e/smoke.spec.ts:1726:1 › a verdict Meechie could not rule on says so, and warns the button that costs money
+[1A[2K[72/76] [chromium] › tests/e2e/vault.spec.ts:27:1 › the vault is reachable from the nav on every surface
+[1A[2K[73/76] [chromium] › tests/e2e/vault.spec.ts:37:1 › a save confirmation offers a way to the vault, and it goes there
+[1A[2K[74/76] [chromium] › tests/e2e/vault.spec.ts:50:1 › the vault shows every saved page, and reopening one restores it in the studio
+[1A[2K[75/76] [chromium] › tests/e2e/vault.spec.ts:73:1 › the vault searches and reorders what it holds
+[1A[2K[76/76] [chromium] › tests/e2e/vault.spec.ts:103:1 › a link to a page this device never saved says so rather than opening an empty studio
+[1A[2K  76 passed (2.1m)
+
+exit status: 0

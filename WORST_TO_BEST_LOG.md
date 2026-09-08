@@ -11392,6 +11392,261 @@ committing** — it does not appear in the diff.
   inside the handler and no UI state for it. Run 10's deletion of the unreachable
   `controllerchange` listener is the same reasoning.
 
+### The Codex round — five findings, four real
+
+| # | Finding | Outcome |
+|---|---|---|
+| 1 | P1 — using `ClockSeam.scheduleAt` requires the full Seam-Driven Development workflow and a Cipher Gate | **Answered, not taken** — see below |
+| 2 | P2 — `VerdictPageState` has no unmount path calling `quota.dispose()` | Fixed |
+| 3 | P2 — an older response can overwrite a newer quota reading | Fixed |
+| 4 | P2 — the text bucket is recorded on verdict routes and never rendered | Fixed |
+| 5 | P2 — `pictureExhausted` has no production caller | Fixed |
+
+**Findings 4 and 5 are the same defect as the feature, one level down.** This run's whole case was
+that the app *recorded* quota it never *showed*, and *showed* a number no control was gated on. I
+then shipped a first head that recorded the text bucket on four routes and rendered it on none (#4),
+and added a `pictureExhausted` check that nothing called, leaving every page button live under a
+line saying the desk was full (#5) — which the file's own invariant comment condemns in as many
+words. *Writing the diagnosis at the top of a file does not stop you committing the same defect
+eighty lines further down.*
+
+**Finding 3 is the one I would not have found.** Page generation and wig try-on both charge `image`
+and are guarded by *separate* `isGenerating` / `isTryingOn` flags, so they can be in flight at once —
+and a generation that charged first routinely answers after a try-on that charged second, putting
+the older, higher `remaining` back on screen. The fix is `supersedes` in `ai-quota.ts`: a later
+window wins outright; within one window the lower `remaining` is the newer reading, because a fixed
+window only counts down.
+
+Writing its test exposed a **pre-existing test of mine that encoded an impossible scenario** — two
+readings anchored at the same instant with resets of 30s then 25s, which would mean the window's end
+moved *backwards*. It passed before ordering existed and failed after. Corrected to a real pair
+(anchored 5s apart, resets 30s then 25s, landing on the same absolute instant). *A test that passes
+can still describe something that cannot happen, and it will keep passing until a real invariant
+lands beside it.*
+
+### The P1 declined, and the evidence for declining it
+
+Codex read `AGENTS.md:100-104` — clock/time is a seam, so any change touching it needs the full
+workflow — and concluded this change needs a ClockSeam probe and a Cipher Gate.
+
+The rule is quoted correctly. It does not reach this change, and the repository's own history is
+what says so:
+
+```
+$ git show origin/main:src/routes/studio-state.svelte.ts | grep -n "clock.scheduleAt"
+1599:  this.cancelQuotaExpiry = this.clock.scheduleAt(snapshot.resetAtMs, () => {
+$ git show origin/main:src/lib/components/describe-page-state.svelte.ts | grep -n "clock.scheduleAt"
+152:   this.cancelQuotaExpiry = this.clock.scheduleAt(snapshot.resetAtMs, () => {
+```
+
+**That exact call, for this exact purpose, was already on `main` in both files.** This change *moved*
+those two calls into one class. It consumes `ClockSeam` through its existing contract and alters no
+contract, probe, fixture, mock or adapter — the distinction `AGENTS.md:104` draws is a change that
+"alters the contract or observable behavior **across a seam boundary**". Runs 7, 12 and 17 all
+shipped `ClockSeam` consumers with no Cipher Gate, which is the same reading applied consistently.
+
+*The transferable part: a P1 citing a real rule with a real line number is still worth checking
+against what the repository already does. "Does this rule apply here?" and "is this rule real?" are
+different questions, and only the first one was in doubt.*
+
+### The SonarCloud round — and the method Run 17 wrote down, used properly this time
+
+The first head reported **0 new issues**. The Codex-round head reported **1**, warning level, at
+`tests/unit/describe-page-state.test.ts:753` — with an **empty message**: the GitHub annotation
+carries the file, the line and a dashboard link, and no text.
+
+`sonarcloud.io` is still unreachable from this container (`curl` to its issues API returns
+`CONNECT tunnel failed, response 403`), exactly as Run 17 recorded. So the finding could be located
+and not read.
+
+Rather than guess — which is precisely what Run 17's entry warns against, having guessed three
+literals and got all three wrong — the rules were run locally:
+
+```sh
+npm install eslint-plugin-sonarjs@latest --no-save --prefix /tmp/sonarjs-probe
+# a throwaway flat config using ONLY sonarjs.configs.recommended.rules, with the repo's own
+# @typescript-eslint and svelte parsers, run over `git diff --name-only origin/main...HEAD`
+```
+
+It named the rule in one line:
+
+> `753:3 sonarjs/prefer-specific-assertions` — Prefer `expect(…).toHaveLength(before)` over this
+> generic assertion
+
+**The same run over all 26 changed files found ten findings, and eight of them are not this pull
+request's.** Each was classified by testing whether the exact line text still exists on `origin/main`
+rather than by eyeballing the diff:
+
+| Finding | Rule | Verdict |
+|---|---|---|
+| `describe-page-state.test.ts:753` | `prefer-specific-assertions` | **Mine — fixed** |
+| `AiQuotaLine.svelte:23,31` | `no-redundant-optional` | **Mine — fixed** (`?: string \| undefined`) |
+| `rate-his-excuse/+page.svelte:62,64` | `no-nested-conditional` | Pre-existing |
+| `studio-state.svelte.ts:1487` | `no-nested-conditional` | Pre-existing |
+| `smoke.spec.ts:112,260,668` | fixed wait / super-linear regex / forced interaction | Pre-existing |
+| `verdict-page-state.test.ts:931` | `constructor-for-side-effects` | Pre-existing — **the inherited finding** |
+
+Two things worth keeping:
+
+1. **`AiQuotaLine.svelte` was flagged locally and not by SonarCloud.** The local `recommended` set is
+   wider than this project's quality profile, so a local run is a superset and its extra findings are
+   candidates rather than gate failures. Both were fixed anyway — they are new code and the fix is
+   deleting four characters — but a future run should not report a local finding as a SonarCloud one.
+2. **The inherited `constructor-for-side-effects` finding was independently confirmed at line 931**,
+   which is exactly where Run 17 said the harness extraction had moved it from 1022. That entry told
+   the next run to re-measure rather than trust the number; re-measuring agreed with it.
+
+*The transferable part: "the dashboard is unreachable" was true and was never the whole story. The
+annotation endpoint gives the location, and the plugin gives the rule. Between them there is no need
+to guess, and Run 17 had already written down half of that.*
+
+### The second Codex round — eight findings, eight real, and one of my own replies was false
+
+Waiting for this review rather than merging on green checks was the single best decision of the run.
+
+| # | Finding | Outcome |
+|---|---|---|
+| 1 | Verdict meters omit `unitsPerAction`, so they divide by the studio's 2 instead of the tool's 1 | Fixed |
+| 2 | The verdict quota line sits in the `{#if !verdict}` branch and vanishes the moment a verdict lands | Fixed |
+| 3 | `requestVerdict` and the ask/retry buttons have no text-bucket gate | Fixed |
+| 4 | **The toolkit gates I said were fixed were never applied** | Fixed |
+| 5 | `pictureMessage` always says "page", so the try-on line read "7 pages left" | Fixed |
+| 6 | The try-on button has no `aria-describedby` to its new quota line | Fixed |
+| 7 | The reset instant is anchored to the client's send, but the charge happens later | Fixed, server-side |
+| 8 | "Meechie's desk is full" claimed for a bucket that has units, just not enough for *this* page | Fixed |
+
+**Finding 4 is the one that matters, and it is about me rather than the code.** My reply on the
+earlier `pictureExhausted` thread said the gate was wired into "the control **and** the handler" on
+all four surfaces, with a table. For the toolkit it was wired into neither. The edit was a Python
+script doing several replacements; it printed `changed` and I took that as confirmation. It was not:
+**`changed` meant at least one replacement matched.** The two `disabled=` anchors had been shifted
+out from under it by an `aria-describedby` line the same script had inserted moments earlier, so
+those two silently no-oped while the rest applied.
+
+*A batch edit that reports success reports the batch, not the item.* Every edit in this round is
+made through a helper that `sys.exit(1)`s on a missed anchor and prints one line per edit, so a miss
+is loud. **And a claim that something is fixed is a claim to verify with a grep, not with the exit
+status of the thing that was supposed to fix it.** The correction is posted on the original thread.
+
+**Finding 1 is the same defect as the feature, for a third time.** This run's entire subject is
+surfaces dividing by the wrong cost. Run 17 added `unitsPerAction` precisely so each surface could
+price its own action. I passed it on the toolkit and forgot it on the four verdict surfaces, so they
+reported **half** the verdicts a reader had — and called the desk full with one unit left, which is
+a whole verdict.
+
+**Finding 7 was real and needed a server-side answer.** `RateLimit-Reset` is a delta from the
+instant the quota was *charged*, and a client cannot know that instant — it knows when it sent the
+request and when the reply came back. On `/api/wig-try-on` the gap is one-sided and large:
+`runWigTryOnPipeline` does a catalog lookup **and an external wig-image fetch** before
+`consumeQuota`. Anchoring to the send instant therefore computes a reset that is *early* by all of
+that work, and early is the harmful direction — it invites a retry the server then refuses. Worse,
+it can make a concurrent reading look like a different window and be discarded by the ordering rule
+added one round earlier.
+
+The fix is additive and server-side: `decisionHeaders` now also emits **`RateLimit-Reset-At`**, the
+store's own absolute instant in epoch milliseconds, and `readAiQuota` prefers it when present and
+falls back to the delta when it is not. `src/lib/server/rate-limit-guard.ts` is not a seam artifact —
+it is not under `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`, `src/lib/adapters/` or
+`src/lib/seams/` — so this stays inside the routine's scope, and no seam contract changed.
+
+*Both anchors are wrong; they are wrong in opposite directions. Anchoring at receipt is late by the
+provider call, which for `/api/generate` is up to 230 seconds — the documented reason the code
+anchored at send in the first place. The answer was not to pick the better guess but to stop
+guessing.*
+
+**Finding 8 is a wording bug with a real contradiction behind it.** A bucket holding three units
+cannot fund a four-picture page, but it is not empty — and on the home studio it still pays for the
+one-unit wig try-on sitting enabled further down the same screen. Saying "Meechie's desk is full"
+there contradicts a control the reader can plainly still use. `describeAiQuota` now distinguishes
+"Not enough left for this page" from "the desk is full", on `remaining > 0`.
+
+**The local SonarJS sweep was re-run on this round's diff and caught two findings of my own before
+CI did** — `cognitive-complexity` at 16/15 in `handleMakePage`, caused by the guard I had just added
+(fixed by folding two early returns into one), and `no-identical-functions` from a header helper I
+had duplicated rather than reused. The remaining seven findings were re-confirmed pre-existing.
+
+### The third Codex round — four findings, and the one where I had to undo my own fix
+
+| # | Finding | Outcome |
+|---|---|---|
+| 1 | Verdict buttons have `id="verdict-budget"` beside them and no `aria-describedby` to it | Fixed |
+| 2 | `RateLimit-Reset-At` puts a **server** epoch on the **client's** timeline | **Fixed by reverting the previous round's fix** |
+| 3 | `dispose()` cancels existing timers but `record()` still works afterwards | Fixed |
+| 4 | P1 — the new response header is new observable behaviour at a network boundary | **Dissolved by the same revert** |
+
+**Finding 2 is the important one, and it is about the fix I shipped one round earlier.** The previous
+round answered "the reset delta is anchored to the client's send instant, but the charge happens
+later" by having the server send `RateLimit-Reset-At` — the store's absolute instant — and having the
+client prefer it. That reply was confident and it was wrong.
+
+A server epoch value is meaningless on the browser's timeline. `scheduleAt` and every comparison run
+on the client's clock, and the two clocks are unrelated. A device five minutes fast treats a freshly
+exhausted window as already expired, clears the reading and re-enables controls the server will
+still refuse; a device five minutes slow holds them disabled long after the bucket refilled.
+
+**So the "fix" traded a bounded, seconds-scale error on one route for an unbounded error on any
+device with a wrong clock.** The delta it replaced was *skew-immune* precisely because every value
+stayed on one clock.
+
+Reverted in full — server header, client preference, and the tests written for it. A correct version
+needs a server/client offset (the standard `Date` header plus the absolute instant), which is more
+machinery at the network boundary, and which is exactly what the accompanying **P1** said would need
+the full Seam-Driven Development workflow. `AGENTS.md` on this routine: *"or pick a rebuild that does
+not need it. Never half-do it."* Reverting is picking that. **The original anchoring skew goes back
+to being a known, bounded, documented limitation, carried forward below rather than papered over.**
+
+*The lesson is not "check for clock skew". It is that a fix invented in response to a review finding
+gets the same scrutiny as the code it replaces — and this one shipped in the same commit as its own
+justification, with a test suite that could not see the defect because every test used one clock.*
+
+The P1 was declined on its predecessor's reasoning (consuming `ClockSeam` through its contract is not
+a seam change) and is **not** declined here: adding a header genuinely is new observable behaviour.
+It stops applying because the header is gone, not because the argument failed.
+
+**Finding 3 is teardown-as-an-action versus teardown-as-a-state.** `dispose()` cancelled the timers
+that existed; a request already in flight when the reader navigated away still resolved, still called
+`record`, and armed a *fresh* timer on a meter nobody was reading — holding the unmounted route's
+state and its generated image bytes for up to a window. The meter now carries a `disposed` flag that
+`record` checks. Red proof: removing the check fails 1.
+
+**Finding 1 is the third `aria-describedby` omission in this pull request** — home studio, try-on,
+and now the eight verdict controls. Each time I added the line and the gate and forgot the link
+between them, which is the same shape of half-finished work the feature itself is about.
+
+### The fourth Codex round — two findings, one of them about the plan file
+
+| # | Finding | Outcome |
+|---|---|---|
+| 1 | P1 — `plan.md`'s "Exact file inventory" does not match the diff | Fixed |
+| 2 | P2 — a reset delta can compute an instant outside `Date`'s range | Fixed |
+
+**Finding 1 is a governance defect and it is the most quietly embarrassing one in this run.**
+`AGENTS.md:48` requires a plan listing the exact file paths to be touched. Mine was written before
+the work and never re-checked: across five heads of review it had gone stale, omitting
+`MeechieModePage.svelte`, `WigTryOnStudio.svelte`, the three standalone verdict routes and both
+pipeline files — and **listing `src/lib/components/studio/StudioInputPanel.svelte`, which is not in
+the diff at all.**
+
+*A pre-change scope record that is never re-checked against `git diff --name-only` is a record of an
+intention, not of a change.* And the wrong half is the file that is **listed and never touched**,
+because nothing will ever fail to tell you: a missing entry might surface when someone looks for it,
+a phantom entry surfaces never. The inventory is now rewritten to match the diff exactly, with a
+note saying it was corrected after the fact and why — rather than quietly restated as though it had
+been right all along.
+
+**Finding 2 is a real availability bug reachable from a header.** `readCount` accepts any safe
+integer and `RateLimit-Reset` is multiplied by a thousand, so a large-but-legal value produces an
+instant outside what a `Date` can represent. That value fails in both directions at once: the
+sentence renders **"Ready again at Invalid Date"**, and `ClockSeam.scheduleAt` — whose
+`validateEpochMs` only requires a finite integer — re-arms on every 15-minute hop without ever
+reaching the instant. So an exhausted reading would hold its control disabled **for the lifetime of
+the mounted page**. `readAiQuota` now bounds the computed instant and returns `null` outside it,
+which is the same rule the rest of the module already follows: a value this code cannot use is
+reported as nothing rather than shown. Red proof: removing the bound fails 2.
+
+*Both findings landed on the head where the diff had stopped changing shape — which is when a review
+stops finding feature bugs and starts finding the things the feature was never asked about.*
+
 ### Carried forward for the next run
 
 - **The packaged print PDF still bleeds to all four edges.** `output-packaging-seam/index.ts` scales
@@ -12979,6 +13234,23 @@ Cipher Gate entry. `DECISIONS.md` carries the tradeoffs.
    `styleHint` hands the image model the words a second time, in the one field that is not the
    exact-text block. **This one was wrong, and a review round overturned it.** See below.
 
+### A correction made mid-run, about this run's own evidence
+
+The first `npx playwright test` here **exited 0 and I read that as a pass.** It was not. The command
+had been piped through `tail -25`, so what I saw was a list of test titles with no summary line; all
+**75 tests had failed identically** on `browserType.launch: Executable doesn't exist at
+/opt/pw-browsers/chromium_headless_shell-1208/...`. This container ships browser build **1194**, and
+`@playwright/test ^1.58.1` resolves **1208**.
+
+Re-run against `/opt/pw-browsers/chromium-1194/chrome-linux/chrome` via a **temporary, uncommitted**
+`playwright.config.ts` override: **76 passed** (75 existing plus the one added below), transcript at
+`docs/evidence/2026-09-08/run18-e2e.txt`, and `git diff --stat playwright.config.ts` is empty on the
+pushed head. CI installs its own browsers and is unaffected.
+
+*An exit code read through `tail` is not a result.* The pipe discarded the summary and kept the
+part that looked like success — and a suite where every test fails for the same environmental reason
+produces output that scrolls exactly like a suite where every test passes.
+
 ### What this run could not prove, stated plainly
 
 **The live quality of the model's interpretation.** `XAI_API_KEY` is not available in this
@@ -13431,5 +13703,196 @@ constraint the pair exposes.
   unflagged in `verdict-page-state.svelte.ts` for as long as it has existed, which is its own
   lesson about what "new code" means to this gate. **None of this is confirmed**; do not fix it
   blind, which is exactly the guessing this repository's workflow exists to prevent.
+
+Do not inherit this entry's measurements. Re-measure.
+
+## Run 18 — 2026-09-08 — The AI budget meter, which was reporting the wrong bucket
+
+**Branch:** `claude/great-bell-iex3wp` · **Base:** `main` at `b5119ea`
+
+### The feature, and the case against it
+
+The app has an AI budget meter. **Run 7 already rebuilt it** — that run's whole subject was replacing
+an invented per-tab counter with the server's own `RateLimit-*` headers, and it succeeded at exactly
+what it set out to do. This run is about what that fix could not see.
+
+The server meters **two** buckets, on independent 60-second windows, with different limits
+(`src/lib/seams/rate-limit-seam/validators.ts:6-8`):
+
+| Bucket | Limit / 60s | Endpoints | Surfaces reporting it on `b5119ea` |
+|---|---|---|---|
+| `text` | 20 | `/api/meechie-studio-text`, `/api/tools`, `/api/chat-interpretation` | 2 |
+| `image` | **8** | `/api/generate`, `/api/image-generation`, `/api/wig-try-on` | **0** |
+
+Bucket assignment measured directly, not inferred — `grep -rn "createQuotaGate(event" src/routes/api/`
+returns the bucket name as the second argument of all six routes.
+
+Eight `postJson` call sites reach a billable endpoint. **Two passed `onResponseHeaders`; six
+discarded every quota header the server sent:**
+
+| Call site | Endpoint | Bucket | Read headers |
+|---|---|---|---|
+| `src/routes/studio-state.svelte.ts:1852` | `/api/meechie-studio-text` | text | yes |
+| `src/lib/components/describe-page-state.svelte.ts:192` | `/api/chat-interpretation` | text | yes |
+| `src/lib/components/page-artifact-state.svelte.ts:491` | `/api/generate` | image | **no** |
+| `src/lib/components/verdict-page-state.svelte.ts:146` | `/api/tools` | text | **no** |
+| `src/lib/components/MeechieTools.svelte:356` | `/api/generate` | image | **no** |
+| `src/lib/components/MeechieTools.svelte:680` | `/api/tools` | text | **no** |
+| `src/routes/studio-state.svelte.ts:2039` | `/api/generate` | image | **no** |
+| `src/routes/studio-state.svelte.ts:2233` | `/api/wig-try-on` | image | **no** |
+
+All six endpoints publish `RateLimit-*` on **every** response, denials included
+(`rate-limit-route.ts:74-80`; `generate-pipeline.ts:259-274` names it: *"Every response from here on
+is post-charge, so it advertises the caller's remaining quota."*). The server was never the problem.
+
+**The case is not "the meter is missing." It is that the meter was confidently narrating a bucket
+the button beneath it does not spend.** The home studio's sentence derives from the 20-unit `text`
+bucket at 2 units per rewrite. The "Create Coloring Page" button below it spends the 8-unit `image`
+bucket, on its own separate window. Nothing on screen distinguished them, so the app could say
+**"7 AI calls left"** and then refuse to draw the page — both statements true, about different
+buckets, and the reader had no way to know that.
+
+That is worse than silence, because it is believable. A missing number teaches a reader to find out;
+a wrong number teaches them to trust it.
+
+And when the image bucket did run out, all thirteen page-making surfaces answered with
+`'Too many requests. Try again after the current window resets.'` (`rate-limit-guard.ts:246`) — no
+limit, no reset instant, no warning beforehand — while *the very response carrying that sentence*
+also carried `RateLimit-Limit: 8`, `RateLimit-Remaining: 0` and `Retry-After`, all discarded by the
+client.
+
+**Why it stayed broken for eleven runs.** The meter's machinery — an `aiQuota` field, a `setAiQuota`,
+a `cancelQuotaExpiry` ClockSeam timer — existed **twice**, hand-copied between
+`studio-state.svelte.ts:1596-1604` and `describe-page-state.svelte.ts:149-156`. It spread by
+copying, so it stopped where copying stopped. This is the same failure mode Runs 14 and 15 recorded
+for the export row and the vault gallery, in a third place: *the markup was reachable by copying and
+nothing made the next surface get it for free.*
+
+### What shipped
+
+**The bucket is now a required field on every quota snapshot**, and a required argument to
+`readAiQuota`. This is the load-bearing decision, and it is a deliberate breaking change to a core
+signature: an optional discriminator would have preserved exactly the shape that produced the bug.
+Making it required is what converted this from a code review into a compile error — **the type
+checker, not my judgement, enumerated the twenty call sites that had to change**, including test
+files I would not have thought to grep.
+
+**`AiQuotaMeter` (new, `src/lib/components/ai-quota-meter.svelte.ts`)** — one holder, one slot per
+bucket, one cancellation handle *per bucket* because the windows are independent. Both copies of the
+old machinery are deleted in favour of it.
+
+**Recording the image bucket inside `PageArtifactState.generatePage` reaches thirteen surfaces at
+once** — the three standalone mode routes, all eight `/m/<slug>` pages, `/describe` and the home
+studio — because every one of them reaches `/api/generate` through that single method. That is the
+whole return on Run 17's extraction, collected a run later.
+
+**A page is priced at `spec.variations`, not at a flat unit.** `runGeneratePipeline` charges
+`imageRequest.variations` — the same value that becomes the provider's `n` — so a four-picture page
+costs four of the eight units. `/describe` is the one surface that can ask for four, and pricing that
+page at one unit would have promised three pages that do not exist.
+
+**The studio's text line is renamed from "AI calls" to "verdicts or rewrites."** With two lines on
+screen this stops being cosmetic: a coloring page *is* an AI call, so "3 AI calls left" above
+"2 pages left" reads as one number contradicting the other. This forced `actionNounPlural` into
+`describeAiQuota`, because the naive `noun + 's'` rule turns "verdict or rewrite" into "verdict or
+rewrites" — one verdict and several rewrites.
+
+**`AiQuotaLine.svelte` (new)** — the one rendering, owning its own styling, for the reason Run 14
+recorded about `PageExportRow`. It carries an optional `id` so the button it explains can point at
+it with `aria-describedby`, which is the app's existing convention (asserted by
+`tests/e2e/smoke.spec.ts:1511`) and which the first draft of this change quietly broke by rendering
+a line no button referenced. The reference is **conditional on there being a message**, because
+`aria-describedby` pointing at an element the page has not rendered explains nothing.
+
+**One new end-to-end test, `each button reports the bucket it actually spends`**, which stubs the
+two routes with *deliberately disagreeing* quota headers (20/14 for text, 8/3 for image) and asserts
+both sentences. Neither assertion can pass if either line derives from the other's number — which is
+the defect, stated as a test rather than as prose.
+
+**No contract, probe, fixture, mock, adapter or seam file is in the diff**, confirmed by
+`git diff --name-only origin/main...HEAD` against those directories rather than asserted — which is
+also why there is no Cipher Gate entry. `DECISIONS.md` carries the tradeoffs.
+
+### Red proofs, run because a green test proves nothing on its own
+
+Four mutations, each reverted immediately, each checked for **how many** tests fail per Run 16's
+lesson:
+
+| Mutation | Tests that failed |
+|---|---|
+| `recordQuotaReading` files every reading under `text` (the original defect, restated) | 7 |
+| A page priced at a flat unit regardless of `variations` | 2 |
+| One shared expiry timer across both buckets | 1 |
+| `onResponseHeaders` removed from `PageArtifactState` (the defect exactly as found) | 4 |
+
+### The bug my own change introduced, and what caught it
+
+Migrating the tests, I bulk-replaced `studio.aiQuota` → `studio.quota.text`. That also rewrote
+`aiQuotaMessage` → `quota.textMessage` and `aiQuotaExhausted` → `quota.textExhausted` — which are
+**methods**, so the assertions became `expect(fn).toBe(true)` against a function object.
+
+**`svelte-check` passed on all of it.** `expect(someFunction).toBe(true)` is perfectly well-typed.
+Three tests failed at runtime and named it precisely; I had already run the type checker and seen
+zero errors, and would have pushed on that evidence alone.
+
+*A type checker cannot tell you that you meant to call the function. The mechanical rename is the
+part of a refactor that feels safest and reads fastest, and it is exactly where a silent assertion
+gets planted — `expect(fn)` never throws, it just stops testing anything.* Both were caught only
+because the suite ran after the rename rather than before the push.
+
+### What this run could not prove, stated plainly
+
+**No live provider or deployment call was made.** `XAI_API_KEY` is not available in this container,
+so the header values these surfaces now render are exercised against stubbed responses shaped like
+the guard's real output rather than against a deployment. The header *names* are read from
+`decisionHeaders` in `rate-limit-guard.ts:126-144` — the server-side function that emits them — and
+not guessed. The residual risk is confined to whether a deployed edge layer rewrites `RateLimit-*`
+in transit, which no test in this repository could detect either way.
+
+**Whether Upstash is configured in production is not knowable from here.** `rate-limit-guard.ts`
+degrades to an in-memory store when every durable setting is blank. If production runs the memory
+store, the numbers are per-instance rather than per-caller — true as displayed, but less meaningful
+than they look. Unchanged by this run, and worth a look from a run with deploy access.
+
+### Carried forward for the next run
+
+Re-measured on this run's base where the item names a line number; **do not inherit these, re-measure.**
+
+- **The quota reset instant is early on routes that work before charging.** `RateLimit-Reset` is a
+  delta from the instant the quota was *charged*; the client can only anchor it to the instant it
+  *sent* the request, so any route doing work before `consumeQuota` reports a reset that early by
+  that much. `/api/wig-try-on` is the worst case — `runWigTryOnPipeline` does a catalog lookup and an
+  **external wig-image fetch** before charging. Early is the harmful direction: it invites a retry
+  the server refuses, and it can push a concurrent reading outside the 2-second window tolerance and
+  get it discarded by `supersedes`.
+  **This run tried to fix it with a server-sent absolute instant and had to revert** — see the third
+  Codex round above; a server epoch on the client's timeline is unbounded-ly worse than a bounded
+  delta skew. A correct fix needs a server/client clock offset (the standard `Date` header alongside
+  an absolute reset), which is new observable behaviour at a network boundary and therefore the full
+  Seam-Driven Development workflow with a Cipher Gate — its own pull request, not a rider on this one.
+  Do not attempt it as a quick win.
+- **`chatInterpretationAdapter` still has no callers.** Run 17's item, unchanged and untouched here.
+  Either give it a timeout and header access through the full Seam-Driven Development workflow, or
+  delete it. This run makes the case sharper, not weaker: the adapter discards `RateLimit-*`, and
+  those headers are now load-bearing on every surface.
+- **The three SonarCloud issues Run 17 identified on `24b39a8`** — the empty `clearSourceStatus` at
+  `page-artifact-state.svelte.ts:434`, the `export…from` re-export in `describe-page.ts:365`, the
+  useless `init.headers ?? {}` in `page-artifact-harness.ts:79`. Still open; this run edited two of
+  those three files and did not fix them, because they are quick-wins-routine candidates and
+  widening this pull request is the scope drift the routine argues against. **Line numbers moved:
+  whoever picks them up must re-measure, per Run 17's own lesson about inherited line references.**
+- **The app configures a 1024x1024 square it never asks the provider for.** Run 17's item, unchanged
+  and still blocked on a key. This run touched `/api/generate`'s *client* side only.
+- **`placedDpi` has no production consumer.** Unchanged.
+- **The `chat` packaging variant has zero consumers.** Unchanged, Run 14's reasoning.
+- **Mode persistence** — Run 12's pick, blocked on the seam rule for the seventh run running.
+- **Vault capacity is not knowable from outside the adapter.** Same seam workflow.
+- `MeechieToolOutput.quoteScore` and `modelMetadata`, from Run 11's list.
+- **Four evidence transcripts still have no file header:** `docs/evidence/2026-09-08/verify-outer.txt`,
+  `lint.txt`, `build.txt`, `e2e.txt`. Inherited from Run 16 through Run 17 unchanged.
+- **New this run: `/api/image-generation` has no client caller either.** The image bucket is charged
+  by three routes; `grep -rn "api/image-generation" src/routes src/lib/components` finds no call
+  site outside the route's own file. Same shape as the `chatInterpretationAdapter` item and probably
+  the same answer — settle it deliberately rather than leaving it as a third thing.
 
 Do not inherit this entry's measurements. Re-measure.

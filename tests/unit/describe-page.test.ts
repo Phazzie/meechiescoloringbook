@@ -368,6 +368,7 @@ describe('styleHintForSpec', () => {
 
 describe('describeReadbackQuota', () => {
 	const at = (remaining: number): AiQuotaSnapshot => ({
+		bucket: 'text',
 		limit: 20,
 		remaining,
 		resetAtMs: 1_000,

@@ -30,6 +30,7 @@ import { outputPackagingAdapter } from '$lib/adapters/output-packaging-seam';
 import { sessionAdapter } from '$lib/adapters/session-seam';
 import { clockSeam } from '$lib/adapters/clock-seam';
 import type { ClockSeam } from '$lib/seams/clock-seam/contract';
+import { AiQuotaMeter } from './ai-quota-meter.svelte';
 import { POST_JSON_TIMEOUTS_MS, postJson } from '$lib/core/http-client';
 import {
 	generatedImageBase64,
@@ -333,6 +334,20 @@ export class PageArtifactState {
 	 * injects one: a test should be able to state the instant rather than observe it.
 	 */
 	clock: ClockSeam = clockSeam;
+	/**
+	 * Every quota reading this surface holds, both buckets.
+	 *
+	 * Lives on the base class because `/api/generate` is called from here, so every subclass —
+	 * `VerdictPageState` and `DescribePageState`, and through them all thirteen page-making
+	 * surfaces — inherits a truthful image-bucket reading without doing anything. A subclass that
+	 * also spends the text bucket records into this same meter, which is why it holds a slot per
+	 * bucket rather than a single snapshot.
+	 */
+	readonly quota: AiQuotaMeter = new AiQuotaMeter({
+		// Read through a closure, not captured: `clock` above is assignable and tests replace it
+		// after construction, so the meter must follow whichever clock this state currently holds.
+		clock: () => this.clock
+	});
 	private owner: CreationOwner | null = null;
 	/** In-flight session resolve, so concurrent saves share one call rather than racing. */
 	private ownerPromise: Promise<CreationOwner | null> | null = null;
@@ -340,6 +355,41 @@ export class PageArtifactState {
 
 	constructor(options: PageArtifactStateOptions) {
 		this.fileBaseSlug = options.fileBaseSlug;
+	}
+
+	/**
+	 * The server has said it will refuse the next page, and has not yet un-said it.
+	 *
+	 * Priced at the spec's own `variations`, because that is what `/api/generate` charges. Only ever
+	 * true while a reading is present and unexpired, so it un-latches when the window reopens rather
+	 * than when a request is next attempted. `null` — no reading — never blocks anything.
+	 *
+	 * It exists because the quota line and the button under it have to be reading the same number: a
+	 * panel saying the desk is full above a control that still submits is the same disagreement
+	 * between screen and server this whole feature was written to end.
+	 */
+	get pageQuotaExhausted(): boolean {
+		return this.quota.pictureExhausted(this.picturesPerPage);
+	}
+
+	/** How many pictures the page this surface would generate asks for. Overridden where it varies. */
+	protected get picturesPerPage(): number {
+		return 1;
+	}
+
+	/**
+	 * Release everything this state holds that outlives the screen.
+	 *
+	 * A quota reading arms a `ClockSeam` timer that fires up to a window later. That timer holds the
+	 * meter, the meter's clock closure holds this state, and this state holds the generated image
+	 * bytes — so a reader who makes a page on `/random` and navigates away keeps that page's bytes
+	 * alive until the window expires. `/describe` already tore its state down; the mode routes had
+	 * no unmount path at all, which is why this lives on the base class rather than on one subclass.
+	 *
+	 * Safe to call more than once, and safe to call having never recorded a quota.
+	 */
+	dispose(): void {
+		this.quota.dispose();
 	}
 
 	/** True once there is a generated page to download or save. */
@@ -472,6 +522,10 @@ export class PageArtifactState {
 	 */
 	protected async generatePage(source: PageSource): Promise<void> {
 		if (this.isGenerating) return;
+		// The guard as well as the control, because a surface can reach this without the button — a
+		// keyboard activation on a stale render, or a caller that forgot. Refusing here costs the
+		// reader nothing: the server has already said this request would be refused.
+		if (this.pageQuotaExhausted) return;
 		// Advance the token without clearing anything. Any earlier in-flight run is stale from here,
 		// but the page already on screen stays: it cost a paid generation, and until a replacement
 		// has actually arrived it is the best thing this class has. Calling `resetPage()` here meant
@@ -486,12 +540,26 @@ export class PageArtifactState {
 		const token = this.pageToken;
 		const isStale = (): boolean => token !== this.pageToken;
 		const recipe = source.recipe;
+		// Anchored at send, not at receipt: this route routinely runs for minutes against a
+		// 60-second window, so a reset instant measured from the reply would sit far in the future
+		// for a bucket that had already refilled. See `AiQuotaMeter`'s invariants.
+		const requestedAtMs = this.clock.now();
 
 		try {
 			const payload = await postJson(
 				'/api/generate',
 				{ spec: recipe.spec, styleHint: recipe.styleHint },
-				{ timeoutMs: POST_JSON_TIMEOUTS_MS.generate }
+				{
+					timeoutMs: POST_JSON_TIMEOUTS_MS.generate,
+					// The single most valuable line in this change: every page-making surface in the
+					// app reaches `/api/generate` through this one method, so recording the image
+					// bucket here is what gives all thirteen of them a truthful meter at once. It is
+					// deliberately NOT guarded by `isStale()` — the reading describes this caller's
+					// bucket, which the server charged whatever the reader did next, so it stays
+					// true and useful even when the page it came with is abandoned.
+					onResponseHeaders: (headers) =>
+						this.quota.record(headers, requestedAtMs, 'image')
+				}
 			);
 			if (isStale()) return;
 			const parsed = GenerateResultSchema.safeParse(payload);

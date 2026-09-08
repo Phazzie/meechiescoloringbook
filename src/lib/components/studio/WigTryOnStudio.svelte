@@ -22,6 +22,7 @@ Info flow: User selects wig + uploads photo → callbacks fire → parent calls 
 </script>
 
 <script lang="ts">
+	import AiQuotaLine from '$lib/components/AiQuotaLine.svelte';
 	import WigCarousel from '$lib/components/WigCarousel.svelte';
 	import SelfieUpload from '$lib/components/SelfieUpload.svelte';
 	import type { Wig } from '$lib/seams/wig-catalog-seam/contract';
@@ -39,6 +40,7 @@ Info flow: User selects wig + uploads photo → callbacks fire → parent calls 
 		tryOnError,
 		isTryingOn,
 		canTryOn,
+		tryOnQuotaMessage,
 		isGenerating,
 		onWigSelect,
 		onSelfieUpload,
@@ -56,6 +58,13 @@ Info flow: User selects wig + uploads photo → callbacks fire → parent calls 
 		tryOnError: string;
 		isTryingOn: boolean;
 		canTryOn: boolean;
+		/**
+		 * The image bucket's allowance, worded for try-ons.
+		 *
+		 * A try-on spends the same eight units a minute that fund coloring pages, and nothing on this
+		 * panel said so — a reader who tried four wigs had spent half their page allowance on hair.
+		 */
+		tryOnQuotaMessage: string;
 		isGenerating: boolean;
 		onWigSelect: (_wig: Wig) => Promise<void>;
 		onSelfieUpload: (_base64: string, _mimeType: 'image/jpeg' | 'image/png' | 'image/webp') => void;
@@ -97,10 +106,16 @@ Info flow: User selects wig + uploads photo → callbacks fire → parent calls 
 					class="primary try-on-btn"
 					data-testid="home-try-on"
 					onclick={onWigTryOn}
+					aria-describedby={tryOnQuotaMessage ? 'try-on-budget' : undefined}
 					disabled={!canTryOn}
 				>
 					{isTryingOn ? 'AI is styling...' : `Try On — ${selectedWig.name}`}
 				</button>
+				<AiQuotaLine
+					message={tryOnQuotaMessage}
+					testId="home-try-on-quota"
+					id="try-on-budget"
+				/>
 				{#if tryOnError}
 					<p class="error" data-testid="home-try-on-error">{tryOnError}</p>
 				{/if}

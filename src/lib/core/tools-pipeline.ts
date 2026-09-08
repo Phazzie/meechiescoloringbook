@@ -2,6 +2,7 @@
 // Why: Keep route handlers transport-only while preserving safety and contract checks.
 // Info flow: Raw request body -> input validation + safety checks -> quota charge -> tool adapter -> contract response.
 import { meechieToolAdapter } from '$lib/adapters/meechie-tool-seam';
+import { MEECHIE_TOOL_QUOTA_COST } from './ai-quota';
 import { findDisallowedKeywords } from '$lib/core/constants';
 import { toPublicProviderError } from '$lib/core/public-provider-error';
 // Type-only: the gate itself is built by the route from its own RequestEvent, so core stays I/O free.
@@ -28,7 +29,6 @@ type ToolsPipelineDeps = {
 };
 
 /** Every Meechie tool answers through one provider chat completion, so every accepted request costs 1. */
-const MEECHIE_TOOL_QUOTA_COST = 1;
 
 const buildError = (
 	status: number,

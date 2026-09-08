@@ -1448,7 +1448,7 @@ test('the AI meter reports the server quota and refills rewrites on a new verdic
 	await expect(page.getByTestId('home-rewrites-left')).toContainText(
 		'3 rewrites left for this verdict'
 	);
-	await expect(page.getByTestId('home-ai-quota')).toContainText('7 AI calls left');
+	await expect(page.getByTestId('home-ai-quota')).toContainText('7 verdicts or rewrites left');
 
 	// Three rewrites spend the allowance, one each.
 	await page.getByRole('button', { name: 'Make Meaner' }).click();
@@ -1529,6 +1529,72 @@ test('every quota-gated button points at the meter that explains it', async ({ p
 
 	// The target has to exist, or every one of those references points at nothing.
 	await expect(page.locator('#ai-budget')).toHaveCount(1);
+
+	// The page button spends a DIFFERENT bucket, so it points at a different meter — and points at
+	// nothing at all until that bucket has actually reported, because a reference to an element the
+	// page has not rendered explains nothing to a screen reader.
+	await expect(page.getByTestId('home-create-page')).not.toHaveAttribute(
+		'aria-describedby',
+		'page-budget'
+	);
+	await expect(page.locator('#page-budget')).toHaveCount(0);
+});
+
+// The defect this whole change exists to remove: the studio's one quota line reported the `text`
+// bucket (20 a minute, verdicts and rewrites) and sat above a button that spends `image` (8 a
+// minute, coloring pages). Two independent windows, one number. This test states both, from two
+// stubbed responses that disagree — which they only can if the app reads them separately.
+test('each button reports the bucket it actually spends', async ({ page }) => {
+	await page.route('**/api/meechie-studio-text', async (route) => {
+		await route.fulfill({
+			headers: {
+				'RateLimit-Limit': '20',
+				'RateLimit-Remaining': '14',
+				'RateLimit-Reset': '45'
+			},
+			json: { ok: true, value: textOutput }
+		});
+	});
+	// A deliberately different bucket: 8 units, 3 left. If either line derived from the other, one
+	// of the two assertions below could not pass.
+	await page.route('**/api/generate', async (route) => {
+		await route.fulfill({
+			headers: {
+				'RateLimit-Limit': '8',
+				'RateLimit-Remaining': '3',
+				'RateLimit-Reset': '20'
+			},
+			json: generatedPage
+		});
+	});
+
+	await gotoHydrated(page, '/');
+
+	await page.getByTestId('home-evidence').fill('He said traffic made him late.');
+	await page.getByTestId('home-generate-verdict').click();
+	await expect(page.getByTestId('home-verdict-quote')).toBeVisible();
+
+	// The verdict call reported `text`. It says nothing about pages, and the page line stays silent
+	// rather than borrowing the number sitting right above it.
+	await expect(page.getByTestId('home-ai-quota')).toContainText(
+		'7 verdicts or rewrites left'
+	);
+	await expect(page.getByTestId('home-page-quota')).toHaveCount(0);
+
+	await page.getByTestId('home-create-page').click();
+	await expect(page.getByTestId('home-generated-image')).toBeVisible();
+
+	// Now both buckets have reported, and the two lines disagree — correctly.
+	await expect(page.getByTestId('home-ai-quota')).toContainText(
+		'7 verdicts or rewrites left'
+	);
+	await expect(page.getByTestId('home-page-quota')).toContainText('3 pages left');
+
+	// And the button now points at the meter that explains it.
+	await expect(page.getByTestId('home-create-page')).toHaveAttribute(
+		'aria-describedby',
+		'page-budget'
+	);
 });
 
 // --- The offline layer -------------------------------------------------------------------------

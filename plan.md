@@ -8,6 +8,116 @@ Info flow: User request -> execution specs -> implementation -> review evidence.
 
 Current active plan is listed first. Older dated entries remain below as historical context and are not active unless explicitly reselected.
 
+## Run 18 (2026-09-08) — Worst-feature routine: the AI budget meter reports the wrong bucket
+
+**Goal:** make the AI budget meter report the bucket the button under it actually spends, on every
+surface that spends one. Today it reports the `text` bucket on 2 surfaces and the `image` bucket —
+which funds every coloring page this app exists to make — on none.
+
+### The measurement (re-run this run on `main` at `b5119ea`, not inherited)
+
+Two buckets exist, with different limits and independent windows
+(`src/lib/seams/rate-limit-seam/validators.ts:6-8`):
+
+| Bucket | Limit / 60s | Endpoints | Surfaces that report it |
+|---|---|---|---|
+| `text` | 20 | `/api/meechie-studio-text`, `/api/tools`, `/api/chat-interpretation` | 2 |
+| `image` | **8** | `/api/generate`, `/api/image-generation`, `/api/wig-try-on` | **0** |
+
+Eight `postJson` call sites reach a billable endpoint. **Two pass `onResponseHeaders`; six discard
+every quota header the server sent.** All six endpoints publish `RateLimit-*` on every response,
+denials included (`rate-limit-route.ts:74-80`, `generate-pipeline.ts:259-274`).
+
+| Call site | Endpoint | Bucket | Reads headers |
+|---|---|---|---|
+| `src/routes/studio-state.svelte.ts:1852` | `/api/meechie-studio-text` | text | yes |
+| `src/lib/components/describe-page-state.svelte.ts:192` | `/api/chat-interpretation` | text | yes |
+| `src/lib/components/page-artifact-state.svelte.ts:491` | `/api/generate` | image | **no** |
+| `src/lib/components/verdict-page-state.svelte.ts:146` | `/api/tools` | text | **no** |
+| `src/lib/components/MeechieTools.svelte:356` | `/api/generate` | image | **no** |
+| `src/lib/components/MeechieTools.svelte:680` | `/api/tools` | text | **no** |
+| `src/routes/studio-state.svelte.ts:2039` | `/api/generate` | image | **no** |
+| `src/routes/studio-state.svelte.ts:2233` | `/api/wig-try-on` | image | **no** |
+
+**The defect this exposes is not "the meter is missing" — it is that the meter on screen describes a
+different bucket than the button beneath it spends.** The home studio's sentence is derived from the
+20-unit text bucket at 2 units per rewrite; the "make the page" button under it spends the 8-unit
+image bucket, which refills on its own independent window. Nothing on screen distinguishes them.
+
+A reader who exhausts the image bucket gets, on all thirteen page-making surfaces,
+`'Too many requests. Try again after the current window resets.'`
+(`rate-limit-guard.ts:246`) — no limit, no reset instant, no warning beforehand — while the very
+response carrying that sentence also carries `RateLimit-Limit: 8`, `RateLimit-Remaining: 0` and
+`Retry-After`, all discarded by the client.
+
+**Why it stayed broken:** the meter's machinery (`aiQuota` state, `setAiQuota`, a `cancelQuotaExpiry`
+`ClockSeam` timer) is copy-pasted between `studio-state.svelte.ts:1596-1604` and
+`describe-page-state.svelte.ts:149-156`. It spread by copying, so it stopped where copying stopped.
+
+**Seams:** none touched. No file under `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`,
+`src/lib/adapters/` or `src/lib/seams/` is modified, so no Cipher Gate entry is required. Verified
+before push with `git diff --name-only origin/main...HEAD` against those directories.
+
+### Exact file inventory
+
+| File | Action | What changes |
+|---|---|---|
+| `src/lib/core/ai-quota.ts` | [MODIFY] | `AiQuotaBucket`; `bucket` required on `AiQuotaSnapshot` and on `readAiQuota`; `MEECHIE_TOOL_QUOTA_COST` and `WIG_TRY_ON_QUOTA_COST` moved here; `IMAGE_UNITS_PER_PICTURE`; `describePictureQuota` (with `actionNoun`); `actionNounPlural`; unaffordable-vs-empty wording; `AiQuotaLedger` + `recordQuotaReading` + `supersedes` ordering; `MAX_EPOCH_MS` bound on the computed reset |
+| `src/lib/components/ai-quota-meter.svelte.ts` | [NEW] | `AiQuotaMeter`: one slot and one `ClockSeam` expiry timer per bucket, per-bucket sentences and gates, `disposed` state. Replaces the two copied implementations |
+| `src/lib/components/AiQuotaLine.svelte` | [NEW] | the one rendering of a quota sentence, with optional `id` for `aria-describedby` |
+| `src/lib/components/page-artifact-state.svelte.ts` | [MODIFY] | holds the meter; records the image bucket off `/api/generate` (reaches all thirteen page surfaces); `pageQuotaExhausted` + `picturesPerPage`; `dispose()` |
+| `src/lib/components/verdict-page-state.svelte.ts` | [MODIFY] | records the text bucket off `/api/tools`; `verdictQuotaExhausted`; guards `requestVerdict` |
+| `src/lib/components/describe-page-state.svelte.ts` | [MODIFY] | drops its private meter copy; `pageQuotaMessage`; `picturesPerPage` from `spec.variations`; gates `canMakePage` |
+| `src/routes/studio-state.svelte.ts` | [MODIFY] | drops its private meter copy; records image on `/api/generate` and `/api/wig-try-on`; `pageQuotaMessage`, `pageQuotaExhausted`, `tryOnQuotaMessage`, `tryOnQuotaExhausted`; gates the page and try-on controls; text line renamed "verdicts or rewrites" |
+| `src/lib/components/MeechieTools.svelte` | [MODIFY] | records both buckets; renders both lines; gates both buttons and both handlers |
+| `src/lib/components/MeechieModePage.svelte` | [MODIFY] | verdict quota line in both branches, priced at the tool cost; gates and `aria-describedby` on ask and retry; `onDestroy` disposal |
+| `src/routes/random/+page.svelte`, `src/routes/rate-his-excuse/+page.svelte`, `src/routes/who-fucked-up/+page.svelte` | [MODIFY] | the same four changes as `MeechieModePage` on each standalone verdict route |
+| `src/lib/components/VerdictPageStudio.svelte` | [MODIFY] | renders the image-bucket line; gates the generate button |
+| `src/lib/components/DescribePageStudio.svelte` | [MODIFY] | renders the image-bucket line beside "Make this page" |
+| `src/lib/components/studio/StudioPreviewPanel.svelte` | [MODIFY] | `pageQuotaMessage` / `pageQuotaExhausted` props; renders the line; gates Create Coloring Page |
+| `src/lib/components/studio/WigTryOnStudio.svelte` | [MODIFY] | `tryOnQuotaMessage` prop; renders the line; `aria-describedby` on Try On |
+| `src/routes/+page.svelte` | [MODIFY] | passes the four new props through to the two panels |
+| `src/lib/core/tools-pipeline.ts`, `src/lib/core/wig-try-on-pipeline.ts` | [MODIFY] | import their cost from `ai-quota.ts` instead of defining a local `const` |
+| `tests/unit/ai-quota-meter.test.ts` | [NEW] | bucket separation, picture pricing, reading order, expiry, disposal, silence |
+| `tests/unit/ai-quota.test.ts`, `tests/unit/describe-page-state.test.ts`, `tests/unit/verdict-page-state.test.ts`, `tests/unit/describe-page.test.ts`, `tests/unit/studio-state.test.ts` | [MODIFY] | required `bucket`; the wiring, gating and pricing cases; reset anchoring |
+| `tests/e2e/smoke.spec.ts` | [MODIFY] | `each button reports the bucket it actually spends`; the aria-convention case extended |
+| `CHANGELOG.md`, `DECISIONS.md`, `WORST_TO_BEST_LOG.md`, `plan.md` | [MODIFY] | user-visible changes, the tradeoffs, the run log, this plan |
+| `docs/evidence/2026-09-08/run18-*.txt` | [NEW] | per-head transcripts for lint, build, test, verify and e2e |
+
+**This inventory was corrected after the fact and says so.** It was written before the change and
+then went stale across five heads of review: it omitted `MeechieModePage.svelte`,
+`WigTryOnStudio.svelte`, the three standalone verdict routes and both pipeline files, and it listed
+`src/lib/components/studio/StudioInputPanel.svelte`, which is **not** in the diff at all. A Codex P1
+caught it against `AGENTS.md:48`. *A pre-change scope record that is not re-checked against
+`git diff --name-only` before the pull request is read is a record of an intention, not of a change
+— and the wrong half is the file that is listed and never touched, because nothing will ever fail to
+tell you.*
+
+**Anti-goals (do not touch):** no contract, probe, fixture, mock, adapter or seam file; do not change
+any bucket limit, window, or the server-side cost of any action; do not change what
+`/api/*` returns; do not rename existing `localStorage` keys or vault records.
+
+### Self-critique
+
+- **Riskiest assumption:** that the image cost is `spec.variations` and not a constant.
+  `generate-pipeline.ts:259` passes `imageRequest.variations` to `consumeQuota`, and
+  `variations` is 1..4, so a surface that hardcoded 1 would overstate the allowance for a
+  4-picture `/describe` request. The meter must price a page at the variations that page asks for.
+- **What could be wrong:** making `bucket` required on `readAiQuota` is a deliberate breaking change
+  to a core signature. It is the point — a snapshot that cannot say which bucket it describes is what
+  let one meter narrate the other — but it means every existing call site and test must be updated,
+  and the compiler, not my judgement, has to be what finds them.
+- **What must be proven:** that a text reading never renders as an image sentence and vice versa;
+  that the two windows expire independently; and that all 1800 existing tests still pass.
+- **Red proof:** mutate the bucket at a recording site and at the pricing constant, and confirm tests
+  fail before claiming they cover it.
+
+### Definition of done (literal)
+
+```sh
+npm run check && npm run lint && npm test && npm run build && npm run verify
+```
+
 ## Run 17 close-out (2026-09-08) — micro plan, PR for the merge record
 
 Required by `AGENTS.md` L108: a governance-only documentation change still needs a plan listing the
