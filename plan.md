@@ -25,7 +25,14 @@ future run should weigh.
 |---|---|---|
 | `WORST_TO_BEST_LOG.md` | [MODIFY] | one appended close-out section; no existing line edited |
 | `plan.md` | [MODIFY] | this micro plan, with Run 16's own plan retired below it |
-| `docs/evidence/2026-09-08/closeout-*.txt` | [NEW] | this head's lint, build, verify and test output — four added files, no existing artifact rewritten |
+| `docs/evidence/2026-09-08/closeout-lint.txt` | [NEW] | `npm run lint` transcript for this head, ending with its exit status |
+| `docs/evidence/2026-09-08/closeout-build.txt` | [NEW] | `npm run build` transcript for this head, ending with its exit status |
+| `docs/evidence/2026-09-08/closeout-verify.txt` | [NEW] | `npm run verify` transcript for this head, ending with its exit status |
+| `docs/evidence/2026-09-08/closeout-test.txt` | [NEW] | the chain's test output for this head, ending with its exit status |
+
+*(These four rows replaced a single `closeout-*.txt` glob after a review round: `AGENTS.md` L73-74
+requires exact paths and forbids blanket statements, and a glob leaves a later executor unable to
+tell whether a fifth matching file is in scope. **Exactly four files are in scope; no others.**)*
 
 **Anti-goals:** no file under `src/`, `tests/`, `contracts/`, `probes/`, `fixtures/`,
 `src/lib/mocks/`, `src/lib/seams/` or `static/`. **No existing artifact under

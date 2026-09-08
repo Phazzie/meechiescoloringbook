@@ -4,9 +4,9 @@
 #      leaving the repository with evidence for the feature head e8d4488 and none for this one.
 # Info flow: `npm run lint` -> this transcript -> the exit status recorded on the last line.
 # Invariants: The final line records the OUTER command's exit status. Without it this transcript
-#      is identical whether the chain passed or failed after the tests, which is the second
-#      finding this file exists to answer. Sibling artifacts without the `closeout-` prefix
-#      describe the merged feature head and are deliberately not rewritten from this branch.
+#      is identical whether the chain passed or failed after the tests, which is a second finding
+#      this file exists to answer. Sibling artifacts without the `closeout-` prefix describe the
+#      merged feature head e8d4488 and are deliberately not rewritten from this branch.
 # --- npm run lint ---
 
 > meechies-coloringbook@0.1.0 lint

@@ -12731,10 +12731,15 @@ separate the categories.
 **"Stale" and "historical" look identical from outside, and only one of them is a defect.** An
 evidence file whose value is that it is old has to say so.
 
-### The close-out's own review round, recorded because it found two real things
+### The close-out's own review rounds, recorded because they found ten real things
 
 This entry was pushed as PR #334 and reviewed by Codex, which had been rate-limited during the whole
-of PR #333 and so was seeing the run for the first time. **Two rounds, four findings, all valid.**
+of PR #333 and so was seeing the run for the first time. **Four rounds, ten findings, all valid** —
+two in round one, two in round two, three in round three, and three in round four, which found this
+very sentence still reading "two rounds, four findings" after rounds three and four had been written
+below it. That is the fourth consecutive instance of the same defect, and by now the most reliable
+finding in this run: **a summary that is not updated with the body it summarises becomes a false
+claim the moment the body grows.**
 
 - **P1 — the close-out could be pushed without validating its own head.** Its definition of done
   stopped at `check`, `lint`, `test`, and its anti-goal said "no evidence regeneration". `AGENTS.md`
@@ -12791,7 +12796,20 @@ Round three, on the head that fixed round two — three more, all valid:
   read literally by whoever comes next, so that contradiction could have got the required files
   deleted. Narrowed to forbid *overwriting* the feature's artifacts.
 
-**The pattern across all three rounds, which is the thing worth carrying forward:** every one of
+Round four — three more, and the first is a factual error in this file rather than a process one:
+
+- **P1 — the carried-forward header item was simply wrong.** It said `test.txt` was the only headed
+  transcript in the directory and generalised that to the repository. `verify.txt` is headed too,
+  and repo-wide **179 of 439** evidence `.txt` files carry a header. I had checked six files and
+  reported an inventory. Narrowed to the four artifacts actually missing one, with the real pattern
+  named: the chain's scripts head the files they generate; hand-redirected files are not headed.
+- **P2 — the plan's file inventory used a glob.** `docs/evidence/2026-09-08/closeout-*.txt` where
+  `AGENTS.md` L73-74 requires exact paths and forbids blanket statements, so a later executor could
+  not tell whether a fifth matching file was in scope. Replaced with the four concrete paths.
+- **P3 — the section heading and totals were stale.** "Two rounds, four findings" still stood above
+  rounds three and four. Corrected, and the correction is now the entry's own example of the defect.
+
+**The pattern across all four rounds, which is the thing worth carrying forward:** every one of
 these was an edit that was right in the text it added and wrong in what it left standing — a section
 placed by an anchor that matched seven times, a definition of done updated while its anti-goal kept
 the old rule, a claim of `exit=0` in prose with nothing in the file to back it. **An edit is not
@@ -12805,14 +12823,19 @@ edit landed where it was aimed.
 
 ### Carried forward for the next run
 
-- **Evidence `.txt` transcripts have no file headers, repo-wide.** `AGENTS.md` L78-80 requires one
-  on every file, and `test.txt` is the only transcript in `docs/evidence/2026-09-08/` that has one —
-  written by the verify chain's own script, not by a person. `verify-outer.txt`, `lint.txt`,
-  `build.txt` and `e2e.txt` have none. This run added headers to the four `closeout-*.txt` files it
-  created and deliberately did not rewrite six already-merged artifacts that `DECISIONS.md` cites by
-  path; closing the gap across the convention is a real change and wants its own pull request.
-  Note that the repository already carries a recorded ruling exempting evidence **JSON** from the
-  header convention, and no ruling either way for `.txt` — which is probably why this persisted.
+- **Four evidence transcripts have no file header:** `docs/evidence/2026-09-08/verify-outer.txt`,
+  `lint.txt`, `build.txt` and `e2e.txt`. `AGENTS.md` L78-80 requires one on every file. This run
+  added headers to the four `closeout-*.txt` files it created and deliberately did not rewrite those
+  four already-merged artifacts, which `DECISIONS.md` cites by exact path — a future run can add
+  headers to them without changing a byte of their content.
+
+  *An earlier draft of this item claimed `test.txt` was the only headed transcript in the directory
+  and generalised that to the repository. **That was false**, and a review round caught it:
+  `verify.txt` is headed too, and repo-wide **179 of 439** evidence `.txt` files carry a header. The
+  real pattern is narrower and more useful — the chain's own scripts write headers on the files they
+  generate (`test.txt`, `verify.txt`), and the files a person redirects by hand do not have them. I
+  had checked six files and reported a directory-wide, then repo-wide, inventory. Same error as this
+  run's `@page` regex probe: six cases checked, "every case" claimed.*
 - **`ChatInterpretationSeam` has zero consumers.** Re-measured this run and unchanged: a live,
   billable endpoint with a full pipeline and no UI anywhere in `src/`. Costs the reader nothing and
   the owner money and attack surface.
