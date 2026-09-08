@@ -162,11 +162,12 @@ export class AiQuotaMeter {
 	 * under a button that spends the 8-unit image bucket — is the defect this class was written to
 	 * end, and the separate slots are what make it impossible to write by accident.
 	 */
-	pictureMessage(picturesPerPage: number = 1): string {
+	pictureMessage(picturesPerPage: number = 1, actionNoun: string = 'page'): string {
 		return describePictureQuota(
 			this.ledger.image,
 			this.formatTime,
-			picturesPerPage
+			picturesPerPage,
+			actionNoun
 		);
 	}
 

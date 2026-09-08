@@ -11500,6 +11500,71 @@ Two things worth keeping:
 annotation endpoint gives the location, and the plugin gives the rule. Between them there is no need
 to guess, and Run 17 had already written down half of that.*
 
+### The second Codex round — eight findings, eight real, and one of my own replies was false
+
+Waiting for this review rather than merging on green checks was the single best decision of the run.
+
+| # | Finding | Outcome |
+|---|---|---|
+| 1 | Verdict meters omit `unitsPerAction`, so they divide by the studio's 2 instead of the tool's 1 | Fixed |
+| 2 | The verdict quota line sits in the `{#if !verdict}` branch and vanishes the moment a verdict lands | Fixed |
+| 3 | `requestVerdict` and the ask/retry buttons have no text-bucket gate | Fixed |
+| 4 | **The toolkit gates I said were fixed were never applied** | Fixed |
+| 5 | `pictureMessage` always says "page", so the try-on line read "7 pages left" | Fixed |
+| 6 | The try-on button has no `aria-describedby` to its new quota line | Fixed |
+| 7 | The reset instant is anchored to the client's send, but the charge happens later | Fixed, server-side |
+| 8 | "Meechie's desk is full" claimed for a bucket that has units, just not enough for *this* page | Fixed |
+
+**Finding 4 is the one that matters, and it is about me rather than the code.** My reply on the
+earlier `pictureExhausted` thread said the gate was wired into "the control **and** the handler" on
+all four surfaces, with a table. For the toolkit it was wired into neither. The edit was a Python
+script doing several replacements; it printed `changed` and I took that as confirmation. It was not:
+**`changed` meant at least one replacement matched.** The two `disabled=` anchors had been shifted
+out from under it by an `aria-describedby` line the same script had inserted moments earlier, so
+those two silently no-oped while the rest applied.
+
+*A batch edit that reports success reports the batch, not the item.* Every edit in this round is
+made through a helper that `sys.exit(1)`s on a missed anchor and prints one line per edit, so a miss
+is loud. **And a claim that something is fixed is a claim to verify with a grep, not with the exit
+status of the thing that was supposed to fix it.** The correction is posted on the original thread.
+
+**Finding 1 is the same defect as the feature, for a third time.** This run's entire subject is
+surfaces dividing by the wrong cost. Run 17 added `unitsPerAction` precisely so each surface could
+price its own action. I passed it on the toolkit and forgot it on the four verdict surfaces, so they
+reported **half** the verdicts a reader had — and called the desk full with one unit left, which is
+a whole verdict.
+
+**Finding 7 was real and needed a server-side answer.** `RateLimit-Reset` is a delta from the
+instant the quota was *charged*, and a client cannot know that instant — it knows when it sent the
+request and when the reply came back. On `/api/wig-try-on` the gap is one-sided and large:
+`runWigTryOnPipeline` does a catalog lookup **and an external wig-image fetch** before
+`consumeQuota`. Anchoring to the send instant therefore computes a reset that is *early* by all of
+that work, and early is the harmful direction — it invites a retry the server then refuses. Worse,
+it can make a concurrent reading look like a different window and be discarded by the ordering rule
+added one round earlier.
+
+The fix is additive and server-side: `decisionHeaders` now also emits **`RateLimit-Reset-At`**, the
+store's own absolute instant in epoch milliseconds, and `readAiQuota` prefers it when present and
+falls back to the delta when it is not. `src/lib/server/rate-limit-guard.ts` is not a seam artifact —
+it is not under `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`, `src/lib/adapters/` or
+`src/lib/seams/` — so this stays inside the routine's scope, and no seam contract changed.
+
+*Both anchors are wrong; they are wrong in opposite directions. Anchoring at receipt is late by the
+provider call, which for `/api/generate` is up to 230 seconds — the documented reason the code
+anchored at send in the first place. The answer was not to pick the better guess but to stop
+guessing.*
+
+**Finding 8 is a wording bug with a real contradiction behind it.** A bucket holding three units
+cannot fund a four-picture page, but it is not empty — and on the home studio it still pays for the
+one-unit wig try-on sitting enabled further down the same screen. Saying "Meechie's desk is full"
+there contradicts a control the reader can plainly still use. `describeAiQuota` now distinguishes
+"Not enough left for this page" from "the desk is full", on `remaining > 0`.
+
+**The local SonarJS sweep was re-run on this round's diff and caught two findings of my own before
+CI did** — `cognitive-complexity` at 16/15 in `handleMakePage`, caused by the guard I had just added
+(fixed by folding two early returns into one), and `no-identical-functions` from a header helper I
+had duplicated rather than reused. The remaining seven findings were re-confirmed pre-existing.
+
 ### Carried forward for the next run
 
 - **The packaged print PDF still bleeds to all four edges.** `output-packaging-seam/index.ts` scales

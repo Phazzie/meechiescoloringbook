@@ -136,11 +136,18 @@ export const readAiQuota = (
 	// return. Where both are present it is the one that was computed for the refusal.
 	const retryAfterSeconds = readCount(source, 'Retry-After');
 	const secondsUntilReset = retryAfterSeconds ?? resetSeconds;
+	// Preferred when the server sent it, because it needs no anchor at all. Every delta header is
+	// relative to the instant the quota was charged, which is server-side and unknowable here — the
+	// caller can only offer the instant it sent the request, and the charge happens later by however
+	// long the route's pre-charge work took. `/api/wig-try-on` fetches an external image first, so
+	// that gap is seconds rather than milliseconds. Falling back to the delta keeps every older
+	// response, and every test written against one, working unchanged.
+	const resetAtHeader = readCount(source, 'RateLimit-Reset-At');
 	return {
 		bucket: options.bucket,
 		limit,
 		remaining,
-		resetAtMs: nowMs + secondsUntilReset * 1_000,
+		resetAtMs: resetAtHeader ?? nowMs + secondsUntilReset * 1_000,
 		exhausted: options.exhausted === true || retryAfterSeconds !== null
 	};
 };
@@ -212,6 +219,14 @@ export const describeAiQuota = (
 	if (!snapshot) return '';
 	const left = aiActionsLeft(snapshot, action.unitsPerAction);
 	if (left === 0) {
+		// Two different states, and conflating them was a real defect: a bucket holding three units
+		// is NOT empty, it just cannot fund a four-unit page — and on the home studio that same
+		// bucket still pays for a one-unit wig try-on sitting enabled further down the screen.
+		// Saying "the desk is full" there contradicts a control the reader can plainly still use.
+		if (snapshot.remaining > 0) {
+			const noun = action.actionNoun ?? 'AI call';
+			return `Not enough left for this ${noun}. Ready again at ${formatQuotaResetTime(snapshot, formatTime)}.`;
+		}
 		return `Meechie's desk is full. Ready again at ${formatQuotaResetTime(snapshot, formatTime)}.`;
 	}
 	const singular = action.actionNoun ?? 'AI call';
@@ -235,11 +250,12 @@ export const describeAiQuota = (
 export const describePictureQuota = (
 	snapshot: AiQuotaSnapshot | null,
 	formatTime: (date: Date) => string,
-	picturesPerPage: number = 1
+	picturesPerPage: number = 1,
+	actionNoun: string = 'page'
 ): string =>
 	describeAiQuota(snapshot, formatTime, {
 		unitsPerAction: Math.max(1, picturesPerPage) * IMAGE_UNITS_PER_PICTURE,
-		actionNoun: 'page'
+		actionNoun
 	});
 
 /**

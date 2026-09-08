@@ -12,6 +12,7 @@ Info flow: Excuse input -> VerdictPageState.requestVerdict (rate_excuse) -> scor
 	import { onDestroy } from 'svelte';
 	import VerdictPageStudio from '$lib/components/VerdictPageStudio.svelte';
 	import AiQuotaLine from '$lib/components/AiQuotaLine.svelte';
+	import { MEECHIE_TOOL_QUOTA_COST } from '$lib/core/ai-quota';
 	import { VerdictPageState } from '$lib/components/verdict-page-state.svelte';
 
 	const studio = new VerdictPageState({ fileBaseSlug: 'rate-his-excuse' });
@@ -106,12 +107,17 @@ Info flow: Excuse input -> VerdictPageState.requestVerdict (rate_excuse) -> scor
 				class="cta"
 				data-testid="rate-submit"
 				onclick={() => void submit()}
-				disabled={studio.isWorking || !excuse.trim()}
+				disabled={studio.isWorking ||
+					!excuse.trim() ||
+					studio.verdictQuotaExhausted}
 			>
 				{studio.isWorking ? 'Court is reviewing...' : 'Let Meechie Hear It'}
 			</button>
 			<AiQuotaLine
-				message={studio.quota.textMessage({ actionNoun: 'verdict' })}
+				message={studio.quota.textMessage({
+					actionNoun: 'verdict',
+					unitsPerAction: MEECHIE_TOOL_QUOTA_COST
+				})}
 				testId="rate-verdict-quota"
 				id="verdict-budget"
 			/>
@@ -144,11 +150,21 @@ Info flow: Excuse input -> VerdictPageState.requestVerdict (rate_excuse) -> scor
 					class="ghost-btn"
 					data-testid="rate-again"
 					onclick={() => void submit()}
-					disabled={studio.isWorking || studio.isGenerating}
+					disabled={studio.isWorking ||
+						studio.isGenerating ||
+						studio.verdictQuotaExhausted}
 				>
 					{studio.isWorking ? 'Court is reviewing…' : 'Re-run the ruling'}
 				</button>
 			</div>
+			<AiQuotaLine
+				message={studio.quota.textMessage({
+					actionNoun: 'verdict',
+					unitsPerAction: MEECHIE_TOOL_QUOTA_COST
+				})}
+				testId="rate-verdict-quota-retry"
+				id="verdict-budget"
+			/>
 			{#if studio.error}
 				<p class="error" data-testid="rate-error">{studio.error}</p>
 			{/if}

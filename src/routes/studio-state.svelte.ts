@@ -840,7 +840,10 @@ export class StudioState {
 	);
 	/** What the image bucket has left, counted in try-ons rather than in pages. */
 	tryOnQuotaMessage = $derived(
-		this.quota.pictureMessage(WIG_TRY_ON_QUOTA_COST)
+		// Named "try-on", not "page". Both cost one unit of the same bucket, so the arithmetic
+		// matched either way — but the label would have told a reader under the Try On button how
+		// many *pages* they had left, which is a different action from the one that button spends.
+		this.quota.pictureMessage(WIG_TRY_ON_QUOTA_COST, 'try-on')
 	);
 	/** The image bucket also funds wig try-ons, so the try-on control answers to it too. */
 	tryOnQuotaExhausted = $derived(

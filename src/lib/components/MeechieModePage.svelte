@@ -15,6 +15,7 @@ Info flow: ModeConfig + reader's answers -> VerdictPageState.requestVerdict -> v
 	import { untrack, onDestroy } from 'svelte';
 	import VerdictPageStudio from '$lib/components/VerdictPageStudio.svelte';
 	import AiQuotaLine from '$lib/components/AiQuotaLine.svelte';
+	import { MEECHIE_TOOL_QUOTA_COST } from '$lib/core/ai-quota';
 	import { VerdictPageState } from '$lib/components/verdict-page-state.svelte';
 	import {
 		emptyModeFieldValues,
@@ -127,12 +128,15 @@ Info flow: ModeConfig + reader's answers -> VerdictPageState.requestVerdict -> v
 				class="cta"
 				data-testid="mode-submit"
 				onclick={() => void submit()}
-				disabled={studio.isWorking || !canSubmit}
+				disabled={studio.isWorking || !canSubmit || studio.verdictQuotaExhausted}
 			>
 				{studio.isWorking ? "She's reading it…" : config.button}
 			</button>
 			<AiQuotaLine
-				message={studio.quota.textMessage({ actionNoun: 'verdict' })}
+				message={studio.quota.textMessage({
+					actionNoun: 'verdict',
+					unitsPerAction: MEECHIE_TOOL_QUOTA_COST
+				})}
 				testId="mode-verdict-quota"
 				id="verdict-budget"
 			/>
@@ -161,11 +165,22 @@ Info flow: ModeConfig + reader's answers -> VerdictPageState.requestVerdict -> v
 					class="ghost-btn"
 					data-testid="mode-again"
 					onclick={() => void submit()}
-					disabled={studio.isWorking || studio.isGenerating || !canSubmit}
+					disabled={studio.isWorking ||
+						studio.isGenerating ||
+						!canSubmit ||
+						studio.verdictQuotaExhausted}
 				>
 					{studio.isWorking ? 'Reading it again…' : 'Ask her again'}
 				</button>
 			</div>
+			<AiQuotaLine
+				message={studio.quota.textMessage({
+					actionNoun: 'verdict',
+					unitsPerAction: MEECHIE_TOOL_QUOTA_COST
+				})}
+				testId="mode-verdict-quota-retry"
+				id="verdict-budget"
+			/>
 			{#if studio.error}
 				<p class="error" data-testid="mode-error">{studio.error}</p>
 			{/if}

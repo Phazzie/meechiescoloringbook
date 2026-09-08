@@ -128,17 +128,38 @@ describe('AiQuotaMeter picture pricing', () => {
 		expect(meter.pictureMessage(4)).toBe('1 page left before T+30s.');
 	});
 
-	// Six units cannot fund a page costing eight, and saying "0 pages" is the honest reading.
-	it('reports the desk full when the units cannot pay for one whole page', () => {
+	// Three units cannot fund a four-picture page — but the bucket is NOT empty, and saying so would
+	// contradict the one-unit wig try-on control still enabled further down the same screen.
+	it('separates a page it cannot afford from a bucket that is actually empty', () => {
 		const meter = meterWith(drivenClock());
 		meter.record(quotaHeaders(8, 3, 30), NOW, 'image');
 
 		expect(meter.pictureMessage(4)).toBe(
-			"Meechie's desk is full. Ready again at T+30s."
+			'Not enough left for this page. Ready again at T+30s.'
 		);
 		expect(meter.pictureExhausted(4)).toBe(true);
 		// The same reading, for the page the reader could actually afford.
+		expect(meter.pictureMessage(1)).toBe('3 pages left before T+30s.');
 		expect(meter.pictureExhausted(1)).toBe(false);
+	});
+
+	it('still says the desk is full when the bucket really is empty', () => {
+		const meter = meterWith(drivenClock());
+		meter.record(quotaHeaders(8, 0, 30), NOW, 'image');
+
+		expect(meter.pictureMessage(1)).toBe(
+			"Meechie's desk is full. Ready again at T+30s."
+		);
+	});
+
+	// The noun follows the action, not the bucket: a try-on and a page cost the same one unit, so
+	// the arithmetic is identical and only the label distinguishes them.
+	it('names the action the control actually spends', () => {
+		const meter = meterWith(drivenClock());
+		meter.record(quotaHeaders(8, 3, 30), NOW, 'image');
+
+		expect(meter.pictureMessage(1, 'try-on')).toBe('3 try-ons left before T+30s.');
+		expect(meter.pictureMessage(1)).toBe('3 pages left before T+30s.');
 	});
 });
 

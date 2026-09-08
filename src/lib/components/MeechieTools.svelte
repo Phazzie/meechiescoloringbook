@@ -336,7 +336,9 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 	};
 
 	const handleMakePage = async (): Promise<void> => {
-		if (!output || isGenerating) return;
+		// `pictureExhausted` is the gate as well as the control: this hub has its own handlers rather
+		// than `PageArtifactState`'s, so the guard there does not reach it.
+		if (!output || isGenerating || quota.pictureExhausted()) return;
 		// Advance the token without clearing anything. Any earlier in-flight run is stale from here,
 		// but the page already on screen stays: it cost a paid generation, and until a replacement
 		// has actually arrived it is the best thing this component has. Calling `resetPage()` here
@@ -662,6 +664,7 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 	};
 
 	const handleGenerate = async (): Promise<void> => {
+		if (quota.textExhausted(MEECHIE_TOOL_QUOTA_COST)) return;
 		// Only the stale error goes now. The verdict and the page it produced are what the reader is
 		// looking at, and they cost a paid generation: clearing them up front meant an empty required
 		// field, a timeout, a provider error or an off-contract response silently destroyed a page
@@ -841,7 +844,7 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 			})
 				? 'text-budget'
 				: undefined}
-			disabled={isWorking}
+			disabled={isWorking || quota.textExhausted(MEECHIE_TOOL_QUOTA_COST)}
 		>
 			{#if isWorking}
 				<span class="working-inner">
@@ -924,7 +927,7 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 				data-testid="meechie-tool-make-page"
 				on:click={handleMakePage}
 				aria-describedby={quota.pictureMessage() ? 'page-budget' : undefined}
-				disabled={isGenerating}
+				disabled={isGenerating || quota.pictureExhausted()}
 			>
 				{#if isGenerating}
 					<span class="working-inner">

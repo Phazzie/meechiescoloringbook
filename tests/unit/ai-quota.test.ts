@@ -140,3 +140,54 @@ describe('describeAiQuota', () => {
 		).toBe("Meechie's desk is full. Ready again at T+31s.");
 	});
 });
+
+// Every delta header is relative to the instant the quota was CHARGED, which is server-side. The
+// client only knows when it sent the request; on `/api/wig-try-on` the route fetches an external
+// image before charging, so anchoring the delta to the send instant computes a reset that is early
+// by all of that work — and early is the harmful direction, since it invites a refused retry.
+describe('readAiQuota reset anchoring', () => {
+	it('prefers the server absolute instant over the delta', () => {
+		const snapshot = readAiQuota(
+			headers({
+				'RateLimit-Limit': '8',
+				'RateLimit-Remaining': '5',
+				'RateLimit-Reset': '30',
+				'RateLimit-Reset-At': String(NOW + 42_000)
+			}),
+			NOW,
+			{ bucket: 'image' }
+		);
+
+		// Not NOW + 30_000: the server said when, so the client does not compute it.
+		expect(snapshot?.resetAtMs).toBe(NOW + 42_000);
+	});
+
+	it('falls back to the delta when the server sent no absolute instant', () => {
+		const snapshot = readAiQuota(
+			headers({
+				'RateLimit-Limit': '8',
+				'RateLimit-Remaining': '5',
+				'RateLimit-Reset': '30'
+			}),
+			NOW,
+			{ bucket: 'image' }
+		);
+
+		expect(snapshot?.resetAtMs).toBe(NOW + 30_000);
+	});
+
+	it('ignores an unusable absolute instant rather than trusting it', () => {
+		const snapshot = readAiQuota(
+			headers({
+				'RateLimit-Limit': '8',
+				'RateLimit-Remaining': '5',
+				'RateLimit-Reset': '30',
+				'RateLimit-Reset-At': 'soon'
+			}),
+			NOW,
+			{ bucket: 'image' }
+		);
+
+		expect(snapshot?.resetAtMs).toBe(NOW + 30_000);
+	});
+});

@@ -12,6 +12,7 @@ Info flow: Situation input -> VerdictPageState.requestVerdict (red_flag_or_run) 
 	import { onDestroy } from 'svelte';
 	import VerdictPageStudio from '$lib/components/VerdictPageStudio.svelte';
 	import AiQuotaLine from '$lib/components/AiQuotaLine.svelte';
+	import { MEECHIE_TOOL_QUOTA_COST } from '$lib/core/ai-quota';
 	import { VerdictPageState } from '$lib/components/verdict-page-state.svelte';
 
 	const studio = new VerdictPageState({ fileBaseSlug: 'who-fucked-up' });
@@ -77,12 +78,17 @@ Info flow: Situation input -> VerdictPageState.requestVerdict (red_flag_or_run) 
 				class="cta"
 				data-testid="who-submit"
 				onclick={submit}
-				disabled={studio.isWorking || !situation.trim()}
+				disabled={studio.isWorking ||
+					!situation.trim() ||
+					studio.verdictQuotaExhausted}
 			>
 				{studio.isWorking ? "She's reading it..." : "She's listening. Go."}
 			</button>
 			<AiQuotaLine
-				message={studio.quota.textMessage({ actionNoun: 'verdict' })}
+				message={studio.quota.textMessage({
+					actionNoun: 'verdict',
+					unitsPerAction: MEECHIE_TOOL_QUOTA_COST
+				})}
 				testId="who-verdict-quota"
 				id="verdict-budget"
 			/>
@@ -107,10 +113,20 @@ Info flow: Situation input -> VerdictPageState.requestVerdict (red_flag_or_run) 
 					class="ghost-btn"
 					data-testid="who-again"
 					onclick={submit}
-					disabled={studio.isWorking || studio.isGenerating}
+					disabled={studio.isWorking ||
+						studio.isGenerating ||
+						studio.verdictQuotaExhausted}
 				>
 					{studio.isWorking ? 'Reading it again…' : 'Ask her again'}
 				</button>
+			<AiQuotaLine
+				message={studio.quota.textMessage({
+					actionNoun: 'verdict',
+					unitsPerAction: MEECHIE_TOOL_QUOTA_COST
+				})}
+				testId="who-verdict-quota-retry"
+				id="verdict-budget"
+			/>
 			</div>
 			{#if studio.error}
 				<p class="error" data-testid="who-error">{studio.error}</p>

@@ -11,6 +11,7 @@ Info flow: Tap -> VerdictPageState.requestVerdict (random_meechie) -> saying -> 
 	import { onDestroy } from 'svelte';
 	import VerdictPageStudio from '$lib/components/VerdictPageStudio.svelte';
 	import AiQuotaLine from '$lib/components/AiQuotaLine.svelte';
+	import { MEECHIE_TOOL_QUOTA_COST } from '$lib/core/ai-quota';
 	import { VerdictPageState } from '$lib/components/verdict-page-state.svelte';
 
 	const studio = new VerdictPageState({ fileBaseSlug: 'random' });
@@ -57,11 +58,15 @@ Info flow: Tap -> VerdictPageState.requestVerdict (random_meechie) -> saying -> 
 				data-testid="random-tap"
 				onclick={() => void tap()}
 				aria-label="Get a Meechie saying"
+				disabled={studio.verdictQuotaExhausted}
 			>
 				Tap For Truth
 			</button>
 			<AiQuotaLine
-				message={studio.quota.textMessage({ actionNoun: 'verdict' })}
+				message={studio.quota.textMessage({
+					actionNoun: 'verdict',
+					unitsPerAction: MEECHIE_TOOL_QUOTA_COST
+				})}
 				testId="random-verdict-quota"
 				id="verdict-budget"
 			/>
@@ -87,10 +92,20 @@ Info flow: Tap -> VerdictPageState.requestVerdict (random_meechie) -> saying -> 
 					class="ghost-btn"
 					data-testid="random-another"
 					onclick={() => void tap()}
-					disabled={studio.isWorking || studio.isGenerating}
+					disabled={studio.isWorking ||
+						studio.isGenerating ||
+						studio.verdictQuotaExhausted}
 				>
 					{studio.isWorking ? 'Deciding…' : 'Another one'}
 				</button>
+			<AiQuotaLine
+				message={studio.quota.textMessage({
+					actionNoun: 'verdict',
+					unitsPerAction: MEECHIE_TOOL_QUOTA_COST
+				})}
+				testId="random-verdict-quota-retry"
+				id="verdict-budget"
+			/>
 			</div>
 			{#if studio.error}
 				<p class="error" data-testid="random-error">{studio.error}</p>

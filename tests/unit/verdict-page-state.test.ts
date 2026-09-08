@@ -26,6 +26,7 @@ import {
 	stubImageDecoder,
 	type FetchStub
 } from './support/page-artifact-harness';
+import { MEECHIE_TOOL_QUOTA_COST } from '../../src/lib/core/ai-quota';
 import { GenerateResultSchema } from '../../contracts/generate.contract';
 import { MeechieToolResultSchema } from '../../contracts/meechie-tool.contract';
 import type {
@@ -1040,20 +1041,21 @@ describe('copyVerdict', () => {
 	});
 });
 
+/** The header set the rate-limit guard emits, so a test cannot drift from the server. */
+const quotaHeaders = (
+	limit: number,
+	remaining: number,
+	resetSeconds: number
+): Record<string, string> => ({
+	'RateLimit-Limit': String(limit),
+	'RateLimit-Remaining': String(remaining),
+	'RateLimit-Reset': String(resetSeconds)
+});
+
 // The mode routes spend BOTH buckets — `/api/tools` for the verdict, `/api/generate` for the
 // picture — and reported neither. They are separate slots because they are separate windows: a
 // reader with verdicts left and no pages left needs to be told which one stopped them.
 describe('both buckets, on the surfaces that spend both', () => {
-	const quotaHeaders = (
-		limit: number,
-		remaining: number,
-		resetSeconds: number
-	): Record<string, string> => ({
-		'RateLimit-Limit': String(limit),
-		'RateLimit-Remaining': String(remaining),
-		'RateLimit-Reset': String(resetSeconds)
-	});
-
 	it('files the verdict call under text and the page call under image', async () => {
 		const state = await readyState();
 		routes.tools = async () =>
@@ -1091,5 +1093,77 @@ describe('both buckets, on the surfaces that spend both', () => {
 		// Twenty text units in hand, and still nothing claimed about pages. This is the exact
 		// substitution the old single-snapshot meter made.
 		expect(state.quota.pictureMessage()).toBe('');
+	});
+});
+
+// The verdict half spends `text` at ONE unit per `/api/tools` call. The meter's default is the
+// studio's two-unit rewrite cost, so an unpriced call reports half the verdicts the reader has —
+// and calls the desk full while another request would still be allowed.
+describe('the verdict control answers to the text bucket', () => {
+	it('prices a verdict at one unit, not at the studio rewrite cost', async () => {
+		const state = await readyState();
+		routes.tools = async () =>
+			jsonResponse(
+				{ ok: true, value: STRUCTURED_VERDICT },
+				{ headers: quotaHeaders(20, 12, 40) }
+			);
+
+		await state.requestVerdict(INPUT_FOR[STRUCTURED_VERDICT.toolId]);
+		await flush();
+
+		// Twelve units at one unit each is twelve verdicts. Priced at the studio's two it would
+		// report six.
+		expect(
+			state.quota.textMessage({
+				actionNoun: 'verdict',
+				unitsPerAction: MEECHIE_TOOL_QUOTA_COST
+			})
+		).toContain('12 verdicts left');
+	});
+
+	// One unit left is one verdict, not none. The default two-unit price would call this exhausted.
+	it('does not call the desk full while one verdict is still affordable', async () => {
+		const state = await readyState();
+		routes.tools = async () =>
+			jsonResponse(
+				{ ok: true, value: STRUCTURED_VERDICT },
+				{ headers: quotaHeaders(20, 1, 40) }
+			);
+
+		await state.requestVerdict(INPUT_FOR[STRUCTURED_VERDICT.toolId]);
+		await flush();
+
+		expect(state.verdictQuotaExhausted).toBe(false);
+	});
+
+	it('refuses a verdict the server has said it will refuse', async () => {
+		const state = await readyState();
+		routes.tools = async () =>
+			jsonResponse(
+				{
+					ok: false,
+					error: { code: 'RATE_LIMITED', message: 'Too many requests.' }
+				},
+				{
+					status: 429,
+					headers: { ...quotaHeaders(20, 0, 35), 'Retry-After': '35' }
+				}
+			);
+
+		await state.requestVerdict(INPUT_FOR[STRUCTURED_VERDICT.toolId]);
+		await flush();
+
+		expect(state.verdictQuotaExhausted).toBe(true);
+
+		// The handler, not just the button.
+		const before = fetchCalls.filter((url) => url === ENDPOINTS.tools).length;
+		await state.requestVerdict(INPUT_FOR[STRUCTURED_VERDICT.toolId]);
+		await flush();
+		expect(fetchCalls.filter((url) => url === ENDPOINTS.tools)).toHaveLength(before);
+	});
+
+	it('never blocks on a text quota the server has not reported', async () => {
+		const state = await readyState();
+		expect(state.verdictQuotaExhausted).toBe(false);
 	});
 });

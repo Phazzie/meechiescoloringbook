@@ -106,11 +106,16 @@ Info flow: User selects wig + uploads photo → callbacks fire → parent calls 
 					class="primary try-on-btn"
 					data-testid="home-try-on"
 					onclick={onWigTryOn}
+					aria-describedby={tryOnQuotaMessage ? 'try-on-budget' : undefined}
 					disabled={!canTryOn}
 				>
 					{isTryingOn ? 'AI is styling...' : `Try On — ${selectedWig.name}`}
 				</button>
-				<AiQuotaLine message={tryOnQuotaMessage} testId="home-try-on-quota" />
+				<AiQuotaLine
+					message={tryOnQuotaMessage}
+					testId="home-try-on-quota"
+					id="try-on-budget"
+				/>
 				{#if tryOnError}
 					<p class="error" data-testid="home-try-on-error">{tryOnError}</p>
 				{/if}

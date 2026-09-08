@@ -137,6 +137,15 @@ const decisionHeaders = (
 		'RateLimit-Limit': String(decision.limit),
 		'RateLimit-Remaining': String(decision.remaining),
 		'RateLimit-Reset': String(resetAfterSeconds),
+		// The store's own absolute reset instant, in epoch milliseconds, alongside the standard
+		// delta. The delta is relative to THIS moment — the moment the quota was charged — and a
+		// client cannot know when that was: it only knows when it sent the request and when the
+		// reply arrived, and the charge happens somewhere between. On `/api/wig-try-on` the gap is
+		// large and one-sided, because the pipeline does a catalog lookup and an external wig-image
+		// fetch before charging, so a client anchoring the delta to its own send instant computes a
+		// reset that is early by all of that work. Early is the harmful direction: it invites a
+		// retry the server then refuses. Sending the instant itself removes the guesswork.
+		'RateLimit-Reset-At': String(decision.resetAtMs),
 		...(includeRetryAfter
 			? { 'Retry-After': String(Math.max(1, resetAfterSeconds)) }
 			: {})
