@@ -13175,3 +13175,166 @@ promise. **The reviewer that helps a surface like this is the one that reads the
 - The unidentified SonarCloud issue from Runs 13/14/15.
 
 Do not inherit this entry's measurements. Re-measure.
+
+## Run 17 — merge close-out — 2026-09-08 — PR #335 merged as `36fc999`
+
+**Head merged:** `24b39a8` · **Base:** `main` at `7191656` · 3 commits, 40 files, +4614 / −811.
+Squash-merged.
+
+### Gate state at merge
+
+| Check | Conclusion |
+|---|---|
+| `verify` (push run and pull_request run) | success |
+| `SonarCloud Code Analysis` | **Quality Gate passed** — after failing the first head at 4.0% duplication |
+| `SonarCloud` | success |
+| `CodeQL` + `Analyze (javascript-typescript)` + `Analyze (actions)` | success |
+| `Rosentic - Conflict Detection` | success |
+| `Vercel` (commit **status**, not a check run) | success — "Deployment has completed" |
+| `CodeRabbit` (commit status) | success — "Review skipped: manual review required for this OSS repository" (under 10 stars) |
+| `Sourcery` | skipped — the diff exceeds its 150,000-character limit. A skip, not a failure |
+| `Codex` | **five findings**, four real |
+
+`mergeable_state` was `clean`. Both surfaces read at the moment of merging, per the rule that a
+deployment reports as a commit status. **No contract, probe, fixture, mock, adapter or seam file in
+the diff**, confirmed by `git diff --name-only origin/main...HEAD` against those directories rather
+than asserted — which is also why there is no Cipher Gate entry.
+
+Review threads: **5, four resolved.** The fifth was deliberately left open, and the merge comment
+says why: it is a real architectural question answered at length rather than a finding addressed,
+and `AGENTS.md` holds a merge for *a human reviewer's* unresolved changes-request, not a bot's.
+
+**One open Assumption named this seam and had to be argued rather than ticked.** The 2026-08-24
+entry lists `ChatInterpretationSeam` among five seams and reads Open. The rule allows "resolve it
+first, **or state why the change is safe without it**", and that statement is in the merge comment:
+its scope is live provider acceptance on a deployment, it predates this change, it already covers
+five merged surfaces calling the same endpoints, this pull request adds no new provider call, it
+cannot be resolved from a container with no key and no deploy access, and the new surface fails
+safely against exactly that uncertainty — every error code the endpoint can emit has a
+reader-facing sentence and a test, and a failure costs one quota unit rather than a generation. The
+other two open-looking Assumptions naming this seam were checked by parsing their `Status` fields
+and both read `closed`.
+
+### Where the findings came from, and what they cost
+
+**Ten entries below; nine distinct defects.** Entries 2 and 6 are the same defect, found
+independently about twenty minutes apart from opposite directions — which is the strongest evidence
+in this run that it was real, and the reason it is listed twice rather than merged away. Counted per
+finding rather than per round, because a single SonarCloud report and a single Codex review each
+carried several.
+
+| # | Found by | Finding | Outcome |
+|---|---|---|---|
+| 1 | **The repo's own test** | A new prerendered route must be added to `vercel.json` and to the header inventory | Fixed before the first push — `tests/unit/security-headers.test.ts` failed exactly as designed |
+| 2 | **My own adversarial re-read, while CI ran** | `interpretedFrom` assigned from the live box *after* the await | Fixed in `2cc74b5` |
+| 3 | **The same re-read** | `reset()` mid-flight let a stale interpretation land on an empty box | Fixed in `2cc74b5` |
+| 4 | **SonarCloud** | 4.0% duplication on new code — in the **tests**, not the source | Fixed in `2cc74b5` with a shared harness |
+| 5 | **Writing the fix for #9** | A reader typing "style: gothic" would fail their own generation at the assembly seam | Fixed in `24b39a8` — the sanitizer strips every colon |
+| 6 | **Codex P1** | Pin the source text before the await | Already fixed by #2 |
+| 7 | **Codex P1** | The style hint dropped the subject the reader asked for | Fixed in `24b39a8` |
+| 8 | **Codex P2** | The read-back put the footer line in the wrong place | Fixed in `24b39a8` |
+| 9 | **Codex P2** | The read-back button stayed live on an empty quota | Fixed in `24b39a8` |
+| 10 | **Codex P1** | Route through `chatInterpretationAdapter` | **Answered, not taken** — see below |
+
+Entry 4 was one report with two sites: 116 duplicated lines across the two unit-test files and 23 in
+the end-to-end spec, both answered by the same shared harness.
+
+**Three of the ten came from me checking my own work rather than from any reviewer** — entries 2, 3
+and 5 — and entry 5 is the one no reviewer raised at all: a reader typing "style: gothic" would have
+failed their own generation at the assembly seam, which surfaced only while writing the fix for
+entry 7.
+
+**Zero came from a human.**
+
+### The decision this run got wrong, and how it got wrong
+
+Finding #7 is the one worth carrying. The pull request shipped with a `DECISIONS.md` entry that read,
+in full confidence:
+
+> **the style hint is derived from the interpreted spec, not from the reader's sentence.** The
+> sentence is a *page* request … and putting it in `styleHint` hands the image model the words a
+> second time … Interpreting "with roses" into `illustrations` and `decorations` is precisely the
+> job the interpretation call already did.
+
+Every clause of that is true, and the conclusion is wrong. The interpretation call **cannot** do
+that job: `ColoringPageSpec` has no field that can hold "roses". `illustrations: 'simple'` is the
+whole of what survives, so the shipped example — *"A page that says … with roses around it"* —
+could not produce a page with roses on it. The reasoning had identified a real risk (words drawn
+twice), weighed it against a benefit it had not measured, and written the result up as settled.
+
+**A decision entry is not evidence.** Writing a tradeoff down in the format the repository asks for
+makes it look adjudicated, and the format has no slot for "I did not check whether the thing I am
+giving up is recoverable elsewhere". The check that would have caught it takes one minute: open
+`spec-validation-seam/contract.ts` and look for a field that could carry the discarded value.
+
+Both versions are now in `DECISIONS.md` — the original and the correction — because a decision log
+that quietly replaces a wrong entry teaches nobody anything.
+
+### The finding that only reading the consumer could produce
+
+Finding #8. `src/lib/adapters/prompt-assembly-seam/index.ts` L55 and L83-85 use `footerItem.label`
+as the **unnumbered second line directly under the headline**, and never read `footerItem.number` at
+all. The read-back rendered it last, after the list, numbered, and called it a footer.
+
+`check`, `lint`, **1,789 tests**, `build` and the whole `verify` chain passed on that. None of them
+reads a promise. And no test written from the read-back's own intent would have caught it either,
+because the intent, the type, the doc comment and the code all agreed with each other — and all four
+disagreed with the file that actually draws the page.
+
+**A preview is a claim about a consumer and can only be checked against that consumer.** The type
+now says so: `ReadBackLine.number` is `number | null`, and the nullability exists to make "the
+prompt does not print this number" expressible at all.
+
+### The finding declined, and why the decline is itself informative
+
+Finding #10 asked for `chatInterpretationAdapter` instead of `postJson`, citing `AGENTS.md`
+L110-116. It was declined on three grounds, in ascending order of force:
+
+1. The repository's own practice is unanimous — every client surface calling the app's own API uses
+   `postJson` plus the contract schema; none uses a client-side adapter. The adapters components do
+   use wrap browser capabilities, not HTTP to this app's own routes.
+2. "Extend the adapter" means changing `ChatInterpretationSeam`'s contract, which has no place for a
+   timeout or a response header — a do-not-auto-merge condition, and one the worst-feature routine
+   says to take on in full or not at all.
+3. **It contradicts finding #9 from the same review.** #9 asks the button to be gated on the
+   reported quota; the adapter discards the `RateLimit-*` headers that gating needs. The two cannot
+   both be satisfied as written.
+
+That third point is the transferable one: **two findings in one review can each be reasonable and be
+jointly unsatisfiable.** Implementing each on its own merits would have produced a surface reading a
+quota it cannot see. The resolution is not to pick the more senior-sounding finding but to name the
+constraint the pair exposes.
+
+### Carried forward for the next run
+
+- **`chatInterpretationAdapter` still has no callers, now by choice rather than by neglect.** Either
+  give it a timeout and header access through the full Seam-Driven Development workflow (a contract
+  change, so its own pull request and its own approval), **or** delete it. Do not leave it as a third
+  thing. This is the direct descendant of finding #10 and the right place to settle that argument.
+- **The provider is asked for a 1024x1024 square** while the page is portrait — and
+  `src/lib/adapters/image-generation-seam/index.ts` L86-91 **never sends `size` at all**, then
+  reports it back as `rawModelInfo.requestedSize` as though it had. Re-measured on this run's base.
+  **Blocked, not deferred:** no `XAI_API_KEY` here, xAI's image API has historically rejected `size`,
+  and sending an unsupported parameter would break every generation in a way no test in this
+  repository could detect. A run with a key should probe first; a run without one should not guess.
+- **`placedDpi` has no production consumer** — its only caller is `tests/unit/print-layout.test.ts`.
+  The download row says "Printable PDF · US Letter — ready to print" and says nothing about the
+  **135.5dpi** the shipped square lands at inside the 12mm safe box, nor the **180pt (2.5in)** of
+  blank paper the letterboxing leaves. Self-contained, inside `page-exports.ts`, needs no provider.
+- **The AI quota is reported on the home studio and `/describe` and nowhere else** — the three
+  standalone mode routes, `/m/<slug>` and `/meechie` spend the same bucket and say nothing about it.
+  `describeAiQuota` now takes the cost and the name of the action, so each can report its own.
+- **Whether the image model honours "without lettering any of these words"** in the new style hint
+  is untested — no key. It is one pure function and one call site; a run with a key should look at a
+  real generation before trusting it.
+- **The `chat` packaging variant has zero consumers**, with Run 14's reasoning.
+- **Mode persistence** — Run 12's pick, blocked on the seam rule for the sixth run running.
+- **Vault capacity is not knowable from outside the adapter**, leaving the orphaned-records gap in
+  `undoDelete`. Same seam workflow.
+- `MeechieToolOutput.quoteScore` and `modelMetadata`, from Run 11's list.
+- **Four evidence transcripts still have no file header:** `docs/evidence/2026-09-08/verify-outer.txt`,
+  `lint.txt`, `build.txt`, `e2e.txt`. Inherited from Run 16 unchanged; this run added its own with
+  headers and exit statuses rather than rewriting those.
+- The unidentified SonarCloud issue from Runs 13/14/15.
+
+Do not inherit this entry's measurements. Re-measure.

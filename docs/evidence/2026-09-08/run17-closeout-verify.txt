@@ -1,20 +1,28 @@
-# Purpose: Store the verify runner's check and test stage output.
-# Why: Keep this inner stage distinct from the outer verify chain and its separate artifacts.
-# Info flow: check/test output -> evidence file -> outer verify chain.
+# Purpose: outer transcript of the whole npm run verify chain for the Run 17 close-out head
+# Why: AGENTS.md L141-143 and L213-214 require the chain and the build to be run and their output committed before every push — including for a documentation-only change. Run 16's close-out was reviewed for skipping exactly this.
+# Info flow: command -> stdout/stderr captured verbatim below -> this transcript, ending with the command's own exit status.
+# Invariants: Distinctly named so it cannot overwrite the feature branch's run17-*.txt artifacts, which DECISIONS.md cites by exact path, nor Run 16's. This file cannot certify the tree that contains it: it is written before its own final bytes exist. What it certifies is the head it names below.
+# Command: npm run verify
+# Head: 36fc999+working tree (pre-commit)
+# Date: 2026-09-08
 
-$ node scripts/verify-runner.mjs
 
-$ npm run check
+> meechies-coloringbook@0.1.0 verify
+> npm run audit:gate && node scripts/chamber-lock.mjs && node scripts/verify-runner.mjs && node scripts/shaolin-lint.mjs && node scripts/assumption-alarm.mjs && node scripts/seam-ledger.mjs && node scripts/clan-chain.mjs && node scripts/proof-tape.mjs
+
+
+> meechies-coloringbook@0.1.0 audit:gate
+> npm audit --audit-level=high
+
+found 0 vulnerabilities
 
 > meechies-coloringbook@0.1.0 check
 > svelte-kit sync && svelte-check --tsconfig ./tsconfig.json
 
-Loading svelte-check in workspace: <REPO_ROOT>
+Loading svelte-check in workspace: /home/user/meechiescoloringbook
 Getting Svelte diagnostics...
 
 svelte-check found 0 errors and 0 warnings
-
-$ npm test -- --pool=forks --maxWorkers=1
 
 > meechies-coloringbook@0.1.0 test
 > vitest run --pool=forks --maxWorkers=1
@@ -54,3 +62,5 @@ Not implemented: HTMLCanvasElement's getContext() method: without installing the
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+
+exit=0
