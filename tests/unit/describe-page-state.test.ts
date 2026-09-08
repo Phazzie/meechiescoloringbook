@@ -7,11 +7,22 @@
 //      is invisible from the outside and gets a test that fails if it is removed.
 // Info flow: stubbed fetch + spied adapters + a driven ClockSeam -> DescribePageState methods ->
 //            state assertions.
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { creationStoreAdapter } from '../../src/lib/adapters/creation-store.adapter';
 import { outputPackagingAdapter } from '../../src/lib/adapters/output-packaging.adapter';
-import { sessionAdapter } from '../../src/lib/adapters/session.adapter';
 import { DescribePageState } from '../../src/lib/components/describe-page-state.svelte';
+// Shared with `verdict-page-state.test.ts`: both classes extend `PageArtifactState`, so both tests
+// need the same stubbed browser, the same provider fixtures and the same adapter spies.
+import {
+	defer,
+	flush,
+	generateValue,
+	jsonResponse,
+	usePageArtifactHarness,
+	stubFetchRoutes,
+	stubImageDecoder,
+	type FetchStub
+} from './support/page-artifact-harness';
 import { ChatInterpretationResultSchema } from '../../src/lib/seams/chat-interpretation-seam/contract';
 import { GenerateResultSchema } from '../../contracts/generate.contract';
 import { ColoringPageSpecSchema } from '../../contracts/spec-validation.contract';
@@ -54,35 +65,6 @@ const OTHER_INTERPRETED: ColoringPageSpec = ColoringPageSpecSchema.parse({
 	items: []
 });
 
-const IMAGE = {
-	id: 'img-1',
-	format: 'png' as const,
-	mimeType: 'image/png',
-	data: 'QUJD',
-	encoding: 'base64' as const
-};
-
-const generateValue = (overrides: Record<string, unknown> = {}) => ({
-	prompt: 'assembled prompt',
-	templateVersion: 'v1',
-	images: [IMAGE],
-	revisedPrompt: 'revised prompt',
-	violations: [],
-	recommendedFixes: [],
-	...overrides
-});
-
-const printFile = {
-	filename: 'print.pdf',
-	mimeType: 'application/pdf',
-	dataBase64: 'UFJJTlQ='
-};
-const shareFile = {
-	filename: 'square.pdf',
-	mimeType: 'application/pdf',
-	dataBase64: 'U0hBUkU='
-};
-
 const STORED_RECORD: CreationRecord = {
 	id: 'creation-1',
 	createdAtISO: '2026-09-08T00:00:00.000Z',
@@ -91,77 +73,20 @@ const STORED_RECORD: CreationRecord = {
 	owner: { kind: 'anonymous', sessionId: 'session-1' }
 };
 
-/** Resolve every already-queued microtask, and the promise chains they in turn queue. */
-const flush = async (): Promise<void> => {
-	for (let i = 0; i < 8; i += 1) await Promise.resolve();
-};
-
-type Deferred<T> = { promise: Promise<T>; resolve: (value: T) => void };
-const defer = <T>(): Deferred<T> => {
-	let resolve!: (value: T) => void;
-	const promise = new Promise<T>((res) => {
-		resolve = res;
-	});
-	return { promise, resolve };
-};
-
-const jsonResponse = (
-	body: unknown,
-	init: { status?: number; headers?: Record<string, string> } = {}
-): Response =>
-	new Response(JSON.stringify(body), {
-		status: init.status ?? 200,
-		headers: { 'Content-Type': 'application/json', ...(init.headers ?? {}) }
-	});
-
-type Routes = {
-	interpret?: () => Promise<Response>;
-	generate?: () => Promise<Response>;
-};
+/** The two endpoints this surface calls, named once so every case reads `routes.interpret`. */
+const ENDPOINTS = {
+	interpret: '/api/chat-interpretation',
+	generate: '/api/generate'
+} as const;
+type Routes = FetchStub<keyof typeof ENDPOINTS>['routes'];
 
 let routes: Routes;
 let fetchCalls: string[];
 
-/**
- * jsdom provides an `Image` constructor but never loads anything, so neither `onload` nor
- * `onerror` would ever fire and the real decode probe would hang forever.
- */
-const stubImageDecoder = (decides: (src: string) => boolean): void => {
-	vi.stubGlobal(
-		'Image',
-		class {
-			onload: (() => void) | null = null;
-			onerror: (() => void) | null = null;
-			naturalWidth = 0;
-			naturalHeight = 0;
-			set src(value: string) {
-				const decodable = decides(value);
-				queueMicrotask(() => {
-					if (decodable) {
-						this.naturalWidth = 1;
-						this.naturalHeight = 1;
-						this.onload?.();
-					} else {
-						this.onerror?.();
-					}
-				});
-			}
-		}
-	);
-};
-
 const stubFetch = (): void => {
-	fetchCalls = [];
-	vi.stubGlobal(
-		'fetch',
-		vi.fn(async (url: string) => {
-			fetchCalls.push(url);
-			if (url === '/api/chat-interpretation' && routes.interpret)
-				return routes.interpret();
-			if (url === '/api/generate' && routes.generate) return routes.generate();
-			throw new Error(`Unstubbed request to ${url}`);
-		})
-	);
+	const stub = stubFetchRoutes(ENDPOINTS);
+	routes = stub.routes;
+	fetchCalls = stub.calls;
 };
 
 const okInterpret =
@@ -229,30 +154,7 @@ const withPage = async (): Promise<DescribePageState> => {
 	return state;
 };
 
-beforeEach(() => {
-	routes = {};
-	stubFetch();
-	stubImageDecoder(() => true);
-	vi.spyOn(sessionAdapter, 'getSession').mockResolvedValue({
-		ok: true,
-		value: { sessionId: 'session-1' }
-	});
-	vi.spyOn(outputPackagingAdapter, 'package').mockImplementation(
-		async (input) =>
-			input.variants?.includes('square')
-				? { ok: true, value: { files: [shareFile] } }
-				: { ok: true, value: { files: [printFile] } }
-	);
-	vi.spyOn(creationStoreAdapter, 'saveCreation').mockResolvedValue({
-		ok: true,
-		value: STORED_RECORD
-	});
-});
-
-afterEach(() => {
-	vi.restoreAllMocks();
-	vi.unstubAllGlobals();
-});
+usePageArtifactHarness({ stubFetch, savedRecord: STORED_RECORD });
 
 describe('fixtures', () => {
 	it('the stubbed responses actually satisfy the real contracts', () => {
@@ -361,6 +263,60 @@ describe('asking for an interpretation', () => {
 		await state.interpret();
 		expect(state.interpretError).toContain('could not read');
 		expect(state.spec).toBeNull();
+	});
+
+	it('captions the read-back with the words that were sent, not the box on arrival', async () => {
+		// `message` is live and editable while the request is in flight. Reading it on *arrival*
+		// attributes the answer to whatever is in the box a few seconds later, which is exactly the
+		// drift `interpretedFrom` exists to stop.
+		const state = newState();
+		const gate = defer<Response>();
+		routes.interpret = () => gate.promise;
+		state.setMessage(A_MESSAGE);
+		const pending = state.interpret();
+		await flush();
+
+		state.setMessage('a completely different page, typed while she was reading');
+		gate.resolve(jsonResponse({ ok: true, value: { spec: INTERPRETED } }));
+		await pending;
+
+		expect(state.interpretedFrom).toBe(A_MESSAGE);
+	});
+
+	it('discards an interpretation the reader walked away from', async () => {
+		// `isInterpreting` stops two overlapping requests but not `reset()`. Without a token the
+		// answer lands a moment later on a box the reader has just emptied, captioned with nothing.
+		const state = newState();
+		const gate = defer<Response>();
+		routes.interpret = () => gate.promise;
+		state.setMessage(A_MESSAGE);
+		const pending = state.interpret();
+		await flush();
+
+		state.reset();
+		gate.resolve(jsonResponse({ ok: true, value: { spec: INTERPRETED } }));
+		await pending;
+
+		expect(state.spec).toBeNull();
+		expect(state.interpretedFrom).toBe('');
+		// The flag is still released, or the button stays disabled until a reload.
+		expect(state.isInterpreting).toBe(false);
+	});
+
+	it('does not report a failure the reader walked away from', async () => {
+		const state = newState();
+		const gate = defer<Response>();
+		routes.interpret = () => gate.promise.then(() => Promise.reject(new Error('boom')));
+		state.setMessage(A_MESSAGE);
+		const pending = state.interpret();
+		await flush();
+
+		state.reset();
+		gate.resolve(jsonResponse({}));
+		await pending;
+
+		expect(state.interpretError).toBe('');
+		expect(state.isInterpreting).toBe(false);
 	});
 
 	it('will not start a second interpretation while one is in flight', async () => {

@@ -9,6 +9,12 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
 
 ## 2026-09-08
 - Date: 2026-09-08
+- Context: `DescribePageState.interpretedFrom` exists to pin a read-back to the words that produced it, because the message box stays editable while the request is in flight. Its first implementation assigned `this.message.trim()` *after* the await.
+- Lesson: **A value is only pinned if it is read at the moment it is pinned.** The field, its name, its doc comment and its invariant all said "pinned"; the assignment read a live field seconds later, so a reader who typed during the request got a read-back captioned with words that were never sent — the exact drift the field was added to stop. Every test written from those comments passed, because they tested the intent rather than the timing.
+- Action: Capture into a local `const` before the first await, and never read the live field again in that method. To catch it, a test has to hold the request open and change the input in between — asserting the happy path cannot distinguish "pinned at send" from "read on arrival".
+
+## 2026-09-08
+- Date: 2026-09-08
 - Context: Three consecutive runs recorded `ChatInterpretationSeam` as "zero consumers" and carried it forward as a deletion candidate. It is a complete, tested, quota-metered feature — contract, mock, fixtures, probe, pipeline, live endpoint, browser adapter — with no user interface.
 - Lesson: **"No consumers" is a measurement, not a verdict.** The same number reads as dead weight or as an undelivered feature depending entirely on whether the thing behind it is worth reaching, and nothing in the measurement itself answers that. Carrying the measurement forward three times without ever asking the second question is how a finished feature stays invisible for the life of an app.
 - Action: When an inventory finds something unreferenced, record what it *does* alongside the count. Here the answer was that it is the only path by which this app can be told what to put on a page, which made a front door obviously worth more than a deletion.

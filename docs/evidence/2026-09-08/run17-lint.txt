@@ -1,9 +1,9 @@
 # Purpose: eslint transcript for Run 17
 # Why: AGENTS.md L141-143 and L213-214 require the chain and the build to be run and their output committed before every push.
 # Info flow: command -> stdout/stderr captured verbatim below -> this transcript, ending with the command's own exit status.
-# Invariants: Written under a run-scoped name so it cannot overwrite Run 16's artifacts, which DECISIONS.md cites by exact path.
+# Invariants: Written under a run-scoped name so it cannot overwrite Run 16's artifacts, which DECISIONS.md cites by exact path. Regenerated on the head that answers the SonarCloud duplication gate.
 # Command: npm run lint
-# Head: 7191656 (working tree, pre-commit)
+# Head: 19ca634+working tree (pre-commit)
 # Date: 2026-09-08
 
 

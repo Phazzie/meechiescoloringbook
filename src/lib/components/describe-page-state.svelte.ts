@@ -65,6 +65,15 @@ export class DescribePageState extends PageArtifactState {
 	/** The last quota reading the server sent, or `null` before it has reported one. */
 	aiQuota = $state<AiQuotaSnapshot | null>(null);
 
+	/**
+	 * Cancellation token for an in-flight interpretation.
+	 *
+	 * Separate from `pageToken` on `PageArtifactState`, because the two lifecycles are cancelled by
+	 * different actions: `reset()` abandons an interpretation, while `resetPage()` abandons only
+	 * the page. One shared token would let a page reset silently discard an interpretation the
+	 * reader is still waiting for.
+	 */
+	private interpretToken = 0;
 	private cancelQuotaExpiry: (() => void) | null = null;
 	private readonly formatTime: (date: Date) => string;
 
@@ -144,10 +153,21 @@ export class DescribePageState extends PageArtifactState {
 		this.interpretError = '';
 		this.isInterpreting = true;
 		const requestStartedAtMs = this.clock.now();
+		// Pinned here, before the await, and never re-read afterwards. `message` is a live field the
+		// reader can edit while this is in flight, so captioning the read-back with `this.message`
+		// on *arrival* attributes the answer to whatever is in the box a few seconds later — which
+		// is the exact drift `interpretedFrom` exists to stop, reintroduced one line further down.
+		const asked = this.message.trim();
+		// Claim a fresh token so an abandoned request cannot install itself. `isInterpreting` alone
+		// stops two overlapping requests but not `reset()`: a reader who clears the surface while a
+		// request is in flight would otherwise watch that answer land on an empty box a moment later.
+		this.interpretToken += 1;
+		const token = this.interpretToken;
+		const isStale = (): boolean => token !== this.interpretToken;
 		try {
 			const payload = await postJson(
 				'/api/chat-interpretation',
-				{ message: this.message.trim() },
+				{ message: asked },
 				{
 					timeoutMs: POST_JSON_TIMEOUTS_MS.tools,
 					// Read on every response the route produces, refusals included, because a refusal
@@ -160,6 +180,10 @@ export class DescribePageState extends PageArtifactState {
 					}
 				}
 			);
+			// The quota reading above is deliberately *not* guarded by this: it describes this
+			// caller's bucket, which the server charged whatever the reader did next, so it stays
+			// true and useful. Everything below describes a request nobody is waiting for.
+			if (isStale()) return;
 			const parsed = ChatInterpretationResultSchema.safeParse(payload);
 			if (!parsed.success) {
 				this.interpretError =
@@ -174,13 +198,17 @@ export class DescribePageState extends PageArtifactState {
 			// page below was generated from the interpretation this one replaces.
 			this.resetPage();
 			this.spec = parsed.data.value.spec;
-			this.interpretedFrom = this.message.trim();
+			this.interpretedFrom = asked;
 		} catch (requestError) {
+			if (isStale()) return;
 			this.interpretError =
 				requestError instanceof Error
 					? requestError.message
 					: 'Network error. Try again.';
 		} finally {
+			// Released even for an abandoned request: `reset()` does not clear this flag, and the
+			// only request that could clear it is this one — leaving it set would disable the button
+			// until a reload.
 			this.isInterpreting = false;
 		}
 	}
@@ -203,6 +231,9 @@ export class DescribePageState extends PageArtifactState {
 
 	/** Clear the box, the interpretation, and the page made from it. */
 	reset(): void {
+		// Bumping the token is the cancellation: an in-flight request cannot be recalled, but its
+		// answer is discarded on arrival instead of landing on a box the reader has just emptied.
+		this.interpretToken += 1;
 		this.message = '';
 		this.interpretError = '';
 		this.spec = null;

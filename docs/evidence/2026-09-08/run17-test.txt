@@ -1,9 +1,9 @@
 # Purpose: full vitest run for Run 17
 # Why: AGENTS.md L141-143 and L213-214 require the chain and the build to be run and their output committed before every push.
 # Info flow: command -> stdout/stderr captured verbatim below -> this transcript, ending with the command's own exit status.
-# Invariants: Written under a run-scoped name so it cannot overwrite Run 16's artifacts, which DECISIONS.md cites by exact path.
+# Invariants: Written under a run-scoped name so it cannot overwrite Run 16's artifacts, which DECISIONS.md cites by exact path. Regenerated on the head that answers the SonarCloud duplication gate.
 # Command: npm test
-# Head: 7191656 (working tree, pre-commit)
+# Head: 19ca634+working tree (pre-commit)
 # Date: 2026-09-08
 
 
@@ -41,9 +41,9 @@ Not implemented: HTMLCanvasElement's getContext() method: without installing the
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 
 [2m Test Files [22m [1m[32m106 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (107)[39m
-[2m      Tests [22m [1m[32m1786 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (1787)[39m
-[2m   Start at [22m 06:54:40
-[2m   Duration [22m 42.30s[2m (transform 5.29s, setup 1.20s, import 9.65s, tests 10.07s, environment 82.02s)[22m
+[2m      Tests [22m [1m[32m1789 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (1790)[39m
+[2m   Start at [22m 07:10:24
+[2m   Duration [22m 42.49s[2m (transform 5.54s, setup 1.17s, import 10.25s, tests 10.06s, environment 82.05s)[22m
 
 
 exit=0

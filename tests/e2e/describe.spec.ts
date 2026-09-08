@@ -7,12 +7,13 @@
 // Info flow: Playwright route stubs for /api/chat-interpretation and /api/generate -> UI
 //            interactions -> visible states.
 import { expect, test, type Page } from '@playwright/test';
+// The PNG and the route loader every page-making spec already shares. This file's own duplicate
+// copies of them measured as duplication on new code, which is the same gate that produced
+// `page-fixtures.ts` in the first place.
+import { PNG_1X1, openRoute } from './support/page-fixtures';
 
 test.setTimeout(120000);
 test.describe.configure({ mode: 'parallel' });
-
-const png1x1 =
-	'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=';
 
 const interpretedSpec = {
 	title: 'Things I Am Not Doing Again',
@@ -45,13 +46,7 @@ const generatedPage = {
 		prompt: 'Stub coloring page prompt.',
 		templateVersion: 'v2',
 		images: [
-			{
-				id: 'image-1',
-				format: 'png',
-				mimeType: 'image/png',
-				data: png1x1,
-				encoding: 'base64'
-			}
+			{ id: 'image-1', format: 'png', mimeType: 'image/png', data: PNG_1X1, encoding: 'base64' }
 		],
 		revisedPrompt: 'Stub revised prompt.',
 		modelMetadata: { provider: 'test', model: 'stub-image' },
@@ -79,10 +74,7 @@ const stubApis = async (
 };
 
 const gotoDescribe = async (page: Page): Promise<void> => {
-	await page.goto('/describe', { waitUntil: 'domcontentloaded' });
-	await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {
-		// Some asset pipelines keep a request open; hydration still completes.
-	});
+	await openRoute(page, '/describe');
 	await expect(page.getByTestId('describe-message')).toBeVisible();
 };
 
@@ -95,7 +87,7 @@ const readItBack = async (page: Page): Promise<void> => {
 
 test('the nav reaches the surface that had no front door', async ({ page }) => {
 	await stubApis(page);
-	await page.goto('/', { waitUntil: 'domcontentloaded' });
+	await openRoute(page, '/');
 	await page.getByRole('link', { name: 'Describe It' }).first().click();
 	await expect(page).toHaveURL(/\/describe$/);
 	await expect(page.getByTestId('describe-message')).toBeVisible();

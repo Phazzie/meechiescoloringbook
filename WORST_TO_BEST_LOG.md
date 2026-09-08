@@ -12934,8 +12934,13 @@ it. The alternative was copying ~300 lines, which is precisely the duplication t
 mode routes each missing something different, and which SonarCloud's duplication gate measures on
 new code.
 
-- **`tests/unit/verdict-page-state.test.ts` passes unmodified — all 50.** That was the plan's
-  definition of "a move rather than a redesign", stated before the extraction started.
+- **All 50 cases in `tests/unit/verdict-page-state.test.ts` passed unmodified, in commit
+  `19ca634`.** That was the plan's definition of "a move rather than a redesign", stated before the
+  extraction started. A later commit on this branch moves that file's stub scaffolding into a shared
+  harness (see the SonarCloud round below); **not one assertion, fixture value or case body
+  changed**. The unmodified run is the evidence and it stands at that commit — the claim is dated
+  rather than quietly dropped, because "passes unmodified" and "passed unmodified at the commit
+  where it mattered" are different statements and only the second is now true.
 - `PageSource.studioText` is nullable, and the nullability is load-bearing: a described page stores
   **none**. `MeechieStudioTextOutputSchema` requires a `verdict` string, the reader's own sentence
   is not one, and `warrantForRestoredVerdict` already exists to tell a vouched-for verdict from an
@@ -12986,7 +12991,7 @@ which is the mitigation available without a key.
 
 ### Red proofs, run because a green test proves nothing on its own
 
-Run 16's closing lesson was that a red proof must be checked for *how many* tests fail. Six
+Run 16's closing lesson was that a red proof must be checked for *how many* tests fail. Eight
 mutations, each reverted immediately:
 
 | Mutation | Tests that failed |
@@ -12997,8 +13002,34 @@ mutations, each reverted immediately:
 | `interpret()` clears the page up front | 1 |
 | `canMakePage` stops checking `isInterpreting` | 1 |
 | A verdict fabricated for a described page's vault record | 1 |
+| `interpretedFrom` read from the live box on arrival | 1 |
+| The interpretation staleness token removed | 2 |
 
 Each named the guard it removed. Nothing passed on a mutated build.
+
+### The defect this run found in its own diff, after the pull request was open
+
+The last two rows of that table are guards that **did not exist in the first push**, and the reason
+they exist now is worth recording: they came out of re-reading the diff adversarially while CI ran,
+not from a reviewer.
+
+`interpret()` captioned the read-back with `this.interpretedFrom = this.message.trim()` *after* the
+await. `message` is a live, editable field — the box is deliberately not locked or cleared while a
+request is in flight — so a reader who typed anything during those seconds got a read-back captioned
+with words that had never been sent. **That is the precise drift `interpretedFrom` was added to
+prevent, reintroduced one line below the comment explaining it.** The fix is to pin the message
+before the await and never read the field again.
+
+The same read found the second: `isInterpreting` blocks two overlapping requests but does not block
+`reset()`, so clearing the surface mid-flight let the answer land a moment later on an empty box,
+captioned with nothing. `interpretToken` — separate from `pageToken`, because the two lifecycles are
+cancelled by different actions — discards it on arrival.
+
+**The transferable part:** a field that exists to pin a value is only pinned if it is *read* at the
+moment it is pinned. Writing "pinned" in the doc comment and then assigning from a live field after
+an await produces a class whose comments describe a guard the code does not have — and every test
+written from those comments passes, because they test the intent rather than the timing. The test
+that caught it had to hold the request open and edit the box in between.
 
 ### Verification
 
@@ -13013,6 +13044,37 @@ vault in a real browser.
 looks for, so a bare `npx playwright test` fails with "Executable doesn't exist" for every test. The
 run used a throwaway config setting `launchOptions.executablePath` to the pre-installed binary, and
 deleted it before committing. `npx playwright install` is explicitly not the answer here.*
+
+### The SonarCloud round: the duplication gate caught the tests, not the source
+
+`SonarCloud Code Analysis` failed the first head: **4.0% duplication on new code against a 3%
+limit**, while the `SonarCloud` gate check beside it reported success — Run 16's "read the
+annotations, not the gate" holding again, one check over.
+
+The extraction had been chosen partly *to avoid* this gate, and on the source it worked:
+`page-artifact-state.svelte.ts` measured against `verdict-page-state.svelte.ts` shares **0**
+duplicated lines. The duplication was in the **tests** — 116 near-identical scaffolding lines
+between `describe-page-state.test.ts` and `verdict-page-state.test.ts` (`stubImageDecoder`,
+`stubFetch`, `defer`, `flush`, `jsonResponse`, the image and packaging fixtures, the adapter spies),
+plus 23 in the end-to-end spec.
+
+`tests/e2e/support/page-fixtures.ts` already exists in this repository, and its own file header
+records the same gate failing an earlier run at 5.5% for the same reason. The answer was the
+unit-test twin of it: `tests/unit/support/page-artifact-harness.ts`, imported by **both** files — so
+the fix removes the duplication rather than relocating it, and the two classes that extend one base
+now share one harness. The end-to-end spec was switched onto the `PNG_1X1` and `openRoute` already
+in `page-fixtures.ts`.
+
+Measured after: **75 duplicated lines, down from ~175.** What remains is an import list, a one-line
+type alias, and the `.cta` button rules every styled component in this app already restates — all
+below the detector's block threshold or pre-existing. The `.cta` block was deliberately **not**
+reformatted to break the line match: that would be fixing the metric rather than the property, which
+is exactly the failure Run 16's close-out named.
+
+**The finding worth carrying forward:** the duplication gate was the stated reason for choosing
+extraction over copying, and it still failed — because the reasoning was applied to the source and
+not to the tests written alongside it. New tests for a newly shared class are new code, and two
+tests of one base class need one harness for the same reason the class itself needed one.
 
 ### Carried forward for the next run
 
