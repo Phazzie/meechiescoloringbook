@@ -12773,8 +12773,32 @@ merged past all four, including a corrupted ledger. This log already carries an 
 *"Run 2, correction — six findings I merged past"*; the total cost of not writing that entry again
 was about twenty minutes of waiting.
 
-**The transferable lesson from this pair:** every gate this repository owns passed on a file with a
-section filed under the wrong run. Automated checks read code, and a log is not code — so the only
+Round three, on the head that fixed round two — three more, all valid:
+
+- **P1 — `closeout-verify.txt` never recorded the chain's exit status.** I captured stdout with
+  `npm run verify > file 2>&1` and echoed `exit=$?` to my own terminal, which is nowhere. The
+  committed transcript ends on canvas warnings and contains the string "exit" zero times, so it
+  reads identically whether the chain passed or failed after the tests — it could not substantiate
+  the claim the plan made about it. Each artifact now ends with the outer command's status.
+  **A transcript is not evidence of success unless success is written in it.**
+- **P2 — the new artifacts had no file header**, which `AGENTS.md` L78-80 requires of every file.
+  Added. Measured rather than assumed, and it narrows the finding: the feature's own
+  `verify-outer.txt`, `lint.txt`, `build.txt` and `e2e.txt` have no headers either, so this is a
+  pre-existing gap across the whole evidence convention. Fixed for the four files this branch adds;
+  rewriting six already-merged artifacts is not this pull request's business.
+- **P3 — the plan's anti-goal contradicted its own definition of done.** It said "no evidence
+  artifact is committed from this branch" while the section below committed four. An anti-goal is
+  read literally by whoever comes next, so that contradiction could have got the required files
+  deleted. Narrowed to forbid *overwriting* the feature's artifacts.
+
+**The pattern across all three rounds, which is the thing worth carrying forward:** every one of
+these was an edit that was right in the text it added and wrong in what it left standing — a section
+placed by an anchor that matched seven times, a definition of done updated while its anti-goal kept
+the old rule, a claim of `exit=0` in prose with nothing in the file to back it. **An edit is not
+finished when the new text is correct; it is finished when nothing left standing disagrees with it.**
+
+**The transferable lesson from the misfiled section:** every gate this repository owns passed on a
+file with a section filed under the wrong run. Automated checks read code, and a log is not code — so the only
 thing standing between a mis-anchored `sed`-style edit and a permanently wrong audit history is a
 reviewer who reads prose, or an author who re-reads the diff in place rather than trusting that the
 edit landed where it was aimed.

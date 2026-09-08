@@ -28,9 +28,19 @@ future run should weigh.
 | `docs/evidence/2026-09-08/closeout-*.txt` | [NEW] | this head's lint, build, verify and test output — four added files, no existing artifact rewritten |
 
 **Anti-goals:** no file under `src/`, `tests/`, `contracts/`, `probes/`, `fixtures/`,
-`src/lib/mocks/`, `src/lib/seams/` or `static/`. **No evidence artifact is committed from this
-branch** — `docs/evidence/2026-09-08/` describes the head that merged, and committing a rewrite of
-it would replace evidence for the feature with evidence for a Markdown append.
+`src/lib/mocks/`, `src/lib/seams/` or `static/`. **No existing artifact under
+`docs/evidence/2026-09-08/` is rewritten from this branch** — those describe the head that merged as
+`e8d4488`, `DECISIONS.md` cites them by exact path, and overwriting them would replace evidence for
+the feature with evidence for a Markdown append. Adding *new* `closeout-*.txt` artifacts for this
+head is required, not forbidden: see the definition of done.
+
+*(This sentence read "**no evidence artifact is committed from this branch**" until a third review
+round. That was flatly contradicted by the definition of done twenty lines below it, which commits
+four — and an anti-goal is exactly the kind of instruction a later executor obeys literally, so the
+contradiction could have got the required files deleted. It came from updating the definition of
+done and the note below without re-reading the constraint they invalidated: the same failure as the
+mis-anchored log edit in the round before, which is that an edit is not finished when the new text
+is right, only when nothing left standing disagrees with it.)*
 
 *(Corrected twice under review, and the second correction matters more than the first.*
 
