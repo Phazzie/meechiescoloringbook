@@ -28,6 +28,13 @@ review, and what a future run should pick up.
 | `docs/evidence/2026-09-08/run17-closeout-test.txt` | [NEW] | `npm test` transcript for this head, ending with its exit status |
 | `docs/evidence/2026-09-08/run17-closeout-verify.txt` | [NEW] | `npm run verify` transcript for this head, ending with its exit status |
 
+**Amended after the first push:** the SonarCloud comment on the merged head reported "3 New issues"
+beside its passing gate, so the close-out's carried-forward list was corrected in place — before
+this pull request merged — to replace the inherited "unidentified SonarCloud issue" item with what
+this run could actually establish: that `sonarcloud.io` is unreachable from this container's egress
+proxy, which is why three previous runs could not name those issues either, plus two concrete
+methods for a future run and a clearly-labelled list of local candidates. No other line changed.
+
 **Anti-goals — do not touch:**
 
 - No file under `src/`, `tests/`, `contracts/`, `probes/`, `fixtures/` or `vercel.json`. This change

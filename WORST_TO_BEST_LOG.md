@@ -13335,6 +13335,33 @@ constraint the pair exposes.
 - **Four evidence transcripts still have no file header:** `docs/evidence/2026-09-08/verify-outer.txt`,
   `lint.txt`, `build.txt`, `e2e.txt`. Inherited from Run 16 unchanged; this run added its own with
   headers and exit statuses rather than rewriting those.
-- The unidentified SonarCloud issue from Runs 13/14/15.
+- **The unidentified SonarCloud issue from Runs 13/14/15 — now identified as a *constraint*, not a
+  mystery.** The gate that passed this run's final head reported **"3 New issues"** alongside it, and
+  the merge went ahead on the gate. Read the annotations, not the gate: this repository's gate
+  passes with open issues, so "Quality Gate passed" has never meant "no findings".
+
+  **This run tried to read them and could not**, and the reason is worth recording because it is
+  almost certainly why three previous runs left the same item unresolved: **outbound network access
+  to `sonarcloud.io` is denied by this container's egress proxy** (`EGRESS_BLOCKED`; the proxy's own
+  status endpoint shows it rejecting arbitrary hosts, `fonts.googleapis.com` included). So
+  `GET /api/issues/search?componentKeys=…&pullRequest=…` — the one call that would name them — is
+  unreachable from here. The check run's `output.text` comes back empty, and check-run *annotations*
+  live behind a separate endpoint with no tool available in this session.
+
+  **What a future run should do**, in order of cost: read them from the SonarCloud dashboard link in
+  the `SonarCloud Code Analysis` check (a human can, in one click); or add
+  `eslint-plugin-sonarjs` to the repo so the same rule family runs locally in `npm run lint` and the
+  findings arrive before the push instead of after the merge. The second is a small, self-contained
+  change and would close this item permanently rather than for one run.
+
+  **Candidates measured locally, offered as candidates and not as the answer** — SonarJS's
+  `no-duplicate-string` fires at three occurrences, and the files this run added carry:
+  `'print'` (3x) and `'square'` (3x) in `src/lib/components/page-artifact-state.svelte.ts`, and
+  `'RateLimit-Limit'` / `'RateLimit-Remaining'` / `'RateLimit-Reset'` (6x each) in
+  `tests/unit/describe-page-state.test.ts`. The production pair is the more likely of the two to be
+  counted, and it arrived as *new* code only because the file is new — those literals sat
+  unflagged in `verdict-page-state.svelte.ts` for as long as it has existed, which is its own
+  lesson about what "new code" means to this gate. **None of this is confirmed**; do not fix it
+  blind, which is exactly the guessing this repository's workflow exists to prevent.
 
 Do not inherit this entry's measurements. Re-measure.
