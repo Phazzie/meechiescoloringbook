@@ -11613,6 +11613,40 @@ state and its generated image bytes for up to a window. The meter now carries a 
 and now the eight verdict controls. Each time I added the line and the gate and forgot the link
 between them, which is the same shape of half-finished work the feature itself is about.
 
+### The fourth Codex round — two findings, one of them about the plan file
+
+| # | Finding | Outcome |
+|---|---|---|
+| 1 | P1 — `plan.md`'s "Exact file inventory" does not match the diff | Fixed |
+| 2 | P2 — a reset delta can compute an instant outside `Date`'s range | Fixed |
+
+**Finding 1 is a governance defect and it is the most quietly embarrassing one in this run.**
+`AGENTS.md:48` requires a plan listing the exact file paths to be touched. Mine was written before
+the work and never re-checked: across five heads of review it had gone stale, omitting
+`MeechieModePage.svelte`, `WigTryOnStudio.svelte`, the three standalone verdict routes and both
+pipeline files — and **listing `src/lib/components/studio/StudioInputPanel.svelte`, which is not in
+the diff at all.**
+
+*A pre-change scope record that is never re-checked against `git diff --name-only` is a record of an
+intention, not of a change.* And the wrong half is the file that is **listed and never touched**,
+because nothing will ever fail to tell you: a missing entry might surface when someone looks for it,
+a phantom entry surfaces never. The inventory is now rewritten to match the diff exactly, with a
+note saying it was corrected after the fact and why — rather than quietly restated as though it had
+been right all along.
+
+**Finding 2 is a real availability bug reachable from a header.** `readCount` accepts any safe
+integer and `RateLimit-Reset` is multiplied by a thousand, so a large-but-legal value produces an
+instant outside what a `Date` can represent. That value fails in both directions at once: the
+sentence renders **"Ready again at Invalid Date"**, and `ClockSeam.scheduleAt` — whose
+`validateEpochMs` only requires a finite integer — re-arms on every 15-minute hop without ever
+reaching the instant. So an exhausted reading would hold its control disabled **for the lifetime of
+the mounted page**. `readAiQuota` now bounds the computed instant and returns `null` outside it,
+which is the same rule the rest of the module already follows: a value this code cannot use is
+reported as nothing rather than shown. Red proof: removing the bound fails 2.
+
+*Both findings landed on the head where the diff had stopped changing shape — which is when a review
+stops finding feature bugs and starts finding the things the feature was never asked about.*
+
 ### Carried forward for the next run
 
 - **The packaged print PDF still bleeds to all four edges.** `output-packaging-seam/index.ts` scales

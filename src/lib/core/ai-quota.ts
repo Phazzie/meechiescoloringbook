@@ -96,6 +96,18 @@ export type AiQuotaSnapshot = {
 	exhausted: boolean;
 };
 
+/**
+ * The largest instant a JavaScript `Date` can represent, in epoch milliseconds.
+ *
+ * A reading whose computed reset falls outside this is unusable in both directions at once:
+ * `new Date(...)` yields `Invalid Date`, so the sentence would read "Ready again at Invalid Date";
+ * and `ClockSeam.scheduleAt` accepts any finite integer, so its timer would re-arm on every hop and
+ * never reach the instant — leaving an exhausted reading, and the control it gates, stuck for the
+ * lifetime of the page. `RateLimit-Reset` is a whole number of seconds and gets multiplied by a
+ * thousand, so a header only has to be implausibly large, not malicious, to get there.
+ */
+const MAX_EPOCH_MS = 8_640_000_000_000_000;
+
 /** The only part of `Response.headers` this module needs, so tests need no `Response`. */
 export type QuotaHeaderSource = {
 	get: (name: string) => string | null;
@@ -144,11 +156,19 @@ export const readAiQuota = (
 	// skew cancels out. Its known cost is recorded in DECISIONS.md: the delta is relative to the
 	// instant the quota was CHARGED, and the caller can only anchor it to the instant it sent the
 	// request, so a route that does work before charging reports a reset that is early by that much.
+	const resetAtMs = nowMs + secondsUntilReset * 1_000;
+	// Same rule as every other reading here: a value this code cannot use is reported as `null`
+	// rather than shown. An unschedulable, unformattable instant is worse than no reading at all,
+	// because it would render a sentence containing "Invalid Date" and hold a control disabled
+	// against a bucket that had long since refilled.
+	if (!Number.isFinite(resetAtMs) || Math.abs(resetAtMs) > MAX_EPOCH_MS) {
+		return null;
+	}
 	return {
 		bucket: options.bucket,
 		limit,
 		remaining,
-		resetAtMs: nowMs + secondsUntilReset * 1_000,
+		resetAtMs,
 		exhausted: options.exhausted === true || retryAfterSeconds !== null
 	};
 };

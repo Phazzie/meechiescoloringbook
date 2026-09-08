@@ -62,16 +62,36 @@ before push with `git diff --name-only origin/main...HEAD` against those directo
 
 | File | Action | What changes |
 |---|---|---|
-| `src/lib/core/ai-quota.ts` | [MODIFY] | `AiQuotaBucket` type; `bucket` becomes a required field on `AiQuotaSnapshot` and a required argument to `readAiQuota`; `IMAGE_UNITS_PER_PICTURE`; `describePictureQuota`; `AiQuotaLedger` + pure `recordQuotaReading` |
-| `src/lib/components/ai-quota-meter.svelte.ts` | [NEW] | `AiQuotaMeter`: one runes holder for both buckets, per-bucket `ClockSeam` expiry, per-bucket sentences. Replaces the two copies |
-| `src/lib/components/AiQuotaLine.svelte` | [NEW] | the one rendering of a quota sentence |
-| `src/lib/components/page-artifact-state.svelte.ts` | [MODIFY] | holds an `AiQuotaMeter`; records the image bucket off `/api/generate` — this is what reaches all thirteen page surfaces |
-| `src/lib/components/verdict-page-state.svelte.ts` | [MODIFY] | records the text bucket off `/api/tools` into the inherited meter |
-| `src/lib/components/describe-page-state.svelte.ts` | [MODIFY] | drops its private copy; uses the inherited meter |
-| `src/routes/studio-state.svelte.ts` | [MODIFY] | drops its private copy; records image on `/api/generate` and `/api/wig-try-on` |
-| `src/lib/components/MeechieTools.svelte` | [MODIFY] | records both buckets; renders the line |
-| `src/lib/components/VerdictPageStudio.svelte`, `DescribePageStudio.svelte`, `studio/StudioInputPanel.svelte` | [MODIFY] | render `AiQuotaLine` |
-| `tests/unit/ai-quota.test.ts`, `tests/unit/ai-quota-meter.test.ts` | [NEW/MODIFY] | bucket separation, picture pricing, per-bucket expiry |
+| `src/lib/core/ai-quota.ts` | [MODIFY] | `AiQuotaBucket`; `bucket` required on `AiQuotaSnapshot` and on `readAiQuota`; `MEECHIE_TOOL_QUOTA_COST` and `WIG_TRY_ON_QUOTA_COST` moved here; `IMAGE_UNITS_PER_PICTURE`; `describePictureQuota` (with `actionNoun`); `actionNounPlural`; unaffordable-vs-empty wording; `AiQuotaLedger` + `recordQuotaReading` + `supersedes` ordering; `MAX_EPOCH_MS` bound on the computed reset |
+| `src/lib/components/ai-quota-meter.svelte.ts` | [NEW] | `AiQuotaMeter`: one slot and one `ClockSeam` expiry timer per bucket, per-bucket sentences and gates, `disposed` state. Replaces the two copied implementations |
+| `src/lib/components/AiQuotaLine.svelte` | [NEW] | the one rendering of a quota sentence, with optional `id` for `aria-describedby` |
+| `src/lib/components/page-artifact-state.svelte.ts` | [MODIFY] | holds the meter; records the image bucket off `/api/generate` (reaches all thirteen page surfaces); `pageQuotaExhausted` + `picturesPerPage`; `dispose()` |
+| `src/lib/components/verdict-page-state.svelte.ts` | [MODIFY] | records the text bucket off `/api/tools`; `verdictQuotaExhausted`; guards `requestVerdict` |
+| `src/lib/components/describe-page-state.svelte.ts` | [MODIFY] | drops its private meter copy; `pageQuotaMessage`; `picturesPerPage` from `spec.variations`; gates `canMakePage` |
+| `src/routes/studio-state.svelte.ts` | [MODIFY] | drops its private meter copy; records image on `/api/generate` and `/api/wig-try-on`; `pageQuotaMessage`, `pageQuotaExhausted`, `tryOnQuotaMessage`, `tryOnQuotaExhausted`; gates the page and try-on controls; text line renamed "verdicts or rewrites" |
+| `src/lib/components/MeechieTools.svelte` | [MODIFY] | records both buckets; renders both lines; gates both buttons and both handlers |
+| `src/lib/components/MeechieModePage.svelte` | [MODIFY] | verdict quota line in both branches, priced at the tool cost; gates and `aria-describedby` on ask and retry; `onDestroy` disposal |
+| `src/routes/random/+page.svelte`, `src/routes/rate-his-excuse/+page.svelte`, `src/routes/who-fucked-up/+page.svelte` | [MODIFY] | the same four changes as `MeechieModePage` on each standalone verdict route |
+| `src/lib/components/VerdictPageStudio.svelte` | [MODIFY] | renders the image-bucket line; gates the generate button |
+| `src/lib/components/DescribePageStudio.svelte` | [MODIFY] | renders the image-bucket line beside "Make this page" |
+| `src/lib/components/studio/StudioPreviewPanel.svelte` | [MODIFY] | `pageQuotaMessage` / `pageQuotaExhausted` props; renders the line; gates Create Coloring Page |
+| `src/lib/components/studio/WigTryOnStudio.svelte` | [MODIFY] | `tryOnQuotaMessage` prop; renders the line; `aria-describedby` on Try On |
+| `src/routes/+page.svelte` | [MODIFY] | passes the four new props through to the two panels |
+| `src/lib/core/tools-pipeline.ts`, `src/lib/core/wig-try-on-pipeline.ts` | [MODIFY] | import their cost from `ai-quota.ts` instead of defining a local `const` |
+| `tests/unit/ai-quota-meter.test.ts` | [NEW] | bucket separation, picture pricing, reading order, expiry, disposal, silence |
+| `tests/unit/ai-quota.test.ts`, `tests/unit/describe-page-state.test.ts`, `tests/unit/verdict-page-state.test.ts`, `tests/unit/describe-page.test.ts`, `tests/unit/studio-state.test.ts` | [MODIFY] | required `bucket`; the wiring, gating and pricing cases; reset anchoring |
+| `tests/e2e/smoke.spec.ts` | [MODIFY] | `each button reports the bucket it actually spends`; the aria-convention case extended |
+| `CHANGELOG.md`, `DECISIONS.md`, `WORST_TO_BEST_LOG.md`, `plan.md` | [MODIFY] | user-visible changes, the tradeoffs, the run log, this plan |
+| `docs/evidence/2026-09-08/run18-*.txt` | [NEW] | per-head transcripts for lint, build, test, verify and e2e |
+
+**This inventory was corrected after the fact and says so.** It was written before the change and
+then went stale across five heads of review: it omitted `MeechieModePage.svelte`,
+`WigTryOnStudio.svelte`, the three standalone verdict routes and both pipeline files, and it listed
+`src/lib/components/studio/StudioInputPanel.svelte`, which is **not** in the diff at all. A Codex P1
+caught it against `AGENTS.md:48`. *A pre-change scope record that is not re-checked against
+`git diff --name-only` before the pull request is read is a record of an intention, not of a change
+— and the wrong half is the file that is listed and never touched, because nothing will ever fail to
+tell you.*
 
 **Anti-goals (do not touch):** no contract, probe, fixture, mock, adapter or seam file; do not change
 any bucket limit, window, or the server-side cost of any action; do not change what

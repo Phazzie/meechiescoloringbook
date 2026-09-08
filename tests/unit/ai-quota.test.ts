@@ -194,3 +194,58 @@ describe('readAiQuota reset anchoring', () => {
 		expect(snapshot?.exhausted).toBe(true);
 	});
 });
+
+// `readCount` accepts any safe integer, and `RateLimit-Reset` is multiplied by a thousand — so a
+// header only has to be implausibly large, not malicious, to produce an instant outside what a
+// `Date` can represent. That value is unusable twice over: the sentence renders "Invalid Date", and
+// `ClockSeam.scheduleAt` re-arms on every hop without ever reaching it, so an exhausted reading
+// would hold its control disabled for the lifetime of the page.
+describe('readAiQuota schedulable range', () => {
+	const HUGE = String(Number.MAX_SAFE_INTEGER);
+
+	it('reports nothing for a delta that cannot be scheduled or formatted', () => {
+		expect(
+			readAiQuota(
+				headers({
+					'RateLimit-Limit': '8',
+					'RateLimit-Remaining': '0',
+					'RateLimit-Reset': HUGE
+				}),
+				NOW,
+				{ bucket: 'image' }
+			)
+		).toBeNull();
+	});
+
+	it('applies the same bound to Retry-After on a denial', () => {
+		expect(
+			readAiQuota(
+				headers({
+					'RateLimit-Limit': '8',
+					'RateLimit-Remaining': '0',
+					'RateLimit-Reset': '30',
+					'Retry-After': HUGE
+				}),
+				NOW,
+				{ bucket: 'image' }
+			)
+		).toBeNull();
+	});
+
+	// The bound must not reject an ordinary reading; the real window is sixty seconds.
+	it('accepts a delta a real window would produce', () => {
+		const snapshot = readAiQuota(
+			headers({
+				'RateLimit-Limit': '8',
+				'RateLimit-Remaining': '3',
+				'RateLimit-Reset': '60'
+			}),
+			NOW,
+			{ bucket: 'image' }
+		);
+
+		expect(snapshot?.resetAtMs).toBe(NOW + 60_000);
+		// And the instant it produces is one a Date can actually render.
+		expect(Number.isNaN(new Date(snapshot!.resetAtMs).getTime())).toBe(false);
+	});
+});
