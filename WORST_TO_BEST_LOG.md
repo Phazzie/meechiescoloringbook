@@ -13207,35 +13207,40 @@ and `AGENTS.md` holds a merge for *a human reviewer's* unresolved changes-reques
 **One open Assumption named this seam and had to be argued rather than ticked.** The 2026-08-24
 entry lists `ChatInterpretationSeam` among five seams and reads Open. The rule allows "resolve it
 first, **or state why the change is safe without it**", and that statement is in the merge comment:
-its scope is live provider acceptance on a deployment, it predates this change, it already covers
-five merged surfaces calling the same endpoints, it cannot be resolved from a container with no key
-and no deploy access, and the new surface fails safely against exactly that uncertainty — every
-error code the endpoint can emit has a reader-facing sentence and a test, and a failure costs one
-quota unit rather than a generation. The other two open-looking Assumptions naming this seam were
+**its residual open scope names a different endpoint.** Read in full at `DECISIONS.md:2791-2796`:
+its Statement — "grok-4.6 answers POST /v1/chat/completions with the request shape this app sends" —
+is recorded as **proven** by the authenticated 2026-08-25 provider capture, and the Status narrows
+what remains to *"Open only for the deployed full-payload path — resolve by probing POST
+`/api/meechie-studio-text` on a reachable deployment"*. `/describe` does not touch that endpoint, and
+the request shape it does use is the part already captured. The rest still holds: it predates this
+change, it cannot be resolved from a container with no key and no deploy access, and the new surface
+fails safely regardless — every error code the endpoint can emit has a reader-facing sentence and a
+test, and a failure costs one quota unit rather than a generation. The other two open-looking Assumptions naming this seam were
 checked by parsing their `Status` fields and both read `closed`.
 
-**A correction to that argument, made under review of this very entry.** An earlier draft of the
-sentence above also said "this pull request adds no new provider call", and a Codex P2 was right
-that this is false and load-bearing: `/describe` is the *first* interface through which a reader can
-cause `/api/chat-interpretation` to reach `providerAdapter.createChatCompletion` at all. The
-endpoint existing beforehand is not the same fact — that is the whole finding this run is about, and
-the claim contradicted it. **The conclusion survives on the other four grounds and is stronger
-without the false one:** the Assumption is about whether a deployed provider *accepts* the payload,
-which no interface change affects; the payload shape reaching the provider is unchanged, because it
-is the pipeline that builds it and the pipeline was not touched; and the surface is built so a
-refusal or an error is a sentence rather than a broken page.
+**Two corrections to that argument, both made under review of this very entry, and the second
+corrects the first.** The original draft justified the gate partly with "this pull request adds no
+new provider call". A Codex P2 was right that this is false and load-bearing: `/describe` is the
+*first* interface through which a reader can cause `/api/chat-interpretation` to reach
+`providerAdapter.createChatCompletion` at all, which is the whole finding this run is about. The
+replacement argued instead that the Assumption "is about whether a deployed provider accepts the
+payload" — truer, still imprecise, and a second Codex P2 caught it too: the Assumption's *proven*
+half already covers this request shape, and its *open* half names `/api/meechie-studio-text`. So the
+gate never applied to this endpoint at all, which is both simpler and stronger than either draft.
 
-*A gate decision recorded on a premise that is convenient and false is worse than one recorded on
-four true premises and a stated limit — because the false premise is the one a later reader will
-cite.*
+*Two rounds to state one scope correctly. A gate decision recorded on a convenient premise is worse
+than one recorded on a narrow true one — because the convenient premise is the one a later reader
+will cite, and the reviewer who reads the Assumption's actual text is the one who finds it.*
 
 ### Where the findings came from, and what they cost
 
-**Ten entries below; nine distinct defects.** Entries 2 and 6 are the same defect, found
+**Ten entries below; nine distinct findings, of which eight are defects.** Entries 2 and 6 are the same defect, found
 independently about twenty minutes apart from opposite directions — which is the strongest evidence
 in this run that it was real, and the reason it is listed twice rather than merged away. Counted per
 finding rather than per round, because a single SonarCloud report and a single Codex review each
-carried several.
+carried several. Entry 10 is counted as a finding and **not** as a defect: it is a declined
+architectural proposal, which is also what the gate section above means by "four of the five Codex
+findings were real".
 
 | # | Found by | Finding | Outcome |
 |---|---|---|---|
@@ -13325,9 +13330,16 @@ constraint the pair exposes.
   give it a timeout and header access through the full Seam-Driven Development workflow (a contract
   change, so its own pull request and its own approval), **or** delete it. Do not leave it as a third
   thing. This is the direct descendant of finding #10 and the right place to settle that argument.
-- **The provider is asked for a 1024x1024 square** while the page is portrait — and
-  `src/lib/adapters/image-generation-seam/index.ts` L86-91 **never sends `size` at all**, then
-  reports it back as `rawModelInfo.requestedSize` as though it had. Re-measured on this run's base.
+- **The app configures and records a 1024x1024 square that it never asks the provider for.** Stated
+  carefully, because an earlier draft of this bullet contradicted itself in consecutive clauses:
+  `image-generation-pipeline.ts:20` sets `DEFAULT_IMAGE_SIZE = '1024x1024'`, the seam contract
+  requires it and the validator validates it — but the HTTP body at
+  `src/lib/adapters/image-generation-seam/index.ts:86-91` is `{model, prompt, n, response_format}`
+  and **omits `size` entirely**, then the adapter reports it back as `rawModelInfo.requestedSize` as
+  though it had been sent. So xAI receives no square request; **only the provider's own default
+  decides the returned dimensions**, and the app records a number nobody asked for. A future run
+  probing "does the provider honour our size?" would be probing the wrong question — the first
+  question is what the provider returns when asked nothing. Re-measured on this run's base.
   **Blocked, not deferred:** no `XAI_API_KEY` here, xAI's image API has historically rejected `size`,
   and sending an unsupported parameter would break every generation in a way no test in this
   repository could detect. A run with a key should probe first; a run without one should not guess.
@@ -13364,27 +13376,51 @@ constraint the pair exposes.
   **`verdict-page-state.test.ts:931`**, not 1022. A future run following the inherited line number
   would land in a `copyVerdict` test and find nothing. *An inherited finding cited by line number
   has to be re-measured by whoever moves the lines.*
-- **PR #335's three new SonarCloud issues — a separate item, and a *constraint* rather than a
-  mystery.** The gate that passed this run's final head reported **"3 New issues"** alongside it, and
-  the merge went ahead on the gate. Read the annotations, not the gate: this repository's gate
-  passes with open issues, so "Quality Gate passed" has never meant "no findings".
+- **PR #335's three new SonarCloud issues — a separate item, now identified.** The gate that passed
+  this run's final head reported **"3 New issues"** alongside it, and the merge went ahead on the
+  gate. Read the annotations, not the gate: this repository's gate passes with open issues, so
+  "Quality Gate passed" has never meant "no findings".
 
-  **This run tried to read them and could not**, and the reason is worth recording: **outbound
-  network access to `sonarcloud.io` is denied by this container's egress proxy** (`EGRESS_BLOCKED`; the proxy's own
-  status endpoint shows it rejecting arbitrary hosts, `fonts.googleapis.com` included). So
-  `GET /api/issues/search?componentKeys=…&pullRequest=…` — the one call that would name them — is
-  unreachable from here. The check run's `output.text` comes back empty, and check-run *annotations*
-  live behind a separate endpoint with no tool available in this session.
+  *An earlier draft of this item stopped here and reported the issues as unreadable*, because
+  outbound access to `sonarcloud.io` is genuinely denied by this container's egress proxy
+  (`EGRESS_BLOCKED`; the proxy's own status endpoint shows it rejecting arbitrary hosts,
+  `fonts.googleapis.com` included), so
+  `GET /api/issues/search?componentKeys=…&pullRequest=…` is unreachable from here. That much is
+  true and stays recorded — it is a real constraint on one route.
 
-  **What a future run should do**, in order of cost: read them from the SonarCloud dashboard link in
-  the `SonarCloud Code Analysis` check (a human can, in one click); or add
-  `eslint-plugin-sonarjs` to the repo so the same rule family runs locally in `npm run lint` and the
-  findings arrive before the push instead of after the merge. The second is a small, self-contained
-  change and would close this item permanently rather than for one run.
+  **It was the wrong route, and the right one was already in this file.** A
+  Codex P2 pointed at lines 7655-7665 of this very log, where Run 1's sixth close-out wrote down the
+  working method: SonarCloud posts its findings as **annotations on its GitHub check run**, and
+  `api.github.com` *is* reachable from here. Asking the dashboard "which a human can read in one
+  click" was the wrong first suggestion for a routine that has no human in it.
 
-  Note what this does *not* explain: the item above was named without any of this, from the check
-  annotations of an earlier run. So the dashboard is not the only route, and "blocked" is a reason
-  this run could not read them rather than a reason nobody can.
+  Run this run, and it answered in a single unauthenticated call:
+
+  ```sh
+  curl -sS -H "Accept: application/vnd.github+json" \
+    "https://api.github.com/repos/Phazzie/meechiescoloringbook/check-runs/<id>/annotations"
+  ```
+
+  The `<id>` is the **`SonarCloud Code Analysis`** check run, not the one named `SonarCloud` — the
+  latter carries no annotations. Run 1 recorded that distinction too.
+
+  **The three issues on `24b39a8`, named at last:**
+
+  | Level | File:line | Rule |
+  |---|---|---|
+  | **failure** | `src/lib/components/page-artifact-state.svelte.ts:434` | Unexpected empty method `clearSourceStatus` |
+  | warning | `src/lib/core/describe-page.ts:365` | Use `export…from` to re-export `DESCRIBE_MAX_LINES` |
+  | warning | `tests/unit/support/page-artifact-harness.ts:79` | The empty object is useless (`init.headers ?? {}`) |
+
+  All three are in code this run added, all three are real, and all three are small. **Not fixed
+  here**, because this pull request is documentation-only and changing `src/` in it is the scope
+  drift this run has spent four review rounds arguing against — they are ideal quick-wins-routine
+  candidates, and they are now precise enough to fix without re-deriving anything.
+
+  **The candidates I guessed locally were all wrong.** I offered duplicated string literals
+  (`'print'`, `'square'`, `'RateLimit-*'`); not one of them appears above. That is the lesson worth
+  more than the three fixes: *a labelled guess is still a guess, and the measurement was one command
+  away, written down by an earlier run in the file I was appending to.*
 
   **Candidates measured locally, offered as candidates and not as the answer** — SonarJS's
   `no-duplicate-string` fires at three occurrences, and the files this run added carry:

@@ -3,7 +3,7 @@
 # Info flow: command -> stdout/stderr captured verbatim below -> this transcript, ending with the command's own exit status.
 # Invariants: Distinctly named so it cannot overwrite the feature branch's run17-*.txt artifacts, which DECISIONS.md cites by exact path, nor Run 16's. This file cannot certify the tree that contains it; it certifies the head named below. `npm run proof:tape` is re-run AFTER this file is closed, so the evidence inventory records this file's final byte count rather than its pre-exit-line one.
 # Command: npm run lint
-# Head: f11c8f5+working tree (pre-commit)
+# Head: 0b1d0a3+working tree (pre-commit)
 # Date: 2026-09-08
 
 

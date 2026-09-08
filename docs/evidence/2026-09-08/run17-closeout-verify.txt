@@ -3,7 +3,7 @@
 # Info flow: command -> stdout/stderr captured verbatim below -> this transcript, ending with the command's own exit status.
 # Invariants: Distinctly named so it cannot overwrite the feature branch's run17-*.txt artifacts, which DECISIONS.md cites by exact path, nor Run 16's. This file cannot certify the tree that contains it; it certifies the head named below. `npm run proof:tape` is re-run AFTER this file is closed, so the evidence inventory records this file's final byte count rather than its pre-exit-line one.
 # Command: npm run verify
-# Head: f11c8f5+working tree (pre-commit)
+# Head: 0b1d0a3+working tree (pre-commit)
 # Date: 2026-09-08
 
 
@@ -33,8 +33,8 @@ svelte-check found 0 errors and 0 warnings
 
 [2m Test Files [22m [1m[32m106 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (107)[39m
 [2m      Tests [22m [1m[32m1800 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (1801)[39m
-[2m   Start at [22m 07:56:12
-[2m   Duration [22m 81.52s[2m (transform 3.64s, setup 863ms, import 7.10s, tests 7.85s, environment 50.79s)[22m
+[2m   Start at [22m 08:12:35
+[2m   Duration [22m 74.16s[2m (transform 2.89s, setup 716ms, import 5.80s, tests 7.55s, environment 46.31s)[22m
 
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
