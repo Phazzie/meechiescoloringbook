@@ -12809,7 +12809,22 @@ Round four — three more, and the first is a factual error in this file rather 
 - **P3 — the section heading and totals were stale.** "Two rounds, four findings" still stood above
   rounds three and four. Corrected, and the correction is now the entry's own example of the defect.
 
-**The pattern across all four rounds, which is the thing worth carrying forward:** every one of
+Round five — one finding, and it is the one that ends the sequence rather than continuing it:
+
+- **A transcript was being asked to prove something no transcript can.** `closeout-verify.txt`
+  records a chain run, but the chain ran before this file's own final bytes existed, so it cannot
+  certify the tree that contains it. That is a property of self-description. The answer was not
+  another regeneration — regenerating forever never closes the loop — but to **state the limit in
+  the header and settle the substance outside the file**: `npm run verify` was run once more against
+  the fully committed tree, with all four artifacts at final content, and exited 0; the chain never
+  names these files and leaves them unmodified. Recorded in `plan.md` with the commands.
+- **This is where the review sequence terminates, and why.** Rounds one to four each found a real
+  defect. Round five found a limit of the artifact rather than a mistake in it — the point at which
+  further rounds would be reviewing the prose written to answer the previous round rather than the
+  work. A future run should note that the four earlier rounds were worth every minute and this one
+  was worth exactly one measurement.
+
+**The pattern across all four defect-finding rounds, which is the thing worth carrying forward:** every one of
 these was an edit that was right in the text it added and wrong in what it left standing — a section
 placed by an anchor that matched seven times, a definition of done updated while its anti-goal kept
 the old rule, a claim of `exit=0` in prose with nothing in the file to back it. **An edit is not

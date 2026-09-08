@@ -30,6 +30,21 @@ future run should weigh.
 | `docs/evidence/2026-09-08/closeout-verify.txt` | [NEW] | `npm run verify` transcript for this head, ending with its exit status |
 | `docs/evidence/2026-09-08/closeout-test.txt` | [NEW] | the chain's test output for this head, ending with its exit status |
 
+**Validated against the committed tree, not only against the tree the commands happened to see.**
+A transcript cannot contain the result of a run that read it in its finished state — a self-reference
+limit, not an omission — so after committing, `npm run verify` was run once more against the fully
+committed tree with all four `closeout-*.txt` files at their final content:
+
+```
+$ git status --porcelain     # clean: working tree == committed content
+$ npm run verify             # exit=0
+$ grep -i closeout <output>  # the chain never names these files
+$ git status --porcelain     # closeout-*.txt unmodified by the chain
+```
+
+So the chain passes on exactly what is committed, and it neither reads nor rewrites the artifacts
+that record it. Each file's header states this limit rather than claiming more than a transcript can.
+
 *(These four rows replaced a single `closeout-*.txt` glob after a review round: `AGENTS.md` L73-74
 requires exact paths and forbids blanket statements, and a glob leaves a later executor unable to
 tell whether a fifth matching file is in scope. **Exactly four files are in scope; no others.**)*
