@@ -1,4 +1,9 @@
-# npm run lint — Run 18 close-out, branch claude/great-bell-iex3wp
+# Purpose: npm run lint transcript for the Run 18 close-out.
+# Why: AGENTS.md's worst-feature routine requires lint before every push; this documentation-only head is still a push.
+# Info flow: command -> stdout/stderr captured verbatim below -> this transcript, ending with the command's own exit status.
+# Invariants: Documentation-only diff, so a lint result identical to the merged head is the expected outcome, not a coincidence.
+# Command: npm run lint
+# Head: 9f99bc3+working tree (pre-commit), base main at bd070e2
 # Date: 2026-09-08
 
 

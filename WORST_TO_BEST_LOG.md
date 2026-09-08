@@ -13939,6 +13939,18 @@ grep -n "readAiQuota\|setAiQuota" src/routes/studio-state.svelte.ts
 #   (no matches)
 ```
 
+The flags, in plain language, because this log is meant to be reproducible by someone who does not
+use them daily:
+
+- **`git worktree add`** checks the branch out into a *second* directory, so the real working copy is
+  untouched while the experiment runs. **`--detach`** means "do not claim the branch name" — without
+  it git refuses, because the branch is already checked out in the main directory.
+- **`--no-commit`** performs the merge but stops before recording it, leaving the result on disk to
+  inspect. **`--no-ff`** forbids the shortcut where git just moves the branch pointer forward, which
+  would produce no merged content to examine.
+- **`grep -n`** prints the line number beside each match, so "no output" means "no such call
+  anywhere in the file" rather than "matched something I did not look at".
+
 The call on `k1i146` is `main`'s original, which that branch never modified and this one rewrote, so
 a three-way merge takes this side; **no `readAiQuota` call survives in that file at all.** The check
 compares branch *contents* rather than merge *results*. Two further facts recorded against my own
@@ -13952,8 +13964,11 @@ merge rather than a dismissal.*
 
 ### Where the findings came from, and what they cost
 
-**Six review rounds. 21 findings, of which 20 were real defects.** One P1 (`ClockSeam` needs the full
+**Six review rounds. 20 findings, of which 19 were real defects.** One P1 (`ClockSeam` needs the full
 workflow) was answered and declined on the repository's own history; every other finding was fixed.
+The table below is the authority for that count, and it counts **findings raised in a review round**
+— nothing else. Local sweep hits are counted separately underneath, because a hit nobody reported is
+not a review finding and adding the two together is how "21/20" got written in the first place.
 
 | Round | Source | Findings | Notes |
 |---|---|---|---|
@@ -13964,9 +13979,20 @@ workflow) was answered and declined on the repository's own history; every other
 | 5 | Codex on `f634c46` | 2 | all real |
 | 6 | Codex on `1c531e3` | **0** | clean |
 
-**Zero came from a human. Three came from my own local SonarJS sweep** before CI saw them:
+**Zero came from a human.**
+
+Separately from the twenty above, the local SonarJS sweep produced **four hits across two heads**:
 `prefer-specific-assertions`, `no-redundant-optional`, `cognitive-complexity` at 16/15, and
-`no-identical-functions` — four, in fact, across two heads.
+`no-identical-functions`. **One of those four — `prefer-specific-assertions` — is round 2 in the
+table**, because SonarCloud reported it too; the sweep is simply how it was *identified*, the
+dashboard being unreachable. The other three were never reported by anything but the sweep, so they
+are **not** in the table. Total distinct defects found and fixed across the run: **19 from review
+rounds + 3 local-only = 22.**
+
+*An earlier draft of this entry said "21 findings, 20 real" and then "Three … four, in fact" in
+consecutive sentences. A Codex P2 on the close-out pull request caught both. An append-only audit
+record whose totals do not reconcile with its own table is worse than one with no totals: the number
+is what a later reader quotes, and they will not re-add the rows.*
 
 **Nine of the twenty were this run's own defect committed at a smaller scale.** The pull request's
 whole case was that the app recorded quota it never showed and showed numbers nothing was gated on.
@@ -14025,6 +14051,12 @@ npm install eslint-plugin-sonarjs@latest --no-save --prefix /tmp/sonarjs-probe
 # @typescript-eslint and svelte parsers, over `git diff --name-only origin/main...HEAD`
 ```
 
+Again in plain language: **`--no-save`** installs the package without adding it to `package.json`, so
+the repository's dependencies are unchanged and nothing about this probe can reach CI.
+**`--prefix /tmp/sonarjs-probe`** puts it in a scratch directory rather than the project's
+`node_modules`. **`git diff --name-only`** lists the paths that differ and nothing else — no
+patch text — which is what makes it a scope check rather than a diff to read.
+
 One line named the rule. Run it on **every head**, not once: it caught two regressions this run that
 were introduced *by the fixes for review findings*.
 
@@ -14032,6 +14064,40 @@ Classify each hit by testing whether its exact line text still exists on `origin
 eight of ten were confirmed pre-existing rather than eyeballed. And note the asymmetry: the local
 `recommended` set is a **superset** of this project's quality profile, so a local hit is a candidate,
 not a gate failure. Do not report one as a SonarCloud finding.
+
+### The close-out's own review round — five findings, five real
+
+The close-out pull request got its own Codex review, and every finding landed:
+
+| # | Finding | Outcome |
+|---|---|---|
+| 1 | The plan inventory uses wildcards and omits `test.txt` and `verify.txt` | Fixed |
+| 2 | "21 findings, 20 real" does not match a table summing to 20, and "Three … four, in fact" contradicts itself | Fixed |
+| 3 | The four new evidence transcripts have no file header | Fixed |
+| 4 | The outer verify transcript was inventoried while still being written | Fixed |
+| 5 | `--detach`, `--no-ff`, `--no-save`, `--name-only` and friends are never defined | Fixed |
+
+**Findings 1 and 3 are repeats of defects named in this very entry.** #1 is the *second* inventory
+defect in one run — the first listed a file the diff never touched, this one hid real files behind a
+glob — and #3 recreates the missing-transcript-header defect that the carried-forward list above
+tracks as inherited from Run 16. Both have one root: **each record was written from what I intended
+to do, rather than checked against what the commands actually produced.** That is precisely the
+failure the record exists to prevent, committed twice, by the person who had just written it down.
+
+**Finding 4 is worse than a repeat: it was already solved, in writing, in this repository.**
+`docs/evidence/README.md` step 4 states the rule — capture the outer transcript to a scratch path and
+move it in *after* the chain returns, accepting that it is deliberately absent from that chain's own
+inventory. And `plan.md` still carries Run 10's entry recording the identical mistake with its
+identical signature: *"redirecting the chain straight into the file makes the tape record a byte
+count 14 short — the missing `verify exit=0`."* Mine was 16 bytes short, for the same reason.
+
+*A convention documented in the repository, in the exact file the convention is about, in a plan
+entry that names the byte-count symptom — and I still wrote the transcript straight into the
+directory. Reading the rules of a routine is not the same as reading the rules for the artifact you
+are about to create, and the second one only happens if you look it up at the moment of creating it.*
+
+The corrected capture is verified rather than asserted: `proof-tape.json` on the committed head does
+**not** mention `run18-closeout-verify.txt`, and that absence is the proof the order was right.
 
 ### Carried forward for the next run
 

@@ -1,4 +1,9 @@
-# npm run verify — Run 18 close-out, branch claude/great-bell-iex3wp
+# Purpose: Outer `npm run verify` transcript for the Run 18 close-out.
+# Why: AGENTS.md's checklist requires the verify chain green with committed evidence. This is the OUTER transcript — the only artifact carrying the audit:gate result and the chain's own exit status.
+# Info flow: command -> stdout/stderr captured verbatim below -> this transcript, ending with the command's own exit status.
+# Invariants: Captured to a scratch path and moved into docs/evidence/ only AFTER the chain returned, per docs/evidence/README.md step 4 — a file cannot be inventoried while still being written. It is therefore deliberately ABSENT from this chain's own proof-tape.json inventory; that absence is correct, not an omission. An earlier close-out head wrote this file directly into the evidence folder, so proof-tape recorded it at 3834 bytes against a final 3850 — the 16 missing bytes being this file's own exit-status line.
+# Command: npm run verify
+# Head: 9f99bc3+working tree (pre-commit), base main at bd070e2
 # Date: 2026-09-08
 
 
@@ -28,8 +33,8 @@ svelte-check found 0 errors and 0 warnings
 
 [2m Test Files [22m [1m[32m107 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (108)[39m
 [2m      Tests [22m [1m[32m1840 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (1841)[39m
-[2m   Start at [22m 14:49:52
-[2m   Duration [22m 124.50s[2m (transform 4.93s, setup 1.28s, import 9.91s, tests 9.79s, environment 80.51s)[22m
+[2m   Start at [22m 15:05:48
+[2m   Duration [22m 127.98s[2m (transform 5.26s, setup 1.26s, import 10.58s, tests 10.20s, environment 82.46s)[22m
 
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
