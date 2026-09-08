@@ -1,0 +1,64 @@
+# Purpose: Committed proof that `npm test (via the verify chain)` passed on the Run 16 close-out head.
+# Why: AGENTS.md L141-143 requires the chain green *with committed evidence*. This file exists
+#      because a review round found the close-out running the gates and discarding the output,
+#      leaving the repository with evidence for the feature head e8d4488 and none for this one.
+# Info flow: `npm test (via the verify chain)` -> this transcript -> the exit status recorded on the last line.
+# Invariants and their limit, stated because a later round asked this file to prove more than any
+#      transcript can:
+#      1. The final line records the OUTER command's exit status. Without it this transcript reads
+#         identically whether the chain passed or failed after the tests.
+#      2. This proves the command passed on the tree AS IT STOOD WHEN THE COMMAND RAN, which
+#         necessarily excludes this file's own final bytes: a transcript cannot contain the result
+#         of a run that read it in its finished state. That is a property of self-description, not
+#         an omission. It is answered outside the file — `npm run verify` was additionally run
+#         against the fully committed tree, with every `closeout-*.txt` at its final content, and
+#         exited 0. The chain does not read these files: it never names them, and leaves all four
+#         unmodified. See plan.md and the PR thread.
+#      3. Sibling artifacts without the `closeout-` prefix describe the merged feature head
+#         e8d4488 and are deliberately not rewritten from this branch.
+# --- npm test (via the verify chain) ---
+# Purpose: Store npm test output for evidence.
+# Why: Provide an audit trail for Seam-Driven Development contract tests.
+# Info flow: Command output -> evidence file -> review.
+
+$ npm test -- --pool=forks --maxWorkers=1
+
+> meechies-coloringbook@0.1.0 test
+> vitest run --pool=forks --maxWorkers=1
+
+
+[1m[46m RUN [49m[22m [36mv4.1.0 [39m[90m/home/user/meechiescoloringbook[39m
+
+
+[2m Test Files [22m [1m[32m104 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (105)[39m
+[2m      Tests [22m [1m[32m1724 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (1725)[39m
+[2m   Start at [22m 02:46:06
+[2m   Duration [22m 84.22s[2m (transform 3.34s, setup 840ms, import 6.37s, tests 7.93s, environment 53.43s)[22m
+
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+# --- npm test (via the verify chain) exit status: 0 ---

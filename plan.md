@@ -8,6 +8,98 @@ Info flow: User request -> execution specs -> implementation -> review evidence.
 
 Current active plan is listed first. Older dated entries remain below as historical context and are not active unless explicitly reselected.
 
+## Run 16 close-out (2026-09-08) — micro plan, PR for the merge record
+
+Required by `AGENTS.md` L108: a governance-only documentation change still needs a plan listing the
+seams, files, commands, and how behaviour stays unchanged. Run 11's close-out recorded that PR #312
+opened without one and a review caught it; writing this first is the point of that finding existing.
+
+**Goal:** record the Run 16 merge close-out in the append-only log — the gate state at merge, where
+each finding came from, the two self-checks that were worth running and the one whose conclusion
+outran its evidence, the one reviewer instruction deliberately not followed, and the candidates a
+future run should weigh.
+
+**Seams:** none. No seam is named, read or changed.
+
+| File | Action | What changes |
+|---|---|---|
+| `WORST_TO_BEST_LOG.md` | [MODIFY] | one appended close-out section; no existing line edited |
+| `plan.md` | [MODIFY] | this micro plan, with Run 16's own plan retired below it |
+| `docs/evidence/2026-09-08/closeout-lint.txt` | [NEW] | `npm run lint` transcript for this head, ending with its exit status |
+| `docs/evidence/2026-09-08/closeout-build.txt` | [NEW] | `npm run build` transcript for this head, ending with its exit status |
+| `docs/evidence/2026-09-08/closeout-verify.txt` | [NEW] | `npm run verify` transcript for this head, ending with its exit status |
+| `docs/evidence/2026-09-08/closeout-test.txt` | [NEW] | the chain's test output for this head, ending with its exit status |
+
+**Validated against the committed tree, not only against the tree the commands happened to see.**
+A transcript cannot contain the result of a run that read it in its finished state — a self-reference
+limit, not an omission — so after committing, `npm run verify` was run once more against the fully
+committed tree with all four `closeout-*.txt` files at their final content:
+
+```
+$ git status --porcelain     # clean: working tree == committed content
+$ npm run verify             # exit=0
+$ grep -i closeout <output>  # the chain never names these files
+$ git status --porcelain     # closeout-*.txt unmodified by the chain
+```
+
+So the chain passes on exactly what is committed, and it neither reads nor rewrites the artifacts
+that record it. Each file's header states this limit rather than claiming more than a transcript can.
+
+*(These four rows replaced a single `closeout-*.txt` glob after a review round: `AGENTS.md` L73-74
+requires exact paths and forbids blanket statements, and a glob leaves a later executor unable to
+tell whether a fifth matching file is in scope. **Exactly four files are in scope; no others.**)*
+
+**Anti-goals:** no file under `src/`, `tests/`, `contracts/`, `probes/`, `fixtures/`,
+`src/lib/mocks/`, `src/lib/seams/` or `static/`. **No existing artifact under
+`docs/evidence/2026-09-08/` is rewritten from this branch** — those describe the head that merged as
+`e8d4488`, `DECISIONS.md` cites them by exact path, and overwriting them would replace evidence for
+the feature with evidence for a Markdown append. Adding *new* `closeout-*.txt` artifacts for this
+head is required, not forbidden: see the definition of done.
+
+*(This sentence read "**no evidence artifact is committed from this branch**" until a third review
+round. That was flatly contradicted by the definition of done twenty lines below it, which commits
+four — and an anti-goal is exactly the kind of instruction a later executor obeys literally, so the
+contradiction could have got the required files deleted. It came from updating the definition of
+done and the note below without re-reading the constraint they invalidated: the same failure as the
+mis-anchored log edit in the round before, which is that an edit is not finished when the new text
+is right, only when nothing left standing disagrees with it.)*
+
+*(Corrected twice under review, and the second correction matters more than the first.*
+
+*Round one: the anti-goal said "no evidence regeneration" and the definition of done stopped at
+check/lint/test, which a Codex P1 correctly read as letting this close-out be pushed without
+validating its own head — `AGENTS.md` L213-214 requires `npm run build` and the full `npm run verify`
+chain before **every** push. Two separable things had been collapsed: **running** the chain proves
+this head, **committing** its output overwrites the feature's record. Only the second was ever
+undesirable, so both commands were run and the artifacts discarded with `git checkout`.*
+
+*Round two: discarding them was still wrong. `AGENTS.md` L141-143 requires the chain to be green
+**with committed evidence**, and a run whose output is thrown away leaves the repository holding
+evidence for `e8d4488` and nothing for this head — prose in a plan is not committed evidence. The
+answer was never "run or commit"; it was **commit under distinct names**, which costs nothing and
+destroys nothing. `closeout-*.txt` carry this head's proof; the feature's artifacts keep the exact
+paths `DECISIONS.md` cites.)*
+
+**How behaviour stays unchanged:** the diff is prose. No import, export, route, contract, schema,
+constant or test is touched, so no runtime path can differ.
+
+**Self-critique:** the risk is that the close-out overstates what was proven. Guarded by naming the
+one probe whose conclusion outran its evidence (the `@page` regex sweep, which missed the comment
+case that turned out to be the live hole) rather than only the checks that worked.
+
+**Definition of done (literal):**
+`npm run check && npm run lint && npm test && npm run build && npm run verify`, with the outputs
+committed as `docs/evidence/2026-09-08/closeout-{lint,build,verify,test}.txt` and the feature's own
+artifacts restored untouched.
+
+| Artifact | Head it describes |
+|---|---|
+| `closeout-lint.txt`, `closeout-build.txt`, `closeout-verify.txt`, `closeout-test.txt` | **this** close-out head — all exit 0 |
+| `verify-outer.txt`, `test.txt`, `lint.txt`, `build.txt`, `e2e.txt`, and the chain's JSON/MD | the feature head merged as `e8d4488`, at the exact paths `DECISIONS.md` cites |
+| `print-margin-before.txt` | `main` at `e6c450b`, deliberately historical |
+
+---
+
 ## Run 16 (2026-09-08) — the packaged print download
 
 **Goal:** the file the whole app funnels into — the download labelled "Printable PDF · US Letter —

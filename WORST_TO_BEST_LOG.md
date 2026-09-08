@@ -12638,3 +12638,233 @@ Two kinds, and the difference is stated because a review round caught this entry
   deliberately **not** committed, since it describes this container and not the repo.
 
 Do not inherit this entry's measurements. Re-measure.
+
+---
+
+## Run 16 — merge close-out — 2026-09-08 — PR #333 merged as `e8d4488`
+
+**Head merged:** `d7d3212` · **Base:** `main` at `e6c450b` · 4 commits, 32 files, +5306 / −75.
+Squash-merged.
+
+### Gate state at merge
+
+| Check | Conclusion |
+|---|---|
+| `verify` (push run and pull_request run) | success |
+| `SonarCloud` | **Quality Gate passed** — **0 new issues**, 0 security hotspots, 1.3% duplication on new code |
+| `CodeQL` + `Analyze (javascript-typescript)` + `Analyze (actions)` | success |
+| `Rosentic - Conflict Detection` | success on all four heads |
+| `Vercel` (commit **status**, not a check run) | success |
+| `CodeRabbit` (commit status) | success |
+| `Sourcery` | 7-day review budget spent — produced a guide, not a review |
+| `Codex` | usage limit reached — no findings |
+
+`mergeable_state` was `clean`. Both surfaces read at the moment of merging, per the rule that a
+deployment reports as a commit status. Review threads: **2, both resolved**, both confirmed as
+addressed by the reviewer. Open Assumptions in `DECISIONS.md` covering this behaviour: **zero** —
+six are open, and none names `OutputPackagingSeam`, checked by parsing their `Seams` fields rather
+than by reading past them. **No contract, probe, fixture or mock file in the diff**, confirmed by
+`git diff --name-only origin/main...HEAD` against those directories.
+
+### Where the findings came from, and what they cost
+
+**Seven distinct findings**, one of which recurred. Counted per finding rather than per round,
+because Round 1 was a single SonarCloud report carrying three separate issues — an earlier draft of
+this entry said "six", which a Codex P2 on the close-out pull request correctly read as
+irreconcilable with its own table.
+
+| # | Found by | Finding | Outcome |
+|---|---|---|---|
+| 1 | **My own red proof, run properly** | The margin invariant asserted against the constant under test: zeroing it failed only 4 of 27 | Re-anchored to an independent floor before the first push; the same edit then failed 20 of 27 |
+| 2 | **The repo's existing suite** | Moving the canvas guard behind `onload` hung 20 tests at 5s each | Fixed before the first push |
+| 3 | **SonarCloud annotations** | The `cm` regex has super-linear backtracking | Rewritten twice — see below |
+| 4 | **SonarCloud annotations** | The same regex, complexity 24 against a limit of 20 | Fixed in `224561f` |
+| 5 | **SonarCloud annotations** | `'png' \| 'jpg' \| 'webp'` written inline four times | Fixed in `224561f` as `RasterFormat` |
+| 6 | **CodeRabbit**, asked five named questions | Four confirmed; one real gap in the `@page` drift guard | Fixed in `224561f` |
+| 7 | **CodeRabbit** | `build.txt` and `lint.txt` two commits behind, cited as one run with the current artifacts | Fixed in `d7d3212` |
+
+**Finding 3 recurred and is not an eighth.** The `224561f` rewrite satisfied finding 4's complexity
+metric and left finding 3 standing; SonarCloud reported it again on the next head, and it took the
+token scan in `0b08af6` to actually remove it. That recurrence is the most useful thing in this
+table — see the section below.
+
+**Zero of the seven came from a human.** Two came from me checking my own work rather than from any
+reviewer, and both were the more serious kind — a red proof that proved nothing, and a guard moved
+behind an event that never fires.
+
+### Fixing the metric is not fixing the property
+
+The finding worth carrying forward. Round 1 rewrote a six-capture regex as one repeated group. That
+**fixed the complexity number** (24 → under 20) and left the backtracking finding standing, because
+a bounded `{6}` repetition wrapping unbounded `\d+` and `\s+` quantifiers is still quadratic across
+start positions. I had treated the two findings as one problem with one cause.
+
+It only surfaced because the annotations were read on the *new* head instead of trusting
+"Quality Gate passed" — the gate passes with open issues, so the gate alone hides this. The real fix
+was to stop using a regex: split the content stream into tokens once and walk them, which is linear
+and is also the simpler description of what a PDF content stream is.
+
+**Read the annotations, not the gate.** Three times this run the gate said "passed" while carrying
+open issues.
+
+### Two self-checks that were worth the time, and one that was not enough
+
+- **Reversing the matrix composition order** fails 6 of 7 byte-level tests with numbers ~500× off —
+  so the tests discriminate on the real numbers, not by coincidence of `pdf-lib`'s interleaved
+  identity matrices. Re-run after *every* parser rewrite, because a change to how a test reads its
+  subject can quietly stop it measuring.
+- **The `@page` regex probe**: six degenerate CSS forms, all failing closed. I reported that as
+  "fails closed in every case" — and it was not exhaustive. **The comment case was not among the
+  six**, and it was the live hole: a `/* margin: 12mm; was the old value */` inside the block made
+  the guard read 12 while the declaration said 8. The probe was real evidence; the conclusion drawn
+  from it was wider than the evidence supported.
+
+### The one instruction I did not follow, and why
+
+The evidence finding asked to regenerate the build, lint, E2E **and margin** artifacts.
+`print-margin-before.txt` measures `main` at `e6c450b` — *before* the change. It is the entire case
+against the old behaviour and the source of this entry's six-row table. Regenerating it would have
+replaced the record of what was wrong with a record of what is now right and left that table
+unsupported. The other four were regenerated; that one was labelled instead, and both records now
+separate the categories.
+
+**"Stale" and "historical" look identical from outside, and only one of them is a defect.** An
+evidence file whose value is that it is old has to say so.
+
+### The close-out's own review rounds, recorded because they found ten real things
+
+This entry was pushed as PR #334 and reviewed by Codex, which had been rate-limited during the whole
+of PR #333 and so was seeing the run for the first time. **Four rounds, ten findings, all valid** —
+two in round one, two in round two, three in round three, and three in round four, which found this
+very sentence still reading "two rounds, four findings" after rounds three and four had been written
+below it. That is the fourth consecutive instance of the same defect, and by now the most reliable
+finding in this run: **a summary that is not updated with the body it summarises becomes a false
+claim the moment the body grows.**
+
+- **P1 — the close-out could be pushed without validating its own head.** Its definition of done
+  stopped at `check`, `lint`, `test`, and its anti-goal said "no evidence regeneration". `AGENTS.md`
+  L213-214 requires `npm run build` and the full `npm run verify` chain before **every** push. The
+  defect was collapsing two separable things: **running** the chain proves this head; **committing**
+  its output would overwrite the merged feature's evidence with evidence for a Markdown append.
+  Only the second was ever undesirable. Both now run (`build exit=0`, `verify exit=0`), and the
+  regenerated artifacts are restored with `git checkout -- docs/evidence/` before committing.
+  *A rule declined for a good reason is still a rule declined; the good reason usually points at a
+  narrower exemption than the one taken.*
+- **P2 — the finding count did not survive its own table.** "Six findings" against a table whose
+  Round 1 held three. Corrected to seven above, with the recurrence named as a recurrence.
+
+Round two, on the corrected head — and the first of these is the worst defect of the whole run,
+because it silently damaged this file:
+
+- **P1 — this section was appended to the wrong run.** It was inserted into the **Run 13** entry, a
+  thousand lines above where it belongs, because the edit anchored on `### Carried forward for the
+  next run` and that heading appears **seven times** in this file — `replace(old, new, 1)` takes the
+  first. So a section opening "This entry was pushed as PR #334" sat inside Run 13's entry,
+  referring to a table 1,300 lines below it. Nothing failed: `check`, `lint`, 1724 tests, `build`
+  and the whole `verify` chain were all green on that head, because none of them reads prose. **In
+  an append-only ledger with repeated section headings, anchoring an edit on a heading is a
+  coin toss.** Anchor on the last occurrence, or on text that appears once. Moved to this entry;
+  Run 13's entry restored byte-for-byte.
+- **P2 — running the chain and discarding its output is not "committed evidence".** The round-one
+  fix ran `build` and `verify` and then threw the artifacts away with `git checkout`, leaving the
+  repository holding evidence for `e8d4488` and none for this head, against `AGENTS.md` L141-143.
+  The framing had been "run **or** commit"; the answer was **commit under distinct names**, which
+  costs nothing and destroys nothing. `closeout-{lint,build,verify,test}.txt` now carry this head's
+  proof and the feature's artifacts keep the exact paths `DECISIONS.md` cites.
+
+All four arrived **after** every check on this pull request was green. Rounds one and two each
+landed while the Codex review still read "Running" — merging on the green gate alone would have
+merged past all four, including a corrupted ledger. This log already carries an entry titled
+*"Run 2, correction — six findings I merged past"*; the total cost of not writing that entry again
+was about twenty minutes of waiting.
+
+Round three, on the head that fixed round two — three more, all valid:
+
+- **P1 — `closeout-verify.txt` never recorded the chain's exit status.** I captured stdout with
+  `npm run verify > file 2>&1` and echoed `exit=$?` to my own terminal, which is nowhere. The
+  committed transcript ends on canvas warnings and contains the string "exit" zero times, so it
+  reads identically whether the chain passed or failed after the tests — it could not substantiate
+  the claim the plan made about it. Each artifact now ends with the outer command's status.
+  **A transcript is not evidence of success unless success is written in it.**
+- **P2 — the new artifacts had no file header**, which `AGENTS.md` L78-80 requires of every file.
+  Added. Measured rather than assumed, and it narrows the finding: the feature's own
+  `verify-outer.txt`, `lint.txt`, `build.txt` and `e2e.txt` have no headers either, so this is a
+  pre-existing gap across the whole evidence convention. Fixed for the four files this branch adds;
+  rewriting six already-merged artifacts is not this pull request's business.
+- **P3 — the plan's anti-goal contradicted its own definition of done.** It said "no evidence
+  artifact is committed from this branch" while the section below committed four. An anti-goal is
+  read literally by whoever comes next, so that contradiction could have got the required files
+  deleted. Narrowed to forbid *overwriting* the feature's artifacts.
+
+Round four — three more, and the first is a factual error in this file rather than a process one:
+
+- **P1 — the carried-forward header item was simply wrong.** It said `test.txt` was the only headed
+  transcript in the directory and generalised that to the repository. `verify.txt` is headed too,
+  and repo-wide **179 of 439** evidence `.txt` files carry a header. I had checked six files and
+  reported an inventory. Narrowed to the four artifacts actually missing one, with the real pattern
+  named: the chain's scripts head the files they generate; hand-redirected files are not headed.
+- **P2 — the plan's file inventory used a glob.** `docs/evidence/2026-09-08/closeout-*.txt` where
+  `AGENTS.md` L73-74 requires exact paths and forbids blanket statements, so a later executor could
+  not tell whether a fifth matching file was in scope. Replaced with the four concrete paths.
+- **P3 — the section heading and totals were stale.** "Two rounds, four findings" still stood above
+  rounds three and four. Corrected, and the correction is now the entry's own example of the defect.
+
+Round five — one finding, and it is the one that ends the sequence rather than continuing it:
+
+- **A transcript was being asked to prove something no transcript can.** `closeout-verify.txt`
+  records a chain run, but the chain ran before this file's own final bytes existed, so it cannot
+  certify the tree that contains it. That is a property of self-description. The answer was not
+  another regeneration — regenerating forever never closes the loop — but to **state the limit in
+  the header and settle the substance outside the file**: `npm run verify` was run once more against
+  the fully committed tree, with all four artifacts at final content, and exited 0; the chain never
+  names these files and leaves them unmodified. Recorded in `plan.md` with the commands.
+- **This is where the review sequence terminates, and why.** Rounds one to four each found a real
+  defect. Round five found a limit of the artifact rather than a mistake in it — the point at which
+  further rounds would be reviewing the prose written to answer the previous round rather than the
+  work. A future run should note that the four earlier rounds were worth every minute and this one
+  was worth exactly one measurement.
+
+**The pattern across all four defect-finding rounds, which is the thing worth carrying forward:** every one of
+these was an edit that was right in the text it added and wrong in what it left standing — a section
+placed by an anchor that matched seven times, a definition of done updated while its anti-goal kept
+the old rule, a claim of `exit=0` in prose with nothing in the file to back it. **An edit is not
+finished when the new text is correct; it is finished when nothing left standing disagrees with it.**
+
+**The transferable lesson from the misfiled section:** every gate this repository owns passed on a
+file with a section filed under the wrong run. Automated checks read code, and a log is not code — so the only
+thing standing between a mis-anchored `sed`-style edit and a permanently wrong audit history is a
+reviewer who reads prose, or an author who re-reads the diff in place rather than trusting that the
+edit landed where it was aimed.
+
+### Carried forward for the next run
+
+- **Four evidence transcripts have no file header:** `docs/evidence/2026-09-08/verify-outer.txt`,
+  `lint.txt`, `build.txt` and `e2e.txt`. `AGENTS.md` L78-80 requires one on every file. This run
+  added headers to the four `closeout-*.txt` files it created and deliberately did not rewrite those
+  four already-merged artifacts, which `DECISIONS.md` cites by exact path — a future run can add
+  headers to them without changing a byte of their content.
+
+  *An earlier draft of this item claimed `test.txt` was the only headed transcript in the directory
+  and generalised that to the repository. **That was false**, and a review round caught it:
+  `verify.txt` is headed too, and repo-wide **179 of 439** evidence `.txt` files carry a header. The
+  real pattern is narrower and more useful — the chain's own scripts write headers on the files they
+  generate (`test.txt`, `verify.txt`), and the files a person redirects by hand do not have them. I
+  had checked six files and reported a directory-wide, then repo-wide, inventory. Same error as this
+  run's `@page` regex probe: six cases checked, "every case" claimed.*
+- **`ChatInterpretationSeam` has zero consumers.** Re-measured this run and unchanged: a live,
+  billable endpoint with a full pipeline and no UI anywhere in `src/`. Costs the reader nothing and
+  the owner money and attack surface.
+- **Mode persistence** — Run 12's pick, blocked on the seam rule for the fifth run running.
+- **Vault capacity is not knowable from outside the adapter**, leaving the orphaned-records gap in
+  `undoDelete`. Same seam workflow.
+- **The provider is asked for a 1024x1024 square** (`image-generation-pipeline.ts:20`) and the page
+  is portrait, so a square is letterboxed onto a portrait sheet at ~140dpi with large top and bottom
+  margins. Asking for a portrait image at a higher resolution would use the paper and roughly double
+  the print resolution. `placedDpi` exists to report it. That is an image-generation change and a
+  strong candidate for a future run — the geometry is now ready for it and will need no edit.
+- **The `chat` packaging variant has zero consumers**, with Run 14's reasoning.
+- `MeechieToolOutput.quoteScore` and `modelMetadata`, from Run 11's list.
+- The unidentified SonarCloud issue from Runs 13/14/15 — this run read annotations successfully on
+  every head, so a future run can settle it the same way rather than inheriting it as unreadable.
+
+Do not inherit this entry's measurements. Re-measure.
