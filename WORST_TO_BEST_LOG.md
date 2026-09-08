@@ -13896,3 +13896,169 @@ Re-measured on this run's base where the item names a line number; **do not inhe
   the same answer — settle it deliberately rather than leaving it as a third thing.
 
 Do not inherit this entry's measurements. Re-measure.
+
+## Run 18 — merge close-out — 2026-09-08 — PR #337 merged as `bd070e2`
+
+**Head merged:** `1c531e3` · **Base:** `main` at `b5119ea` · 6 commits, 56 files, +3783 / −205.
+Squash-merged.
+
+### Gate state at merge
+
+| Check | Conclusion |
+|---|---|
+| `verify` (push run and pull_request run) | success |
+| `SonarCloud Code Analysis` | **Quality Gate passed — 0 New issues, 0 annotations** |
+| `SonarCloud` | success |
+| `CodeQL` + `Analyze (javascript-typescript)` + `Analyze (actions)` | success |
+| `Vercel` (commit **status**, not a check run) | success — "Deployment has completed" |
+| `CodeRabbit` (commit status) | success — review skipped, repository under 10 stars |
+| `Sourcery` | skipped — own review budget exhausted for 7 days. A skip, not a failure |
+| **`Codex`** | **Completed on `1c531e3` with no findings** |
+| `Rosentic - Conflict Detection` | **failure — established as not this pull request's** |
+
+`mergeable: true`. Both surfaces read at the moment of merging. **25 review threads, 0 unresolved.**
+**No human reviewer requested changes — every review on this pull request was a bot.**
+
+**Zero SonarCloud new issues at merge**, which is better than Run 17 managed (it merged with three,
+identified only in its close-out). The difference is the local `eslint-plugin-sonarjs` sweep
+described below, run on every head rather than once.
+
+### The red check, disproven rather than waved through
+
+`Rosentic` claimed that merging this branch with the unmerged backlog branch
+`claude/great-bell-k1i146` would leave a two-argument `readAiQuota` call. It posted the same finding
+**six times across six heads**.
+
+Answered by performing the merge, not by arguing about it:
+
+```sh
+git worktree add --detach /tmp/rosentic-test claude/great-bell-iex3wp
+git merge --no-commit --no-ff origin/claude/great-bell-k1i146
+#   Auto-merging src/routes/studio-state.svelte.ts   (no conflict)
+grep -n "readAiQuota\|setAiQuota" src/routes/studio-state.svelte.ts
+#   (no matches)
+```
+
+The call on `k1i146` is `main`'s original, which that branch never modified and this one rewrote, so
+a three-way merge takes this side; **no `readAiQuota` call survives in that file at all.** The check
+compares branch *contents* rather than merge *results*. Two further facts recorded against my own
+case rather than for it: the same trial merge *does* conflict on `plan.md` and two evidence files,
+so "mergeable without a text conflict" is untrue of the pair either way; and `k1i146` was never
+touched, per the rule that a scheduled run does not touch branches it did not create.
+
+*The reproduction bar in `AGENTS.md` says "it is red elsewhere too" is not evidence. Neither is "the
+bot is usually noisy" — this was the first Rosentic failure in several runs, and it earned an actual
+merge rather than a dismissal.*
+
+### Where the findings came from, and what they cost
+
+**Six review rounds. 21 findings, of which 20 were real defects.** One P1 (`ClockSeam` needs the full
+workflow) was answered and declined on the repository's own history; every other finding was fixed.
+
+| Round | Source | Findings | Notes |
+|---|---|---|---|
+| 1 | Codex on `2997812` | 5 | 4 real, 1 declined with evidence |
+| 2 | SonarCloud on `163b1d6` | 1 | identified locally, dashboard unreachable |
+| 3 | Codex on `e306959` | 8 | all real |
+| 4 | Codex on `977d789` | 4 | all real — one undid my own previous fix |
+| 5 | Codex on `f634c46` | 2 | all real |
+| 6 | Codex on `1c531e3` | **0** | clean |
+
+**Zero came from a human. Three came from my own local SonarJS sweep** before CI saw them:
+`prefer-specific-assertions`, `no-redundant-optional`, `cognitive-complexity` at 16/15, and
+`no-identical-functions` — four, in fact, across two heads.
+
+**Nine of the twenty were this run's own defect committed at a smaller scale.** The pull request's
+whole case was that the app recorded quota it never showed and showed numbers nothing was gated on.
+I then: recorded the text bucket on four routes and rendered it on none; added `pictureExhausted`
+with no caller; priced four verdict meters at another action's cost; rendered a verdict line only in
+the branch that disappears the moment it is populated; and left the `aria-describedby` link off
+three separate quota-gated controls in three separate rounds.
+
+*Writing the diagnosis at the top of a file does not stop you committing the same defect eighty
+lines further down it. The feature you are fixing is the one you are most fluent in — and fluency is
+what lets a half-finished version look finished.*
+
+### The three mistakes worth carrying past this run
+
+**1. I told a reviewer something was fixed when it was not.** My reply on the `pictureExhausted`
+thread claimed the gate was wired into the control and the handler on four surfaces. On `/meechie`
+it was wired into neither, and the claim stood for three commits. The edit was a Python script doing
+several replacements; it printed `changed` and I read that as confirmation. `changed` meant *at least
+one* replacement matched — two `disabled=` anchors had been shifted out from under it by an
+`aria-describedby` line the same script inserted moments earlier.
+
+> **A batch edit that reports success reports the batch, not the item.** Every later edit ran through
+> a helper that `sys.exit(1)`s on a missed anchor and prints one line per edit. And the claim itself
+> is verified with a grep against the result, not the exit status of the thing meant to produce it —
+> I had run exactly that grep to confirm the finding, and never re-ran it after.
+
+**2. I shipped a fix that was worse than the bug it fixed.** Codex found that the reset delta is
+anchored to the client's *send* instant while the charge happens later (worst on `/api/wig-try-on`,
+which fetches an external image before charging). I answered with a server-sent `RateLimit-Reset-At`
+and shipped it in the same commit as its own justification. A server epoch is meaningless on the
+browser's timeline: a device five minutes fast treats a fresh window as expired and re-enables
+controls the server still refuses. **A bounded, seconds-scale error on one route, traded for an
+unbounded error on any badly-clocked device.** Reverted in full.
+
+> **A fix invented in response to a review deserves the same scrutiny as the code it replaces.** And
+> my test suite could not have caught it: every test runs on a single clock, so the defect had no
+> way to appear.
+
+**3. My plan file listed a file the diff never touched.** `AGENTS.md:48` requires a record of the
+exact paths. Mine was accurate when written and never re-derived across five heads: it omitted seven
+files and listed `StudioInputPanel.svelte`, which is not in the diff.
+
+> The phantom entry is the worse half. A missing entry can surface when someone goes looking; a
+> listed-but-untouched file surfaces **never** — nothing fails, no test notices, and the record
+> quietly describes work that did not happen.
+
+### The method that worked, and should be inherited
+
+**Run 17 recorded that SonarCloud's dashboard is unreachable from this container and that guessing
+its findings produces wrong answers.** This run hit the same wall — an annotation with a file, a line
+and an **empty message** — and answered it properly:
+
+```sh
+npm install eslint-plugin-sonarjs@latest --no-save --prefix /tmp/sonarjs-probe
+# throwaway flat config, sonarjs.configs.recommended.rules only, the repo's own
+# @typescript-eslint and svelte parsers, over `git diff --name-only origin/main...HEAD`
+```
+
+One line named the rule. Run it on **every head**, not once: it caught two regressions this run that
+were introduced *by the fixes for review findings*.
+
+Classify each hit by testing whether its exact line text still exists on `origin/main` — that is how
+eight of ten were confirmed pre-existing rather than eyeballed. And note the asymmetry: the local
+`recommended` set is a **superset** of this project's quality profile, so a local hit is a candidate,
+not a gate failure. Do not report one as a SonarCloud finding.
+
+### Carried forward for the next run
+
+Everything under the previous section's "Carried forward" list stands, plus:
+
+- **The quota reset instant is early on routes that work before charging** — the item this run tried
+  to fix and reverted. Read that entry in full before attempting it: the naive fix is worse than the
+  bug, and the correct one needs a server/client clock offset, which is new observable behaviour at
+  a network boundary and therefore its own pull request with the full workflow and a Cipher Gate.
+  **Not a quick-wins candidate.**
+- **`ClockSeam.validateEpochMs` accepts any finite integer**, including instants outside what a
+  `Date` can represent — where `scheduleAt` re-arms forever without firing. `readAiQuota` now bounds
+  its own output, so the app is safe, but the seam itself would accept such a value from any future
+  caller. Tightening it is a seam contract change: full workflow, own pull request.
+- **`tests/e2e/smoke.spec.ts:1511` asserts the `aria-describedby` convention for the home studio's
+  text buttons only.** I extended that pattern's *markup* to new surfaces three times and its
+  *assertion* zero times, and missed the link three times. A test that pins a convention on one
+  surface does not pin it on the next.
+- **Seven pre-existing SonarJS findings**, each confirmed against `origin/main`: two nested ternaries
+  in `rate-his-excuse/+page.svelte:63,65`, one in `studio-state.svelte.ts:1490`, three in
+  `smoke.spec.ts` (fixed wait at 112, super-linear regex at 260, forced interaction at 668), and
+  `constructor-for-side-effects` at `verdict-page-state.test.ts:932` — the long-inherited one, whose
+  line moved again this run.
+- **The e2e suite cannot run unmodified in this container.** `@playwright/test ^1.58.1` resolves
+  browser build **1208**; the image ships **1194**. Every run here needs a temporary, uncommitted
+  `playwright.config.ts` `executablePath` override. Committing it would break CI, which installs its
+  own browsers — so the override is applied, the suite run, and the file restored, with
+  `git diff --stat playwright.config.ts` checked empty before every push.
+
+Do not inherit this entry's measurements. Re-measure.

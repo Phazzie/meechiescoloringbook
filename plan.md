@@ -8,6 +8,40 @@ Info flow: User request -> execution specs -> implementation -> review evidence.
 
 Current active plan is listed first. Older dated entries remain below as historical context and are not active unless explicitly reselected.
 
+## Run 18 close-out (2026-09-08) — micro plan, PR for the merge record
+
+Required by `AGENTS.md` L108: a governance-only documentation change still needs a plan listing the
+seams, files, commands, and how behaviour stays unchanged.
+
+**Goal:** record the Run 18 merge close-out in the append-only log — the gate state at merge, the red
+check that was disproven by performing the merge, where twenty findings came from across six review
+rounds, the three mistakes worth carrying past the run, the SonarCloud method that worked, and what
+the next run should pick up.
+
+**Seams:** none. No seam is named, read or changed.
+
+| File | Action | What changes |
+|---|---|---|
+| `WORST_TO_BEST_LOG.md` | [MODIFY] | one appended close-out section; no existing line edited |
+| `plan.md` | [MODIFY] | this micro plan, with Run 18's own plan retired below it |
+| `docs/evidence/2026-09-08/run18-closeout-*.txt` | [NEW] | lint, build, test and verify transcripts for this head, each ending with its exit status |
+| `docs/evidence/2026-09-08/*.json`, `*.md` | [MODIFY] | rewritten wholesale by the verify chain |
+
+**Anti-goals:** no `src/` change, no test change, no dependency change. This is documentation only.
+
+**Self-critique:** the risk is that a close-out written from memory records what I intended rather
+than what happened — which is the exact defect a Codex P1 caught in this run's own file inventory.
+Every claim in the entry is taken from a command run against the merged state: the check
+conclusions from the check-runs and status APIs, the diff stat from `git show --stat bd070e2`, the
+thread count from the review-threads listing, and the pre-existing SonarJS findings from a local
+sweep classified against `origin/main`.
+
+**Definition of done:**
+
+```sh
+npm run check && npm run lint && npm test && npm run build && npm run verify
+```
+
 ## Run 18 (2026-09-08) — Worst-feature routine: the AI budget meter reports the wrong bucket
 
 **Goal:** make the AI budget meter report the bucket the button under it actually spends, on every
