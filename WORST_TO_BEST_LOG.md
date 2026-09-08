@@ -12805,6 +12805,14 @@ edit landed where it was aimed.
 
 ### Carried forward for the next run
 
+- **Evidence `.txt` transcripts have no file headers, repo-wide.** `AGENTS.md` L78-80 requires one
+  on every file, and `test.txt` is the only transcript in `docs/evidence/2026-09-08/` that has one —
+  written by the verify chain's own script, not by a person. `verify-outer.txt`, `lint.txt`,
+  `build.txt` and `e2e.txt` have none. This run added headers to the four `closeout-*.txt` files it
+  created and deliberately did not rewrite six already-merged artifacts that `DECISIONS.md` cites by
+  path; closing the gap across the convention is a real change and wants its own pull request.
+  Note that the repository already carries a recorded ruling exempting evidence **JSON** from the
+  header convention, and no ruling either way for `.txt` — which is probably why this persisted.
 - **`ChatInterpretationSeam` has zero consumers.** Re-measured this run and unchanged: a live,
   billable endpoint with a full pipeline and no UI anywhere in `src/`. Costs the reader nothing and
   the owner money and attack surface.
