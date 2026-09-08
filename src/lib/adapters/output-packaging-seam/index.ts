@@ -376,18 +376,26 @@ const imageToPngBase64 = async (
 };
 
 /**
+ * The contract's three raster formats, named once.
+ *
+ * `GeneratedImageSchema`'s `format` also includes `svg`, which is handled separately everywhere
+ * below because it is markup rather than pixels and has no `data:`-URL base64 form.
+ */
+type RasterFormat = 'png' | 'jpg' | 'webp';
+
+/**
  * The media types the raster formats are addressed by in a `data:` URL.
  *
  * `jpg` is the contract's name for the format; `image/jpeg` is the browser's.
  */
-const RASTER_MEDIA_TYPES: Record<'png' | 'jpg' | 'webp', string> = {
+const RASTER_MEDIA_TYPES: Record<RasterFormat, string> = {
 	png: 'image/png',
 	jpg: 'image/jpeg',
 	webp: 'image/webp'
 };
 
 /** The error code each raster format reports when its payload is not base64. */
-const ENCODING_ERROR_CODES: Record<'png' | 'jpg' | 'webp', string> = {
+const ENCODING_ERROR_CODES: Record<RasterFormat, string> = {
 	png: 'PNG_ENCODING_UNSUPPORTED',
 	jpg: 'JPG_ENCODING_UNSUPPORTED',
 	webp: 'WEBP_ENCODING_UNSUPPORTED'
@@ -403,7 +411,7 @@ const toImageDataUrl = async (
 		};
 	}
 
-	const mediaType = RASTER_MEDIA_TYPES[image.format as 'png' | 'jpg' | 'webp'];
+	const mediaType = RASTER_MEDIA_TYPES[image.format as RasterFormat];
 	if (mediaType === undefined) {
 		return {
 			ok: false,
@@ -423,7 +431,7 @@ const toImageDataUrl = async (
 		return {
 			ok: false,
 			error: {
-				code: ENCODING_ERROR_CODES[image.format as 'png' | 'jpg' | 'webp'],
+				code: ENCODING_ERROR_CODES[image.format as RasterFormat],
 				message: `${image.format.toUpperCase()} data must be base64 encoded.`
 			}
 		};

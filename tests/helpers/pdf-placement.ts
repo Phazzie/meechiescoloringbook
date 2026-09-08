@@ -54,6 +54,22 @@ const inflateStreams = (bytes: Buffer): string[] => {
 	return out;
 };
 
+/**
+ * `a b c d e f cm` — the six operands of a concatenate-matrix operator, captured as one run.
+ *
+ * Written as a single repeated group rather than six separate `(-?[\d.]+)\s+` captures, and with an
+ * unambiguous number pattern rather than `[\d.]+`. The six-capture version was flagged by SonarCloud
+ * twice on the same line — super-linear backtracking, and a complexity of 24 against a limit of 20 —
+ * and both are real here: this runs over inflated PDF content streams, where a long run of digits
+ * that is not followed by `cm` makes every one of the six groups backtrack in turn.
+ *
+ * Both branches of the number are deterministic and mutually exclusive — one starts with a digit,
+ * the other with a `.` — so a given number matches exactly one way and there is nothing to backtrack
+ * into. The `.5` branch is there because PDF permits a real number with no integer part; `pdf-lib`
+ * happens to write `0.5`, but this parses the container format rather than one writer's habits.
+ */
+const CM_OPERATOR = /((?:-?(?:\d+(?:\.\d+)?|\.\d+)\s+){6})cm\b/g;
+
 /** PDF concatenates row-vector matrices: `A x B`. */
 const compose = (a: Matrix, b: Matrix): Matrix => [
 	a[0] * b[0] + a[1] * b[2],
@@ -89,11 +105,9 @@ export const readPlacedRect = (pdfBytes: Buffer): PlacedRect => {
 	const content = streams.find((text) => / Do\b/.test(text) && text.includes(' cm'));
 	if (!content) throw new Error('no image draw found in any of the PDF streams');
 
-	const matrices = [
-		...content.matchAll(
-			/(-?[\d.]+)\s+(-?[\d.]+)\s+(-?[\d.]+)\s+(-?[\d.]+)\s+(-?[\d.]+)\s+(-?[\d.]+)\s+cm/g
-		)
-	].map((match) => match.slice(1, 7).map(Number) as Matrix);
+	const matrices = [...content.matchAll(CM_OPERATOR)].map(
+		(match) => match[1].trim().split(/\s+/).map(Number) as Matrix
+	);
 	if (matrices.length === 0) throw new Error('no cm operator in the PDF content stream');
 
 	// `cm` sets CTM = M x CTM, so the matrix written last is applied to the unit square first;

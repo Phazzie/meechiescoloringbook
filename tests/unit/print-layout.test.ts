@@ -119,17 +119,44 @@ describe('print-layout: the regression this module was written for', () => {
 		// The number is not defined twice. `@page { margin: 12mm }` in the app shell is the browser
 		// print path's margin, and core adopts it; this reads the stylesheet so the two cannot drift
 		// apart silently. Before this run they disagreed by the whole margin: 12mm against zero.
+		//
+		// The first version of this guard was a single lazy regex over the raw file, and CodeRabbit
+		// was right that it did not guard what its comment claimed. Measured rather than argued:
+		// a `/* margin: 12mm; was the old value */` comment inside the block made it read **12** out
+		// of the comment while the live declaration said 8. Comments are stripped first, every
+		// `@page` block is enumerated rather than the first one taken, and more than one block
+		// declaring a margin is a failure rather than a coin toss about which one governs.
 		const layout = readFileSync(
 			resolve(repoRoot, 'src/routes/+layout.svelte'),
 			'utf8'
 		);
-		const atPage = /@page\s*\{[^}]*?\bmargin:\s*([\d.]+)mm\s*;/.exec(layout);
+		const withoutComments = layout.replace(/\/\*[\s\S]*?\*\//g, '');
 
+		const blocks = [
+			...withoutComments.matchAll(/@page([^{]*)\{([^}]*)\}/g)
+		].map((match) => ({ prelude: match[1].trim(), body: match[2] }));
+
+		const declaringMargin = blocks.filter((block) => /\bmargin\s*:/.test(block.body));
 		expect(
-			atPage,
-			'no `@page { margin: <n>mm }` found in src/routes/+layout.svelte'
+			declaringMargin.length,
+			`expected exactly one @page block declaring a margin in src/routes/+layout.svelte, found ${declaringMargin.length}`
+		).toBe(1);
+
+		// The unqualified `@page`, which is the one that governs every sheet. A margin that only
+		// arrived via `@page :first` would not be the print job's margin.
+		expect(
+			declaringMargin[0].prelude,
+			'the @page block carrying the margin is qualified, so it does not govern every sheet'
+		).toBe('');
+
+		// One length, not the four-value shorthand: core has a single margin and a per-edge rule
+		// here would mean the two can no longer be compared at all.
+		const margin = /\bmargin\s*:\s*([\d.]+)mm\s*;/.exec(declaringMargin[0].body);
+		expect(
+			margin,
+			`@page declares a margin this test cannot compare to PRINT_SAFE_MARGIN_MM: ${declaringMargin[0].body.trim()}`
 		).not.toBeNull();
-		expect(Number(atPage?.[1])).toBe(PRINT_SAFE_MARGIN_MM);
+		expect(Number(margin?.[1])).toBe(PRINT_SAFE_MARGIN_MM);
 	});
 });
 
