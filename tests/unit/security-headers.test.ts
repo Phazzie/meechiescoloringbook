@@ -98,7 +98,8 @@ describe('security headers on prerendered documents', () => {
 		expect(paths).toContain('/offline');
 		expect(paths).toContain('/m/who-fucked-up');
 		expect(paths).toContain('/vault');
-		expect(paths).toHaveLength(15);
+		expect(paths).toContain('/describe');
+		expect(paths).toHaveLength(16);
 	});
 
 	it.each(prerenderedDocumentPaths())(

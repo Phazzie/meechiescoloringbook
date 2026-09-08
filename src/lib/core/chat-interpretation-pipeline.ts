@@ -3,6 +3,7 @@
 // Info flow: Raw request body -> cancellation/schema checks -> quota charge -> provider completion -> JSON extraction + validation -> contract response.
 import { providerAdapter } from '$lib/adapters/provider-adapter-seam';
 import { specValidationAdapter } from '$lib/adapters/spec-validation-seam';
+import { CHAT_INTERPRETATION_QUOTA_COST } from '$lib/core/ai-quota';
 import { SYSTEM_CONSTANTS } from '$lib/core/constants';
 import { TEXT_MODEL } from '$lib/core/models';
 import { toPublicProviderError } from '$lib/core/public-provider-error';
@@ -19,9 +20,6 @@ import {
 import { z } from 'zod';
 
 const CHAT_MODEL = TEXT_MODEL;
-
-/** One text-bucket unit per interpretation: this pipeline makes exactly one billable provider call. */
-const CHAT_QUOTA_COST = 1;
 
 type ChatInterpretationResult = z.infer<typeof ChatInterpretationResultSchema>;
 
@@ -106,7 +104,7 @@ export const runChatInterpretationPipeline = async (
 
 	// Charge here and nowhere else: every local rejection above this line costs the caller nothing,
 	// and nothing below it reaches the provider without a metered unit.
-	const quota = await deps.consumeQuota(CHAT_QUOTA_COST);
+	const quota = await deps.consumeQuota(CHAT_INTERPRETATION_QUOTA_COST);
 	// Taken from the guard's decision as-is. Recomputing RateLimit-Reset from a route clock drifts
 	// from the store that issued it.
 	const quotaHeaders = quota.headers;

@@ -108,6 +108,7 @@ Invariants:
 			<p class="what-title">Waits for a connection</p>
 			<ul>
 				<li>A new verdict or quote from Meechie</li>
+				<li>Reading back a page you described in your own words</li>
 				<li>Making a coloring page</li>
 				<li>The wig try-on</li>
 			</ul>

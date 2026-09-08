@@ -1,47 +1,22 @@
-// Purpose: Own the whole "Meechie ruled on it -> here is your coloring page" lifecycle for the
-//          standalone mode routes, as one testable state class.
-// Why: `/who-fucked-up`, `/rate-his-excuse` and `/random` are three of the app's four nav
-//      destinations, and each carried its own ~90-line copy of this flow. All three copies
-//      flattened every verdict into a title-only page, threw the drift report away, could not
-//      save anything to the vault, and packaged the print and share files in one call so a
-//      browser that could not encode the share image lost the printable PDF with it. Fixing that
-//      once, here, is the only way it stays fixed.
-// Info flow: tool input -> /api/tools -> verdict -> buildToolPageRecipe -> /api/generate ->
-//            previews + packaged files -> CreationStoreSeam.
-// Invariants: `driftReported` is independent of both `violations.length` and page presence, and the
-//             lifecycle must never collapse them again: an empty violation list means "checked,
-//             nothing wrong" AND "no check has spoken", which are opposite claims, and only this
-//             flag separates them. When a replacement generation returns no decodable image, the
-//             page already on screen keeps BOTH its picture and its report — the new request's
-//             findings are surfaced only when there is no page to protect, because attaching them
-//             to a page they do not describe is the conflation this reporting exists to remove.
-//             Those pageless findings belong to a REQUEST, so every path that changes the request
-//             must clear them. Page presence cannot stand in for that: after such a request
-//             `hasPage`, `isGenerating` and `imagePreviews` all read exactly as they do before the
-//             first one, so a guard written against them alone leaves the report on screen under a
-//             dedication it was never checked against.
-import { creationStoreAdapter } from '$lib/adapters/creation-store-seam';
-import { outputPackagingAdapter } from '$lib/adapters/output-packaging-seam';
-import { sessionAdapter } from '$lib/adapters/session-seam';
-import { clockSeam } from '$lib/adapters/clock-seam';
-import type { ClockSeam } from '$lib/seams/clock-seam/contract';
+// Purpose: Own the "Meechie ruled on it -> here is your coloring page" lifecycle for the standalone
+//          mode routes, as one testable state class.
+// Why: `/who-fucked-up`, `/rate-his-excuse` and `/random` are three of the app's nav destinations,
+//      and each carried its own ~90-line copy of this flow. All three copies flattened every
+//      verdict into a title-only page, threw the drift report away, could not save anything to the
+//      vault, and packaged the print and share files in one call so a browser that could not encode
+//      the share image lost the printable PDF with it. Fixing that once, here, is the only way it
+//      stays fixed.
+// Info flow: tool input -> /api/tools -> verdict -> buildToolPageRecipe -> PageArtifactState.
+// Invariants: The verdict half is all this file owns. Everything from the spec onwards —
+//             generation, decoding, installation, packaging, the export row, the drift report and
+//             the vault write — lives in `PageArtifactState`, which `/describe` extends too, so a
+//             fix to any of it lands on every page-making surface at once. Re-implementing any of
+//             it here is how the three mode routes came to differ in the first place.
 import { POST_JSON_TIMEOUTS_MS, postJson } from '$lib/core/http-client';
-import {
-	generatedImageBase64,
-	generatedImageDataUrl
-} from '$lib/core/generated-image-preview';
 import {
 	buildToolPageRecipe,
 	buildToolStudioText
 } from '$lib/core/tool-page-recipe';
-import type { ToolPageRecipe } from '$lib/core/tool-page-recipe';
-import { buildQualityReport } from '$lib/core/quality-report';
-import {
-	describeOriginalImageExport,
-	describePackagedExports,
-	summarisePageExportFailures
-} from '$lib/core/page-exports';
-import type { PageExport, PageExportAttempt } from '$lib/core/page-exports';
 import {
 	MeechieToolInputSchema,
 	MeechieToolResultSchema
@@ -50,420 +25,44 @@ import type {
 	MeechieToolInput,
 	MeechieToolOutput
 } from '../../../contracts/meechie-tool.contract';
-import { GenerateResultSchema } from '../../../contracts/generate.contract';
-import type { GenerateResponseValue } from '../../../contracts/generate.contract';
-import { VAULT_SAVED_CONFIRMATION } from '$lib/core/vault-page';
-import type { CreationOwner } from '$lib/seams/creation-store-seam/contract';
-import type { GeneratedImage } from '../../../contracts/image-generation.contract';
-import type { PackagedFile } from '$lib/seams/output-packaging-seam/contract';
+import { PageArtifactState } from './page-artifact-state.svelte';
+import type { PageArtifactStateOptions } from './page-artifact-state.svelte';
 
-/**
- * Whether the browser can actually decode this preview.
- *
- * A byte-signature check is not enough: a truncated response keeps a valid PNG header while the
- * image itself is missing, and both `<img>` and pdf-lib reject it. Decoding is the only answer to
- * "can this be shown and printed?" that is not a proxy for it. Outside a browser there is nothing
- * to decode with, so this does not block there.
- *
- * Shared in shape with `MeechieTools.svelte`, deliberately: the two flows should reject the same
- * bytes for the same reason.
- */
-const canDecodeImage = async (url: string | null): Promise<boolean> => {
-	if (url === null) return false;
-	if (typeof Image === 'undefined') return true;
-	return await new Promise<boolean>((resolve) => {
-		const probe = new Image();
-		probe.onload = (): void =>
-			resolve(probe.naturalWidth > 0 && probe.naturalHeight > 0);
-		probe.onerror = (): void => resolve(false);
-		probe.src = url;
-	});
-};
-
-/** One image, its preview URL, and whether the browser could actually decode it. */
-type DecodedImage = {
-	image: GeneratedImage;
-	preview: string | null;
-};
-
-/**
- * Keep only the images the browser can decode.
- *
- * `GeneratedImageSchema` constrains `data` only to be non-empty, and the generation pipeline labels
- * unrecognised bytes as PNG, so a truncated or corrupt response passes the contract intact.
- * Installing it unchecked — and the install happens before packaging — would put a broken preview
- * on screen and arm Save to persist bytes nothing can read.
- */
-const decodableImages = async (
-	images: readonly GeneratedImage[]
-): Promise<DecodedImage[]> => {
-	const decoded = await Promise.all(
-		images.map(async (image) => {
-			// Built once: the decode probe and the preview must be the same URL, or a later edit can
-			// let them drift apart.
-			const preview = generatedImageDataUrl(image);
-			return { image, preview, usable: await canDecodeImage(preview) };
-		})
-	);
-	return decoded
-		.filter((entry) => entry.usable)
-		.map(({ image, preview }) => ({ image, preview }));
-};
-
-/** What one packaging variant produced, or why it produced nothing. */
-type PackagedVariant = { files: PackagedFile[]; error: string | null };
-
-/**
- * Package one variant, turning every failure shape into a value.
- *
- * The adapter does not wrap every failure in a `Result`: `package()` has no try/catch, and
- * pdf-lib's `embedPng`/`embedJpg`/`save` and the canvas in `imageToPngBase64` all throw. A
- * rejection used to escape to the caller's outer catch and discard the print PDF that had already
- * been built — so splitting print and square into two calls bought nothing against the failure
- * shape most likely to occur.
- */
-const packageOneVariant = async (
-	variant: 'print' | 'square',
-	images: GeneratedImage[],
-	fileBaseName: string,
-	pageSize: ToolPageRecipe['spec']['pageSize']
-): Promise<PackagedVariant> => {
-	try {
-		const result = await outputPackagingAdapter.package({
-			images,
-			outputFormat: 'pdf',
-			fileBaseName,
-			pageSize,
-			variants: [variant]
-		});
-		return result.ok
-			? { files: result.value.files, error: null }
-			: { files: [], error: result.error.message };
-	} catch (packagingError) {
-		return {
-			files: [],
-			error:
-				packagingError instanceof Error
-					? packagingError.message
-					: 'Packaging failed.'
-		};
-	}
-};
-
-/**
- * A record id that cannot collide with another save.
- *
- * `crypto.randomUUID` is gated on a secure context, so it is simply absent over plain HTTP and in
- * some embedded webviews. The previous fallback was `creation-${Date.now()}`, and
- * `upsertRecord` in `creation-store.adapter.ts` drops any existing record sharing an id — so two
- * saves landing in the same millisecond (two tabs on one vault) silently destroyed the first.
- *
- * `crypto.getRandomValues` is *not* secure-context gated, so it covers almost everything
- * `randomUUID` misses. The last resort matches `session.adapter.ts`'s existing fallback, which
- * mixes the clock with a random suffix rather than trusting the millisecond alone.
- */
-let fallbackCounter = 0;
-
-/**
- * A value that differs between two documents of the same origin, without a PRNG.
- *
- * `performance.timeOrigin` is the instant *this document* started, at sub-millisecond resolution,
- * so two tabs almost never share one. It exists only to separate tabs in the last-resort id below;
- * it is not a secret and nothing depends on it being unguessable.
- */
-const documentToken = ((): string => {
-	if (typeof performance === 'undefined') return '0';
-	const origin =
-		typeof performance.timeOrigin === 'number' ? performance.timeOrigin : 0;
-	return Math.trunc((origin + performance.now()) * 1000).toString(36);
-})();
-
-const newCreationId = (): string => {
-	if (typeof crypto !== 'undefined') {
-		if (typeof crypto.randomUUID === 'function') return crypto.randomUUID();
-		if (typeof crypto.getRandomValues === 'function') {
-			const bytes = crypto.getRandomValues(new Uint8Array(16));
-			const hex = Array.from(bytes, (byte) =>
-				byte.toString(16).padStart(2, '0')
-			).join('');
-			return `creation-${hex}`;
-		}
-	}
-	// Last resort, and deliberately not `Math.random()`: reaching for a pseudorandom source when a
-	// cryptographic one sits right above it is the habit SonarCloud's PRNG rule exists to break.
-	//
-	// Uniqueness here needs two separate things, because the two collisions are different. The
-	// counter separates saves *within* one document, which is what `Date.now()` alone could not do.
-	// `documentToken` separates *documents*, which the counter alone could not do — two tabs each
-	// start their own counter at zero, so both would otherwise emit `-1` in the same millisecond.
-	//
-	// This is a bound, not a proof: two documents whose `timeOrigin` matches to the microsecond,
-	// saving in the same millisecond, would still collide. Reaching this branch at all requires a
-	// browser with no Web Crypto whatsoever — `getRandomValues`, unlike `randomUUID`, is not
-	// secure-context gated — which no browser able to run this app has been for over a decade.
-	fallbackCounter += 1;
-	return `creation-${Date.now()}-${documentToken}-${fallbackCounter}`;
-};
-
-export type VerdictPageStateOptions = {
-	/**
-	 * Slug for the downloaded filenames, e.g. `who-fucked-up` produces
-	 * `meechie-who-fucked-up-<timestamp>.pdf`. The route owns this because the filename is the only
-	 * part of a download the user sees before opening it.
-	 */
-	fileBaseSlug: string;
-};
+export type VerdictPageStateOptions = PageArtifactStateOptions;
 
 /**
  * The verdict-to-page studio behind the standalone mode routes.
  *
- * Every asynchronous method re-checks its token after each await. That is not defensive padding:
- * `/api/generate` routinely runs long enough for a user to ask for a different situation or
- * another saying, and a response that installs itself after that lands a page built from verdict A
- * underneath verdict B on screen — which the user then downloads, or saves to the vault, believing
- * it is the page for what they are reading.
- *
  * There are deliberately **two** tokens, because the two lifecycles are cancelled by different
  * actions. `verdictToken` invalidates an in-flight `/api/tools` call and is bumped only by
- * `reset()`. `pageToken` invalidates in-flight generation, packaging and vault writes, and is
- * bumped by anything that makes the displayed page wrong — including editing the dedication. A
- * single shared token conflates them: typing in the dedication field, which is on screen while a
- * replacement verdict is still loading, would silently cancel that verdict request and re-enable
- * the button with nothing on the way.
+ * `reset()`. `pageToken`, on `PageArtifactState`, invalidates in-flight generation, packaging and
+ * vault writes, and is bumped by anything that makes the displayed page wrong — including editing
+ * the dedication. A single shared token conflates them: typing in the dedication field, which is on
+ * screen while a replacement verdict is still loading, would silently cancel that verdict request
+ * and re-enable the button with nothing on the way.
  */
-export class VerdictPageState {
+export class VerdictPageState extends PageArtifactState {
 	// --- The verdict itself ---
 	verdict = $state<MeechieToolOutput | null>(null);
 	error = $state('');
 	isWorking = $state(false);
 
-	// --- The page that verdict became ---
-	isGenerating = $state(false);
-	generateError = $state('');
-	imagePreviews = $state<string[]>([]);
-	/**
-	 * What each packaging call was asked for and what it produced.
-	 *
-	 * The stored record, from which the row and its failure sentence are both derived — the same
-	 * arrangement the home studio has had since Run 6. Keeping the attempts rather than only their
-	 * files is what lets a download name the paper it was actually packaged for, and what lets a
-	 * failure be described by the variant that was *requested* rather than by a file that does not
-	 * exist to read a type off.
-	 */
-	packageAttempts = $state<PageExportAttempt[]>([]);
-	/** The bytes of every file packaged for the page on the paper. */
-	packagedFiles = $derived<PackagedFile[]>(
-		this.packageAttempts.flatMap((attempt) => attempt.files)
-	);
-	/**
-	 * The provider's own image for the page on screen, kept reactive so the export row can offer it.
-	 *
-	 * Separate from the private `generatedImages`, which is a plain field and therefore invisible to
-	 * a `$derived`. This is the one download that involves no re-rendering at all, and until now it
-	 * was available on the home page and nowhere else.
-	 */
-	private pageOriginalImage = $state<GeneratedImage | null>(null);
-	/** The base name every download for the page on screen shares. */
-	private pageFileBaseName = $state('');
-	/**
-	 * The export row: each packaged file, then the provider's own image, every one of them carrying
-	 * what it is, what it is for and how big it is.
-	 *
-	 * The original comes last and is derived rather than stored, so it appears and disappears with
-	 * the page it belongs to and can never be left behind by a reset.
-	 */
-	pageExports = $derived.by((): PageExport[] => {
-		// No page size passed: each attempt carries the one it was packaged for, so the row cannot
-		// describe a file as paper it was not made on.
-		const packaged = describePackagedExports(this.packageAttempts);
-		const original = describeOriginalImageExport(this.pageOriginalImage, this.pageFileBaseName);
-		return original ? [...packaged, original] : packaged;
-	});
-	/**
-	 * What could not be packaged, phrased so it can never be read as "the generation failed".
-	 *
-	 * A separate field from `generateError`, which is where both used to be written — so a page that
-	 * generated perfectly and then failed to become a square PNG showed the same crimson box, in the
-	 * same place, as a page that never generated at all, directly above the button that buys another
-	 * generation.
-	 */
-	exportError = $derived(summarisePageExportFailures(this.packageAttempts));
-	assembledPrompt = $state('');
-	revisedPrompt = $state('');
-	/**
-	 * Drift diagnostics from `/api/generate`. The provider's revised prompt can quietly drop an
-	 * exact-text or layout requirement; all three routes used to discard these, which presents a
-	 * drifted page as a clean one and loses the evidence for good.
-	 */
-	violations = $state<GenerateResponseValue['violations']>([]);
-	recommendedFixes = $state<GenerateResponseValue['recommendedFixes']>([]);
-	/**
-	 * True when the drift check has reported on the page currently installed.
-	 *
-	 * Same reason as the home studio's field of this name: an empty `violations` means both "checked
-	 * and clean" and "never checked", and the drift block used to render the second as the first by
-	 * showing nothing at all. Written only where `violations` is written — the install below and the
-	 * reset above.
-	 */
-	private driftReported = $state(false);
-	/** Why the drift check returned no verdict, when `/api/generate` said it returned none. */
-	private driftCheckFailure = $state<GenerateResponseValue['driftCheckFailure']>(undefined);
-	/** What the drift block says about the page currently installed. */
-	qualityReport = $derived(
-		buildQualityReport({
-			// Page presence and check completion are separate facts; see `buildQualityReport`.
-			hasPage: this.imagePreviews.length > 0,
-			driftChecked: this.driftReported,
-			violations: this.violations,
-			recommendedFixes: this.recommendedFixes,
-			driftCheckFailure: this.driftCheckFailure
-		})
-	);
-
-	// --- Page controls ---
+	// --- Page controls that belong to the verdict, not to the page ---
 	dedication = $state('');
-	vaultStatus = $state('');
 	copyStatus = $state('');
-	isSaving = $state(false);
 
-	private generatedImages: GeneratedImage[] = [];
-	private lastRecipe: ToolPageRecipe | null = null;
-	/**
-	 * The verdict the page on screen was built from. Kept apart from `verdict`, which changes the
-	 * instant a replacement arrives.
-	 */
-	private pageVerdict: MeechieToolOutput | null = null;
 	private verdictToken = 0;
-	private pageToken = 0;
-	/**
-	 * The clock behind a saved page's `createdAtISO`. Injectable for the same reason `StudioState`
-	 * injects one: a test should be able to state the instant rather than observe it.
-	 */
-	clock: ClockSeam = clockSeam;
-	private owner: CreationOwner | null = null;
-	/** In-flight session resolve, so concurrent saves share one call rather than racing. */
-	private ownerPromise: Promise<CreationOwner | null> | null = null;
-	private readonly fileBaseSlug: string;
-
-	constructor(options: VerdictPageStateOptions) {
-		this.fileBaseSlug = options.fileBaseSlug;
-	}
-
-	/** True once there is a generated page to download or save. */
-	get hasPage(): boolean {
-		return this.generatedImages.length > 0 && this.lastRecipe !== null;
-	}
 
 	/**
-	 * The title of the page currently on the paper, or `null` before there is one.
+	 * Cleared with the page: a "Verdict copied." line under a verdict that is no longer there.
 	 *
-	 * Read off `lastRecipe` — the recipe the picture was actually built from — rather than off
-	 * `verdict`, which is the *live* verdict and changes the instant a replacement arrives. The
-	 * print job names the sheet coming out of the printer, so it has to name the page on screen;
-	 * taking it from `verdict` would title a saved sheet after a verdict that never printed. This
-	 * is the same distinction `pageVerdict` exists to hold, and the same one the export row learned
-	 * when a US Letter PDF was being labelled "A4" from a live control.
+	 * The verdict a finished page was built from is not kept as a second field. Everything the page
+	 * still needs from it — the words to store, the line to send with a shared picture — is pinned
+	 * into the `PageSource` handed to `generatePage`, so there is nothing left to drift out of step
+	 * with the live `verdict`.
 	 */
-	get pageTitle(): string | null {
-		return this.lastRecipe?.spec.title ?? null;
-	}
-
-	/**
-	 * Meechie's line for the page on the paper, for the message that travels with a sent picture.
-	 *
-	 * Read off `pageVerdict` — the verdict the picture was built from — for the same reason
-	 * `pageTitle` is read off `lastRecipe`: `verdict` is the *live* one and changes the instant a
-	 * replacement arrives, so sending from it would caption the picture on screen with a verdict
-	 * that never became a page.
-	 */
-	get pageHeadline(): string | null {
-		return this.pageVerdict?.headline ?? null;
-	}
-
-	/**
-	 * True when a save would actually be attempted, so the button can explain itself instead.
-	 *
-	 * `!isGenerating` is load-bearing since `makePage` stopped clearing the page on entry: page A
-	 * stays on screen while B generates, so without this the button is live, and a save started in
-	 * that window pins A's recipe and images while capturing B's token. Installing B does not bump
-	 * the token again, so the save's own staleness check passes and it reports "Saved to the vault"
-	 * under B — having persisted A. Blocking the window is simpler than making that message honest,
-	 * and the window is as short as one generation.
-	 */
-	get canSaveToVault(): boolean {
-		return this.hasPage && !this.isSaving && !this.isGenerating;
-	}
-
-	/**
-	 * Resolve the session id an owner-scoped vault write needs, on demand.
-	 *
-	 * Deliberately *not* started from the constructor. A constructor cannot report an async failure
-	 * to whoever called `new`, so an eager fire-and-forget load could only either swallow the error
-	 * or surface it as an unhandled rejection — and it bought nothing, because the answer is not
-	 * needed until someone presses Save. Resolving here also means a session that was unavailable
-	 * on the first attempt (a browser that had site data blocked, and then did not) is retried on
-	 * the next save instead of being wrong for the life of the page.
-	 *
-	 * The in-flight promise is shared so two quick saves make one call, and it is cleared on failure
-	 * so a failed resolve is never cached as the permanent answer.
-	 */
-	private async resolveOwner(): Promise<CreationOwner | null> {
-		if (this.owner) return this.owner;
-		this.ownerPromise ??= (async (): Promise<CreationOwner | null> => {
-			try {
-				const result = await sessionAdapter.getSession();
-				return result.ok
-					? { kind: 'anonymous', sessionId: result.value.sessionId }
-					: null;
-			} catch {
-				// A *thrown* session read is the same outcome as a failed one, and it has to reach the
-				// same branch below. `localStorage` exists but throws `SecurityError` on access in a
-				// browser with site data blocked, so this path is reachable in practice — and letting
-				// the rejection escape would leave the memo holding a permanently rejected promise,
-				// which every later save would re-await and re-throw. That is exactly the "never cache
-				// a failure" rule this function exists to keep, so it must cover both shapes of it.
-				return null;
-			}
-		})();
-		const owner = await this.ownerPromise;
-		if (owner) {
-			this.owner = owner;
-		} else {
-			this.ownerPromise = null;
-		}
-		return owner;
-	}
-
-	/**
-	 * Drop the generated page and cancel anything still building or saving one.
-	 *
-	 * Bumping `pageToken` is the cancellation: an in-flight request cannot be recalled, but its
-	 * result is discarded on arrival instead of landing under a newer verdict. `isGenerating` is
-	 * released here because the staleness guards deliberately stop an abandoned request from
-	 * clearing a *newer* request's flag — so the abandoned request clears nothing, and the reset has
-	 * to. Without this, resetting mid-generation left the button disabled until a reload.
-	 *
-	 * `isWorking` is untouched on purpose; the verdict request has its own token and its own reset.
-	 */
-	resetPage(): void {
-		this.pageToken += 1;
-		this.isGenerating = false;
-		this.generateError = '';
-		this.imagePreviews = [];
-		this.packageAttempts = [];
-		this.pageOriginalImage = null;
-		this.pageFileBaseName = '';
-		this.assembledPrompt = '';
-		this.revisedPrompt = '';
-		this.violations = [];
-		this.recommendedFixes = [];
-		this.driftReported = false;
-		this.driftCheckFailure = undefined;
-		this.vaultStatus = '';
+	protected override clearSourceStatus(): void {
 		this.copyStatus = '';
-		this.generatedImages = [];
-		this.lastRecipe = null;
-		this.pageVerdict = null;
 	}
 
 	/** Clear the verdict and everything built from it, cancelling both lifecycles. */
@@ -586,221 +185,19 @@ export class VerdictPageState {
 		// about to be thrown away: the replacement's `resetPage()` discards whatever this produced,
 		// after the generation had already been billed. Refusing to start is the only free fix.
 		if (!this.verdict || this.isGenerating || this.isWorking) return;
-		// Advance the token without clearing anything. Any earlier in-flight run is stale from here,
-		// but the page already on screen stays: it cost a paid generation, and until a replacement
-		// has actually arrived it is the best thing this class has. Calling `resetPage()` here meant
-		// a timeout, a provider error, an off-contract response or an undecodable image deleted a
-		// good page and left the reader with nothing — the same defect as the verdict path, on the
-		// page path.
-		this.pageToken += 1;
-		this.generateError = '';
-		this.vaultStatus = '';
-		this.copyStatus = '';
-		this.isGenerating = true;
 
 		const verdict = this.verdict;
-		const token = this.pageToken;
-		const isStale = (): boolean => token !== this.pageToken;
 		const recipe = buildToolPageRecipe(verdict, {
 			dedication: this.dedication
 		});
-
-		try {
-			const payload = await postJson(
-				'/api/generate',
-				{ spec: recipe.spec, styleHint: recipe.styleHint },
-				{ timeoutMs: POST_JSON_TIMEOUTS_MS.generate }
-			);
-			if (isStale()) return;
-			const parsed = GenerateResultSchema.safeParse(payload);
-			if (!parsed.success) {
-				this.generateError = 'Generate response did not match contract.';
-				return;
-			}
-			if (!parsed.data.ok) {
-				this.generateError = parsed.data.error.message;
-				return;
-			}
-
-			const usable = await decodableImages(parsed.data.value.images);
-			if (isStale()) return;
-			if (usable.length === 0) {
-				// Keep whatever is already on screen. It cost a paid generation, and an unreadable
-				// replacement is not a reason to destroy it.
-				this.generateError =
-					'The provider returned an image that could not be read. The page on screen was kept.';
-			// With no page already on screen there is nothing to protect, so the request's own findings
-			// are the most useful thing the reader can be given — the home studio records its trace
-			// above its no-picture guard for exactly this reason. When a page *is* on screen it keeps
-			// its own report: attaching this request's findings to a page they do not describe is the
-			// conflation this whole change exists to remove, so the fix is conditional rather than
-			// simply hoisting the assignment above the guard.
-				if (!this.hasPage) {
-					this.violations = parsed.data.value.violations;
-					this.recommendedFixes = parsed.data.value.recommendedFixes;
-					this.driftCheckFailure = parsed.data.value.driftCheckFailure;
-					this.driftReported = true;
-				}
-				return;
-			}
-			const images = usable.map((entry) => entry.image);
-
-			// Install the page *before* packaging it. The generation is the paid part and it has
-			// already succeeded here; packaging is a local render that can fail on its own. Leaving
-			// the install until afterwards meant any packaging problem skipped it entirely and threw
-			// the whole page away — the images included.
-			this.pageVerdict = verdict;
-			this.lastRecipe = recipe;
-			this.generatedImages = images;
-			this.assembledPrompt = parsed.data.value.prompt;
-			this.revisedPrompt = parsed.data.value.revisedPrompt ?? '';
-			this.violations = parsed.data.value.violations;
-			this.recommendedFixes = parsed.data.value.recommendedFixes;
-			this.driftReported = true;
-			this.driftCheckFailure = parsed.data.value.driftCheckFailure;
-			this.imagePreviews = usable
-				.map((entry) => entry.preview)
-				.filter((url): url is string => url !== null);
-			this.packageAttempts = [];
-			// The provider's own bytes are downloadable the moment the page lands; packaging takes
-			// seconds. Waiting for it would hide the one file that needs no rendering at all behind
-			// the two that do.
-			this.pageOriginalImage = images[0] ?? null;
-
-			await this.attachDownloads(images, recipe.spec.pageSize, token);
-		} catch (requestError) {
-			if (isStale()) return;
-			this.generateError =
-				requestError instanceof Error
-					? requestError.message
-					: 'Network error. Try again.';
-		} finally {
-			if (!isStale()) this.isGenerating = false;
-		}
-	}
-
-	/**
-	 * Build the downloads for the page that is already installed, and report what could not be built.
-	 *
-	 * Separate from `makePage` because it is a distinct phase with its own failure rules: the page
-	 * exists and stays whatever happens here, so nothing in this method may clear it. Splitting it
-	 * out also keeps `makePage` readable as ask / validate / keep what decodes / install / package.
-	 */
-	private async attachDownloads(
-		images: GeneratedImage[],
-		pageSize: ToolPageRecipe['spec']['pageSize'],
-		token: number
-	): Promise<void> {
-		const isStale = (): boolean => token !== this.pageToken;
-		const fileBaseName = `meechie-${this.fileBaseSlug}-${Date.now()}`;
-		// Set before packaging, not after: the provider's own image is already downloadable, and
-		// naming it only once the PDF exists would hand anyone who grabbed it early a file named
-		// after no page in particular. Cleared by `resetPage` on its way past, so a late attempt for
-		// a replaced page cannot revive it.
-		this.pageFileBaseName = fileBaseName;
-		const print = await packageOneVariant(
-			'print',
-			images,
-			fileBaseName,
-			pageSize
-		);
-		// Checked here, not only after both: the square variant rasterises a 1080px canvas, and
-		// starting that for a page the user has already replaced burns time and memory on a result
-		// that is guaranteed to be discarded.
-		if (isStale()) return;
-		const share = await packageOneVariant(
-			'square',
-			images,
-			fileBaseName,
-			pageSize
-		);
-		if (isStale()) return;
-
-		// Recorded as attempts, and *not* into `generateError`. Both used to go there: a page that
-		// generated perfectly and then failed to become a square PNG rendered in the same crimson
-		// box, in the same place, as a page that never generated — directly above the button that
-		// buys another generation, for a failure in a free local render. `exportError` is derived
-		// from these and worded so it cannot be read that way, exactly as the home studio's is.
-		this.packageAttempts = [
-			{ variant: 'print', files: print.files, error: print.error, pageSize },
-			{ variant: 'square', files: share.files, error: share.error, pageSize }
-		];
-	}
-
-	/** Keep the page: write it into the same owner-scoped vault the studio saves to. */
-	async saveToVault(): Promise<void> {
-		if (this.isSaving || !this.lastRecipe || !this.pageVerdict) return;
-		if (this.generatedImages.length === 0) return;
-		// Same guard as `canSaveToVault`, enforced here too: this class is the shared contract for
-		// three routes and a future caller must not be able to reintroduce the ambiguity above by
-		// wiring its own button.
-		if (this.isGenerating) return;
-		// Pinned before any await for the same reason the generation path pins its verdict: these
-		// fields are cleared by `resetPage()`, and the record must describe the page that was on
-		// screen when the button was pressed.
-		const recipe = this.lastRecipe;
-		const pageVerdict = this.pageVerdict;
-		const images = this.generatedImages;
-		const assembledPrompt = this.assembledPrompt;
-		const revisedPrompt = this.revisedPrompt;
-		const violations = this.violations;
-		this.isSaving = true;
-		this.vaultStatus = 'Saving...';
-		const token = this.pageToken;
-		try {
-			const owner = await this.resolveOwner();
-			if (token !== this.pageToken) return;
-			if (!owner) {
-				// Not "still connecting": the session genuinely could not be opened, and the usual
-				// cause is a browser blocking site data. Saying so is actionable; inviting a retry
-				// against a condition that will not change on its own is not.
-				this.vaultStatus =
-					'Could not open your session, so there is nowhere to save this page. Check that your browser allows site data for this site.';
-				return;
-			}
-			const result = await creationStoreAdapter.saveCreation({
-				record: {
-					id: newCreationId(),
-					// Through `ClockSeam`, not `new Date()`: `AGENTS.md` classifies clock/time as a
-					// seam, and the seam's own contract says anything needing "now" must cross it so
-					// the behaviour is drivable from a test rather than dependent on when the suite
-					// happens to run. The adapter already exists; consuming it changes no contract.
-					createdAtISO: new Date(this.clock.now()).toISOString(),
-					intent: recipe.spec,
-					assembledPrompt,
-					revisedPrompt: revisedPrompt || undefined,
-					// Store the verdict's own text. Leaving this unset is not neutral: the reopen path
-					// falls back to `assembledPrompt` for the quote, which on a generated page is the
-					// image-generation prompt, and to the default landlord page items when the saved
-					// spec has none. `?? undefined`, not a cast: `buildToolStudioText` returns null
-					// when the verdict has no printable words to build a contract-valid record from,
-					// and omitting the field keeps the save valid rather than losing the page.
-					studioText: buildToolStudioText(pageVerdict, recipe) ?? undefined,
-					violations,
-					// `fixesApplied` is deliberately omitted, not filled from `recommendedFixes`.
-					// This flow never applies a recommendation and never regenerates with one, so
-					// writing them into a field named "applied" records a correction that did not
-					// happen — and a later reader could not tell a drifted page from a corrected
-					// one. `violations` above still carries the full drift evidence, which is the
-					// part that is actually true. The two older call sites
-					// (`studio-state.svelte.ts`, `MeechieTools.svelte`) still write recommendations
-					// here; that is a pre-existing defect in persisted-record semantics and fixing
-					// it belongs in its own change, not smuggled into this one.
-					images: images.map((image) => ({ b64: generatedImageBase64(image) })),
-					owner
-				}
-			});
-			if (token !== this.pageToken) return;
-			this.vaultStatus = result.ok ? VAULT_SAVED_CONFIRMATION : result.error.message;
-		} catch (saveError) {
-			if (token !== this.pageToken) return;
-			this.vaultStatus =
-				saveError instanceof Error
-					? saveError.message
-					: 'Failed to save to vault.';
-		} finally {
-			this.isSaving = false;
-		}
+		await this.generatePage({
+			recipe,
+			// `?? undefined` at the record, not a cast here: `buildToolStudioText` returns null when
+			// the verdict has no printable words to build a contract-valid record from, and the
+			// vault write omits the field rather than losing the page.
+			studioText: buildToolStudioText(verdict, recipe),
+			headline: verdict.headline
+		});
 	}
 
 	/** Put the verdict on the clipboard, headline and all. */

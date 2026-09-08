@@ -5,11 +5,27 @@
 //      lost to a share-image failure, a verdict destroyed by a failed retry. Each one gets a test
 //      that fails if the guard is removed.
 // Info flow: stubbed fetch + spied adapters -> VerdictPageState methods -> state assertions.
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { creationStoreAdapter } from '../../src/lib/adapters/creation-store.adapter';
 import { outputPackagingAdapter } from '../../src/lib/adapters/output-packaging.adapter';
 import { sessionAdapter } from '../../src/lib/adapters/session.adapter';
 import { VerdictPageState } from '../../src/lib/components/verdict-page-state.svelte';
+// The scaffolding every `PageArtifactState` test needs. Aliased to the names this file already
+// used, so the ~50 cases below read exactly as they did when they were proving the extraction of
+// `PageArtifactState` changed no behaviour.
+import {
+	IMAGE,
+	PRINT_FILE as printFile,
+	SHARE_FILE as shareFile,
+	defer,
+	flush,
+	generateValue,
+	jsonResponse,
+	usePageArtifactHarness,
+	stubFetchRoutes,
+	stubImageDecoder,
+	type FetchStub
+} from './support/page-artifact-harness';
 import { GenerateResultSchema } from '../../contracts/generate.contract';
 import { MeechieToolResultSchema } from '../../contracts/meechie-tool.contract';
 import type {
@@ -34,104 +50,19 @@ const PLAIN_VERDICT: MeechieToolOutput = {
 	response: 'His story keeps changing and yours never had to.'
 };
 
-const IMAGE = {
-	id: 'img-1',
-	format: 'png' as const,
-	mimeType: 'image/png',
-	data: 'QUJD',
-	encoding: 'base64' as const
-};
-
-const generateValue = (overrides: Record<string, unknown> = {}) => ({
-	prompt: 'assembled prompt',
-	templateVersion: 'v1',
-	images: [IMAGE],
-	revisedPrompt: 'revised prompt',
-	violations: [],
-	recommendedFixes: [],
-	...overrides
-});
-
-const printFile = {
-	filename: 'print.pdf',
-	mimeType: 'application/pdf',
-	dataBase64: 'UFJJTlQ='
-};
-const shareFile = {
-	filename: 'square.pdf',
-	mimeType: 'application/pdf',
-	dataBase64: 'U0hBUkU='
-};
-
-/** Resolve every already-queued microtask, and the promise chains they in turn queue. */
-const flush = async (): Promise<void> => {
-	for (let i = 0; i < 8; i += 1) await Promise.resolve();
-};
-
-type Deferred<T> = { promise: Promise<T>; resolve: (value: T) => void };
-const defer = <T>(): Deferred<T> => {
-	let resolve!: (value: T) => void;
-	const promise = new Promise<T>((res) => {
-		resolve = res;
-	});
-	return { promise, resolve };
-};
-
-const jsonResponse = (body: unknown): Response =>
-	new Response(JSON.stringify(body), {
-		status: 200,
-		headers: { 'Content-Type': 'application/json' }
-	});
-
-/** What `/api/tools` and `/api/generate` return for the next call, keyed by path. */
-type Routes = {
-	tools?: () => Promise<Response>;
-	generate?: () => Promise<Response>;
-};
+/** The two endpoints this class calls, named once so every case below reads `routes.tools`. */
+const ENDPOINTS = { tools: '/api/tools', generate: '/api/generate' } as const;
+type Routes = FetchStub<keyof typeof ENDPOINTS>['routes'];
 
 let routes: Routes;
 let fetchCalls: string[];
 
-/**
- * jsdom provides an `Image` constructor but never loads anything, so neither `onload` nor
- * `onerror` would ever fire and the real decode probe would hang forever. This stub decides per
- * URL, which is also how the corrupt-bytes cases below are driven.
- */
-const stubImageDecoder = (decides: (src: string) => boolean): void => {
-	vi.stubGlobal(
-		'Image',
-		class {
-			onload: (() => void) | null = null;
-			onerror: (() => void) | null = null;
-			naturalWidth = 0;
-			naturalHeight = 0;
-			set src(value: string) {
-				const decodable = decides(value);
-				queueMicrotask(() => {
-					if (decodable) {
-						this.naturalWidth = 1;
-						this.naturalHeight = 1;
-						this.onload?.();
-					} else {
-						this.onerror?.();
-					}
-				});
-			}
-		}
-	);
-};
-
 const stubFetch = (): void => {
-	fetchCalls = [];
-	vi.stubGlobal(
-		'fetch',
-		vi.fn(async (url: string) => {
-			fetchCalls.push(url);
-			if (url === '/api/tools' && routes.tools) return routes.tools();
-			if (url === '/api/generate' && routes.generate) return routes.generate();
-			throw new Error(`Unstubbed request to ${url}`);
-		})
-	);
+	const stub = stubFetchRoutes(ENDPOINTS);
+	// Both are the stub's own live objects rather than copies: `routes` is written by the tests and
+	// read by the handler, and `calls` is pushed to by the handler and read by the tests.
+	routes = stub.routes;
+	fetchCalls = stub.calls;
 };
 
 const okTools = (verdict: MeechieToolOutput) => async () =>
@@ -210,29 +141,7 @@ const withPage = async (
 	return state;
 };
 
-beforeEach(() => {
-	routes = {};
-	stubFetch();
-	stubImageDecoder(() => true);
-	vi.spyOn(sessionAdapter, 'getSession').mockResolvedValue({
-		ok: true,
-		value: { sessionId: 'session-1' }
-	});
-	vi.spyOn(outputPackagingAdapter, 'package').mockImplementation(
-		async (input) =>
-			input.variants?.includes('square')
-				? { ok: true, value: { files: [shareFile] } }
-				: { ok: true, value: { files: [printFile] } }
-	);
-	vi.spyOn(creationStoreAdapter, 'saveCreation').mockResolvedValue(
-		savedRecord(STORED_RECORD)
-	);
-});
-
-afterEach(() => {
-	vi.restoreAllMocks();
-	vi.unstubAllGlobals();
-});
+usePageArtifactHarness({ stubFetch, savedRecord: STORED_RECORD });
 
 describe('fixtures', () => {
 	it('the stubbed responses actually satisfy the real contracts', () => {

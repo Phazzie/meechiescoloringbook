@@ -9,6 +9,42 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
 
 ## 2026-09-08
 - Date: 2026-09-08
+- Context: `/describe` shows the reader a read-back of the interpreted spec before charging for a picture. Its first draft rendered `footerItem` last, after the list, with its number. `src/lib/adapters/prompt-assembly-seam/index.ts` uses `footerItem.label` as the **unnumbered second line directly under the headline**, and never reads `footerItem.number` at all.
+- Lesson: **A preview is a claim about a consumer, and it can only be checked against that consumer.** `check`, `lint`, 1,789 tests, `build` and the whole `verify` chain passed on a preview that put a line in the wrong place, because none of them reads a promise — and no test written from the preview's own intent could have caught it either, since the intent and the code agreed with each other and both disagreed with the prompt.
+- Action: When adding a surface that shows the reader what will happen, read the code that makes it happen, field by field, and write the test against *that* file's line numbers. The same round found a style hint silently dropping the subject the reader asked for, for the same reason: nobody had checked what the downstream consumer could actually carry.
+
+## 2026-09-08
+- Date: 2026-09-08
+- Context: A reviewer asked `/describe` to call `chatInterpretationAdapter` instead of `postJson`. The same reviewer, in the same round, asked the read-back button to be gated on the reported quota — which needs the `RateLimit-*` headers the adapter discards.
+- Lesson: **Two findings in one review can be individually reasonable and jointly unsatisfiable.** Taking each on its own merits would have produced a surface that reads a quota it cannot see. The resolution is not to pick the more senior-sounding one but to say which constraint the pair actually exposes: here, that the seam's contract has no place for a timeout or a response header, so "use the adapter" means "change the contract" — a different decision with a different approval bar.
+- Action: Before implementing a review finding, check it against the other findings in the same round. When two conflict, answer both on the thread with the conflict named, rather than silently satisfying one.
+
+## 2026-09-08
+- Date: 2026-09-08
+- Context: `DescribePageState.interpretedFrom` exists to pin a read-back to the words that produced it, because the message box stays editable while the request is in flight. Its first implementation assigned `this.message.trim()` *after* the await.
+- Lesson: **A value is only pinned if it is read at the moment it is pinned.** The field, its name, its doc comment and its invariant all said "pinned"; the assignment read a live field seconds later, so a reader who typed during the request got a read-back captioned with words that were never sent — the exact drift the field was added to stop. Every test written from those comments passed, because they tested the intent rather than the timing.
+- Action: Capture into a local `const` before the first await, and never read the live field again in that method. To catch it, a test has to hold the request open and change the input in between — asserting the happy path cannot distinguish "pinned at send" from "read on arrival".
+
+## 2026-09-08
+- Date: 2026-09-08
+- Context: Three consecutive runs recorded `ChatInterpretationSeam` as "zero consumers" and carried it forward as a deletion candidate. It is a complete, tested, quota-metered feature — contract, mock, fixtures, probe, pipeline, live endpoint, browser adapter — with no user interface.
+- Lesson: **"No consumers" is a measurement, not a verdict.** The same number reads as dead weight or as an undelivered feature depending entirely on whether the thing behind it is worth reaching, and nothing in the measurement itself answers that. Carrying the measurement forward three times without ever asking the second question is how a finished feature stays invisible for the life of an app.
+- Action: When an inventory finds something unreferenced, record what it *does* alongside the count. Here the answer was that it is the only path by which this app can be told what to put on a page, which made a front door obviously worth more than a deletion.
+
+## 2026-09-08
+- Date: 2026-09-08
+- Context: `/describe` needed the whole spec-to-finished-page lifecycle that `VerdictPageState` owns — generation, decoding, packaging, the export row, the drift report, the vault write — about 300 lines of it.
+- Lesson: **The cheapest way to tell a refactor from a rewrite is to forbid yourself from touching its tests.** `tests/unit/verdict-page-state.test.ts` is 1,132 lines covering guards that are invisible from outside the class. Extracting the shared half and requiring all 50 of them to pass *unmodified* made the question mechanical: a test that needed editing to go green would have been the evidence that behaviour had moved, not a licence to edit it.
+- Action: State "these tests must pass unmodified" in the plan before starting an extraction, and treat any edit to them as a finding rather than a fix.
+
+## 2026-09-08
+- Date: 2026-09-08
+- Context: `aiActionsLeft` divided the bucket's remaining units by `STUDIO_TEXT_QUOTA_COST` (2). A read-back on `/describe` costs 1, from the same bucket.
+- Lesson: **A shared reading needs the reader's own arithmetic.** Reusing the studio's constant on the new surface would have told a reader holding five units that they had two read-backs when they have five — the same class of defect as the invented counter the quota feature replaced, arrived at by reuse rather than by invention.
+- Action: Where one resource funds actions of different prices, the price and the name of the action are the caller's facts, not the module's. Both are now parameters with the old value as the default, so two surfaces can honestly report different numbers from one reading and a reader can tell which is which.
+
+## 2026-09-08
+- Date: 2026-09-08
 - Context: Run 16 rebuilt the packaged print download. Its first red proof set `PRINT_SAFE_MARGIN_MM` to 0 and only 4 of 27 tests failed.
 - Lesson: **A test that asserts an invariant against the constant that produces it is self-referential and proves nothing.** Fourteen margin assertions compared the placement to `PRINT_SAFE_MARGIN_PT`; zeroing that constant moved both sides of every comparison at once, so a layout that bleeds to the edge of the paper passed its own margin tests.
 - Action: Measure an invariant against a floor that is stated independently and owned by nothing under test — here `HARDWARE_CLEARANCE_PT` (0.25in, the printer's physical unprintable border). The same edit then fails 20 of 27. Run 15 recorded the general form of this and it still had to be rediscovered; when writing a red proof, check *how many* tests fail, not just that some do.

@@ -12868,3 +12868,310 @@ edit landed where it was aimed.
   every head, so a future run can settle it the same way rather than inheriting it as unreadable.
 
 Do not inherit this entry's measurements. Re-measure.
+
+## Run 17 — 2026-09-08 — The interpreter with no front door (`ChatInterpretationSeam`)
+
+**Branch:** `claude/great-bell-lnl79w` · **Base:** `main` at `7191656`
+
+### The feature, and the case against it
+
+`ChatInterpretationSeam` turns a sentence of plain English into a validated `ColoringPageSpec`.
+Everything it needs exists and is tested:
+
+| Part | Path |
+|---|---|
+| Contract, mock, fixtures, probe, seam test | `src/lib/seams/chat-interpretation-seam/` |
+| Pipeline (schema parse → quota charge → provider → JSON extraction → `RawColoringPageSpecSchema` → `SpecValidationSeam` → `ColoringPageSpecSchema`) | `src/lib/core/chat-interpretation-pipeline.ts` |
+| Live, deployed, billable endpoint | `src/routes/api/chat-interpretation/+server.ts` |
+| **Browser-side** adapter that fetches `/api/chat-interpretation` | `src/lib/adapters/chat-interpretation-seam/index.ts` |
+| Contract and route tests | `tests/contract/chat-interpretation.test.ts`, `tests/unit/api-chat-interpretation.test.ts` |
+
+Measured this run on `main` at `7191656`:
+
+```
+grep -rn "chat-interpretation|chatInterpretation|ChatInterpretation" src/ --include=*.svelte --include=*.ts
+```
+
+returns hits only inside the seam's own folder, its pipeline, its route and its adapter. **No file
+under `src/routes/**` or `src/lib/components/**` imports any of it.** The browser adapter — a file
+whose entire purpose is to be called from a component — has zero callers.
+
+That is the widest promise-to-delivery gap the app has left: **100% built, 0% delivered.** Every
+other page-making surface hands the reader one of eight fixed questions and one or two boxes. The
+app could be chosen from; it could not be *told*. And the machinery to be told was deployed the
+whole time, charging a quota bucket nobody could spend.
+
+Runs 14, 15 and 16 each carried this forward — "a live, billable endpoint with a full pipeline and
+no UI anywhere in `src/`. Costs the reader nothing and the owner money and attack surface" — framed
+each time as a deletion candidate. This run took the other branch, for the reason recorded in
+`DECISIONS.md`: the thing deletion removes is the only path by which this app can be told what to
+put on a page, and the cost of keeping it is one endpoint the same rate limiter already guards.
+
+**The measurement was re-run this run rather than inherited,** per the previous entry's closing
+instruction, and it was unchanged.
+
+### What shipped
+
+**`/describe` — "Say it your way".** In the nav on every screen, desktop and mobile. Type what the
+page should say and how it should look; get that page, with everything every other page-making
+surface has: the drift report, the printable PDF, the square picture for sending, the untouched
+original, Print, Send, and Save to the vault.
+
+**The one thing no other surface does: the interpretation is shown before the generation is
+offered.** Two billable calls in a fixed order, with a read-back between them — the exact title,
+the exact lines in order (footer included and marked), the paper, the border, the lettering, what
+is drawn, and *the sentence they came from*. An interpretation that heard "five things" as a
+title-only page is a finding worth one quota unit instead of one wasted generation.
+
+Alongside the read-back, **cautions — which are never refusals**: a list longer than the six lines
+the rest of the app puts on a sheet, a page that would arrive already coloured in rather than as
+outlines, or four pictures instead of one. Each says what will happen and still offers to make it.
+
+**`PageArtifactState` (new, `src/lib/components/page-artifact-state.svelte.ts`).** The
+spec-to-finished-page half of `VerdictPageState`, extracted and driven by a `PageSource` — a recipe
+plus what to store and what to say about it. `VerdictPageState` and `DescribePageState` both extend
+it. The alternative was copying ~300 lines, which is precisely the duplication that left the three
+mode routes each missing something different, and which SonarCloud's duplication gate measures on
+new code.
+
+- **All 50 cases in `tests/unit/verdict-page-state.test.ts` passed unmodified, in commit
+  `19ca634`.** That was the plan's definition of "a move rather than a redesign", stated before the
+  extraction started. A later commit on this branch moves that file's stub scaffolding into a shared
+  harness (see the SonarCloud round below); **not one assertion, fixture value or case body
+  changed**. The unmodified run is the evidence and it stands at that commit — the claim is dated
+  rather than quietly dropped, because "passes unmodified" and "passed unmodified at the commit
+  where it mattered" are different statements and only the second is now true.
+- `PageSource.studioText` is nullable, and the nullability is load-bearing: a described page stores
+  **none**. `MeechieStudioTextOutputSchema` requires a `verdict` string, the reader's own sentence
+  is not one, and `warrantForRestoredVerdict` already exists to tell a vouched-for verdict from an
+  unvouched one. A fabricated verdict is worse than an absent one.
+
+**`src/lib/core/describe-page.ts` (new, pure).** Message limits, one reader-facing sentence per
+interpretation failure code, the read-back itself, the cautions, and the style hint. Derived from
+the *validated spec* and never from the sentence that produced it — a read-back built from the
+request rather than the result would hide exactly the mismatch it exists to expose.
+
+**`ai-quota.ts`: the price and the name of the action are now the caller's facts.** One bucket funds
+actions of different prices — a studio rewrite is two units, a read-back is one — so reusing the
+studio's arithmetic on the new surface would have told a reader holding five units they had two
+read-backs. `CHAT_INTERPRETATION_QUOTA_COST` moves here beside `STUDIO_TEXT_QUOTA_COST`, one
+definition each, imported by the pipeline that charges it.
+
+**No contract, probe, fixture, mock, adapter or seam file is in the diff.** Confirmed by
+`git diff --name-only origin/main...HEAD` against those directories, which is also why there is no
+Cipher Gate entry. `DECISIONS.md` carries the tradeoffs.
+
+### Four decisions worth arguing with
+
+1. **Build the front door rather than delete the seam.** Three runs implied deletion. Recorded in
+   full in `DECISIONS.md`; the short version is that "no consumers" is a measurement and not a
+   verdict, and nothing in the count tells you whether the thing behind it is worth reaching.
+2. **Inheritance over composition.** Composition needs ~25 delegation accessors to keep
+   `VerdictPageState`'s public surface unchanged, and every one is a place for the two to drift.
+   `VerdictPageState` genuinely *is* a page artifact that additionally knows how to get a verdict.
+3. **`postJson` rather than `chatInterpretationAdapter`.** The adapter uses bare `fetch` with no
+   timeout and discards the `RateLimit-*` headers, so it can neither bound a hung request nor
+   report a quota. Fixing that is observable behaviour across a seam boundary — the full
+   Seam-Driven Development workflow, for no gain — and `VerdictPageState` already calls `/api/tools`
+   and `/api/generate` this exact way. The adapter is left in place with its tests.
+4. **The style hint is derived from the interpreted spec, not from the reader's sentence** — the
+   sentence is a *page* request ("a page that says X with roses around it"), and putting it in
+   `styleHint` hands the image model the words a second time, in the one field that is not the
+   exact-text block. **This one was wrong, and a review round overturned it.** See below.
+
+### What this run could not prove, stated plainly
+
+**The live quality of the model's interpretation.** `XAI_API_KEY` is not available in this
+container, so no live call was made. No probe was needed — no seam changed — but it means the
+cautions are written against what the model *may* return rather than against what it does, and that
+is the part most likely to be wrong in practice. It is recorded as this decision's revisit
+criterion. The surface is built so a bad interpretation costs one unit rather than a generation,
+which is the mitigation available without a key.
+
+### Red proofs, run because a green test proves nothing on its own
+
+Run 16's closing lesson was that a red proof must be checked for *how many* tests fail. Eight
+mutations, each reverted immediately:
+
+| Mutation | Tests that failed |
+|---|---|
+| `CHAT_INTERPRETATION_QUOTA_COST` 1 → 2 | 2 |
+| Long-list caution removed | 1 |
+| Footer line dropped from the read-back | 2 |
+| `interpret()` clears the page up front | 1 |
+| `canMakePage` stops checking `isInterpreting` | 1 |
+| A verdict fabricated for a described page's vault record | 1 |
+| `interpretedFrom` read from the live box on arrival | 1 |
+| The interpretation staleness token removed | 2 |
+
+Each named the guard it removed. Nothing passed on a mutated build.
+
+### The defect this run found in its own diff, after the pull request was open
+
+The last two rows of that table are guards that **did not exist in the first push**, and the reason
+they exist now is worth recording: they came out of re-reading the diff adversarially while CI ran,
+not from a reviewer.
+
+`interpret()` captioned the read-back with `this.interpretedFrom = this.message.trim()` *after* the
+await. `message` is a live, editable field — the box is deliberately not locked or cleared while a
+request is in flight — so a reader who typed anything during those seconds got a read-back captioned
+with words that had never been sent. **That is the precise drift `interpretedFrom` was added to
+prevent, reintroduced one line below the comment explaining it.** The fix is to pin the message
+before the await and never read the field again.
+
+The same read found the second: `isInterpreting` blocks two overlapping requests but does not block
+`reset()`, so clearing the surface mid-flight let the answer land a moment later on an empty box,
+captioned with nothing. `interpretToken` — separate from `pageToken`, because the two lifecycles are
+cancelled by different actions — discards it on arrival.
+
+**The transferable part:** a field that exists to pin a value is only pinned if it is *read* at the
+moment it is pinned. Writing "pinned" in the doc comment and then assigning from a live field after
+an await produces a class whose comments describe a guard the code does not have — and every test
+written from those comments passes, because they test the intent rather than the timing. The test
+that caught it had to hold the request open and edit the box in between.
+
+### Verification
+
+`npm run check` (0 errors), `npm run lint`, `npm test` (**1786 passed**, up from 1724 —
+62 new: 31 for the pure policy, 30 for the state class, 1 route added to the security-headers
+inventory), `npm run build`, `npm run verify` (**exit 0**), and the full Playwright suite —
+**75 passed**, including 7 new tests that drive `/describe` from the nav link to a page kept in the
+vault in a real browser.
+
+*One environment note for a future run: this container's pre-installed Chromium
+(`/opt/pw-browsers/chromium`, build 1194) does not match the browser build `@playwright/test@1.58.2`
+looks for, so a bare `npx playwright test` fails with "Executable doesn't exist" for every test. The
+run used a throwaway config setting `launchOptions.executablePath` to the pre-installed binary, and
+deleted it before committing. `npx playwright install` is explicitly not the answer here.*
+
+### The SonarCloud round: the duplication gate caught the tests, not the source
+
+`SonarCloud Code Analysis` failed the first head: **4.0% duplication on new code against a 3%
+limit**, while the `SonarCloud` gate check beside it reported success — Run 16's "read the
+annotations, not the gate" holding again, one check over.
+
+The extraction had been chosen partly *to avoid* this gate, and on the source it worked:
+`page-artifact-state.svelte.ts` measured against `verdict-page-state.svelte.ts` shares **0**
+duplicated lines. The duplication was in the **tests** — 116 near-identical scaffolding lines
+between `describe-page-state.test.ts` and `verdict-page-state.test.ts` (`stubImageDecoder`,
+`stubFetch`, `defer`, `flush`, `jsonResponse`, the image and packaging fixtures, the adapter spies),
+plus 23 in the end-to-end spec.
+
+`tests/e2e/support/page-fixtures.ts` already exists in this repository, and its own file header
+records the same gate failing an earlier run at 5.5% for the same reason. The answer was the
+unit-test twin of it: `tests/unit/support/page-artifact-harness.ts`, imported by **both** files — so
+the fix removes the duplication rather than relocating it, and the two classes that extend one base
+now share one harness. The end-to-end spec was switched onto the `PNG_1X1` and `openRoute` already
+in `page-fixtures.ts`.
+
+Measured after: **75 duplicated lines, down from ~175.** What remains is an import list, a one-line
+type alias, and the `.cta` button rules every styled component in this app already restates — all
+below the detector's block threshold or pre-existing. The `.cta` block was deliberately **not**
+reformatted to break the line match: that would be fixing the metric rather than the property, which
+is exactly the failure Run 16's close-out named.
+
+**The finding worth carrying forward:** the duplication gate was the stated reason for choosing
+extraction over copying, and it still failed — because the reasoning was applied to the source and
+not to the tests written alongside it. New tests for a newly shared class are new code, and two
+tests of one base class need one harness for the same reason the class itself needed one.
+
+### The Codex round: five findings, four real, and one of them was my own decision
+
+Codex reviewed `19ca634` and left five. Taken in order of how much they were worth:
+
+**P1 — the style hint dropped the only thing the reader asked for.** `ColoringPageSpec` has no field
+that can hold "roses". The shipped example is *"A page that says … with roses around it"*, the
+interpreter turns "with roses" into `illustrations: 'simple'`, and a hint derived from the spec
+alone carries "one simple drawing beside the words" — no roses. So the surface could not produce the
+page it advertises, and the reasoning in this entry's decision list was **the defect**, written up
+as a decision. The subject now rides in the hint, sanitized and introduced with an explicit
+instruction not to letter it.
+
+  The sanitizer strips **every colon**, which is the part worth stealing: `PROMPT_FORBIDDEN_TOKENS`
+  is `['size:', 'quality:', 'style:']` and every reserved style-hint heading ends in one, so "no
+  colon" *proves* "no forbidden token" — an invariant instead of a blocklist a new token could slip
+  past. Without it, a reader who typed "style: gothic" would have failed their own generation at the
+  assembly seam for a reason nothing on screen could explain. That failure mode was not in the
+  finding; it turned up while writing the fix.
+
+**P2 — the read-back put the footer line in the wrong place.** `prompt-assembly-seam` L55 and L83-85
+use `footerItem.label` as the **unnumbered second line directly under the headline**, and never read
+`footerItem.number` at all. The read-back rendered it last, after the list, numbered. On a surface
+whose entire justification is that the reader sees what was understood *before* paying, a read-back
+that misplaces a line is worse than no read-back. **This is the most valuable finding of the run**:
+it is the feature failing at the one thing it exists to do, and no test written from the read-back's
+own intent could have caught it — only reading the consumer could.
+
+**P2 — the read-back button stayed live on an empty quota.** The sentence under it said the desk was
+full while the button above it went on issuing requests the server had already said it would refuse.
+Now gated on `aiActionsLeft(snapshot, CHAT_INTERPRETATION_QUOTA_COST)`, and it un-latches on the
+`ClockSeam` timer that already existed rather than on a failed attempt.
+
+**P1 — pin the source text before awaiting the interpretation.** Already fixed in `2cc74b5`, found
+independently by re-reading the diff while CI ran. Two readers finding the same defect from opposite
+directions is the strongest signal in this run that it was real.
+
+**P1 — route the interpretation through `chatInterpretationAdapter`** rather than `postJson`, citing
+`AGENTS.md` L110-116. **Answered on the thread, not pushed**, and this is the one worth arguing:
+
+- The adapter uses bare `fetch` with no timeout and discards the `RateLimit-*` headers. Using it
+  costs this surface its timeout **and** its quota line — and the quota line is what the same
+  review's other finding asks to gate the button on. **The two findings are in direct tension, and
+  only one of them can be satisfied without a contract change.**
+- `ChatInterpretationSeam`'s contract is `interpret(input) => Result<Output>`. There is no place in
+  it for a timeout or for response headers, so "extend the adapter" means changing the contract —
+  which `AGENTS.md` names as a condition for **not** merging without asking, and which the
+  worst-feature routine says to take on in full or not at all.
+- The repository's own practice is unambiguous: **every** client surface that calls the app's own
+  API — `VerdictPageState`, `StudioState`, `MeechieTools.svelte` — uses `postJson` plus the contract
+  schema, and **none** uses a client-side adapter. The adapters components do use (`sessionAdapter`,
+  `creationStoreAdapter`, `outputPackagingAdapter`, `clockSeam`) wrap browser capabilities, not HTTP
+  to this app's own routes. The provider seam boundary is on the server, where
+  `ProviderAdapterSeam` is.
+
+**The finding worth carrying forward:** three of the four real findings were about a *claim the
+surface makes*, not about code that crashes — a hint that silently drops a subject, a read-back that
+misplaces a line, a button that contradicts the sentence beneath it. Every one of them passed
+`check`, `lint`, 1,789 tests, `build` and the whole `verify` chain, because none of those read a
+promise. **The reviewer that helps a surface like this is the one that reads the consumer** —
+`prompt-assembly-seam` — rather than the code under review.
+
+### Carried forward for the next run
+
+- **The provider is asked for a 1024x1024 square** (`image-generation-pipeline.ts:20`) while the
+  page is portrait. Inherited from Run 16 and **materially re-measured this run, which found more
+  than the previous entry recorded**: `src/lib/adapters/image-generation-seam/index.ts` L86-91 sends
+  `{model, prompt, n, response_format}` and **never sends `size` at all**, then reports it back as
+  `rawModelInfo.requestedSize` as though it had. So the `size` the pipeline sets, the seam contract
+  requires and the validator validates is dropped on the floor, and the "requested size" the app
+  records is a value the provider never saw. This is **blocked, not deferred**: no `XAI_API_KEY` is
+  available here, xAI's image API has historically rejected `size`, and sending an unsupported
+  parameter would break every generation in a way no test in this repository could detect. A run
+  with a key should probe it first; a run without one should not guess.
+- **`placedDpi` has no production consumer** — its only caller anywhere is
+  `tests/unit/print-layout.test.ts`. Run 16 added it "to report it" and nothing reports it. The
+  download row says "Printable PDF · US Letter — ready to print" and says nothing about the
+  **135.5dpi** the shipped 1024x1024 square actually lands at inside the 12mm safe box
+  (`1024 x 72 / 543.969pt`), nor about the **180pt — 2.5 inches — of blank paper** the letterboxing
+  leaves down the sheet. That test already asserts the figure is between 130 and 150, so the number
+  is measured rather than assumed. Making the row honest about resolution is a small, self-contained
+  change inside `page-exports.ts` and needs no provider at all.
+- **The AI quota is reported on the home studio and nowhere else.** `/describe` now reports it too,
+  which leaves the three standalone mode routes, `/m/<slug>` and `/meechie` — five surfaces that
+  spend the same bucket and say nothing about it. `describeAiQuota` now takes the cost and the name
+  of the action, so each of them can report its own honestly.
+- **`chatInterpretationAdapter` still has no callers**, now by choice rather than by neglect: the
+  new surface uses `postJson` for the timeout and the quota headers the adapter drops. Either give
+  the adapter both (full Seam-Driven Development workflow) or delete it (also a seam change). Do not
+  leave it as a third thing.
+- **The `chat` packaging variant has zero consumers**, with Run 14's reasoning.
+- **Mode persistence** — Run 12's pick, blocked on the seam rule for the sixth run running.
+- **Vault capacity is not knowable from outside the adapter**, leaving the orphaned-records gap in
+  `undoDelete`. Same seam workflow.
+- `MeechieToolOutput.quoteScore` and `modelMetadata`, from Run 11's list.
+- **Four evidence transcripts still have no file header:** `docs/evidence/2026-09-08/verify-outer.txt`,
+  `lint.txt`, `build.txt`, `e2e.txt`. Inherited from Run 16 unchanged; this run added its own under
+  `run17-*.txt` names with headers and exit statuses rather than rewriting those.
+- The unidentified SonarCloud issue from Runs 13/14/15.
+
+Do not inherit this entry's measurements. Re-measure.
