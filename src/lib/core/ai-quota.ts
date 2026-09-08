@@ -20,6 +20,16 @@
  */
 export const STUDIO_TEXT_QUOTA_COST = 2;
 
+/**
+ * What one chat interpretation charges the same bucket.
+ *
+ * `runChatInterpretationPipeline` makes exactly one billable provider call, so one read-back costs
+ * one unit. Here rather than in the pipeline for the same reason as above: the server charges it and
+ * `/describe` divides the remaining units by it to say how many more read-backs the reader can ask
+ * for. `chat-interpretation-pipeline.ts` imports this constant; there is no second definition.
+ */
+export const CHAT_INTERPRETATION_QUOTA_COST = 1;
+
 /** The quota state the server reported on one response. Units, not actions — see `aiActionsLeft`. */
 export type AiQuotaSnapshot = {
 	/** Units the caller's bucket holds per window. */
@@ -81,14 +91,23 @@ export const readAiQuota = (
 };
 
 /**
- * How many more AI text actions the reported units will actually pay for.
+ * How many more AI actions the reported units will actually pay for.
  *
  * Integer division, deliberately: a bucket holding one unit is not empty, but it cannot afford a
  * two-unit action, and telling the reader they have a call left when the next one will be refused
  * is the same kind of lie as the counter this replaces.
+ *
+ * `unitsPerAction` is the cost of the action *this surface* offers, because one bucket pays for
+ * actions of different prices — a studio rewrite is two units, a `/describe` read-back is one — and
+ * a surface that divided by someone else's cost would understate or overstate its own. It defaults
+ * to the studio's cost so no existing caller changes behaviour. A cost below one would report an
+ * allowance the bucket cannot fund, so it is clamped rather than trusted.
  */
-export const aiActionsLeft = (snapshot: AiQuotaSnapshot): number =>
-	Math.max(0, Math.floor(snapshot.remaining / STUDIO_TEXT_QUOTA_COST));
+export const aiActionsLeft = (
+	snapshot: AiQuotaSnapshot,
+	unitsPerAction: number = STUDIO_TEXT_QUOTA_COST
+): number =>
+	Math.max(0, Math.floor(snapshot.remaining / Math.max(1, unitsPerAction)));
 
 /**
  * The clock time the bucket refills, for a reader.
@@ -103,18 +122,34 @@ export const formatQuotaResetTime = (
 ): string => formatTime(new Date(snapshot.resetAtMs));
 
 /**
- * The sentence the studio puts under the AI buttons, or `''` when the server has not reported a
+ * What a surface calls the action it is counting, and what that action costs.
+ *
+ * Both are the surface's own facts. Naming the action matters as much as pricing it: one bucket
+ * funds actions of different prices, so two pages can honestly report different numbers from the
+ * same reading, and a reader can only tell those apart if each sentence says what it is counting.
+ */
+export type QuotaActionDescription = {
+	/** Units one of these actions charges. Defaults to the studio's rewrite cost. */
+	unitsPerAction?: number;
+	/** Singular noun for the action, pluralised with a trailing `s`. Defaults to `AI call`. */
+	actionNoun?: string;
+};
+
+/**
+ * The sentence a surface puts under its AI buttons, or `''` when the server has not reported a
  * quota yet — before the first AI call there is genuinely nothing to say, and saying nothing is the
  * point of this whole change.
  */
 export const describeAiQuota = (
 	snapshot: AiQuotaSnapshot | null,
-	formatTime: (date: Date) => string
+	formatTime: (date: Date) => string,
+	action: QuotaActionDescription = {}
 ): string => {
 	if (!snapshot) return '';
-	const left = aiActionsLeft(snapshot);
+	const left = aiActionsLeft(snapshot, action.unitsPerAction);
 	if (left === 0) {
 		return `Meechie's desk is full. Ready again at ${formatQuotaResetTime(snapshot, formatTime)}.`;
 	}
-	return `${left} AI call${left === 1 ? '' : 's'} left before ${formatQuotaResetTime(snapshot, formatTime)}.`;
+	const noun = action.actionNoun ?? 'AI call';
+	return `${left} ${noun}${left === 1 ? '' : 's'} left before ${formatQuotaResetTime(snapshot, formatTime)}.`;
 };

@@ -1,20 +1,28 @@
-# Purpose: Store the verify runner's check and test stage output.
-# Why: Keep this inner stage distinct from the outer verify chain and its separate artifacts.
-# Info flow: check/test output -> evidence file -> outer verify chain.
+# Purpose: Outer transcript of the whole `npm run verify` chain for Run 17.
+# Why: AGENTS.md L141-143 requires the chain to be run and its output committed before every push.
+# Info flow: command -> stdout/stderr captured verbatim below -> this transcript, ending with the chain's own exit status.
+# Invariants: This file records the outer command's status, which the chain's own generated artifacts do not. Written under a run-scoped name so it cannot overwrite Run 16's verify-outer.txt, which DECISIONS.md cites by exact path. The chain's machine-generated artifacts beside it (chamber-lock.json, proof-tape.md, seam-ledger.md, clan-chain.*, shaolin-lint.json, assumption-alarm.json, test.txt, verify.txt) are refreshed by this run because both runs land on 2026-09-08 and the chain writes to docs/evidence/<today>/; they are statements about the repository now, and now has moved.
+# Command: npm run verify
+# Head: 7191656 (working tree, pre-commit)
+# Date: 2026-09-08
 
-$ node scripts/verify-runner.mjs
 
-$ npm run check
+> meechies-coloringbook@0.1.0 verify
+> npm run audit:gate && node scripts/chamber-lock.mjs && node scripts/verify-runner.mjs && node scripts/shaolin-lint.mjs && node scripts/assumption-alarm.mjs && node scripts/seam-ledger.mjs && node scripts/clan-chain.mjs && node scripts/proof-tape.mjs
+
+
+> meechies-coloringbook@0.1.0 audit:gate
+> npm audit --audit-level=high
+
+found 0 vulnerabilities
 
 > meechies-coloringbook@0.1.0 check
 > svelte-kit sync && svelte-check --tsconfig ./tsconfig.json
 
-Loading svelte-check in workspace: <REPO_ROOT>
+Loading svelte-check in workspace: /home/user/meechiescoloringbook
 Getting Svelte diagnostics...
 
 svelte-check found 0 errors and 0 warnings
-
-$ npm test -- --pool=forks --maxWorkers=1
 
 > meechies-coloringbook@0.1.0 test
 > vitest run --pool=forks --maxWorkers=1
@@ -54,3 +62,5 @@ Not implemented: HTMLCanvasElement's getContext() method: without installing the
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+
+exit=0

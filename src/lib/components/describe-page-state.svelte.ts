@@ -1,0 +1,218 @@
+// Purpose: Own the "the reader described a page in their own words -> here is that page" lifecycle
+//          for `/describe`, as one testable state class.
+// Why: `ChatInterpretationSeam` could turn a sentence into a validated `ColoringPageSpec` from the
+//      app's first weeks — pipeline, live billable endpoint, contract tests, browser adapter — and
+//      nothing in `src/routes/**` or `src/lib/components/**` ever called it, so the app could not
+//      be told what to put on a page. This is the half of the front door that holds state.
+// Info flow: reader's sentence -> /api/chat-interpretation -> ColoringPageSpec -> read-back the
+//            reader checks -> PageArtifactState.generatePage -> /api/generate -> downloads, print,
+//            share, vault.
+// Invariants:
+//   - An interpretation is one billable call and a picture is another. Nothing here spends the
+//     second without the reader pressing a button they could only press after seeing the first,
+//     which is what makes showing the read-back worth the round trip at all.
+//   - `interpretedFrom` is pinned to the spec it produced and is rendered beside it. The message
+//     box stays editable afterwards, so without it the read-back would silently start describing
+//     words that are no longer on screen.
+//   - The page on screen belongs to the interpretation it was made from. A *successful* new
+//     interpretation is the one and only place that stops being true, exactly as a successful
+//     verdict is in `VerdictPageState` — a failed one must never destroy a page already paid for.
+import { POST_JSON_TIMEOUTS_MS, postJson } from '$lib/core/http-client';
+import { readAiQuota, type AiQuotaSnapshot } from '$lib/core/ai-quota';
+import {
+	DESCRIBE_FILE_BASE_SLUG,
+	canInterpretMessage,
+	describeMessageProblem,
+	describeReadbackQuota,
+	interpretFailureSentence,
+	readBackInterpretedPage,
+	styleHintForSpec
+} from '$lib/core/describe-page';
+import { ChatInterpretationResultSchema } from '$lib/seams/chat-interpretation-seam/contract';
+import type { ColoringPageSpec } from '../../../contracts/spec-validation.contract';
+import { PageArtifactState } from './page-artifact-state.svelte';
+
+/**
+ * How the surface formats the instant a quota window reopens.
+ *
+ * Passed in rather than chosen here so a test can state the string instead of matching whatever the
+ * runner's locale produces, which is the same reason `describeAiQuota` takes a formatter.
+ */
+export type DescribePageStateOptions = {
+	formatTime?: (date: Date) => string;
+};
+
+const defaultFormatTime = (date: Date): string =>
+	date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+
+export class DescribePageState extends PageArtifactState {
+	/** What the reader has typed. Stays editable after an interpretation — see the invariants. */
+	message = $state('');
+	isInterpreting = $state(false);
+	interpretError = $state('');
+
+	/** The interpretation currently on screen, or `null` before the first one lands. */
+	spec = $state<ColoringPageSpec | null>(null);
+	/**
+	 * The exact words `spec` was built from.
+	 *
+	 * Shown beside the read-back. The message box is not cleared or locked after an interpretation,
+	 * so this is the only thing that stops "Meechie understood…" from appearing to describe whatever
+	 * is in the box right now.
+	 */
+	interpretedFrom = $state('');
+
+	/** The last quota reading the server sent, or `null` before it has reported one. */
+	aiQuota = $state<AiQuotaSnapshot | null>(null);
+
+	private cancelQuotaExpiry: (() => void) | null = null;
+	private readonly formatTime: (date: Date) => string;
+
+	constructor(options: DescribePageStateOptions = {}) {
+		super({ fileBaseSlug: DESCRIBE_FILE_BASE_SLUG });
+		this.formatTime = options.formatTime ?? defaultFormatTime;
+	}
+
+	/** What is wrong with the field as typed, or `''` — including for an untouched empty field. */
+	messageProblem = $derived(describeMessageProblem(this.message));
+
+	/** What Meechie understood, or `null` when no interpretation is on screen. */
+	readback = $derived(this.spec ? readBackInterpretedPage(this.spec) : null);
+
+	/** The quota sentence under the read-back button, priced for a read-back rather than a rewrite. */
+	quotaMessage = $derived(
+		describeReadbackQuota(this.aiQuota, (date) => this.formatTime(date))
+	);
+
+	/** True when pressing "Read it back" would actually send something. */
+	get canInterpret(): boolean {
+		return (
+			canInterpretMessage(this.message) &&
+			!this.isInterpreting &&
+			!this.isGenerating
+		);
+	}
+
+	/**
+	 * True when there is an interpretation to spend a generation on.
+	 *
+	 * Blocked while an interpretation is in flight for the same reason `makePage` is blocked while a
+	 * replacement verdict loads: a successful one calls `resetPage()`, so a generation started in
+	 * that window is billed and then discarded.
+	 */
+	get canMakePage(): boolean {
+		return this.spec !== null && !this.isGenerating && !this.isInterpreting;
+	}
+
+	/**
+	 * Store a quota reading, and arrange for it to stop being shown the moment it stops being true.
+	 *
+	 * A reading is only valid until its own reset instant: the bucket is a fixed window, so at
+	 * `resetAtMs` it refills whether or not the reader has made another request. Without this, a
+	 * reader who is told the desk is full and does the sensible thing — wait — would go on being
+	 * told the desk is full after it had emptied. Through `ClockSeam` rather than `setTimeout`, so a
+	 * test drives the expiry instead of waiting for it. Same arrangement as the home studio's.
+	 */
+	private setAiQuota(snapshot: AiQuotaSnapshot): void {
+		this.aiQuota = snapshot;
+		this.cancelQuotaExpiry?.();
+		this.cancelQuotaExpiry = this.clock.scheduleAt(snapshot.resetAtMs, () => {
+			this.aiQuota = null;
+			this.cancelQuotaExpiry = null;
+		});
+	}
+
+	/** Type into the box. Deliberately does not touch the interpretation — see the invariants. */
+	setMessage(value: string): void {
+		this.message = value;
+	}
+
+	/** Put one of the starter examples in the box, ready to edit. */
+	useExample(example: string): void {
+		this.message = example;
+		this.interpretError = '';
+	}
+
+	/**
+	 * Ask Meechie what page this sentence describes, and show the answer before anything is drawn.
+	 *
+	 * Nothing on screen is cleared up front: a failed interpretation must leave the previous
+	 * read-back and the page made from it exactly where they were, because both were paid for.
+	 */
+	async interpret(): Promise<void> {
+		if (!this.canInterpret) return;
+		this.interpretError = '';
+		this.isInterpreting = true;
+		const requestStartedAtMs = this.clock.now();
+		try {
+			const payload = await postJson(
+				'/api/chat-interpretation',
+				{ message: this.message.trim() },
+				{
+					timeoutMs: POST_JSON_TIMEOUTS_MS.tools,
+					// Read on every response the route produces, refusals included, because a refusal
+					// is exactly when the reader most needs to be told what the limit is and when it
+					// lifts. A response without usable quota headers leaves the last reading alone
+					// rather than blanking the meter on one odd reply.
+					onResponseHeaders: (headers) => {
+						const snapshot = readAiQuota(headers, requestStartedAtMs);
+						if (snapshot) this.setAiQuota(snapshot);
+					}
+				}
+			);
+			const parsed = ChatInterpretationResultSchema.safeParse(payload);
+			if (!parsed.success) {
+				this.interpretError =
+					'Meechie sent back something this page could not read.';
+				return;
+			}
+			if (!parsed.data.ok) {
+				this.interpretError = interpretFailureSentence(parsed.data.error);
+				return;
+			}
+			// Here, and only here, does what is on screen stop belonging to what is on screen: the
+			// page below was generated from the interpretation this one replaces.
+			this.resetPage();
+			this.spec = parsed.data.value.spec;
+			this.interpretedFrom = this.message.trim();
+		} catch (requestError) {
+			this.interpretError =
+				requestError instanceof Error
+					? requestError.message
+					: 'Network error. Try again.';
+		} finally {
+			this.isInterpreting = false;
+		}
+	}
+
+	/** Spend a generation on the interpretation the reader has just read and accepted. */
+	async makePage(): Promise<void> {
+		if (!this.canMakePage) return;
+		const spec = this.spec;
+		if (!spec) return;
+		await this.generatePage({
+			recipe: { spec, styleHint: styleHintForSpec(spec) },
+			// A described page stores no `studioText`. `MeechieStudioTextOutputSchema` requires a
+			// `verdict` string, and the reader's own sentence is not one — writing it there would
+			// claim Meechie said something she never said, and the vault's own
+			// `warrantForRestoredVerdict` exists precisely to tell those apart. See `PageSource`.
+			studioText: null,
+			headline: spec.title
+		});
+	}
+
+	/** Clear the box, the interpretation, and the page made from it. */
+	reset(): void {
+		this.message = '';
+		this.interpretError = '';
+		this.spec = null;
+		this.interpretedFrom = '';
+		this.resetPage();
+	}
+
+	/** Release the quota-expiry timer. Called when the surface goes away. */
+	dispose(): void {
+		this.cancelQuotaExpiry?.();
+		this.cancelQuotaExpiry = null;
+	}
+}

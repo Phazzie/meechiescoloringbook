@@ -12868,3 +12868,188 @@ edit landed where it was aimed.
   every head, so a future run can settle it the same way rather than inheriting it as unreadable.
 
 Do not inherit this entry's measurements. Re-measure.
+
+## Run 17 — 2026-09-08 — The interpreter with no front door (`ChatInterpretationSeam`)
+
+**Branch:** `claude/great-bell-lnl79w` · **Base:** `main` at `7191656`
+
+### The feature, and the case against it
+
+`ChatInterpretationSeam` turns a sentence of plain English into a validated `ColoringPageSpec`.
+Everything it needs exists and is tested:
+
+| Part | Path |
+|---|---|
+| Contract, mock, fixtures, probe, seam test | `src/lib/seams/chat-interpretation-seam/` |
+| Pipeline (schema parse → quota charge → provider → JSON extraction → `RawColoringPageSpecSchema` → `SpecValidationSeam` → `ColoringPageSpecSchema`) | `src/lib/core/chat-interpretation-pipeline.ts` |
+| Live, deployed, billable endpoint | `src/routes/api/chat-interpretation/+server.ts` |
+| **Browser-side** adapter that fetches `/api/chat-interpretation` | `src/lib/adapters/chat-interpretation-seam/index.ts` |
+| Contract and route tests | `tests/contract/chat-interpretation.test.ts`, `tests/unit/api-chat-interpretation.test.ts` |
+
+Measured this run on `main` at `7191656`:
+
+```
+grep -rn "chat-interpretation|chatInterpretation|ChatInterpretation" src/ --include=*.svelte --include=*.ts
+```
+
+returns hits only inside the seam's own folder, its pipeline, its route and its adapter. **No file
+under `src/routes/**` or `src/lib/components/**` imports any of it.** The browser adapter — a file
+whose entire purpose is to be called from a component — has zero callers.
+
+That is the widest promise-to-delivery gap the app has left: **100% built, 0% delivered.** Every
+other page-making surface hands the reader one of eight fixed questions and one or two boxes. The
+app could be chosen from; it could not be *told*. And the machinery to be told was deployed the
+whole time, charging a quota bucket nobody could spend.
+
+Runs 14, 15 and 16 each carried this forward — "a live, billable endpoint with a full pipeline and
+no UI anywhere in `src/`. Costs the reader nothing and the owner money and attack surface" — framed
+each time as a deletion candidate. This run took the other branch, for the reason recorded in
+`DECISIONS.md`: the thing deletion removes is the only path by which this app can be told what to
+put on a page, and the cost of keeping it is one endpoint the same rate limiter already guards.
+
+**The measurement was re-run this run rather than inherited,** per the previous entry's closing
+instruction, and it was unchanged.
+
+### What shipped
+
+**`/describe` — "Say it your way".** In the nav on every screen, desktop and mobile. Type what the
+page should say and how it should look; get that page, with everything every other page-making
+surface has: the drift report, the printable PDF, the square picture for sending, the untouched
+original, Print, Send, and Save to the vault.
+
+**The one thing no other surface does: the interpretation is shown before the generation is
+offered.** Two billable calls in a fixed order, with a read-back between them — the exact title,
+the exact lines in order (footer included and marked), the paper, the border, the lettering, what
+is drawn, and *the sentence they came from*. An interpretation that heard "five things" as a
+title-only page is a finding worth one quota unit instead of one wasted generation.
+
+Alongside the read-back, **cautions — which are never refusals**: a list longer than the six lines
+the rest of the app puts on a sheet, a page that would arrive already coloured in rather than as
+outlines, or four pictures instead of one. Each says what will happen and still offers to make it.
+
+**`PageArtifactState` (new, `src/lib/components/page-artifact-state.svelte.ts`).** The
+spec-to-finished-page half of `VerdictPageState`, extracted and driven by a `PageSource` — a recipe
+plus what to store and what to say about it. `VerdictPageState` and `DescribePageState` both extend
+it. The alternative was copying ~300 lines, which is precisely the duplication that left the three
+mode routes each missing something different, and which SonarCloud's duplication gate measures on
+new code.
+
+- **`tests/unit/verdict-page-state.test.ts` passes unmodified — all 50.** That was the plan's
+  definition of "a move rather than a redesign", stated before the extraction started.
+- `PageSource.studioText` is nullable, and the nullability is load-bearing: a described page stores
+  **none**. `MeechieStudioTextOutputSchema` requires a `verdict` string, the reader's own sentence
+  is not one, and `warrantForRestoredVerdict` already exists to tell a vouched-for verdict from an
+  unvouched one. A fabricated verdict is worse than an absent one.
+
+**`src/lib/core/describe-page.ts` (new, pure).** Message limits, one reader-facing sentence per
+interpretation failure code, the read-back itself, the cautions, and the style hint. Derived from
+the *validated spec* and never from the sentence that produced it — a read-back built from the
+request rather than the result would hide exactly the mismatch it exists to expose.
+
+**`ai-quota.ts`: the price and the name of the action are now the caller's facts.** One bucket funds
+actions of different prices — a studio rewrite is two units, a read-back is one — so reusing the
+studio's arithmetic on the new surface would have told a reader holding five units they had two
+read-backs. `CHAT_INTERPRETATION_QUOTA_COST` moves here beside `STUDIO_TEXT_QUOTA_COST`, one
+definition each, imported by the pipeline that charges it.
+
+**No contract, probe, fixture, mock, adapter or seam file is in the diff.** Confirmed by
+`git diff --name-only origin/main...HEAD` against those directories, which is also why there is no
+Cipher Gate entry. `DECISIONS.md` carries the tradeoffs.
+
+### Four decisions worth arguing with
+
+1. **Build the front door rather than delete the seam.** Three runs implied deletion. Recorded in
+   full in `DECISIONS.md`; the short version is that "no consumers" is a measurement and not a
+   verdict, and nothing in the count tells you whether the thing behind it is worth reaching.
+2. **Inheritance over composition.** Composition needs ~25 delegation accessors to keep
+   `VerdictPageState`'s public surface unchanged, and every one is a place for the two to drift.
+   `VerdictPageState` genuinely *is* a page artifact that additionally knows how to get a verdict.
+3. **`postJson` rather than `chatInterpretationAdapter`.** The adapter uses bare `fetch` with no
+   timeout and discards the `RateLimit-*` headers, so it can neither bound a hung request nor
+   report a quota. Fixing that is observable behaviour across a seam boundary — the full
+   Seam-Driven Development workflow, for no gain — and `VerdictPageState` already calls `/api/tools`
+   and `/api/generate` this exact way. The adapter is left in place with its tests.
+4. **The style hint is derived from the interpreted spec, not from the reader's sentence.** The
+   sentence is a *page* request ("a page that says X with roses around it"); putting it in
+   `styleHint` hands the image model the words a second time, in the one field that is not the
+   exact-text block. Translating "with roses" into `illustrations` and `decorations` is what the
+   interpretation call already did.
+
+### What this run could not prove, stated plainly
+
+**The live quality of the model's interpretation.** `XAI_API_KEY` is not available in this
+container, so no live call was made. No probe was needed — no seam changed — but it means the
+cautions are written against what the model *may* return rather than against what it does, and that
+is the part most likely to be wrong in practice. It is recorded as this decision's revisit
+criterion. The surface is built so a bad interpretation costs one unit rather than a generation,
+which is the mitigation available without a key.
+
+### Red proofs, run because a green test proves nothing on its own
+
+Run 16's closing lesson was that a red proof must be checked for *how many* tests fail. Six
+mutations, each reverted immediately:
+
+| Mutation | Tests that failed |
+|---|---|
+| `CHAT_INTERPRETATION_QUOTA_COST` 1 → 2 | 2 |
+| Long-list caution removed | 1 |
+| Footer line dropped from the read-back | 2 |
+| `interpret()` clears the page up front | 1 |
+| `canMakePage` stops checking `isInterpreting` | 1 |
+| A verdict fabricated for a described page's vault record | 1 |
+
+Each named the guard it removed. Nothing passed on a mutated build.
+
+### Verification
+
+`npm run check` (0 errors), `npm run lint`, `npm test` (**1786 passed**, up from 1724 —
+62 new: 31 for the pure policy, 30 for the state class, 1 route added to the security-headers
+inventory), `npm run build`, `npm run verify` (**exit 0**), and the full Playwright suite —
+**75 passed**, including 7 new tests that drive `/describe` from the nav link to a page kept in the
+vault in a real browser.
+
+*One environment note for a future run: this container's pre-installed Chromium
+(`/opt/pw-browsers/chromium`, build 1194) does not match the browser build `@playwright/test@1.58.2`
+looks for, so a bare `npx playwright test` fails with "Executable doesn't exist" for every test. The
+run used a throwaway config setting `launchOptions.executablePath` to the pre-installed binary, and
+deleted it before committing. `npx playwright install` is explicitly not the answer here.*
+
+### Carried forward for the next run
+
+- **The provider is asked for a 1024x1024 square** (`image-generation-pipeline.ts:20`) while the
+  page is portrait. Inherited from Run 16 and **materially re-measured this run, which found more
+  than the previous entry recorded**: `src/lib/adapters/image-generation-seam/index.ts` L86-91 sends
+  `{model, prompt, n, response_format}` and **never sends `size` at all**, then reports it back as
+  `rawModelInfo.requestedSize` as though it had. So the `size` the pipeline sets, the seam contract
+  requires and the validator validates is dropped on the floor, and the "requested size" the app
+  records is a value the provider never saw. This is **blocked, not deferred**: no `XAI_API_KEY` is
+  available here, xAI's image API has historically rejected `size`, and sending an unsupported
+  parameter would break every generation in a way no test in this repository could detect. A run
+  with a key should probe it first; a run without one should not guess.
+- **`placedDpi` has no production consumer** — its only caller anywhere is
+  `tests/unit/print-layout.test.ts`. Run 16 added it "to report it" and nothing reports it. The
+  download row says "Printable PDF · US Letter — ready to print" and says nothing about the
+  **135.5dpi** the shipped 1024x1024 square actually lands at inside the 12mm safe box
+  (`1024 x 72 / 543.969pt`), nor about the **180pt — 2.5 inches — of blank paper** the letterboxing
+  leaves down the sheet. That test already asserts the figure is between 130 and 150, so the number
+  is measured rather than assumed. Making the row honest about resolution is a small, self-contained
+  change inside `page-exports.ts` and needs no provider at all.
+- **The AI quota is reported on the home studio and nowhere else.** `/describe` now reports it too,
+  which leaves the three standalone mode routes, `/m/<slug>` and `/meechie` — five surfaces that
+  spend the same bucket and say nothing about it. `describeAiQuota` now takes the cost and the name
+  of the action, so each of them can report its own honestly.
+- **`chatInterpretationAdapter` still has no callers**, now by choice rather than by neglect: the
+  new surface uses `postJson` for the timeout and the quota headers the adapter drops. Either give
+  the adapter both (full Seam-Driven Development workflow) or delete it (also a seam change). Do not
+  leave it as a third thing.
+- **The `chat` packaging variant has zero consumers**, with Run 14's reasoning.
+- **Mode persistence** — Run 12's pick, blocked on the seam rule for the sixth run running.
+- **Vault capacity is not knowable from outside the adapter**, leaving the orphaned-records gap in
+  `undoDelete`. Same seam workflow.
+- `MeechieToolOutput.quoteScore` and `modelMetadata`, from Run 11's list.
+- **Four evidence transcripts still have no file header:** `docs/evidence/2026-09-08/verify-outer.txt`,
+  `lint.txt`, `build.txt`, `e2e.txt`. Inherited from Run 16 unchanged; this run added its own under
+  `run17-*.txt` names with headers and exit statuses rather than rewriting those.
+- The unidentified SonarCloud issue from Runs 13/14/15.
+
+Do not inherit this entry's measurements. Re-measure.

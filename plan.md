@@ -8,6 +8,119 @@ Info flow: User request -> execution specs -> implementation -> review evidence.
 
 Current active plan is listed first. Older dated entries remain below as historical context and are not active unless explicitly reselected.
 
+## Run 17 (2026-09-08) — Worst feature -> best feature: the interpreter with no front door
+
+**Branch:** `claude/great-bell-lnl79w` - **Base:** `main` at `7191656`
+
+### The feature and the case against it
+
+`ChatInterpretationSeam` is a complete, quota-metered, contract-validated feature that turns a
+sentence of plain English into a full `ColoringPageSpec`. Everything exists:
+
+- `src/lib/seams/chat-interpretation-seam/{contract,mock,fixtures,probe,test}.ts`
+- `src/lib/core/chat-interpretation-pipeline.ts` (203 lines: schema parse -> quota charge ->
+  provider -> JSON extraction -> `RawColoringPageSpecSchema` -> `SpecValidationSeam` ->
+  `ColoringPageSpecSchema`)
+- `src/routes/api/chat-interpretation/+server.ts` - a live, deployed, billable endpoint
+- `src/lib/adapters/chat-interpretation-seam/index.ts` - a *browser-side* adapter that fetches
+  `/api/chat-interpretation`, written for a component to call
+- `tests/contract/chat-interpretation.test.ts`, `tests/unit/api-chat-interpretation.test.ts`
+
+**No file under `src/routes/**` or `src/lib/components/**` imports any of it.** Measured this run:
+`grep -rn "chat-interpretation|chatInterpretation|ChatInterpretation" src/ --include=*.svelte
+--include=*.ts` returns hits only inside the seam's own folder, its pipeline, its route and its
+adapter. The browser adapter has zero callers.
+
+That is the widest promise-to-delivery gap the app has left: a feature at 100% built and 0%
+delivered. Every other page-making surface makes the reader pick one of eight fixed modes and fill
+in one or two fields; the app cannot be *told* what to put on a page, even though the machinery to
+do exactly that is deployed, tested and charging a quota bucket.
+
+Runs 14, 15 and 16 each carried it forward as "zero consumers - costs the owner money and attack
+surface", framing it as a deletion candidate. This run takes the other branch: build the front door.
+
+### Goal
+
+Ship `/describe` - "say it in your own words" - as a first-class page-making surface with the same
+finished-page treatment every other surface has (drift report, downloads, print, share, vault), plus
+one thing no other surface has: **the interpretation is shown to the reader before a generation is
+paid for.**
+
+### Seams
+
+**None changed.** No file under `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`,
+`src/lib/adapters/` or `src/lib/seams/` is touched. The new surface calls `/api/chat-interpretation`
+and `/api/generate` with `postJson` + the contract schema, which is exactly how
+`verdict-page-state.svelte.ts` already calls `/api/tools` and `/api/generate`. It deliberately does
+not use `chatInterpretationAdapter`: that adapter uses bare `fetch` with no timeout and discards the
+`RateLimit-*` headers, and changing it would be observable behaviour across a seam boundary and so
+require the full Seam-Driven Development workflow for no gain.
+
+### Exact file inventory
+
+| File | Action | What changes |
+|---|---|---|
+| `src/lib/core/describe-page.ts` | [NEW] | pure policy: message limits, the read-back sentences for an interpreted spec, one reader-facing sentence per interpretation failure code, the starter examples, the quota sentence for this surface |
+| `src/lib/core/ai-quota.ts` | [MODIFY] | `aiActionsLeft` gains an optional `unitsPerAction` (defaulting to `STUDIO_TEXT_QUOTA_COST`, so no caller changes); `describeAiQuota` gains the same; new exported `CHAT_INTERPRETATION_QUOTA_COST = 1` |
+| `src/lib/core/chat-interpretation-pipeline.ts` | [MODIFY] | imports `CHAT_INTERPRETATION_QUOTA_COST` instead of its own private `CHAT_QUOTA_COST`, so the charge and the sentence about it have one definition |
+| `src/lib/components/page-artifact-state.svelte.ts` | [NEW] | `PageArtifactState`: the spec -> `/api/generate` -> decode -> install -> package -> exports -> drift -> vault lifecycle, driven by a `PageSource`. Moved out of `VerdictPageState` verbatim in behaviour |
+| `src/lib/components/verdict-page-state.svelte.ts` | [MODIFY] | `VerdictPageState extends PageArtifactState`; keeps the verdict half only. Public API unchanged |
+| `src/lib/components/describe-page-state.svelte.ts` | [NEW] | `DescribePageState extends PageArtifactState`: message -> interpretation -> read-back -> page |
+| `src/lib/components/DescribePageStudio.svelte` | [NEW] | the surface's markup, reusing `QualityReportPanel`, `PageExportRow`, `PrintPageButton`, `SharePageButton`, `VaultStatusLine` |
+| `src/routes/describe/+page.svelte` | [NEW] | route body |
+| `src/routes/describe/+page.ts` | [NEW] | `export const prerender = true` |
+| `src/routes/+layout.svelte` | [MODIFY] | one nav link in each of the two nav lists |
+| `vercel.json` | [MODIFY] | `describe` added to the prerendered-document header source; `tests/unit/security-headers.test.ts` fails the build otherwise |
+| `tests/unit/describe-page.test.ts` | [NEW] | the pure policy |
+| `tests/unit/describe-page-state.test.ts` | [NEW] | the state class against stubbed `fetch` |
+| `tests/unit/ai-quota.test.ts` | [MODIFY] | the new `unitsPerAction` argument |
+| `CLAUDE.md`, `CHANGELOG.md`, `DECISIONS.md`, `LESSONS_LEARNED.md`, `WORST_TO_BEST_LOG.md` | [MODIFY] | file map, user-visible change, the tradeoffs, the run entry |
+
+### Anti-goals - do not touch
+
+- **No file under `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`, `src/lib/adapters/` or
+  `src/lib/seams/`.** If the work appears to need one, stop and re-scope rather than half-doing the
+  Seam-Driven Development workflow.
+- **Do not change `VerdictPageState`'s public API.** Every field and method the four routes and
+  `tests/unit/verdict-page-state.test.ts` already use keeps its name, type and meaning. The
+  extraction is a move, not a redesign.
+- Do not touch `src/routes/studio-state.svelte.ts` or `MeechieTools.svelte`. They hold their own
+  older copies of the page lifecycle; converging them is a separate change.
+- Do not change what `/api/chat-interpretation` charges, returns, or validates.
+- Do not delete `chatInterpretationAdapter` or its tests.
+
+### Self-critique
+
+- **Riskiest assumption:** that `VerdictPageState` can be split along the verdict/page line without
+  changing behaviour. Proven by `tests/unit/verdict-page-state.test.ts` - 1132 lines that must pass
+  **unmodified**. If a single one needs editing to go green, the split changed behaviour and the
+  edit is the evidence, not the fix.
+- **Second assumption:** that a described page can be saved to the vault without a `studioText`
+  record. Checked: `studioText` is `.optional()` on `CreationRecordSchema`, `MeechieStudioTextOutput`
+  requires 2-6 `pageItems` and a `verdict` string, and `warrantForRestoredVerdict` already exists to
+  say a reopened page's words are not vouched for. Writing the reader's own sentence into a field
+  called `verdict` would be exactly the provenance lie this repository keeps fixing, so a described
+  page stores no `studioText` and reopens with no verdict claim.
+- **What could be wrong:** the interpretation's read-back could be a wall of jargon. It is written
+  as sentences about the page ("A US Letter page titled ..., with 3 numbered lines and a plain
+  border"), and it is derived from the validated spec, so it cannot describe a page that will not be
+  generated.
+- **What cannot be proven here:** the live quality of the model's interpretation. `XAI_API_KEY` is
+  not available in this container, so no live call can be made. Every failure code the endpoint can
+  return is covered by a stubbed-`fetch` test instead, and the surface is built so a bad
+  interpretation costs nothing: the reader sees it before pressing the button that pays for a page.
+
+### Definition of done
+
+```sh
+npm run check && npm run lint && npm test && npm run build && npm run verify
+```
+
+each exiting 0, with `tests/unit/verdict-page-state.test.ts` unmodified, plus
+`npx playwright test` for the new user-facing surface.
+
+---
+
 ## Run 16 close-out (2026-09-08) — micro plan, PR for the merge record
 
 Required by `AGENTS.md` L108: a governance-only documentation change still needs a plan listing the

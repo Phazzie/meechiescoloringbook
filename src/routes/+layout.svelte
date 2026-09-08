@@ -14,6 +14,7 @@ Info flow: Layout renders children -> pages render within layout.
 		offlineNotice
 	} from '$lib/core/offline-cache';
 	import { NOTHING_TO_PRINT } from '$lib/core/print-sheet';
+	import { DESCRIBE_PATH } from '$lib/core/describe-page';
 	import { VAULT_PATH } from '$lib/core/vault-page';
 
 	let { children } = $props();
@@ -149,6 +150,7 @@ Info flow: Layout renders children -> pages render within layout.
 			<a href="/who-fucked-up" onclick={closeMenu}>Who Fucked Up?</a>
 			<a href="/rate-his-excuse" onclick={closeMenu}>Rate His Excuse</a>
 			<a href="/random" onclick={closeMenu}>Random</a>
+			<a href={DESCRIBE_PATH} class="link-describe" onclick={closeMenu}>Describe It</a>
 			<a href="/meechie" class="link-tools" onclick={closeMenu}>Meechie's Tools</a>
 			<a href={VAULT_PATH} class="link-vault" onclick={closeMenu}>Vault</a>
 		</nav>
@@ -168,6 +170,7 @@ Info flow: Layout renders children -> pages render within layout.
 			<a href="/who-fucked-up" onclick={closeMenu}>Who Fucked Up?</a>
 			<a href="/rate-his-excuse" onclick={closeMenu}>Rate His Excuse</a>
 			<a href="/random" onclick={closeMenu}>Random</a>
+			<a href={DESCRIBE_PATH} class="link-describe" onclick={closeMenu}>Describe It</a>
 			<a href="/meechie" class="link-tools" onclick={closeMenu}>Meechie's Tools</a>
 			<a href={VAULT_PATH} class="link-vault" onclick={closeMenu}>Vault</a>
 		</nav>
@@ -278,6 +281,20 @@ Info flow: Layout renders children -> pages render within layout.
 		color: #f0c44a;
 		background: rgba(201, 162, 39, 0.08);
 		border-color: rgba(201, 162, 39, 0.3);
+	}
+
+	/* Marked apart from the three mode links, because it is the one that does not ask a question
+	   Meechie already wrote — the reader supplies the question there. */
+	.links a.link-describe {
+		color: #ff9ec4;
+		border-color: rgba(232, 0, 106, 0.4);
+		background: rgba(232, 0, 106, 0.09);
+	}
+
+	.links a.link-describe:hover {
+		color: var(--cream);
+		border-color: rgba(232, 0, 106, 0.7);
+		background: rgba(232, 0, 106, 0.18);
 	}
 
 	.links a.link-tools {

@@ -8,6 +8,12 @@ Info flow: Changes -> entries -> release communication.
 All notable user-visible changes for this repo.
 
 ## Unreleased
+- **You can just tell it what you want now.** There is a new screen — **Describe It**, in the menu on every page — where you type what your coloring page should say and what it should look like, in your own words, and get that page. Every other screen in the app makes you pick one of Meechie's eight questions and fill in a box; this one starts from your sentence.
+- **She reads it back before you pay for a picture.** You get the exact title and the exact lines that will print, on the paper and border she picked, with your own sentence shown beside it so you can see what she made of it. If she heard "five things" as a title-only page, you find that out before a generation is spent, not after.
+- If she has read your words into a page that will be awkward — more lines than fit on a sheet, a page that arrives already coloured in, or four pictures instead of one — it says so, in a sentence, and still offers to make it. Those are warnings, never refusals: it is your page.
+- A described page gets everything every other page gets: the drift report, the printable PDF, the square picture for sending, the untouched original, Print, Send, and Save to the vault.
+- Asking her to read something a second time never costs you the page you already made. Only a *successful* re-read replaces it — a failed one leaves your picture exactly where it was.
+- The screen says how many read-backs you have left before the limit refills, priced for what a read-back actually costs rather than for what a studio rewrite costs.
 - **The coloring page you download now prints whole.** The printable PDF used to stretch the picture right to the edges of the paper — no printer can print that far, so the outer edge of every page came out clipped, or your print dialog quietly shrank it to something other than what you chose. Every downloaded page now has a 12mm margin on all four sides: the same margin you already got when you printed from inside the app, so the two finally match. The picture is a little smaller, and all of it arrives.
 - The printable PNG is now a whole sheet of paper too, at print resolution, laid out exactly like the PDF. It used to hand back whatever the generator happened to produce — often a square that was not page-shaped at all. If you want the untouched original, that download is still there and unchanged.
 - Choosing A4 now gives you a true A4 page rather than one a fraction of a millimetre off.

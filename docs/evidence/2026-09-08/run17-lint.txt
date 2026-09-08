@@ -1,0 +1,14 @@
+# Purpose: eslint transcript for Run 17
+# Why: AGENTS.md L141-143 and L213-214 require the chain and the build to be run and their output committed before every push.
+# Info flow: command -> stdout/stderr captured verbatim below -> this transcript, ending with the command's own exit status.
+# Invariants: Written under a run-scoped name so it cannot overwrite Run 16's artifacts, which DECISIONS.md cites by exact path.
+# Command: npm run lint
+# Head: 7191656 (working tree, pre-commit)
+# Date: 2026-09-08
+
+
+> meechies-coloringbook@0.1.0 lint
+> eslint .
+
+
+exit=0
