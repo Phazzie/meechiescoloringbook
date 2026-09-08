@@ -4313,15 +4313,15 @@ describe('StudioState AI budget meter', () => {
 		await studio.runTextAction('generate_text');
 
 		// 14 units at 2 units an action. The old counter would have said "2 left" here.
-		expect(studio.aiQuota?.remaining).toBe(14);
-		expect(studio.aiQuotaMessage).toContain('7 AI calls left');
+		expect(studio.quota.text?.remaining).toBe(14);
+		expect(studio.aiQuotaMessage).toContain('7 verdicts or rewrites left');
 	});
 
 	it('keeps the last good reading when a response carries no quota headers', async () => {
 		const studio = arrangeStudioWithEvidence();
 		vi.stubGlobal('fetch', vi.fn().mockImplementation(() => Promise.resolve(studioTextResponse())));
 		await studio.runTextAction('generate_text');
-		const reported = studio.aiQuota;
+		const reported = studio.quota.text;
 		expect(reported).not.toBeNull();
 
 		vi.stubGlobal('fetch', vi.fn().mockImplementation(() => Promise.resolve(studioTextResponse({}))));
@@ -4329,7 +4329,7 @@ describe('StudioState AI budget meter', () => {
 
 		// Blanking the meter on one odd reply would tell the reader less than the last true thing
 		// it knew.
-		expect(studio.aiQuota).toEqual(reported);
+		expect(studio.quota.text).toEqual(reported);
 	});
 	// --- Codex review round on 34bd3ce -----------------------------------------------------------
 
@@ -4358,7 +4358,7 @@ describe('StudioState AI budget meter', () => {
 		// the message has to stop claiming otherwise without another request being made.
 		clock.advanceTo(NOW_MS + 45_000);
 
-		expect(studio.aiQuota).toBeNull();
+		expect(studio.quota.text).toBeNull();
 		expect(studio.aiQuotaMessage).toBe('');
 	});
 
@@ -4386,7 +4386,7 @@ describe('StudioState AI budget meter', () => {
 
 		// Anchored at the response this would read NOW+100s — a window that closed 55 seconds ago
 		// reported as still a minute and a half away.
-		expect(studio.aiQuota?.resetAtMs).toBe(NOW_MS + 45_000);
+		expect(studio.quota.text?.resetAtMs).toBe(NOW_MS + 45_000);
 	});
 
 	it('renders the reset instant to the second, because the window is only sixty of them', async () => {
@@ -4482,7 +4482,7 @@ describe('StudioState AI budget meter', () => {
 	it('never blocks on a quota it has not been told about', () => {
 		const studio = arrangeStudioWithEvidence();
 
-		expect(studio.aiQuota).toBeNull();
+		expect(studio.quota.text).toBeNull();
 		expect(studio.aiQuotaExhausted).toBe(false);
 		expect(studio.canGenerateText).toBe(true);
 	});
@@ -4576,8 +4576,8 @@ describe('StudioState AI budget meter', () => {
 		await pending;
 
 		expect(studio.textOutput).toBeNull();
-		expect(studio.aiQuota?.remaining).toBe(14);
-		expect(studio.aiQuotaMessage).toContain('7 AI calls left');
+		expect(studio.quota.text?.remaining).toBe(14);
+		expect(studio.aiQuotaMessage).toContain('7 verdicts or rewrites left');
 	});
 });
 

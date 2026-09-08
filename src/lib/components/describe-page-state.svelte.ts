@@ -18,12 +18,7 @@
 //     interpretation is the one and only place that stops being true, exactly as a successful
 //     verdict is in `VerdictPageState` — a failed one must never destroy a page already paid for.
 import { POST_JSON_TIMEOUTS_MS, postJson } from '$lib/core/http-client';
-import {
-	CHAT_INTERPRETATION_QUOTA_COST,
-	aiActionsLeft,
-	readAiQuota,
-	type AiQuotaSnapshot
-} from '$lib/core/ai-quota';
+import { CHAT_INTERPRETATION_QUOTA_COST } from '$lib/core/ai-quota';
 import {
 	DESCRIBE_FILE_BASE_SLUG,
 	canInterpretMessage,
@@ -67,9 +62,6 @@ export class DescribePageState extends PageArtifactState {
 	 */
 	interpretedFrom = $state('');
 
-	/** The last quota reading the server sent, or `null` before it has reported one. */
-	aiQuota = $state<AiQuotaSnapshot | null>(null);
-
 	/**
 	 * Cancellation token for an in-flight interpretation.
 	 *
@@ -79,7 +71,6 @@ export class DescribePageState extends PageArtifactState {
 	 * reader is still waiting for.
 	 */
 	private interpretToken = 0;
-	private cancelQuotaExpiry: (() => void) | null = null;
 	private readonly formatTime: (date: Date) => string;
 
 	constructor(options: DescribePageStateOptions = {}) {
@@ -95,7 +86,18 @@ export class DescribePageState extends PageArtifactState {
 
 	/** The quota sentence under the read-back button, priced for a read-back rather than a rewrite. */
 	quotaMessage = $derived(
-		describeReadbackQuota(this.aiQuota, (date) => this.formatTime(date))
+		describeReadbackQuota(this.quota.text, (date) => this.formatTime(date))
+	);
+
+	/**
+	 * The quota sentence under the "make the page" button — the OTHER bucket.
+	 *
+	 * `/describe` is the one surface that can ask for up to four pictures, so it is also the one
+	 * where pricing a page at a flat unit would be visibly wrong. Priced at the interpretation's own
+	 * `variations`, which is exactly what `/api/generate` charges.
+	 */
+	pageQuotaMessage = $derived(
+		this.quota.pictureMessage(this.spec?.variations ?? 1)
 	);
 
 	/**
@@ -106,8 +108,7 @@ export class DescribePageState extends PageArtifactState {
 	 * to `false` when the window actually reopens rather than when a request is attempted.
 	 */
 	quotaExhausted = $derived(
-		this.aiQuota !== null &&
-			aiActionsLeft(this.aiQuota, CHAT_INTERPRETATION_QUOTA_COST) === 0
+		this.quota.textExhausted(CHAT_INTERPRETATION_QUOTA_COST)
 	);
 
 	/**
@@ -135,24 +136,6 @@ export class DescribePageState extends PageArtifactState {
 	 */
 	get canMakePage(): boolean {
 		return this.spec !== null && !this.isGenerating && !this.isInterpreting;
-	}
-
-	/**
-	 * Store a quota reading, and arrange for it to stop being shown the moment it stops being true.
-	 *
-	 * A reading is only valid until its own reset instant: the bucket is a fixed window, so at
-	 * `resetAtMs` it refills whether or not the reader has made another request. Without this, a
-	 * reader who is told the desk is full and does the sensible thing — wait — would go on being
-	 * told the desk is full after it had emptied. Through `ClockSeam` rather than `setTimeout`, so a
-	 * test drives the expiry instead of waiting for it. Same arrangement as the home studio's.
-	 */
-	private setAiQuota(snapshot: AiQuotaSnapshot): void {
-		this.aiQuota = snapshot;
-		this.cancelQuotaExpiry?.();
-		this.cancelQuotaExpiry = this.clock.scheduleAt(snapshot.resetAtMs, () => {
-			this.aiQuota = null;
-			this.cancelQuotaExpiry = null;
-		});
 	}
 
 	/** Type into the box. Deliberately does not touch the interpretation — see the invariants. */
@@ -198,10 +181,8 @@ export class DescribePageState extends PageArtifactState {
 					// is exactly when the reader most needs to be told what the limit is and when it
 					// lifts. A response without usable quota headers leaves the last reading alone
 					// rather than blanking the meter on one odd reply.
-					onResponseHeaders: (headers) => {
-						const snapshot = readAiQuota(headers, requestStartedAtMs);
-						if (snapshot) this.setAiQuota(snapshot);
-					}
+					onResponseHeaders: (headers) =>
+						this.quota.record(headers, requestStartedAtMs, 'text')
 				}
 			);
 			// The quota reading above is deliberately *not* guarded by this: it describes this
@@ -267,9 +248,8 @@ export class DescribePageState extends PageArtifactState {
 		this.resetPage();
 	}
 
-	/** Release the quota-expiry timer. Called when the surface goes away. */
+	/** Release the quota-expiry timers. Called when the surface goes away. */
 	dispose(): void {
-		this.cancelQuotaExpiry?.();
-		this.cancelQuotaExpiry = null;
+		this.quota.dispose();
 	}
 }

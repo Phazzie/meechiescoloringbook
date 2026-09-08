@@ -30,6 +30,7 @@ import { outputPackagingAdapter } from '$lib/adapters/output-packaging-seam';
 import { sessionAdapter } from '$lib/adapters/session-seam';
 import { clockSeam } from '$lib/adapters/clock-seam';
 import type { ClockSeam } from '$lib/seams/clock-seam/contract';
+import { AiQuotaMeter } from './ai-quota-meter.svelte';
 import { POST_JSON_TIMEOUTS_MS, postJson } from '$lib/core/http-client';
 import {
 	generatedImageBase64,
@@ -333,6 +334,20 @@ export class PageArtifactState {
 	 * injects one: a test should be able to state the instant rather than observe it.
 	 */
 	clock: ClockSeam = clockSeam;
+	/**
+	 * Every quota reading this surface holds, both buckets.
+	 *
+	 * Lives on the base class because `/api/generate` is called from here, so every subclass —
+	 * `VerdictPageState` and `DescribePageState`, and through them all thirteen page-making
+	 * surfaces — inherits a truthful image-bucket reading without doing anything. A subclass that
+	 * also spends the text bucket records into this same meter, which is why it holds a slot per
+	 * bucket rather than a single snapshot.
+	 */
+	readonly quota: AiQuotaMeter = new AiQuotaMeter({
+		// Read through a closure, not captured: `clock` above is assignable and tests replace it
+		// after construction, so the meter must follow whichever clock this state currently holds.
+		clock: () => this.clock
+	});
 	private owner: CreationOwner | null = null;
 	/** In-flight session resolve, so concurrent saves share one call rather than racing. */
 	private ownerPromise: Promise<CreationOwner | null> | null = null;
@@ -486,12 +501,26 @@ export class PageArtifactState {
 		const token = this.pageToken;
 		const isStale = (): boolean => token !== this.pageToken;
 		const recipe = source.recipe;
+		// Anchored at send, not at receipt: this route routinely runs for minutes against a
+		// 60-second window, so a reset instant measured from the reply would sit far in the future
+		// for a bucket that had already refilled. See `AiQuotaMeter`'s invariants.
+		const requestedAtMs = this.clock.now();
 
 		try {
 			const payload = await postJson(
 				'/api/generate',
 				{ spec: recipe.spec, styleHint: recipe.styleHint },
-				{ timeoutMs: POST_JSON_TIMEOUTS_MS.generate }
+				{
+					timeoutMs: POST_JSON_TIMEOUTS_MS.generate,
+					// The single most valuable line in this change: every page-making surface in the
+					// app reaches `/api/generate` through this one method, so recording the image
+					// bucket here is what gives all thirteen of them a truthful meter at once. It is
+					// deliberately NOT guarded by `isStale()` — the reading describes this caller's
+					// bucket, which the server charged whatever the reader did next, so it stays
+					// true and useful even when the page it came with is abandoned.
+					onResponseHeaders: (headers) =>
+						this.quota.record(headers, requestedAtMs, 'image')
+				}
 			);
 			if (isStale()) return;
 			const parsed = GenerateResultSchema.safeParse(payload);

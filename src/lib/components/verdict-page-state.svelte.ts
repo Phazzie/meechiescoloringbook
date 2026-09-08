@@ -141,10 +141,18 @@ export class VerdictPageState extends PageArtifactState {
 		// Recorded rather than recomputed in `finally`: an abandoned request must not clear the flag
 		// the newer request is holding, and `reset()` released it already.
 		let abandoned = false;
+		const requestedAtMs = this.clock.now();
 
 		try {
 			const payload = await postJson('/api/tools', parsedInput.data, {
-				timeoutMs: POST_JSON_TIMEOUTS_MS.tools
+				timeoutMs: POST_JSON_TIMEOUTS_MS.tools,
+				// `/api/tools` spends the TEXT bucket; the generate call this class inherits spends
+				// the IMAGE one. Both readings land in the same meter, in their own slots, because a
+				// mode route spends both and a reader deserves to be told which one ran out.
+				// Unguarded by `isStale()` for the same reason as in `PageArtifactState`: the server
+				// charged this caller's bucket whatever the reader did next.
+				onResponseHeaders: (headers) =>
+					this.quota.record(headers, requestedAtMs, 'text')
 			});
 			if (isStale()) {
 				abandoned = true;

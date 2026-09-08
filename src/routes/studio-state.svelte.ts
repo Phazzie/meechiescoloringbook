@@ -49,12 +49,7 @@ import {
 	type StudioTextActionId
 } from '$lib/core/meechie-studio';
 import { POST_JSON_TIMEOUTS_MS, postJson } from '$lib/core/http-client';
-import {
-	aiActionsLeft,
-	describeAiQuota,
-	readAiQuota,
-	type AiQuotaSnapshot
-} from '$lib/core/ai-quota';
+import { AiQuotaMeter } from '$lib/components/ai-quota-meter.svelte';
 import { compactColoringPageTitle } from '$lib/core/coloring-page-title';
 import { buildQualityReport } from '$lib/core/quality-report';
 import {
@@ -277,14 +272,23 @@ export class StudioState {
 	 */
 	revisionBudget = $state(DEFAULT_REVISION_BUDGET);
 	/**
-	 * The last quota the server reported, or `null` before it has reported one.
+	 * Every quota reading the server has sent this tab, one slot per bucket.
 	 *
-	 * `null` is shown as nothing at all. The counter this replaced invented a number the server had
-	 * never agreed to — it said "3 AI text actions left" while the real gate allowed ten a minute
-	 * and refilled every sixty seconds — so an unknown quota now reads as silence rather than as a
-	 * fresh guess.
+	 * `null` in a slot is shown as nothing at all. The counter this replaced invented a number the
+	 * server had never agreed to — it said "3 AI text actions left" while the real gate allowed ten
+	 * a minute and refilled every sixty seconds — so an unknown quota reads as silence rather than
+	 * as a fresh guess.
+	 *
+	 * Two slots rather than one because this studio spends two different buckets and used to report
+	 * only the first: the verdict and rewrite buttons spend `text` (20 units a minute), while the
+	 * "make the page" button below them spends `image` (8 a minute, refilling on its own window).
+	 * The single sentence that used to sit over both described `text` alone.
 	 */
-	aiQuota = $state<AiQuotaSnapshot | null>(null);
+	readonly quota = new AiQuotaMeter({
+		// Through a closure, not captured: `clock` is a settable accessor here and tests replace it
+		// after construction.
+		clock: () => this.clock
+	});
 	private verdictOnScreen = $state<MeechieStudioTextOutput | null>(null);
 	/**
 	 * Where the verdict on screen came from. Two separate questions turn on it, and conflating them
@@ -801,15 +805,28 @@ export class StudioState {
 	// refills at 3:42:55 rendered as "3:42" invites the reader to retry most of a minute early and
 	// be refused. A quota label that is wrong by nearly a whole window is the defect this feature
 	// exists to remove, not one to reintroduce in the formatting.
+	/**
+	 * The text bucket's sentence — verdicts and rewrites.
+	 *
+	 * Named `verdict` rather than the old generic `AI call` because there are now two of these lines
+	 * on screen and a coloring page is also an AI call: "3 AI calls left" above "2 pages left" reads
+	 * as one number contradicting the other, when in fact they are two independent buckets. The noun
+	 * is what tells the reader which one just ran out.
+	 */
 	aiQuotaMessage = $derived(
-		describeAiQuota(this.aiQuota, (date) =>
-			date.toLocaleTimeString([], {
-				hour: 'numeric',
-				minute: '2-digit',
-				second: '2-digit'
-			})
-		)
+		this.quota.textMessage({
+			actionNoun: 'verdict or rewrite',
+			actionNounPlural: 'verdicts or rewrites'
+		})
 	);
+	/**
+	 * The sentence for the bucket the "make the page" button actually spends.
+	 *
+	 * Separate from `aiQuotaMessage` because the buckets are separate. Running out of verdicts and
+	 * running out of pages are different events, on different windows, and a reader who has one left
+	 * and not the other can only act on that if the studio says which.
+	 */
+	pageQuotaMessage = $derived(this.quota.pictureMessage(this.spec?.variations ?? 1));
 	/**
 	 * The server has told us, and not yet un-told us, that it will refuse the next AI call.
 	 *
@@ -822,7 +839,7 @@ export class StudioState {
 	 * same disagreement between the screen and the server that this whole feature was written to
 	 * end — the sentence and the guard have to be reading the same number.
 	 */
-	aiQuotaExhausted = $derived(this.aiQuota !== null && aiActionsLeft(this.aiQuota) === 0);
+	aiQuotaExhausted = $derived(this.quota.textExhausted());
 	canGenerateText = $derived(
 		!this.aiQuotaExhausted &&
 			canRunStudioAction('generate_text', {
@@ -1159,8 +1176,6 @@ export class StudioState {
 	 */
 	private verdictToken = 0;
 	private draftTimer: ReturnType<typeof setTimeout> | null = null;
-	/** Clears the quota reading when its window runs out. See `setAiQuota`. */
-	private cancelQuotaExpiry: (() => void) | null = null;
 	private isSavingDraft = false;
 	private isDraftSavePending = false;
 
@@ -1579,29 +1594,6 @@ export class StudioState {
 		this.revisionBudget = DEFAULT_REVISION_BUDGET;
 	}
 
-	/**
-	 * Store a quota reading, and arrange for it to stop being shown the moment it stops being true.
-	 *
-	 * A reading is only valid until its own reset instant: the bucket is a fixed window, so at
-	 * `resetAtMs` it refills whether or not the reader has made another request. Without this, a
-	 * reader who is told the desk is full and does the sensible thing — wait — would go on being
-	 * told the desk is full after it had emptied, because `aiQuotaMessage` derives from this value
-	 * alone and nothing else would touch it. That is the same defect as the counter this feature
-	 * replaced: a number on screen that the server had stopped agreeing with.
-	 *
-	 * The clock comes through `ClockSeam` rather than `setTimeout`, so a test drives the expiry
-	 * instead of waiting for it. An instant already past fires on the next tick, which is right:
-	 * a window that closed before the response arrived has nothing left to report.
-	 */
-	private setAiQuota(snapshot: AiQuotaSnapshot): void {
-		this.aiQuota = snapshot;
-		this.cancelQuotaExpiry?.();
-		this.cancelQuotaExpiry = this.clock.scheduleAt(snapshot.resetAtMs, () => {
-			this.aiQuota = null;
-			this.cancelQuotaExpiry = null;
-		});
-	}
-
 	scheduleDraftSave = (): void => {
 		if (!this.isBrowser) return;
 		if (this.draftTimer) clearTimeout(this.draftTimer);
@@ -1867,10 +1859,8 @@ export class StudioState {
 					// is exactly when the reader most needs to be told what the limit is and when it
 					// lifts. A response without usable quota headers leaves the last reading alone
 					// rather than blanking the meter on one odd reply.
-					onResponseHeaders: (headers) => {
-						const snapshot = readAiQuota(headers, requestStartedAtMs);
-						if (snapshot) this.setAiQuota(snapshot);
-					}
+					onResponseHeaders: (headers) =>
+						this.quota.record(headers, requestStartedAtMs, 'text')
 				}
 			);
 			// The reader has moved to another round while this was in flight. The reply describes a
@@ -2036,13 +2026,22 @@ export class StudioState {
 			// Border rebuilds `this.spec` without advancing `pageLoadToken`, so reading it again
 			// after the await would record paper the provider was never asked for.
 			const requestedSpec = $state.snapshot(this.spec);
+			// Anchored at send: this route can run for minutes against a 60-second window.
+			const requestedAtMs = this.clock.now();
 			const payload = await postJson(
 				'/api/generate',
 				{
 					spec: requestedSpec,
 					styleHint: buildStyleHint(requestedStyle)
 				},
-				{ timeoutMs: POST_JSON_TIMEOUTS_MS.generate }
+				{
+					timeoutMs: POST_JSON_TIMEOUTS_MS.generate,
+					// The image bucket, which is what this button spends. The studio has always had
+					// a quota line, and until now it reported the text bucket only — a number from a
+					// different bucket, on a different window, sitting above this button.
+					onResponseHeaders: (headers) =>
+						this.quota.record(headers, requestedAtMs, 'image')
+				}
 			);
 			if (pageToken !== this.pageLoadToken) return;
 			const parsed = GenerateResultSchema.safeParse(payload);
@@ -2229,6 +2228,7 @@ export class StudioState {
 		const requestedSelfieToken = this.selfieToken;
 		this.resetTryOnPageState();
 		this.isTryingOn = true;
+		const requestedAtMs = this.clock.now();
 		try {
 			const payload = await postJson(
 				'/api/wig-try-on',
@@ -2237,7 +2237,15 @@ export class StudioState {
 					selfieMimeType: this.selfieMimeType,
 					wigId: requestedWig.id
 				},
-				{ timeoutMs: POST_JSON_TIMEOUTS_MS.wigTryOn }
+				{
+					timeoutMs: POST_JSON_TIMEOUTS_MS.wigTryOn,
+					// A try-on spends the IMAGE bucket, the same eight units a minute that fund
+					// coloring pages. Nothing on this surface said so, and a reader who tried four
+					// wigs then pressed "make the page" had spent half their page allowance on
+					// hair without ever being shown a number.
+					onResponseHeaders: (headers) =>
+						this.quota.record(headers, requestedAtMs, 'image')
+				}
 			);
 			const parsed = WigTryOnResultSchema.safeParse(payload);
 			if (!parsed.success) {
@@ -2650,8 +2658,7 @@ export class StudioState {
 		if (this.draftTimer) {
 			globalThis.clearTimeout(this.draftTimer);
 		}
-		this.cancelQuotaExpiry?.();
-		this.cancelQuotaExpiry = null;
+		this.quota.dispose();
 		// The day-boundary timer and the visibility subscription belong to the collection now, and
 		// so does tearing them down. Forgetting this call would leave a timer re-arming itself
 		// against a destroyed studio for as long as the tab lives.

@@ -26,10 +26,12 @@ describe('readAiQuota', () => {
 				'RateLimit-Remaining': '14',
 				'RateLimit-Reset': '45'
 			}),
-			NOW
+			NOW,
+			{ bucket: 'text' }
 		);
 
 		expect(snapshot).toEqual({
+			bucket: 'text',
 			limit: 20,
 			remaining: 14,
 			resetAtMs: NOW + 45_000,
@@ -45,7 +47,8 @@ describe('readAiQuota', () => {
 				'RateLimit-Reset': '30',
 				'Retry-After': '31'
 			}),
-			NOW
+			NOW,
+			{ bucket: 'text' }
 		);
 
 		// The refusal's own number wins: it is the one computed for this caller's denial.
@@ -81,7 +84,7 @@ describe('readAiQuota', () => {
 			{ 'RateLimit-Limit': '20', 'RateLimit-Remaining': '21', 'RateLimit-Reset': '10' }
 		]
 	])('reports nothing for %s', (_label, values) => {
-		expect(readAiQuota(headers(values), NOW)).toBeNull();
+		expect(readAiQuota(headers(values), NOW, { bucket: 'text' })).toBeNull();
 	});
 
 	it('accepts an exhausted flag from the caller for a refusal that carried no Retry-After', () => {
@@ -92,7 +95,7 @@ describe('readAiQuota', () => {
 				'RateLimit-Reset': '12'
 			}),
 			NOW,
-			{ exhausted: true }
+			{ bucket: 'text', exhausted: true }
 		);
 
 		expect(snapshot?.exhausted).toBe(true);
@@ -102,15 +105,15 @@ describe('readAiQuota', () => {
 describe('aiActionsLeft', () => {
 	it('divides remaining units by what one action costs', () => {
 		expect(STUDIO_TEXT_QUOTA_COST).toBe(2);
-		expect(aiActionsLeft({ limit: 20, remaining: 14, resetAtMs: NOW, exhausted: false })).toBe(7);
-		expect(aiActionsLeft({ limit: 20, remaining: 20, resetAtMs: NOW, exhausted: false })).toBe(10);
+		expect(aiActionsLeft({ bucket: 'text', limit: 20, remaining: 14, resetAtMs: NOW, exhausted: false })).toBe(7);
+		expect(aiActionsLeft({ bucket: 'text', limit: 20, remaining: 20, resetAtMs: NOW, exhausted: false })).toBe(10);
 	});
 
 	// A bucket holding one unit is not empty, but it cannot pay for a two-unit action. Reporting
 	// "1 left" there would promise a call the very next request refuses.
 	it('reports nothing left when the units cannot pay for a whole action', () => {
-		expect(aiActionsLeft({ limit: 20, remaining: 1, resetAtMs: NOW, exhausted: false })).toBe(0);
-		expect(aiActionsLeft({ limit: 20, remaining: 0, resetAtMs: NOW, exhausted: false })).toBe(0);
+		expect(aiActionsLeft({ bucket: 'text', limit: 20, remaining: 1, resetAtMs: NOW, exhausted: false })).toBe(0);
+		expect(aiActionsLeft({ bucket: 'text', limit: 20, remaining: 0, resetAtMs: NOW, exhausted: false })).toBe(0);
 	});
 });
 
@@ -121,19 +124,19 @@ describe('describeAiQuota', () => {
 
 	it('counts the calls left and names the instant they stop mattering', () => {
 		expect(
-			describeAiQuota({ limit: 20, remaining: 14, resetAtMs: NOW + 45_000, exhausted: false }, atClock)
+			describeAiQuota({ bucket: 'text', limit: 20, remaining: 14, resetAtMs: NOW + 45_000, exhausted: false }, atClock)
 		).toBe('7 AI calls left before T+45s.');
 	});
 
 	it('keeps the count singular when one call is left', () => {
 		expect(
-			describeAiQuota({ limit: 20, remaining: 2, resetAtMs: NOW + 10_000, exhausted: false }, atClock)
+			describeAiQuota({ bucket: 'text', limit: 20, remaining: 2, resetAtMs: NOW + 10_000, exhausted: false }, atClock)
 		).toBe('1 AI call left before T+10s.');
 	});
 
 	it('tells a stopped reader when they can come back', () => {
 		expect(
-			describeAiQuota({ limit: 20, remaining: 0, resetAtMs: NOW + 31_000, exhausted: true }, atClock)
+			describeAiQuota({ bucket: 'text', limit: 20, remaining: 0, resetAtMs: NOW + 31_000, exhausted: true }, atClock)
 		).toBe("Meechie's desk is full. Ready again at T+31s.");
 	});
 });

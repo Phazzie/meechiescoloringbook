@@ -11,6 +11,7 @@ Critical invariant: the paper on screen shows the page's OWN look, never the liv
      controls are correct to show through, because there the paper is a preview of the next one.
 -->
 <script lang="ts">
+	import AiQuotaLine from '$lib/components/AiQuotaLine.svelte';
 	import { getStudioAction } from '$lib/core/meechie-studio';
 	import type { StudioTheme } from '$lib/core/meechie-studio';
 	import type { MeechieStudioTextOutput } from '$lib/seams/meechie-studio-text-seam/contract';
@@ -34,6 +35,7 @@ Critical invariant: the paper on screen shows the page's OWN look, never the liv
 		glitter,
 		activeTheme,
 		pageCaution,
+		pageQuotaMessage,
 		onGeneratePage,
 		onCopyQuote,
 		onSaveToVault
@@ -69,6 +71,13 @@ Critical invariant: the paper on screen shows the page's OWN look, never the liv
 		 * spends an image generation.
 		 */
 		pageCaution: string;
+		/**
+		 * The server's own allowance for the IMAGE bucket, already worded — the bucket the Create
+		 * Coloring Page button below actually spends. The studio's other quota line, over in
+		 * `StudioInputPanel`, reports the `text` bucket and always did; it sat above this button for
+		 * runs, describing a different bucket on a different window.
+		 */
+		pageQuotaMessage: string;
 		onGeneratePage: () => Promise<void>;
 		onCopyQuote: () => Promise<void>;
 		onSaveToVault: () => Promise<void>;
@@ -148,10 +157,16 @@ Critical invariant: the paper on screen shows the page's OWN look, never the liv
 			class="primary"
 			data-testid="home-create-page"
 			onclick={onGeneratePage}
+			aria-describedby={pageQuotaMessage ? 'page-budget' : undefined}
 			disabled={!textOutput || isGenerating}
 		>
 			{isGenerating ? 'Creating...' : 'Create Coloring Page'}
 		</button>
+		<AiQuotaLine
+			message={pageQuotaMessage}
+			testId="home-page-quota"
+			id="page-budget"
+		/>
 		<button
 			type="button"
 			data-testid="home-copy-quote"

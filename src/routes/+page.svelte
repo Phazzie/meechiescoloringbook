@@ -119,6 +119,7 @@ Invariants: `SystemTrace` receives `promptWasSent` from the state and must never
 			glitter={studio.pageGlitter}
 			activeTheme={studio.activeTheme}
 			pageCaution={studio.verdictReport.pageCaution ?? ''}
+			pageQuotaMessage={studio.pageQuotaMessage}
 			onGeneratePage={studio.handleGeneratePage}
 			onCopyQuote={studio.copyQuote}
 			onSaveToVault={studio.saveToVault}

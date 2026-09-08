@@ -20,6 +20,7 @@ Invariants:
 <script lang="ts">
 	import type { DescribePageState } from './describe-page-state.svelte';
 	import QualityReportPanel from './QualityReportPanel.svelte';
+	import AiQuotaLine from './AiQuotaLine.svelte';
 	import PageExportRow from './PageExportRow.svelte';
 	import PrintPageButton from './PrintPageButton.svelte';
 	import SharePageButton from './SharePageButton.svelte';
@@ -181,10 +182,19 @@ Invariants:
 				class="cta"
 				data-testid="describe-generate"
 				onclick={() => void studio.makePage()}
+				aria-describedby={studio.pageQuotaMessage ? 'page-budget' : undefined}
 				disabled={!studio.canMakePage}
 			>
 				{studio.isGenerating ? 'Drawing it…' : 'Make this page'}
 			</button>
+			<!-- The image bucket, priced at THIS interpretation's own `variations`. `/describe` is
+			     the one surface that can ask for up to four pictures, and four pictures cost four of
+			     the eight units a minute the bucket holds. -->
+			<AiQuotaLine
+				message={studio.pageQuotaMessage}
+				testId="describe-page-quota"
+				id="page-budget"
+			/>
 		</section>
 	{/if}
 

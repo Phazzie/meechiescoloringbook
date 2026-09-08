@@ -1039,3 +1039,57 @@ describe('copyVerdict', () => {
 		expect(state.copyStatus).toBe('Copy unavailable in this browser.');
 	});
 });
+
+// The mode routes spend BOTH buckets — `/api/tools` for the verdict, `/api/generate` for the
+// picture — and reported neither. They are separate slots because they are separate windows: a
+// reader with verdicts left and no pages left needs to be told which one stopped them.
+describe('both buckets, on the surfaces that spend both', () => {
+	const quotaHeaders = (
+		limit: number,
+		remaining: number,
+		resetSeconds: number
+	): Record<string, string> => ({
+		'RateLimit-Limit': String(limit),
+		'RateLimit-Remaining': String(remaining),
+		'RateLimit-Reset': String(resetSeconds)
+	});
+
+	it('files the verdict call under text and the page call under image', async () => {
+		const state = await readyState();
+		routes.tools = async () =>
+			jsonResponse(
+				{ ok: true, value: STRUCTURED_VERDICT },
+				{ headers: quotaHeaders(20, 12, 40) }
+			);
+		routes.generate = async () =>
+			jsonResponse(
+				{ ok: true, value: generateValue() },
+				{ headers: quotaHeaders(8, 3, 25) }
+			);
+
+		await state.requestVerdict(INPUT_FOR[STRUCTURED_VERDICT.toolId]);
+		await state.makePage();
+		await flush();
+
+		expect(state.quota.text).toMatchObject({ bucket: 'text', limit: 20, remaining: 12 });
+		expect(state.quota.image).toMatchObject({ bucket: 'image', limit: 8, remaining: 3 });
+		// The sentence each surface actually renders.
+		expect(state.quota.pictureMessage()).toContain('3 pages left');
+	});
+
+	it('reports the page allowance even when only the verdict call has answered', async () => {
+		const state = await readyState();
+		routes.tools = async () =>
+			jsonResponse(
+				{ ok: true, value: STRUCTURED_VERDICT },
+				{ headers: quotaHeaders(20, 20, 60) }
+			);
+
+		await state.requestVerdict(INPUT_FOR[STRUCTURED_VERDICT.toolId]);
+		await flush();
+
+		// Twenty text units in hand, and still nothing claimed about pages. This is the exact
+		// substitution the old single-snapshot meter made.
+		expect(state.quota.pictureMessage()).toBe('');
+	});
+});

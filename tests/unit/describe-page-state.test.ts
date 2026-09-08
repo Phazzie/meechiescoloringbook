@@ -100,9 +100,23 @@ const failInterpret =
 		jsonResponse({ ok: false, error: { code, message } }, { status });
 
 const okGenerate =
-	(overrides: Record<string, unknown> = {}) =>
+	(overrides: Record<string, unknown> = {}, headers?: Record<string, string>) =>
 	async () =>
-		jsonResponse({ ok: true, value: generateValue(overrides) });
+		jsonResponse(
+			{ ok: true, value: generateValue(overrides) },
+			headers ? { headers } : {}
+		);
+
+/** The quota header set the rate-limit guard emits on every billable response. */
+const quotaHeaders = (
+	limit: number,
+	remaining: number,
+	resetSeconds: number
+): Record<string, string> => ({
+	'RateLimit-Limit': String(limit),
+	'RateLimit-Remaining': String(remaining),
+	'RateLimit-Reset': String(resetSeconds)
+});
 
 /** A clock whose instant and timers the test states rather than observes. */
 type DrivenClock = ClockSeam & { fire: () => void; setNow: (ms: number) => void };
@@ -428,7 +442,7 @@ describe('the quota the surface reports', () => {
 		expect(state.quotaMessage).not.toBe('');
 
 		clock.fire();
-		expect(state.aiQuota).toBeNull();
+		expect(state.quota.text).toBeNull();
 		expect(state.quotaMessage).toBe('');
 	});
 });
@@ -626,5 +640,78 @@ describe('starting over', () => {
 
 		expect(() => state.dispose()).not.toThrow();
 		expect(state.quotaMessage).not.toBe('');
+	});
+});
+
+// `/api/generate` spends the IMAGE bucket; `/api/chat-interpretation` spends TEXT. Both reach this
+// class, and until this change every one of the generate call's headers was discarded — on this
+// surface and on the twelve others that reach `/api/generate` through `PageArtifactState`.
+describe('the two buckets this surface spends', () => {
+	it('records the generate response under the image bucket, not the text one', async () => {
+		const state = await withReadback();
+		routes.generate = okGenerate({}, quotaHeaders(8, 5, 30));
+
+		await state.makePage();
+		await flush();
+
+		expect(state.quota.image).toMatchObject({
+			bucket: 'image',
+			limit: 8,
+			remaining: 5
+		});
+		// The reading must not have leaked into the bucket the read-back button reports.
+		expect(state.quota.text).toBeNull();
+	});
+
+	it('keeps a read-back reading and a page reading apart on the same state', async () => {
+		const state = newState();
+		routes.interpret = okInterpret(INTERPRETED, quotaHeaders(20, 9, 45));
+		state.setMessage(A_MESSAGE);
+		await state.interpret();
+
+		routes.generate = okGenerate({}, quotaHeaders(8, 6, 20));
+		await state.makePage();
+		await flush();
+
+		expect(state.quota.text?.limit).toBe(20);
+		expect(state.quota.image?.limit).toBe(8);
+		// Two sentences, two buckets, two windows.
+		expect(state.quotaMessage).toContain('9 read-backs left');
+		expect(state.pageQuotaMessage).toContain('6 pages left');
+	});
+
+	// The interpreted spec decides what a page costs, because `/api/generate` charges
+	// `spec.variations`. A four-picture page out of six remaining units is one page, not six.
+	it('prices the page line at the interpretation own variations', async () => {
+		const state = await withReadback({ ...INTERPRETED, variations: 4 });
+		routes.generate = okGenerate({}, quotaHeaders(8, 6, 20));
+
+		await state.makePage();
+		await flush();
+
+		expect(state.pageQuotaMessage).toContain('1 page left');
+	});
+
+	// A refusal is exactly when the reader most needs the number: the response that says "too many
+	// requests" is also the one carrying the limit and the reset instant.
+	it('reads the quota off a refusal, which is when it matters most', async () => {
+		const state = await withReadback();
+		routes.generate = async () =>
+			jsonResponse(
+				{
+					ok: false,
+					error: {
+						code: 'RATE_LIMITED',
+						message: 'Too many requests. Try again after the current window resets.'
+					}
+				},
+				{ status: 429, headers: { ...quotaHeaders(8, 0, 37), 'Retry-After': '37' } }
+			);
+
+		await state.makePage();
+		await flush();
+
+		expect(state.quota.image?.exhausted).toBe(true);
+		expect(state.pageQuotaMessage).toContain("Meechie's desk is full");
 	});
 });

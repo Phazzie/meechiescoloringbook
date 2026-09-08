@@ -1,13 +1,21 @@
 // Purpose: Read the AI quota the server actually enforces out of its own response headers, and
-//          turn it into the sentences the studio shows.
-// Why: Every /api/meechie-studio-text response — success and denial alike — carries
-//      RateLimit-Limit, RateLimit-Remaining and RateLimit-Reset, and a denial adds Retry-After.
-//      The studio used to throw all of that away and show an invented in-memory counter instead,
-//      so the number on screen had never been agreed to by the thing doing the limiting.
-// Info flow: fetch Response headers -> readAiQuota -> AiQuotaSnapshot -> describeAiQuota -> UI.
+//          turn it into the sentences each surface shows about the bucket it spends.
+// Why: All six billable routes carry RateLimit-Limit, RateLimit-Remaining and RateLimit-Reset on
+//      every response, success and denial alike, and a denial adds Retry-After. The studio used to
+//      throw all of that away and show an invented in-memory counter instead, so the number on
+//      screen had never been agreed to by the thing doing the limiting.
+//      It then threw away almost all of it a second way: the server meters TWO independent buckets
+//      — `text` (20 units: verdicts, rewrites, read-backs) and `image` (8 units: every coloring
+//      page, wig try-on and picture) — and the app only ever read `text`. The sentence on the home
+//      studio was derived from the text bucket and sat above a "make the page" button that spends
+//      the image bucket, on a separate window with a different limit. Carrying `bucket` on every
+//      snapshot is what makes that mix-up unrepresentable rather than merely discouraged.
+// Info flow: fetch Response headers -> readAiQuota(bucket) -> AiQuotaSnapshot -> recordQuotaReading
+//            -> AiQuotaLedger -> describeAiQuota / describePictureQuota -> UI.
 // Invariants: Pure. No I/O, no clock of its own — the caller passes the instant. A header set that
-//             is absent, malformed or negative yields `null` rather than a guessed number: the
-//             studio says nothing before it says something untrue.
+//             is absent, malformed or negative yields `null` rather than a guessed number: a
+//             surface says nothing before it says something untrue. A reading is filed under the
+//             bucket it names and never under one a caller chose.
 
 /**
  * What one AI text action charges the caller's quota bucket.
@@ -30,8 +38,36 @@ export const STUDIO_TEXT_QUOTA_COST = 2;
  */
 export const CHAT_INTERPRETATION_QUOTA_COST = 1;
 
+/**
+ * What one picture charges the image bucket.
+ *
+ * `runGeneratePipeline` calls `consumeQuota(imageRequest.variations)` — the same value that becomes
+ * the provider's `n` — so a page costs one unit per picture it asks for, and a four-variation
+ * request costs four. A surface pricing a page at a flat 1 would tell a reader with two units left
+ * that they can afford a four-picture page they cannot.
+ */
+export const IMAGE_UNITS_PER_PICTURE = 1;
+
+/**
+ * Which of the server's two independent buckets a reading describes.
+ *
+ * They are not interchangeable and never have been: `text` holds 20 units and funds verdicts,
+ * rewrites and read-backs; `image` holds 8 and funds every coloring page, wig try-on and picture
+ * this app makes. They refill on separate windows, so a reading from one says nothing whatsoever
+ * about the other.
+ *
+ * It is a required field on every snapshot rather than an optional label because narrating one
+ * bucket's number under the other's button is the exact defect this type exists to make
+ * unrepresentable — the studio's meter did precisely that, reporting the text bucket above a
+ * "make the page" button that spends the image bucket. A snapshot that cannot say which bucket it
+ * came from is not a reading; it is a number.
+ */
+export type AiQuotaBucket = 'text' | 'image';
+
 /** The quota state the server reported on one response. Units, not actions — see `aiActionsLeft`. */
 export type AiQuotaSnapshot = {
+	/** Which bucket this reading describes. See `AiQuotaBucket` — never inferred, always carried. */
+	bucket: AiQuotaBucket;
 	/** Units the caller's bucket holds per window. */
 	limit: number;
 	/** Units left in the bucket after this response was charged. */
@@ -69,7 +105,7 @@ const readCount = (source: QuotaHeaderSource, name: string): number | null => {
 export const readAiQuota = (
 	source: QuotaHeaderSource,
 	nowMs: number,
-	options: { exhausted?: boolean } = {}
+	options: { bucket: AiQuotaBucket; exhausted?: boolean }
 ): AiQuotaSnapshot | null => {
 	const limit = readCount(source, 'RateLimit-Limit');
 	const remaining = readCount(source, 'RateLimit-Remaining');
@@ -83,6 +119,7 @@ export const readAiQuota = (
 	const retryAfterSeconds = readCount(source, 'Retry-After');
 	const secondsUntilReset = retryAfterSeconds ?? resetSeconds;
 	return {
+		bucket: options.bucket,
 		limit,
 		remaining,
 		resetAtMs: nowMs + secondsUntilReset * 1_000,
@@ -131,8 +168,17 @@ export const formatQuotaResetTime = (
 export type QuotaActionDescription = {
 	/** Units one of these actions charges. Defaults to the studio's rewrite cost. */
 	unitsPerAction?: number;
-	/** Singular noun for the action, pluralised with a trailing `s`. Defaults to `AI call`. */
+	/** Singular noun for the action. Defaults to `AI call`. */
 	actionNoun?: string;
+	/**
+	 * Plural form, when a trailing `s` would not produce it.
+	 *
+	 * The default rule is `actionNoun + 's'`, which is right for "page" and "read-back" and wrong for
+	 * anything with a qualifier — "verdict or rewrite" becomes "verdict or rewrites", which reads as
+	 * one verdict and several rewrites rather than several of either. A surface that needs a real
+	 * plural states it rather than having the rule guess.
+	 */
+	actionNounPlural?: string;
 };
 
 /**
@@ -150,6 +196,63 @@ export const describeAiQuota = (
 	if (left === 0) {
 		return `Meechie's desk is full. Ready again at ${formatQuotaResetTime(snapshot, formatTime)}.`;
 	}
-	const noun = action.actionNoun ?? 'AI call';
-	return `${left} ${noun}${left === 1 ? '' : 's'} left before ${formatQuotaResetTime(snapshot, formatTime)}.`;
+	const singular = action.actionNoun ?? 'AI call';
+	const noun =
+		left === 1 ? singular : (action.actionNounPlural ?? `${singular}s`);
+	return `${left} ${noun} left before ${formatQuotaResetTime(snapshot, formatTime)}.`;
 };
+
+/**
+ * The sentence a page-making surface puts under its "make the page" button.
+ *
+ * Priced in pictures, because that is what the server charges: a page asking for `picturesPerPage`
+ * variations costs that many units of the image bucket. Counted in pages rather than pictures
+ * because a page is what the reader is about to ask for — telling someone with 6 units they have
+ * "6 pictures left" when their next page costs 4 is the same arithmetic the studio's meter got
+ * wrong in the other direction.
+ *
+ * `picturesPerPage` is the *current* spec's `variations` rather than a constant, so a surface that
+ * lets the reader ask for four pictures reports the allowance for the page they configured.
+ */
+export const describePictureQuota = (
+	snapshot: AiQuotaSnapshot | null,
+	formatTime: (date: Date) => string,
+	picturesPerPage: number = 1
+): string =>
+	describeAiQuota(snapshot, formatTime, {
+		unitsPerAction: Math.max(1, picturesPerPage) * IMAGE_UNITS_PER_PICTURE,
+		actionNoun: 'page'
+	});
+
+/**
+ * Every bucket reading a surface currently holds, one slot each.
+ *
+ * A surface that spends both buckets — every mode route does, one `/api/tools` call for the verdict
+ * and one `/api/generate` call for the picture — needs both numbers at once and must not let either
+ * overwrite the other. A single `AiQuotaSnapshot | null` field cannot express that: the second
+ * response silently replaces the first, and whichever call happened to land last becomes "the"
+ * quota for a button that does not spend it.
+ */
+export type AiQuotaLedger = {
+	text: AiQuotaSnapshot | null;
+	image: AiQuotaSnapshot | null;
+};
+
+/** A ledger holding no readings at all — what every surface starts with. */
+export const emptyAiQuotaLedger = (): AiQuotaLedger => ({
+	text: null,
+	image: null
+});
+
+/**
+ * File a reading under the bucket it names, leaving the other slot untouched.
+ *
+ * Pure, and returns a new ledger rather than mutating: the snapshot itself says where it belongs,
+ * so no caller ever chooses the slot, and a caller therefore cannot file an image reading under
+ * `text`. That is the whole reason `bucket` is carried on the snapshot instead of being passed
+ * alongside it here.
+ */
+export const recordQuotaReading = (
+	ledger: AiQuotaLedger,
+	snapshot: AiQuotaSnapshot
+): AiQuotaLedger => ({ ...ledger, [snapshot.bucket]: snapshot });

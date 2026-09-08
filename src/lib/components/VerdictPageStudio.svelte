@@ -19,6 +19,7 @@ Invariants: The quality report is rendered ONLY through `QualityReportPanel`, ne
 	import PrintPageButton from './PrintPageButton.svelte';
 	import SharePageButton from './SharePageButton.svelte';
 	import VaultStatusLine from './VaultStatusLine.svelte';
+	import AiQuotaLine from './AiQuotaLine.svelte';
 
 	let {
 		studio,
@@ -93,10 +94,19 @@ Invariants: The quality report is rendered ONLY through `QualityReportPanel`, ne
 		type="button"
 		data-testid="verdict-page-generate"
 		onclick={() => studio.makePage()}
+		aria-describedby={studio.quota.pictureMessage() ? 'page-budget' : undefined}
 		disabled={studio.isGenerating || studio.isWorking}
 	>
 		{studio.isGenerating ? 'Printing the truth…' : 'Generate My Coloring Page'}
 	</button>
+	<!-- The image bucket, which is what the button directly above spends. This panel is shared by
+	     the three standalone mode routes and every `/m/<slug>` page, so this one line is what puts a
+	     truthful page allowance on all of them at once. -->
+	<AiQuotaLine
+		message={studio.quota.pictureMessage()}
+		testId="verdict-page-quota"
+		id="page-budget"
+	/>
 
 	<QualityReportPanel
 		report={studio.qualityReport}

@@ -12979,6 +12979,23 @@ Cipher Gate entry. `DECISIONS.md` carries the tradeoffs.
    `styleHint` hands the image model the words a second time, in the one field that is not the
    exact-text block. **This one was wrong, and a review round overturned it.** See below.
 
+### A correction made mid-run, about this run's own evidence
+
+The first `npx playwright test` here **exited 0 and I read that as a pass.** It was not. The command
+had been piped through `tail -25`, so what I saw was a list of test titles with no summary line; all
+**75 tests had failed identically** on `browserType.launch: Executable doesn't exist at
+/opt/pw-browsers/chromium_headless_shell-1208/...`. This container ships browser build **1194**, and
+`@playwright/test ^1.58.1` resolves **1208**.
+
+Re-run against `/opt/pw-browsers/chromium-1194/chrome-linux/chrome` via a **temporary, uncommitted**
+`playwright.config.ts` override: **76 passed** (75 existing plus the one added below), transcript at
+`docs/evidence/2026-09-08/run18-e2e.txt`, and `git diff --stat playwright.config.ts` is empty on the
+pushed head. CI installs its own browsers and is unaffected.
+
+*An exit code read through `tail` is not a result.* The pipe discarded the summary and kept the
+part that looked like success — and a suite where every test fails for the same environmental reason
+produces output that scrolls exactly like a suite where every test passes.
+
 ### What this run could not prove, stated plainly
 
 **The live quality of the model's interpretation.** `XAI_API_KEY` is not available in this
@@ -13431,5 +13448,183 @@ constraint the pair exposes.
   unflagged in `verdict-page-state.svelte.ts` for as long as it has existed, which is its own
   lesson about what "new code" means to this gate. **None of this is confirmed**; do not fix it
   blind, which is exactly the guessing this repository's workflow exists to prevent.
+
+Do not inherit this entry's measurements. Re-measure.
+
+## Run 18 — 2026-09-08 — The AI budget meter, which was reporting the wrong bucket
+
+**Branch:** `claude/great-bell-iex3wp` · **Base:** `main` at `b5119ea`
+
+### The feature, and the case against it
+
+The app has an AI budget meter. **Run 7 already rebuilt it** — that run's whole subject was replacing
+an invented per-tab counter with the server's own `RateLimit-*` headers, and it succeeded at exactly
+what it set out to do. This run is about what that fix could not see.
+
+The server meters **two** buckets, on independent 60-second windows, with different limits
+(`src/lib/seams/rate-limit-seam/validators.ts:6-8`):
+
+| Bucket | Limit / 60s | Endpoints | Surfaces reporting it on `b5119ea` |
+|---|---|---|---|
+| `text` | 20 | `/api/meechie-studio-text`, `/api/tools`, `/api/chat-interpretation` | 2 |
+| `image` | **8** | `/api/generate`, `/api/image-generation`, `/api/wig-try-on` | **0** |
+
+Bucket assignment measured directly, not inferred — `grep -rn "createQuotaGate(event" src/routes/api/`
+returns the bucket name as the second argument of all six routes.
+
+Eight `postJson` call sites reach a billable endpoint. **Two passed `onResponseHeaders`; six
+discarded every quota header the server sent:**
+
+| Call site | Endpoint | Bucket | Read headers |
+|---|---|---|---|
+| `src/routes/studio-state.svelte.ts:1852` | `/api/meechie-studio-text` | text | yes |
+| `src/lib/components/describe-page-state.svelte.ts:192` | `/api/chat-interpretation` | text | yes |
+| `src/lib/components/page-artifact-state.svelte.ts:491` | `/api/generate` | image | **no** |
+| `src/lib/components/verdict-page-state.svelte.ts:146` | `/api/tools` | text | **no** |
+| `src/lib/components/MeechieTools.svelte:356` | `/api/generate` | image | **no** |
+| `src/lib/components/MeechieTools.svelte:680` | `/api/tools` | text | **no** |
+| `src/routes/studio-state.svelte.ts:2039` | `/api/generate` | image | **no** |
+| `src/routes/studio-state.svelte.ts:2233` | `/api/wig-try-on` | image | **no** |
+
+All six endpoints publish `RateLimit-*` on **every** response, denials included
+(`rate-limit-route.ts:74-80`; `generate-pipeline.ts:259-274` names it: *"Every response from here on
+is post-charge, so it advertises the caller's remaining quota."*). The server was never the problem.
+
+**The case is not "the meter is missing." It is that the meter was confidently narrating a bucket
+the button beneath it does not spend.** The home studio's sentence derives from the 20-unit `text`
+bucket at 2 units per rewrite. The "Create Coloring Page" button below it spends the 8-unit `image`
+bucket, on its own separate window. Nothing on screen distinguished them, so the app could say
+**"7 AI calls left"** and then refuse to draw the page — both statements true, about different
+buckets, and the reader had no way to know that.
+
+That is worse than silence, because it is believable. A missing number teaches a reader to find out;
+a wrong number teaches them to trust it.
+
+And when the image bucket did run out, all thirteen page-making surfaces answered with
+`'Too many requests. Try again after the current window resets.'` (`rate-limit-guard.ts:246`) — no
+limit, no reset instant, no warning beforehand — while *the very response carrying that sentence*
+also carried `RateLimit-Limit: 8`, `RateLimit-Remaining: 0` and `Retry-After`, all discarded by the
+client.
+
+**Why it stayed broken for eleven runs.** The meter's machinery — an `aiQuota` field, a `setAiQuota`,
+a `cancelQuotaExpiry` ClockSeam timer — existed **twice**, hand-copied between
+`studio-state.svelte.ts:1596-1604` and `describe-page-state.svelte.ts:149-156`. It spread by
+copying, so it stopped where copying stopped. This is the same failure mode Runs 14 and 15 recorded
+for the export row and the vault gallery, in a third place: *the markup was reachable by copying and
+nothing made the next surface get it for free.*
+
+### What shipped
+
+**The bucket is now a required field on every quota snapshot**, and a required argument to
+`readAiQuota`. This is the load-bearing decision, and it is a deliberate breaking change to a core
+signature: an optional discriminator would have preserved exactly the shape that produced the bug.
+Making it required is what converted this from a code review into a compile error — **the type
+checker, not my judgement, enumerated the twenty call sites that had to change**, including test
+files I would not have thought to grep.
+
+**`AiQuotaMeter` (new, `src/lib/components/ai-quota-meter.svelte.ts`)** — one holder, one slot per
+bucket, one cancellation handle *per bucket* because the windows are independent. Both copies of the
+old machinery are deleted in favour of it.
+
+**Recording the image bucket inside `PageArtifactState.generatePage` reaches thirteen surfaces at
+once** — the three standalone mode routes, all eight `/m/<slug>` pages, `/describe` and the home
+studio — because every one of them reaches `/api/generate` through that single method. That is the
+whole return on Run 17's extraction, collected a run later.
+
+**A page is priced at `spec.variations`, not at a flat unit.** `runGeneratePipeline` charges
+`imageRequest.variations` — the same value that becomes the provider's `n` — so a four-picture page
+costs four of the eight units. `/describe` is the one surface that can ask for four, and pricing that
+page at one unit would have promised three pages that do not exist.
+
+**The studio's text line is renamed from "AI calls" to "verdicts or rewrites."** With two lines on
+screen this stops being cosmetic: a coloring page *is* an AI call, so "3 AI calls left" above
+"2 pages left" reads as one number contradicting the other. This forced `actionNounPlural` into
+`describeAiQuota`, because the naive `noun + 's'` rule turns "verdict or rewrite" into "verdict or
+rewrites" — one verdict and several rewrites.
+
+**`AiQuotaLine.svelte` (new)** — the one rendering, owning its own styling, for the reason Run 14
+recorded about `PageExportRow`. It carries an optional `id` so the button it explains can point at
+it with `aria-describedby`, which is the app's existing convention (asserted by
+`tests/e2e/smoke.spec.ts:1511`) and which the first draft of this change quietly broke by rendering
+a line no button referenced. The reference is **conditional on there being a message**, because
+`aria-describedby` pointing at an element the page has not rendered explains nothing.
+
+**One new end-to-end test, `each button reports the bucket it actually spends`**, which stubs the
+two routes with *deliberately disagreeing* quota headers (20/14 for text, 8/3 for image) and asserts
+both sentences. Neither assertion can pass if either line derives from the other's number — which is
+the defect, stated as a test rather than as prose.
+
+**No contract, probe, fixture, mock, adapter or seam file is in the diff**, confirmed by
+`git diff --name-only origin/main...HEAD` against those directories rather than asserted — which is
+also why there is no Cipher Gate entry. `DECISIONS.md` carries the tradeoffs.
+
+### Red proofs, run because a green test proves nothing on its own
+
+Four mutations, each reverted immediately, each checked for **how many** tests fail per Run 16's
+lesson:
+
+| Mutation | Tests that failed |
+|---|---|
+| `recordQuotaReading` files every reading under `text` (the original defect, restated) | 7 |
+| A page priced at a flat unit regardless of `variations` | 2 |
+| One shared expiry timer across both buckets | 1 |
+| `onResponseHeaders` removed from `PageArtifactState` (the defect exactly as found) | 4 |
+
+### The bug my own change introduced, and what caught it
+
+Migrating the tests, I bulk-replaced `studio.aiQuota` → `studio.quota.text`. That also rewrote
+`aiQuotaMessage` → `quota.textMessage` and `aiQuotaExhausted` → `quota.textExhausted` — which are
+**methods**, so the assertions became `expect(fn).toBe(true)` against a function object.
+
+**`svelte-check` passed on all of it.** `expect(someFunction).toBe(true)` is perfectly well-typed.
+Three tests failed at runtime and named it precisely; I had already run the type checker and seen
+zero errors, and would have pushed on that evidence alone.
+
+*A type checker cannot tell you that you meant to call the function. The mechanical rename is the
+part of a refactor that feels safest and reads fastest, and it is exactly where a silent assertion
+gets planted — `expect(fn)` never throws, it just stops testing anything.* Both were caught only
+because the suite ran after the rename rather than before the push.
+
+### What this run could not prove, stated plainly
+
+**No live provider or deployment call was made.** `XAI_API_KEY` is not available in this container,
+so the header values these surfaces now render are exercised against stubbed responses shaped like
+the guard's real output rather than against a deployment. The header *names* are read from
+`decisionHeaders` in `rate-limit-guard.ts:126-144` — the server-side function that emits them — and
+not guessed. The residual risk is confined to whether a deployed edge layer rewrites `RateLimit-*`
+in transit, which no test in this repository could detect either way.
+
+**Whether Upstash is configured in production is not knowable from here.** `rate-limit-guard.ts`
+degrades to an in-memory store when every durable setting is blank. If production runs the memory
+store, the numbers are per-instance rather than per-caller — true as displayed, but less meaningful
+than they look. Unchanged by this run, and worth a look from a run with deploy access.
+
+### Carried forward for the next run
+
+Re-measured on this run's base where the item names a line number; **do not inherit these, re-measure.**
+
+- **`chatInterpretationAdapter` still has no callers.** Run 17's item, unchanged and untouched here.
+  Either give it a timeout and header access through the full Seam-Driven Development workflow, or
+  delete it. This run makes the case sharper, not weaker: the adapter discards `RateLimit-*`, and
+  those headers are now load-bearing on every surface.
+- **The three SonarCloud issues Run 17 identified on `24b39a8`** — the empty `clearSourceStatus` at
+  `page-artifact-state.svelte.ts:434`, the `export…from` re-export in `describe-page.ts:365`, the
+  useless `init.headers ?? {}` in `page-artifact-harness.ts:79`. Still open; this run edited two of
+  those three files and did not fix them, because they are quick-wins-routine candidates and
+  widening this pull request is the scope drift the routine argues against. **Line numbers moved:
+  whoever picks them up must re-measure, per Run 17's own lesson about inherited line references.**
+- **The app configures a 1024x1024 square it never asks the provider for.** Run 17's item, unchanged
+  and still blocked on a key. This run touched `/api/generate`'s *client* side only.
+- **`placedDpi` has no production consumer.** Unchanged.
+- **The `chat` packaging variant has zero consumers.** Unchanged, Run 14's reasoning.
+- **Mode persistence** — Run 12's pick, blocked on the seam rule for the seventh run running.
+- **Vault capacity is not knowable from outside the adapter.** Same seam workflow.
+- `MeechieToolOutput.quoteScore` and `modelMetadata`, from Run 11's list.
+- **Four evidence transcripts still have no file header:** `docs/evidence/2026-09-08/verify-outer.txt`,
+  `lint.txt`, `build.txt`, `e2e.txt`. Inherited from Run 16 through Run 17 unchanged.
+- **New this run: `/api/image-generation` has no client caller either.** The image bucket is charged
+  by three routes; `grep -rn "api/image-generation" src/routes src/lib/components` finds no call
+  site outside the route's own file. Same shape as the `chatInterpretationAdapter` item and probably
+  the same answer — settle it deliberately rather than leaving it as a third thing.
 
 Do not inherit this entry's measurements. Re-measure.
