@@ -12588,12 +12588,24 @@ They have to be composed.
 
 ### Evidence
 
+Two kinds, and the difference is stated because a review round caught this entry blurring it —
+`build.txt` and `lint.txt` were two commits behind the rest while the list read as one run.
+
+**Current**, all regenerated on the head this entry describes:
+
 - `docs/evidence/2026-09-08/verify-outer.txt` — full `npm run verify` chain, exit **0**
-- `docs/evidence/2026-09-08/print-margin-before.txt` — the six-combination before-measurement
 - `docs/evidence/2026-09-08/test.txt` — **1724 passed**, 1 skipped (baseline on `e6c450b` was 1689)
 - `docs/evidence/2026-09-08/lint.txt`, `build.txt` — clean
 - `docs/evidence/2026-09-08/e2e.txt` — **68 passed**
 - `svelte-check`: 0 errors, 0 warnings
+
+**Deliberately historical**, and it must stay that way:
+
+- `docs/evidence/2026-09-08/print-margin-before.txt` measures `main` at `e6c450b`, *before* this
+  change. It is the entire case against the old behaviour. Regenerating it on the new head would
+  replace the record of what was wrong with a record of what is now right, and leave the table at
+  the top of this entry unsupported. An evidence file whose value is that it is old needs to say
+  so — "stale" and "historical" look identical from outside, and only one of them is a defect.
 
 ### Deliberately left, with the reasoning
 
