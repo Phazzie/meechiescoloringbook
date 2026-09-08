@@ -12472,3 +12472,157 @@ the prerendered document, and the `init()` → `openSavedPage` ordering — plus
   (`constructor-for-side-effects` at `verdict-page-state.test.ts:1022`, pre-existing at `724332b`).
 
 Do not inherit this entry's measurements. Re-measure.
+
+---
+
+## Run 16 — 2026-09-08 — The packaged print download (the file the whole app funnels into)
+
+**Branch:** `claude/great-bell-bcy2ku` · **Base:** `main` at `e6c450b`
+
+### The feature, and the case against it
+
+Every one of the thirteen surfaces that makes a coloring page ends at the same row of downloads, and
+the first one says **"Printable PDF · US Letter — ready to print"**. It was the one file in the app
+that was not.
+
+`src/lib/adapters/output-packaging-seam/index.ts` L375-386 scaled the artwork by
+`Math.min(pageWidth / w, pageHeight / h)` and centred it. That is edge-to-edge by construction: the
+scale is chosen so one axis exactly equals the paper. Measured before touching anything
+(`docs/evidence/2026-09-08/print-margin-before.txt`):
+
+| Paper | Source | Placed | Smallest margin | Clipped at 100% |
+|---|---|---|---|---|
+| US Letter | 1024x1024 — **the shipped default** | 612.0 x 612.0pt | **0.0pt** | yes |
+| US Letter | 1024x1536 | 528.0 x 792.0pt | **0.0pt** | yes |
+| US Letter | 2550x3300 | 612.0 x 792.0pt | **0.0pt** | yes |
+| A4 | 1024x1024 | 595.0 x 595.0pt | **0.0pt** | yes |
+| A4 | 1024x1536 | 561.3 x 842.0pt | **0.0pt** | yes |
+| A4 | 2550x3300 | 595.0 x 770.0pt | **0.0pt** | yes |
+
+Every combination bleeds on at least one axis. The default path — US Letter holding the `1024x1024`
+that `src/lib/core/image-generation-pipeline.ts:20` asks the provider for — touches **both** vertical
+edges of the sheet. No consumer printer can mark within ~6.4mm of the edge, so printing that PDF at
+100% clips the outer border the spec draws (`border: "plain"`, `borderThickness: 8` are defaults), and
+the alternative the print dialog offers, "shrink to fit", silently rescales it to something the
+reader did not choose.
+
+Three things made this the widest promise-to-delivery gap left in the app:
+
+1. **It is the app's deliverable.** The app is a coloring book. Run 13 made the *browser* print path
+   work and gave it `@page { margin: 12mm }`. The downloaded file — the one you send to a printer,
+   or forward to someone else — was still doing the opposite, so the same finished page came out two
+   different sizes depending on how you printed it, and the more portable route was the broken one.
+2. **The codebase had already written the defect down and left it.** `src/routes/+layout.svelte`
+   L486 carried, in a comment beside the browser fix: *"The packaged PDF bleeds its image to all four
+   edges; this does not."* Run 13 wrote that. It survived three runs, in the file most relevant to
+   it, because a comment is not a test.
+3. **The packaging math had no test at all.** `src/lib/seams/output-packaging-seam/test.ts` covered
+   `parseSvgSize` and a fixture-backed mock. Nothing else — every other path wanted a canvas.
+
+Run 15 carried this forward as its first item. Re-measured this run rather than inherited, per that
+entry's closing instruction.
+
+### What shipped
+
+**A new pure `src/lib/core/print-layout.ts`** owning every geometric decision about paper:
+`PAGE_DIMENSIONS_PT`, `PRINT_SAFE_MARGIN_MM`, `planPrintPlacement`, `printCanvasPx`,
+`placementToPx`, `placedDpi`. The adapter decides no geometry of its own any more — it holds a canvas
+and a PDF page and asks core where the ink goes.
+
+- **The margin is 12mm, and it is not a new number.** It is what `@page` already reserved for the
+  browser path. The two now agree, and `tests/unit/print-layout.test.ts` parses the stylesheet and
+  fails if they ever drift apart. The false comment in `+layout.svelte` was replaced with the
+  invariant it should have been.
+- **The `print` PNG variant is a real sheet now.** It used to return a PNG source's bytes *untouched*
+  while letterboxing JPG and WebP onto a fixed 2550x3300 canvas — so the same page was 1024x1024 or
+  2550x3300 depending only on which format the provider answered with, and only one of those is
+  page-shaped. It is now a full sheet at 300dpi for every format, laid out identically to the PDF.
+  Lossless for the reader: `describeOriginalImageExport` already offers the untouched bytes as a
+  separate download, and it is untouched.
+- **`transcodeToPngBase64` stopped resizing.** Converting WebP for embedding used to letterbox it
+  onto 2550x3300 first, baking white bars in that the PDF then letterboxed *again*.
+- **A4 is the real 595.276 x 841.890pt** (210x297mm) instead of the adapter's `595 x 842` rounding —
+  invisible while the artwork covered the sheet, not invisible once the safe box is subtracted from it.
+- **`toImageDataUrl` stopped calling an encoding problem a format problem** — a recognised format
+  with a non-base64 payload reported `UNSUPPORTED_IMAGE_FORMAT`. Found while wiring, not by review.
+
+**Cost, stated plainly:** the printed picture is about 11% smaller across on US Letter (612pt to
+543.97pt). That is the trade, taken deliberately: whole and slightly smaller beats larger and clipped.
+
+**No contract, probe, fixture or mock changed.** No margin field was added to
+`OutputPackagingInputSchema` — there is one right answer for a coloring book and it should not be a
+caller's decision to get wrong. Cipher Gate entry in `DECISIONS.md`.
+
+### Two findings the run made against itself
+
+**The first red proof proved nothing.** `print-layout.test.ts` asserted the margin invariant against
+`PRINT_SAFE_MARGIN_PT` — the constant under test. Setting `PRINT_SAFE_MARGIN_MM` to 0 moved both
+sides of every comparison at once, and **fourteen margin tests went on passing on a layout that
+bleeds to the edge of the paper**: 4 of 27 failed. Re-anchored to an independently stated
+`HARDWARE_CLEARANCE_PT` (0.25in, the printer's physical limit, owned by nothing under test), the same
+edit fails **20 of 27**. Run 15's close-out had written the general lesson down — the red proof is a
+check on the tests, not a formality — and this run had to learn it again on its own.
+
+**A guard moved behind an event that never fires.** Two callers size the canvas from the image's
+intrinsic dimensions, which do not exist until `onload`, so canvas creation moved inside it — which
+put the `getContext` bail-out behind a `load` event that **jsdom never fires**. Twenty existing tests
+hung to a five-second timeout each instead of returning `CANVAS_UNAVAILABLE`. Caught by the repo's own
+suite, not by review. The canvas is now taken up front and only *resized* in `onload`.
+
+### How it is verified
+
+| Layer | File | What it measures |
+|---|---|---|
+| Pure geometry | `tests/unit/print-layout.test.ts` | 27 tests: the margin invariant over 2 papers x 7 source shapes, aspect preservation, centring, safe-box fill, degenerate sources without `NaN`, the origin flip, and the `@page` drift guard |
+| Real PDF bytes | `tests/unit/print-packaging.test.ts` | 7 tests: packages through the **real adapter**, then inflates the PDF's own content streams and composes the transformation matrices to read where the artwork actually is. A PNG source needs no canvas, so the whole PDF branch runs with no browser |
+| A real browser | `tests/e2e/print.spec.ts` | pulls the actual `data:application/pdf` href off the download link a reader clicks and measures its margins |
+
+`tests/helpers/pdf-placement.ts` is shared by the last two, deliberately: they were one copied
+function the moment the second caller appeared, and SonarCloud's duplication gate has already failed
+a pull request in this repo for exactly that. It parses the container format rather than using
+`pdf-lib` — `pdf-lib` writes these files, so reading them with it would let one bug hide the other.
+
+Note for a future run: `pdf-lib` emits **four** matrices per `drawImage` (translate, identity, scale,
+identity). Reading "the" `cm` operator gets the translate and reports the image as one point wide.
+They have to be composed.
+
+### Evidence
+
+- `docs/evidence/2026-09-08/verify-outer.txt` — full `npm run verify` chain, exit **0**
+- `docs/evidence/2026-09-08/print-margin-before.txt` — the six-combination before-measurement
+- `docs/evidence/2026-09-08/test.txt` — **1724 passed**, 1 skipped (baseline on `e6c450b` was 1689)
+- `docs/evidence/2026-09-08/lint.txt`, `build.txt` — clean
+- `docs/evidence/2026-09-08/e2e.txt` — **68 passed**
+- `svelte-check`: 0 errors, 0 warnings
+
+### Deliberately left, with the reasoning
+
+- **No margin option on the contract.** A knob nothing would set, in exchange for a contract change
+  that `AGENTS.md` names as a condition for not merging without asking.
+- **The `square` and `chat` variants still fill their canvas edge to edge.** They are for a feed and
+  a chat bubble. A reserved white border there is wasted pixels, not a margin to hold.
+- **Nothing was done about 120dpi.** The provider is asked for 1024x1024 and that is what there is;
+  `placedDpi` reports it and rejects nothing, because refusing to package the only image the app can
+  make would be worse than printing it. Raising the request is an image-generation change and a
+  different run's.
+- **`describeOriginalImageExport` untouched.** "Exactly what the generator sent" has to stay exactly
+  that — it is what makes removing the print-path passthrough lossless.
+
+### Carried forward for the next run
+
+- **`ChatInterpretationSeam` still has zero consumers.** Re-measured this run and unchanged:
+  `/api/chat-interpretation` is a live, billable endpoint with a full pipeline and no UI anywhere in
+  `src/`. Costs the reader nothing and the owner money and attack surface.
+- **Mode persistence** — Run 12's pick, blocked on the seam rule for the fifth run running.
+- **Vault capacity is not knowable from outside the adapter**, which is what leaves the
+  orphaned-records gap in `undoDelete`. Same seam workflow.
+- **The `chat` packaging variant has zero consumers**, with Run 14's reasoning.
+- `MeechieToolOutput.quoteScore` and `modelMetadata`, from Run 11's list.
+- The unidentified SonarCloud issue from Runs 13/14/15, still down to the one named candidate
+  (`constructor-for-side-effects` at `verdict-page-state.test.ts:1022`, pre-existing at `724332b`).
+- **A note on this container:** the preinstalled Chromium is build 1194 and the pinned
+  `@playwright/test` wants 1208, so `npx playwright test` fails on a missing executable. A local
+  config setting `launchOptions.executablePath: '/opt/pw-browsers/chromium'` runs the suite; it is
+  deliberately **not** committed, since it describes this container and not the repo.
+
+Do not inherit this entry's measurements. Re-measure.

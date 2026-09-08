@@ -483,7 +483,15 @@ Info flow: Layout renders children -> pages render within layout.
 	 */
 	@page {
 		/* Printers cannot reach the edge of the sheet, and a coloring page needs somewhere to be
-		   held. The packaged PDF bleeds its image to all four edges; this does not. */
+		   held.
+
+		   This number is load-bearing beyond this rule: `PRINT_SAFE_MARGIN_MM` in
+		   `$lib/core/print-layout` is defined as 12 to match it, which is what makes the packaged
+		   PDF and this stylesheet lay the same page out the same way. They used to disagree by the
+		   whole margin — the note that stood here said "The packaged PDF bleeds its image to all
+		   four edges; this does not", which was true for three runs. `tests/unit/print-layout.test.ts`
+		   parses this declaration and fails if the two ever drift apart again, so changing the value
+		   here without changing it there is a red build rather than a silent divergence. */
 		margin: 12mm;
 	}
 

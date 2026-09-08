@@ -1,0 +1,57 @@
+# OutputPackagingSeam PDF placement, as shipped on main
+
+Hardware margin assumed unprintable: 0.25in (18.0pt)
+Browser print path (@page in +layout.svelte:487) uses: 12mm (34.0pt)
+
+## US_Letter <- provider default 1024x1024
+   placed at     612.0 x 612.0pt
+   margin L/R    0.0pt (0.000in / 0.0mm) / 0.0pt (0.000in / 0.0mm)
+   margin T/B    90.0pt (1.250in / 31.8mm) / 90.0pt (1.250in / 31.8mm)
+   smallest      0.0pt (0.000in / 0.0mm)
+   effective dpi 120
+   CLIPPED BY A CONSUMER PRINTER AT 100%: YES
+
+## US_Letter <- tall 1024x1536
+   placed at     528.0 x 792.0pt
+   margin L/R    42.0pt (0.583in / 14.8mm) / 42.0pt (0.583in / 14.8mm)
+   margin T/B    0.0pt (0.000in / 0.0mm) / 0.0pt (0.000in / 0.0mm)
+   smallest      0.0pt (0.000in / 0.0mm)
+   effective dpi 140
+   CLIPPED BY A CONSUMER PRINTER AT 100%: YES
+
+## US_Letter <- print-sized 2550x3300
+   placed at     612.0 x 792.0pt
+   margin L/R    0.0pt (0.000in / 0.0mm) / 0.0pt (0.000in / 0.0mm)
+   margin T/B    0.0pt (0.000in / 0.0mm) / 0.0pt (0.000in / 0.0mm)
+   smallest      0.0pt (0.000in / 0.0mm)
+   effective dpi 300
+   CLIPPED BY A CONSUMER PRINTER AT 100%: YES
+
+## A4 <- provider default 1024x1024
+   placed at     595.0 x 595.0pt
+   margin L/R    0.0pt (0.000in / 0.0mm) / 0.0pt (0.000in / 0.0mm)
+   margin T/B    123.5pt (1.715in / 43.6mm) / 123.5pt (1.715in / 43.6mm)
+   smallest      0.0pt (0.000in / 0.0mm)
+   effective dpi 124
+   CLIPPED BY A CONSUMER PRINTER AT 100%: YES
+
+## A4 <- tall 1024x1536
+   placed at     561.3 x 842.0pt
+   margin L/R    16.8pt (0.234in / 5.9mm) / 16.8pt (0.234in / 5.9mm)
+   margin T/B    0.0pt (0.000in / 0.0mm) / 0.0pt (0.000in / 0.0mm)
+   smallest      0.0pt (0.000in / 0.0mm)
+   effective dpi 131
+   CLIPPED BY A CONSUMER PRINTER AT 100%: YES
+
+## A4 <- print-sized 2550x3300
+   placed at     595.0 x 770.0pt
+   margin L/R    0.0pt (0.000in / 0.0mm) / 0.0pt (0.000in / 0.0mm)
+   margin T/B    36.0pt (0.500in / 12.7mm) / 36.0pt (0.500in / 12.7mm)
+   smallest      0.0pt (0.000in / 0.0mm)
+   effective dpi 309
+   CLIPPED BY A CONSUMER PRINTER AT 100%: YES
+
+# End-to-end, US Letter + 1024x1024 (the shipped default path)
+   page   612 x 792pt
+   image  drawn at x=0.0 y=90.0, 612.0 x 612.0pt
+   left/right margin: 0.0pt -> the artwork touches both vertical edges of the sheet

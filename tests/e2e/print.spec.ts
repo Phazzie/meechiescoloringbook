@@ -14,6 +14,10 @@ import { expect, test, type Page } from '@playwright/test';
 // in each file; SonarCloud's duplication gate measured the pair at 5.5% of new code against a 3%
 // limit and failed the pull request that added the second one.
 import { openRoute as open, stubPageApis as stub, STUB_QUOTE } from './support/page-fixtures';
+// The same PDF reader the packaging unit test uses, so "what a printer receives" means one thing in
+// this repo rather than two.
+import { edgeMargins, readPlacedRect } from '../helpers/pdf-placement';
+import { POINTS_PER_INCH } from '../../src/lib/core/print-layout';
 
 test.setTimeout(120000);
 test.describe.configure({ mode: 'parallel' });
@@ -173,6 +177,43 @@ test('one finished picture is one sheet of paper', async ({ page }) => {
 	const pageCount = (pdf.toString('latin1').match(/\/Type\s*\/Page[^s]/g) ?? []).length;
 	// Was four on `main`: the nav, the hero, the mode cards and the panels.
 	expect(pageCount).toBe(1);
+});
+
+test('the file the reader downloads has a printable margin on all four edges', async ({
+	page
+}) => {
+	// The other tests in this file measure the *browser* print path, which Run 13 gave a 12mm
+	// `@page` margin. This one measures the other path — the packaged PDF behind "Printable PDF ·
+	// US Letter — ready to print", which is what a reader sends to a printer or forwards to someone
+	// else. It is built by canvas and `pdf-lib` in the page, so only a real browser produces it, and
+	// on `main` at `e6c450b` it came out with the artwork touching both edges of the sheet.
+	await stub(page);
+	await makeHomePage(page);
+
+	const printLink = page.locator(
+		'[data-testid="home-export-link"][data-export-kind="print"]'
+	);
+	await expect(printLink).toHaveCount(1);
+	await expect(printLink).toContainText('Printable PDF');
+
+	const href = await printLink.getAttribute('href');
+	expect(href).toMatch(/^data:application\/pdf;base64,/);
+	const pdf = Buffer.from((href ?? '').split(',')[1], 'base64');
+
+	const rect = readPlacedRect(pdf);
+
+	// US Letter, the default, at its true size.
+	expect(rect.pageWidth).toBeCloseTo(8.5 * POINTS_PER_INCH, 1);
+	expect(rect.pageHeight).toBeCloseTo(11 * POINTS_PER_INCH, 1);
+
+	// 0.25in is the widest unprintable hardware border on common consumer printers. Stated here
+	// rather than imported from the constant under test, so lowering that constant fails this.
+	for (const edge of edgeMargins(rect)) {
+		expect(edge).toBeGreaterThanOrEqual(0.25 * POINTS_PER_INCH);
+	}
+
+	// And it is still a page, not a stamp: the artwork uses the paper it is left.
+	expect(rect.width).toBeGreaterThan(0.5 * rect.pageWidth);
 });
 
 test('the print job is named after the page, and a second print does not strand the tab name', async ({

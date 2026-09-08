@@ -22,8 +22,15 @@ describe('output-packaging adapter edge cases', () => {
 		});
 	});
 
-	describe('PNG passthrough for print variant', () => {
-		it('passes through base64 PNG for png output format', async () => {
+	// This block used to be called "PNG passthrough for print variant" and asserted that a PNG source
+	// came back from the print variant untouched. That passthrough was the defect: it meant the
+	// "printable" PNG's size and shape were whatever the provider happened to send — 1024 x 1024 from
+	// this app's own generator — while a JPG or WebP source was letterboxed onto a 2550 x 3300 sheet.
+	// The print raster is now a sheet of paper for every source format, which means it has to be
+	// drawn, which means it needs a canvas. The reader who wants the untouched provider bytes has
+	// them: that is the separate `original` download, which this seam does not build.
+	describe('PNG rendering for print variant', () => {
+		it('renders rather than passes through, so it needs a canvas', async () => {
 			const result = await outputPackagingAdapter.package({
 				images: [
 					{
@@ -39,11 +46,11 @@ describe('output-packaging adapter edge cases', () => {
 				fileBaseName: 'test-page',
 				variants: ['print']
 			});
-			expect(result.ok).toBe(true);
-			if (result.ok) {
-				expect(result.value.files).toHaveLength(1);
-				expect(result.value.files[0].filename).toBe('test-page.png');
-				expect(result.value.files[0].mimeType).toBe('image/png');
+			// jsdom has no canvas. The point of the assertion is that the print PNG is now drawn:
+			// under the passthrough this call succeeded without ever touching one.
+			expect(result.ok).toBe(false);
+			if (!result.ok) {
+				expect(result.error.code).toBe('CANVAS_UNAVAILABLE');
 			}
 		});
 	});
@@ -99,6 +106,9 @@ describe('output-packaging adapter edge cases', () => {
 	});
 
 	describe('filename building', () => {
+		// Packaged as PDF rather than PNG: `pdf-lib` embeds a PNG source with no canvas, so this
+		// exercises filename building in jsdom without depending on the print-PNG passthrough that
+		// used to make the PNG path succeed here.
 		it('adds index suffix for multiple images', async () => {
 			const result = await outputPackagingAdapter.package({
 				images: [
@@ -117,7 +127,7 @@ describe('output-packaging adapter edge cases', () => {
 						encoding: 'base64'
 					}
 				],
-				outputFormat: 'png',
+				outputFormat: 'pdf',
 				pageSize: 'US_Letter',
 				fileBaseName: 'page',
 				variants: ['print']
@@ -125,8 +135,8 @@ describe('output-packaging adapter edge cases', () => {
 			expect(result.ok).toBe(true);
 			if (result.ok) {
 				expect(result.value.files).toHaveLength(2);
-				expect(result.value.files[0].filename).toBe('page-1.png');
-				expect(result.value.files[1].filename).toBe('page-2.png');
+				expect(result.value.files[0].filename).toBe('page-1.pdf');
+				expect(result.value.files[1].filename).toBe('page-2.pdf');
 			}
 		});
 	});
@@ -143,7 +153,7 @@ describe('output-packaging adapter edge cases', () => {
 						encoding: 'base64'
 					}
 				],
-				outputFormat: 'png',
+				outputFormat: 'pdf',
 				pageSize: 'US_Letter',
 				fileBaseName: 'default-variant',
 				variants: []
@@ -151,7 +161,7 @@ describe('output-packaging adapter edge cases', () => {
 			expect(result.ok).toBe(true);
 			if (result.ok) {
 				expect(result.value.files).toHaveLength(1);
-				expect(result.value.files[0].filename).toBe('default-variant.png');
+				expect(result.value.files[0].filename).toBe('default-variant.pdf');
 			}
 		});
 	});
