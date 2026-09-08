@@ -55,20 +55,41 @@ const inflateStreams = (bytes: Buffer): string[] => {
 };
 
 /**
- * `a b c d e f cm` — the six operands of a concatenate-matrix operator, captured as one run.
+ * One PDF real number, anchored — used to check a single already-split token, never to search.
  *
- * Written as a single repeated group rather than six separate `(-?[\d.]+)\s+` captures, and with an
- * unambiguous number pattern rather than `[\d.]+`. The six-capture version was flagged by SonarCloud
- * twice on the same line — super-linear backtracking, and a complexity of 24 against a limit of 20 —
- * and both are real here: this runs over inflated PDF content streams, where a long run of digits
- * that is not followed by `cm` makes every one of the six groups backtrack in turn.
- *
- * Both branches of the number are deterministic and mutually exclusive — one starts with a digit,
- * the other with a `.` — so a given number matches exactly one way and there is nothing to backtrack
- * into. The `.5` branch is there because PDF permits a real number with no integer part; `pdf-lib`
- * happens to write `0.5`, but this parses the container format rather than one writer's habits.
+ * The `.5` branch is there because PDF permits a real with no integer part; `pdf-lib` happens to
+ * write `0.5`, but this parses the container format rather than one writer's habits. The two
+ * branches are mutually exclusive (one starts with a digit, the other with `.`), and the pattern is
+ * anchored at both ends against a single token, so it is linear in the token's length.
  */
-const CM_OPERATOR = /((?:-?(?:\d+(?:\.\d+)?|\.\d+)\s+){6})cm\b/g;
+const PDF_REAL = /^-?(?:\d+(?:\.\d+)?|\.\d+)$/;
+
+/**
+ * Every `a b c d e f cm` matrix in a content stream, found by scanning tokens rather than matching.
+ *
+ * This started as one regex with six `(-?[\d.]+)\s+` captures, which SonarCloud flagged twice on the
+ * same line — super-linear backtracking, and a complexity of 24 against a limit of 20. Rewriting it
+ * as a single repeated group `((?:…\s+){6})cm` fixed the complexity but **not** the backtracking:
+ * a bounded repetition wrapping unbounded `\d+` and `\s+` quantifiers is still quadratic across
+ * start positions, and it stayed flagged. That is a real cost here rather than a theoretical one —
+ * this runs over whole inflated content streams, where every run of numbers not followed by `cm`
+ * is rescanned from each position inside it.
+ *
+ * Splitting once and walking the tokens is linear, and it is also the simpler description of what a
+ * PDF content stream is: postfix operands followed by an operator. When the operator is `cm`, its
+ * six operands are the six tokens before it.
+ */
+const findMatrices = (content: string): Matrix[] => {
+	const tokens = content.split(/\s+/);
+	const found: Matrix[] = [];
+	for (let i = 6; i < tokens.length; i += 1) {
+		if (tokens[i] !== 'cm') continue;
+		const operands = tokens.slice(i - 6, i);
+		if (!operands.every((token) => PDF_REAL.test(token))) continue;
+		found.push(operands.map(Number) as Matrix);
+	}
+	return found;
+};
 
 /** PDF concatenates row-vector matrices: `A x B`. */
 const compose = (a: Matrix, b: Matrix): Matrix => [
@@ -105,9 +126,7 @@ export const readPlacedRect = (pdfBytes: Buffer): PlacedRect => {
 	const content = streams.find((text) => / Do\b/.test(text) && text.includes(' cm'));
 	if (!content) throw new Error('no image draw found in any of the PDF streams');
 
-	const matrices = [...content.matchAll(CM_OPERATOR)].map(
-		(match) => match[1].trim().split(/\s+/).map(Number) as Matrix
-	);
+	const matrices = findMatrices(content);
 	if (matrices.length === 0) throw new Error('no cm operator in the PDF content stream');
 
 	// `cm` sets CTM = M x CTM, so the matrix written last is applied to the unit square first;
