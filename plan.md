@@ -27,10 +27,18 @@ future run should weigh.
 | `plan.md` | [MODIFY] | this micro plan, with Run 16's own plan retired below it |
 
 **Anti-goals:** no file under `src/`, `tests/`, `contracts/`, `probes/`, `fixtures/`,
-`src/lib/mocks/`, `src/lib/seams/`, `static/` or `docs/evidence/`. **No evidence regeneration** — the
-chain already ran on the head that merged and its outputs describe that code; re-running it here
-would replace evidence for the change with evidence for a Markdown append, which is the exact defect
-the review round on this pull request found in the first place.
+`src/lib/mocks/`, `src/lib/seams/` or `static/`. **No evidence artifact is committed from this
+branch** — `docs/evidence/2026-09-08/` describes the head that merged, and committing a rewrite of
+it would replace evidence for the feature with evidence for a Markdown append.
+
+*(Corrected under review. The first draft of this anti-goal said "no evidence regeneration" and the
+definition of done stopped at check/lint/test, which a Codex P1 correctly read as letting this
+close-out be pushed without validating its own head — `AGENTS.md` L213-214 requires `npm run build`
+and the full `npm run verify` chain before **every** push. The two things had been collapsed into
+one: **running** the chain proves this head, **committing** its output overwrites the feature's
+record. Only the second was ever undesirable. Both commands are now run, and the regenerated
+artifacts are restored with `git checkout -- docs/evidence/` before committing, so the head is
+proven and the merged change's evidence is untouched.)*
 
 **How behaviour stays unchanged:** the diff is prose. No import, export, route, contract, schema,
 constant or test is touched, so no runtime path can differ.
@@ -39,7 +47,12 @@ constant or test is touched, so no runtime path can differ.
 one probe whose conclusion outran its evidence (the `@page` regex sweep, which missed the comment
 case that turned out to be the live hole) rather than only the checks that worked.
 
-**Definition of done (literal):** `npm run check && npm run lint && npm test`
+**Definition of done (literal):**
+`npm run check && npm run lint && npm test && npm run build && npm run verify && git checkout -- docs/evidence/`
+
+Outputs on this head, recorded here rather than as committed files for the reason above:
+`build exit=0`, `verify exit=0`, `104 test files passed / 1 skipped`, `svelte-check 0 errors 0 warnings`,
+`eslint` clean.
 
 ---
 

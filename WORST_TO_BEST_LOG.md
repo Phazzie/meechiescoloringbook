@@ -11392,6 +11392,29 @@ committing** — it does not appear in the diff.
   inside the handler and no UI state for it. Run 10's deletion of the unreachable
   `controllerchange` listener is the same reasoning.
 
+### The close-out's own review round, recorded because it found two real things
+
+This entry was pushed as PR #334 and reviewed by Codex, which had been rate-limited during the whole
+of PR #333 and so was seeing the run for the first time. Both findings were valid and both are
+fixed above.
+
+- **P1 — the close-out could be pushed without validating its own head.** Its definition of done
+  stopped at `check`, `lint`, `test`, and its anti-goal said "no evidence regeneration". `AGENTS.md`
+  L213-214 requires `npm run build` and the full `npm run verify` chain before **every** push. The
+  defect was collapsing two separable things: **running** the chain proves this head; **committing**
+  its output would overwrite the merged feature's evidence with evidence for a Markdown append.
+  Only the second was ever undesirable. Both now run (`build exit=0`, `verify exit=0`), and the
+  regenerated artifacts are restored with `git checkout -- docs/evidence/` before committing.
+  *A rule declined for a good reason is still a rule declined; the good reason usually points at a
+  narrower exemption than the one taken.*
+- **P2 — the finding count did not survive its own table.** "Six findings" against a table whose
+  Round 1 held three. Corrected to seven above, with the recurrence named as a recurrence.
+
+Both arrived **after** every check on the close-out was green and while its Codex review still read
+"Running". Merging on the green gate alone would have merged past both. This log already carries an
+entry titled *"Run 2, correction — six findings I merged past"*; waiting eight minutes was the whole
+cost of not writing that entry again.
+
 ### Carried forward for the next run
 
 - **The packaged print PDF still bleeds to all four edges.** `output-packaging-seam/index.ts` scales
@@ -12668,16 +12691,27 @@ than by reading past them. **No contract, probe, fixture or mock file in the dif
 
 ### Where the findings came from, and what they cost
 
-| Round | Found by | Finding | Outcome |
-|---|---|---|---|
-| 0 | **My own red proof, run properly** | The margin invariant asserted against the constant under test: zeroing it failed only 4 of 27 | Re-anchored to an independent floor before the first push; the same edit then failed 20 of 27 |
-| 0 | **The repo's existing suite** | Moving the canvas guard behind `onload` hung 20 tests at 5s each | Fixed before the first push |
-| 1 | **SonarCloud annotations** | 3 new issues (regex backtracking, regex complexity 24/20, an inline union written four times) | 2 fixed in `224561f` |
-| 2 | **SonarCloud annotations again** | The backtracking finding **came back**: the rewrite fixed the complexity metric, not the property | Rewritten as a token scan in `0b08af6` |
-| 3 | **CodeRabbit**, asked five named questions | Four confirmed; one real gap in the `@page` drift guard | Fixed in `224561f` |
-| 4 | **CodeRabbit** | `build.txt` and `lint.txt` two commits behind, cited as one run with the current artifacts | Fixed in `d7d3212` |
+**Seven distinct findings**, one of which recurred. Counted per finding rather than per round,
+because Round 1 was a single SonarCloud report carrying three separate issues — an earlier draft of
+this entry said "six", which a Codex P2 on the close-out pull request correctly read as
+irreconcilable with its own table.
 
-**Zero came from a human.** Two of the six came from me checking my own work rather than from any
+| # | Found by | Finding | Outcome |
+|---|---|---|---|
+| 1 | **My own red proof, run properly** | The margin invariant asserted against the constant under test: zeroing it failed only 4 of 27 | Re-anchored to an independent floor before the first push; the same edit then failed 20 of 27 |
+| 2 | **The repo's existing suite** | Moving the canvas guard behind `onload` hung 20 tests at 5s each | Fixed before the first push |
+| 3 | **SonarCloud annotations** | The `cm` regex has super-linear backtracking | Rewritten twice — see below |
+| 4 | **SonarCloud annotations** | The same regex, complexity 24 against a limit of 20 | Fixed in `224561f` |
+| 5 | **SonarCloud annotations** | `'png' \| 'jpg' \| 'webp'` written inline four times | Fixed in `224561f` as `RasterFormat` |
+| 6 | **CodeRabbit**, asked five named questions | Four confirmed; one real gap in the `@page` drift guard | Fixed in `224561f` |
+| 7 | **CodeRabbit** | `build.txt` and `lint.txt` two commits behind, cited as one run with the current artifacts | Fixed in `d7d3212` |
+
+**Finding 3 recurred and is not an eighth.** The `224561f` rewrite satisfied finding 4's complexity
+metric and left finding 3 standing; SonarCloud reported it again on the next head, and it took the
+token scan in `0b08af6` to actually remove it. That recurrence is the most useful thing in this
+table — see the section below.
+
+**Zero of the seven came from a human.** Two came from me checking my own work rather than from any
 reviewer, and both were the more serious kind — a red proof that proved nothing, and a guard moved
 behind an event that never fires.
 
