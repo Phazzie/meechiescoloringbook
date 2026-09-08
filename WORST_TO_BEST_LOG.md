@@ -13175,3 +13175,261 @@ promise. **The reviewer that helps a surface like this is the one that reads the
 - The unidentified SonarCloud issue from Runs 13/14/15.
 
 Do not inherit this entry's measurements. Re-measure.
+
+## Run 17 — merge close-out — 2026-09-08 — PR #335 merged as `36fc999`
+
+**Head merged:** `24b39a8` · **Base:** `main` at `7191656` · 3 commits, 40 files, +4614 / −811.
+Squash-merged.
+
+### Gate state at merge
+
+| Check | Conclusion |
+|---|---|
+| `verify` (push run and pull_request run) | success |
+| `SonarCloud Code Analysis` | **Quality Gate passed** — after failing the first head at 4.0% duplication |
+| `SonarCloud` | success |
+| `CodeQL` + `Analyze (javascript-typescript)` + `Analyze (actions)` | success |
+| `Rosentic - Conflict Detection` | success |
+| `Vercel` (commit **status**, not a check run) | success — "Deployment has completed" |
+| `CodeRabbit` (commit status) | success — "Review skipped: manual review required for this OSS repository" (under 10 stars) |
+| `Sourcery` | skipped — the diff exceeds its 150,000-character limit. A skip, not a failure |
+| `Codex` | **five findings**, four real |
+
+`mergeable_state` was `clean`. Both surfaces read at the moment of merging, per the rule that a
+deployment reports as a commit status. **No contract, probe, fixture, mock, adapter or seam file in
+the diff**, confirmed by `git diff --name-only origin/main...HEAD` against those directories rather
+than asserted — which is also why there is no Cipher Gate entry.
+
+Review threads: **5, four resolved.** The fifth was deliberately left open, and the merge comment
+says why: it is a real architectural question answered at length rather than a finding addressed,
+and `AGENTS.md` holds a merge for *a human reviewer's* unresolved changes-request, not a bot's.
+
+**One open Assumption named this seam and had to be argued rather than ticked.** The 2026-08-24
+entry lists `ChatInterpretationSeam` among five seams and reads Open. The rule allows "resolve it
+first, **or state why the change is safe without it**", and that statement is in the merge comment:
+**its residual open scope names a different endpoint.** Read in full at `DECISIONS.md:2791-2796`:
+its Statement — "grok-4.6 answers POST /v1/chat/completions with the request shape this app sends" —
+is recorded as **proven** by the authenticated 2026-08-25 provider capture, and the Status narrows
+what remains to *"Open only for the deployed full-payload path — resolve by probing POST
+`/api/meechie-studio-text` on a reachable deployment"*. `/describe` does not touch that endpoint, and
+the request shape it does use is the part already captured. The rest still holds: it predates this
+change, it cannot be resolved from a container with no key and no deploy access, and the new surface
+fails safely regardless — every error code the endpoint can emit has a reader-facing sentence and a
+test, and a failure costs one quota unit rather than a generation. The other two open-looking Assumptions naming this seam were
+checked by parsing their `Status` fields and both read `closed`.
+
+**Two corrections to that argument, both made under review of this very entry, and the second
+corrects the first.** The original draft justified the gate partly with "this pull request adds no
+new provider call". A Codex P2 was right that this is false and load-bearing: `/describe` is the
+*first* interface through which a reader can cause `/api/chat-interpretation` to reach
+`providerAdapter.createChatCompletion` at all, which is the whole finding this run is about. The
+replacement argued instead that the Assumption "is about whether a deployed provider accepts the
+payload" — truer, still imprecise, and a second Codex P2 caught it too: the Assumption's *proven*
+half already covers this request shape, and its *open* half names `/api/meechie-studio-text`. So the
+gate never applied to this endpoint at all, which is both simpler and stronger than either draft.
+
+*Two rounds to state one scope correctly. A gate decision recorded on a convenient premise is worse
+than one recorded on a narrow true one — because the convenient premise is the one a later reader
+will cite, and the reviewer who reads the Assumption's actual text is the one who finds it.*
+
+### Where the findings came from, and what they cost
+
+**Ten entries below; nine distinct findings, of which eight are defects.** Entries 2 and 6 are the same defect, found
+independently about twenty minutes apart from opposite directions — which is the strongest evidence
+in this run that it was real, and the reason it is listed twice rather than merged away. Counted per
+finding rather than per round, because a single SonarCloud report and a single Codex review each
+carried several. Entry 10 is counted as a finding and **not** as a defect: it is a declined
+architectural proposal, which is also what the gate section above means by "four of the five Codex
+findings were real".
+
+| # | Found by | Finding | Outcome |
+|---|---|---|---|
+| 1 | **The repo's own test** | A new prerendered route must be added to `vercel.json` and to the header inventory | Fixed before the first push — `tests/unit/security-headers.test.ts` failed exactly as designed |
+| 2 | **My own adversarial re-read, while CI ran** | `interpretedFrom` assigned from the live box *after* the await | Fixed in `2cc74b5` |
+| 3 | **The same re-read** | `reset()` mid-flight let a stale interpretation land on an empty box | Fixed in `2cc74b5` |
+| 4 | **SonarCloud** | 4.0% duplication on new code — in the **tests**, not the source | Fixed in `2cc74b5` with a shared harness |
+| 5 | **Writing the fix for #9** | A reader typing "style: gothic" would fail their own generation at the assembly seam | Fixed in `24b39a8` — the sanitizer strips every colon |
+| 6 | **Codex P1** | Pin the source text before the await | Already fixed by #2 |
+| 7 | **Codex P1** | The style hint dropped the subject the reader asked for | Fixed in `24b39a8` |
+| 8 | **Codex P2** | The read-back put the footer line in the wrong place | Fixed in `24b39a8` |
+| 9 | **Codex P2** | The read-back button stayed live on an empty quota | Fixed in `24b39a8` |
+| 10 | **Codex P1** | Route through `chatInterpretationAdapter` | **Answered, not taken** — see below |
+
+Entry 4 was one report with two sites: 116 duplicated lines across the two unit-test files and 23 in
+the end-to-end spec, both answered by the same shared harness.
+
+**Three of the ten came from me checking my own work rather than from any reviewer** — entries 2, 3
+and 5 — and entry 5 is the one no reviewer raised at all: a reader typing "style: gothic" would have
+failed their own generation at the assembly seam, which surfaced only while writing the fix for
+entry 7.
+
+**Zero came from a human.**
+
+### The decision this run got wrong, and how it got wrong
+
+Finding #7 is the one worth carrying. The pull request shipped with a `DECISIONS.md` entry that read,
+in full confidence:
+
+> **the style hint is derived from the interpreted spec, not from the reader's sentence.** The
+> sentence is a *page* request … and putting it in `styleHint` hands the image model the words a
+> second time … Interpreting "with roses" into `illustrations` and `decorations` is precisely the
+> job the interpretation call already did.
+
+Every clause of that is true, and the conclusion is wrong. The interpretation call **cannot** do
+that job: `ColoringPageSpec` has no field that can hold "roses". `illustrations: 'simple'` is the
+whole of what survives, so the shipped example — *"A page that says … with roses around it"* —
+could not produce a page with roses on it. The reasoning had identified a real risk (words drawn
+twice), weighed it against a benefit it had not measured, and written the result up as settled.
+
+**A decision entry is not evidence.** Writing a tradeoff down in the format the repository asks for
+makes it look adjudicated, and the format has no slot for "I did not check whether the thing I am
+giving up is recoverable elsewhere". The check that would have caught it takes one minute: open
+`spec-validation-seam/contract.ts` and look for a field that could carry the discarded value.
+
+Both versions are now in `DECISIONS.md` — the original and the correction — because a decision log
+that quietly replaces a wrong entry teaches nobody anything.
+
+### The finding that only reading the consumer could produce
+
+Finding #8. `src/lib/adapters/prompt-assembly-seam/index.ts` L55 and L83-85 use `footerItem.label`
+as the **unnumbered second line directly under the headline**, and never read `footerItem.number` at
+all. The read-back rendered it last, after the list, numbered, and called it a footer.
+
+`check`, `lint`, **1,789 tests**, `build` and the whole `verify` chain passed on that. None of them
+reads a promise. And no test written from the read-back's own intent would have caught it either,
+because the intent, the type, the doc comment and the code all agreed with each other — and all four
+disagreed with the file that actually draws the page.
+
+**A preview is a claim about a consumer and can only be checked against that consumer.** The type
+now says so: `ReadBackLine.number` is `number | null`, and the nullability exists to make "the
+prompt does not print this number" expressible at all.
+
+### The finding declined, and why the decline is itself informative
+
+Finding #10 asked for `chatInterpretationAdapter` instead of `postJson`, citing `AGENTS.md`
+L110-116. It was declined on three grounds, in ascending order of force:
+
+1. The repository's own practice is unanimous — every client surface calling the app's own API uses
+   `postJson` plus the contract schema; none uses a client-side adapter. The adapters components do
+   use wrap browser capabilities, not HTTP to this app's own routes.
+2. "Extend the adapter" means changing `ChatInterpretationSeam`'s contract, which has no place for a
+   timeout or a response header — a do-not-auto-merge condition, and one the worst-feature routine
+   says to take on in full or not at all.
+3. **It contradicts finding #9 from the same review.** #9 asks the button to be gated on the
+   reported quota; the adapter discards the `RateLimit-*` headers that gating needs. The two cannot
+   both be satisfied as written.
+
+That third point is the transferable one: **two findings in one review can each be reasonable and be
+jointly unsatisfiable.** Implementing each on its own merits would have produced a surface reading a
+quota it cannot see. The resolution is not to pick the more senior-sounding finding but to name the
+constraint the pair exposes.
+
+### Carried forward for the next run
+
+- **`chatInterpretationAdapter` still has no callers, now by choice rather than by neglect.** Either
+  give it a timeout and header access through the full Seam-Driven Development workflow (a contract
+  change, so its own pull request and its own approval), **or** delete it. Do not leave it as a third
+  thing. This is the direct descendant of finding #10 and the right place to settle that argument.
+- **The app configures and records a 1024x1024 square that it never asks the provider for.** Stated
+  carefully, because an earlier draft of this bullet contradicted itself in consecutive clauses:
+  `image-generation-pipeline.ts:20` sets `DEFAULT_IMAGE_SIZE = '1024x1024'`, the seam contract
+  requires it and the validator validates it — but the HTTP body at
+  `src/lib/adapters/image-generation-seam/index.ts:86-91` is `{model, prompt, n, response_format}`
+  and **omits `size` entirely**, then the adapter reports it back as `rawModelInfo.requestedSize` as
+  though it had been sent. So xAI receives no square request; **only the provider's own default
+  decides the returned dimensions**, and the app records a number nobody asked for. A future run
+  probing "does the provider honour our size?" would be probing the wrong question — the first
+  question is what the provider returns when asked nothing. Re-measured on this run's base.
+  **Blocked, not deferred:** no `XAI_API_KEY` here, xAI's image API has historically rejected `size`,
+  and sending an unsupported parameter would break every generation in a way no test in this
+  repository could detect. A run with a key should probe first; a run without one should not guess.
+- **`placedDpi` has no production consumer** — its only caller is `tests/unit/print-layout.test.ts`.
+  The download row says "Printable PDF · US Letter — ready to print" and says nothing about the
+  **135.5dpi** the shipped square lands at inside the 12mm safe box, nor the **180pt (2.5in)** of
+  blank paper the letterboxing leaves. Self-contained, inside `page-exports.ts`, needs no provider.
+- **The AI quota is reported on the home studio and `/describe` and nowhere else** — the three
+  standalone mode routes, `/m/<slug>` and `/meechie` spend the same bucket and say nothing about it.
+  `describeAiQuota` now takes the cost and the name of the action, so each can report its own.
+- **Whether the image model honours "without lettering any of these words"** in the new style hint
+  is untested — no key. It is one pure function and one call site; a run with a key should look at a
+  real generation before trusting it.
+- **The `chat` packaging variant has zero consumers**, with Run 14's reasoning.
+- **Mode persistence** — Run 12's pick, blocked on the seam rule for the sixth run running.
+- **Vault capacity is not knowable from outside the adapter**, leaving the orphaned-records gap in
+  `undoDelete`. Same seam workflow.
+- `MeechieToolOutput.quoteScore` and `modelMetadata`, from Run 11's list.
+- **Four evidence transcripts still have no file header:** `docs/evidence/2026-09-08/verify-outer.txt`,
+  `lint.txt`, `build.txt`, `e2e.txt`. Inherited from Run 16 unchanged; this run added its own with
+  headers and exit statuses rather than rewriting those.
+- **The inherited SonarCloud finding, which was never unidentified — and whose line reference this
+  run moved.** An earlier draft of this list replaced it with the item below and called it "the
+  unidentified SonarCloud issue", which **this log contradicts in four places**: Runs 13, 14 and 15
+  each name it exactly — `constructor-for-side-effects` at `verdict-page-state.test.ts:1022`,
+  established as pre-existing at commit `724332b` by `git log -L` and
+  `git merge-base --is-ancestor`. A Codex P2 caught the replacement, correctly: collapsing a
+  *diagnosed, not-ours* finding into a *new, unread* one loses the diagnosis and leaves neither
+  resolved nor disproved. They are two work items and stay two.
+
+  **Re-measured this run, because this run changed the file it lives in.** The bare
+  `new VerdictPageState({ fileBaseSlug: 'who-fucked-up' });` expression statement is still there and
+  still pre-existing — but the harness extraction removed ~90 lines above it, so it is now at
+  **`verdict-page-state.test.ts:931`**, not 1022. A future run following the inherited line number
+  would land in a `copyVerdict` test and find nothing. *An inherited finding cited by line number
+  has to be re-measured by whoever moves the lines.*
+- **PR #335's three new SonarCloud issues — a separate item, now identified.** The gate that passed
+  this run's final head reported **"3 New issues"** alongside it, and the merge went ahead on the
+  gate. Read the annotations, not the gate: this repository's gate passes with open issues, so
+  "Quality Gate passed" has never meant "no findings".
+
+  *An earlier draft of this item stopped here and reported the issues as unreadable*, because
+  outbound access to `sonarcloud.io` is genuinely denied by this container's egress proxy
+  (`EGRESS_BLOCKED`; the proxy's own status endpoint shows it rejecting arbitrary hosts,
+  `fonts.googleapis.com` included), so
+  `GET /api/issues/search?componentKeys=…&pullRequest=…` is unreachable from here. That much is
+  true and stays recorded — it is a real constraint on one route.
+
+  **It was the wrong route, and the right one was already in this file.** A
+  Codex P2 pointed at lines 7655-7665 of this very log, where Run 1's sixth close-out wrote down the
+  working method: SonarCloud posts its findings as **annotations on its GitHub check run**, and
+  `api.github.com` *is* reachable from here. Asking the dashboard "which a human can read in one
+  click" was the wrong first suggestion for a routine that has no human in it.
+
+  Run this run, and it answered in a single unauthenticated call:
+
+  ```sh
+  curl -sS -H "Accept: application/vnd.github+json" \
+    "https://api.github.com/repos/Phazzie/meechiescoloringbook/check-runs/<id>/annotations"
+  ```
+
+  The `<id>` is the **`SonarCloud Code Analysis`** check run, not the one named `SonarCloud` — the
+  latter carries no annotations. Run 1 recorded that distinction too.
+
+  **The three issues on `24b39a8`, named at last:**
+
+  | Level | File:line | Rule |
+  |---|---|---|
+  | **failure** | `src/lib/components/page-artifact-state.svelte.ts:434` | Unexpected empty method `clearSourceStatus` |
+  | warning | `src/lib/core/describe-page.ts:365` | Use `export…from` to re-export `DESCRIBE_MAX_LINES` |
+  | warning | `tests/unit/support/page-artifact-harness.ts:79` | The empty object is useless (`init.headers ?? {}`) |
+
+  All three are in code this run added, all three are real, and all three are small. **Not fixed
+  here**, because this pull request is documentation-only and changing `src/` in it is the scope
+  drift this run has spent four review rounds arguing against — they are ideal quick-wins-routine
+  candidates, and they are now precise enough to fix without re-deriving anything.
+
+  **The candidates I guessed locally were all wrong.** I offered duplicated string literals
+  (`'print'`, `'square'`, `'RateLimit-*'`); not one of them appears above. That is the lesson worth
+  more than the three fixes: *a labelled guess is still a guess, and the measurement was one command
+  away, written down by an earlier run in the file I was appending to.*
+
+  **Candidates measured locally, offered as candidates and not as the answer** — SonarJS's
+  `no-duplicate-string` fires at three occurrences, and the files this run added carry:
+  `'print'` (3x) and `'square'` (3x) in `src/lib/components/page-artifact-state.svelte.ts`, and
+  `'RateLimit-Limit'` / `'RateLimit-Remaining'` / `'RateLimit-Reset'` (6x each) in
+  `tests/unit/describe-page-state.test.ts`. The production pair is the more likely of the two to be
+  counted, and it arrived as *new* code only because the file is new — those literals sat
+  unflagged in `verdict-page-state.svelte.ts` for as long as it has existed, which is its own
+  lesson about what "new code" means to this gate. **None of this is confirmed**; do not fix it
+  blind, which is exactly the guessing this repository's workflow exists to prevent.
+
+Do not inherit this entry's measurements. Re-measure.
