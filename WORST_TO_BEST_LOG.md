@@ -11392,29 +11392,6 @@ committing** — it does not appear in the diff.
   inside the handler and no UI state for it. Run 10's deletion of the unreachable
   `controllerchange` listener is the same reasoning.
 
-### The close-out's own review round, recorded because it found two real things
-
-This entry was pushed as PR #334 and reviewed by Codex, which had been rate-limited during the whole
-of PR #333 and so was seeing the run for the first time. Both findings were valid and both are
-fixed above.
-
-- **P1 — the close-out could be pushed without validating its own head.** Its definition of done
-  stopped at `check`, `lint`, `test`, and its anti-goal said "no evidence regeneration". `AGENTS.md`
-  L213-214 requires `npm run build` and the full `npm run verify` chain before **every** push. The
-  defect was collapsing two separable things: **running** the chain proves this head; **committing**
-  its output would overwrite the merged feature's evidence with evidence for a Markdown append.
-  Only the second was ever undesirable. Both now run (`build exit=0`, `verify exit=0`), and the
-  regenerated artifacts are restored with `git checkout -- docs/evidence/` before committing.
-  *A rule declined for a good reason is still a rule declined; the good reason usually points at a
-  narrower exemption than the one taken.*
-- **P2 — the finding count did not survive its own table.** "Six findings" against a table whose
-  Round 1 held three. Corrected to seven above, with the recurrence named as a recurrence.
-
-Both arrived **after** every check on the close-out was green and while its Codex review still read
-"Running". Merging on the green gate alone would have merged past both. This log already carries an
-entry titled *"Run 2, correction — six findings I merged past"*; waiting eight minutes was the whole
-cost of not writing that entry again.
-
 ### Carried forward for the next run
 
 - **The packaged print PDF still bleeds to all four edges.** `output-packaging-seam/index.ts` scales
@@ -12753,6 +12730,54 @@ separate the categories.
 
 **"Stale" and "historical" look identical from outside, and only one of them is a defect.** An
 evidence file whose value is that it is old has to say so.
+
+### The close-out's own review round, recorded because it found two real things
+
+This entry was pushed as PR #334 and reviewed by Codex, which had been rate-limited during the whole
+of PR #333 and so was seeing the run for the first time. **Two rounds, four findings, all valid.**
+
+- **P1 — the close-out could be pushed without validating its own head.** Its definition of done
+  stopped at `check`, `lint`, `test`, and its anti-goal said "no evidence regeneration". `AGENTS.md`
+  L213-214 requires `npm run build` and the full `npm run verify` chain before **every** push. The
+  defect was collapsing two separable things: **running** the chain proves this head; **committing**
+  its output would overwrite the merged feature's evidence with evidence for a Markdown append.
+  Only the second was ever undesirable. Both now run (`build exit=0`, `verify exit=0`), and the
+  regenerated artifacts are restored with `git checkout -- docs/evidence/` before committing.
+  *A rule declined for a good reason is still a rule declined; the good reason usually points at a
+  narrower exemption than the one taken.*
+- **P2 — the finding count did not survive its own table.** "Six findings" against a table whose
+  Round 1 held three. Corrected to seven above, with the recurrence named as a recurrence.
+
+Round two, on the corrected head — and the first of these is the worst defect of the whole run,
+because it silently damaged this file:
+
+- **P1 — this section was appended to the wrong run.** It was inserted into the **Run 13** entry, a
+  thousand lines above where it belongs, because the edit anchored on `### Carried forward for the
+  next run` and that heading appears **seven times** in this file — `replace(old, new, 1)` takes the
+  first. So a section opening "This entry was pushed as PR #334" sat inside Run 13's entry,
+  referring to a table 1,300 lines below it. Nothing failed: `check`, `lint`, 1724 tests, `build`
+  and the whole `verify` chain were all green on that head, because none of them reads prose. **In
+  an append-only ledger with repeated section headings, anchoring an edit on a heading is a
+  coin toss.** Anchor on the last occurrence, or on text that appears once. Moved to this entry;
+  Run 13's entry restored byte-for-byte.
+- **P2 — running the chain and discarding its output is not "committed evidence".** The round-one
+  fix ran `build` and `verify` and then threw the artifacts away with `git checkout`, leaving the
+  repository holding evidence for `e8d4488` and none for this head, against `AGENTS.md` L141-143.
+  The framing had been "run **or** commit"; the answer was **commit under distinct names**, which
+  costs nothing and destroys nothing. `closeout-{lint,build,verify,test}.txt` now carry this head's
+  proof and the feature's artifacts keep the exact paths `DECISIONS.md` cites.
+
+All four arrived **after** every check on this pull request was green. Rounds one and two each
+landed while the Codex review still read "Running" — merging on the green gate alone would have
+merged past all four, including a corrupted ledger. This log already carries an entry titled
+*"Run 2, correction — six findings I merged past"*; the total cost of not writing that entry again
+was about twenty minutes of waiting.
+
+**The transferable lesson from this pair:** every gate this repository owns passed on a file with a
+section filed under the wrong run. Automated checks read code, and a log is not code — so the only
+thing standing between a mis-anchored `sed`-style edit and a permanently wrong audit history is a
+reviewer who reads prose, or an author who re-reads the diff in place rather than trusting that the
+edit landed where it was aimed.
 
 ### Carried forward for the next run
 

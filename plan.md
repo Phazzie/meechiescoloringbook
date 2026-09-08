@@ -25,20 +25,28 @@ future run should weigh.
 |---|---|---|
 | `WORST_TO_BEST_LOG.md` | [MODIFY] | one appended close-out section; no existing line edited |
 | `plan.md` | [MODIFY] | this micro plan, with Run 16's own plan retired below it |
+| `docs/evidence/2026-09-08/closeout-*.txt` | [NEW] | this head's lint, build, verify and test output — four added files, no existing artifact rewritten |
 
 **Anti-goals:** no file under `src/`, `tests/`, `contracts/`, `probes/`, `fixtures/`,
 `src/lib/mocks/`, `src/lib/seams/` or `static/`. **No evidence artifact is committed from this
 branch** — `docs/evidence/2026-09-08/` describes the head that merged, and committing a rewrite of
 it would replace evidence for the feature with evidence for a Markdown append.
 
-*(Corrected under review. The first draft of this anti-goal said "no evidence regeneration" and the
-definition of done stopped at check/lint/test, which a Codex P1 correctly read as letting this
-close-out be pushed without validating its own head — `AGENTS.md` L213-214 requires `npm run build`
-and the full `npm run verify` chain before **every** push. The two things had been collapsed into
-one: **running** the chain proves this head, **committing** its output overwrites the feature's
-record. Only the second was ever undesirable. Both commands are now run, and the regenerated
-artifacts are restored with `git checkout -- docs/evidence/` before committing, so the head is
-proven and the merged change's evidence is untouched.)*
+*(Corrected twice under review, and the second correction matters more than the first.*
+
+*Round one: the anti-goal said "no evidence regeneration" and the definition of done stopped at
+check/lint/test, which a Codex P1 correctly read as letting this close-out be pushed without
+validating its own head — `AGENTS.md` L213-214 requires `npm run build` and the full `npm run verify`
+chain before **every** push. Two separable things had been collapsed: **running** the chain proves
+this head, **committing** its output overwrites the feature's record. Only the second was ever
+undesirable, so both commands were run and the artifacts discarded with `git checkout`.*
+
+*Round two: discarding them was still wrong. `AGENTS.md` L141-143 requires the chain to be green
+**with committed evidence**, and a run whose output is thrown away leaves the repository holding
+evidence for `e8d4488` and nothing for this head — prose in a plan is not committed evidence. The
+answer was never "run or commit"; it was **commit under distinct names**, which costs nothing and
+destroys nothing. `closeout-*.txt` carry this head's proof; the feature's artifacts keep the exact
+paths `DECISIONS.md` cites.)*
 
 **How behaviour stays unchanged:** the diff is prose. No import, export, route, contract, schema,
 constant or test is touched, so no runtime path can differ.
@@ -48,11 +56,15 @@ one probe whose conclusion outran its evidence (the `@page` regex sweep, which m
 case that turned out to be the live hole) rather than only the checks that worked.
 
 **Definition of done (literal):**
-`npm run check && npm run lint && npm test && npm run build && npm run verify && git checkout -- docs/evidence/`
+`npm run check && npm run lint && npm test && npm run build && npm run verify`, with the outputs
+committed as `docs/evidence/2026-09-08/closeout-{lint,build,verify,test}.txt` and the feature's own
+artifacts restored untouched.
 
-Outputs on this head, recorded here rather than as committed files for the reason above:
-`build exit=0`, `verify exit=0`, `104 test files passed / 1 skipped`, `svelte-check 0 errors 0 warnings`,
-`eslint` clean.
+| Artifact | Head it describes |
+|---|---|
+| `closeout-lint.txt`, `closeout-build.txt`, `closeout-verify.txt`, `closeout-test.txt` | **this** close-out head — all exit 0 |
+| `verify-outer.txt`, `test.txt`, `lint.txt`, `build.txt`, `e2e.txt`, and the chain's JSON/MD | the feature head merged as `e8d4488`, at the exact paths `DECISIONS.md` cites |
+| `print-margin-before.txt` | `main` at `e6c450b`, deliberately historical |
 
 ---
 
