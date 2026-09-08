@@ -27,13 +27,40 @@ review, and what a future run should pick up.
 | `docs/evidence/2026-09-08/run17-closeout-build.txt` | [NEW] | `npm run build` transcript for this head, ending with its exit status |
 | `docs/evidence/2026-09-08/run17-closeout-test.txt` | [NEW] | `npm test` transcript for this head, ending with its exit status |
 | `docs/evidence/2026-09-08/run17-closeout-verify.txt` | [NEW] | `npm run verify` transcript for this head, ending with its exit status |
+| `docs/evidence/2026-09-08/assumption-alarm.json` | [MODIFY] | rewritten wholesale by `npm run assumption:alarm` inside the chain |
+| `docs/evidence/2026-09-08/chamber-lock.json` | [MODIFY] | rewritten wholesale by `npm run chamber:lock` |
+| `docs/evidence/2026-09-08/clan-chain.json` | [MODIFY] | rewritten wholesale by `npm run clan:chain` |
+| `docs/evidence/2026-09-08/clan-chain.md` | [MODIFY] | rewritten wholesale by `npm run clan:chain` |
+| `docs/evidence/2026-09-08/proof-tape.json` | [MODIFY] | rewritten wholesale by `npm run proof:tape`; its file inventory must be regenerated **after** the four transcripts above are closed, or it records their pre-`exit=` byte counts |
+| `docs/evidence/2026-09-08/proof-tape.md` | [MODIFY] | same, in prose |
+| `docs/evidence/2026-09-08/seam-ledger.json` | [MODIFY] | rewritten wholesale by `npm run seam:ledger` |
+| `docs/evidence/2026-09-08/seam-ledger.md` | [MODIFY] | rewritten wholesale by `npm run seam:ledger` |
+| `docs/evidence/2026-09-08/shaolin-lint.json` | [MODIFY] | rewritten wholesale by `npm run shaolin:lint` |
+| `docs/evidence/2026-09-08/test.txt` | [MODIFY] | rewritten wholesale by `npm run verify:runner` |
+| `docs/evidence/2026-09-08/verify.txt` | [MODIFY] | rewritten wholesale by `npm run verify:runner` |
+
+Those eleven are listed individually rather than described as "the chain's artifacts", because
+`AGENTS.md` L73-74 requires an exact path and an action per file and forbids blanket statements — a
+plan that cannot be checked mechanically against `git diff --name-only` is not a plan. They are
+**generated**, not edited: nothing writes to them by hand, and the touch blueprint for every one of
+them is "whatever its own script emits for this head".
 
 **Amended after the first push:** the SonarCloud comment on the merged head reported "3 New issues"
-beside its passing gate, so the close-out's carried-forward list was corrected in place — before
-this pull request merged — to replace the inherited "unidentified SonarCloud issue" item with what
-this run could actually establish: that `sonarcloud.io` is unreachable from this container's egress
-proxy, which is why three previous runs could not name those issues either, plus two concrete
-methods for a future run and a clearly-labelled list of local candidates. No other line changed.
+beside its passing gate, so the close-out's carried-forward list gained a **new** item recording
+what this run could establish about them — that `sonarcloud.io` is unreachable from this container's
+egress proxy, plus two concrete methods for a future run and a clearly-labelled list of local
+candidates.
+
+**Amended again, under review of that amendment.** The first version of it *replaced* the inherited
+`constructor-for-side-effects` item and called that finding "unidentified". A Codex P2 caught it,
+and this log contradicts the claim in four places: Runs 13, 14 and 15 each name it exactly, at
+`verdict-page-state.test.ts:1022`, pre-existing at `724332b`. The two are separate work items and
+are now listed separately — and re-measuring the inherited one found that **this run moved it**: the
+harness extraction shifted the bare constructor from line 1022 to **line 931**. A future run
+following the inherited line number would have found nothing there.
+
+*The correction is the same shape as the defect it corrects: an edit that was right about what it
+added and wrong about what it removed.*
 
 **Anti-goals — do not touch:**
 
@@ -48,7 +75,8 @@ methods for a future run and a clearly-labelled list of local candidates. No oth
   describe the repository now.
 - Do not edit any existing line of `WORST_TO_BEST_LOG.md`. It is append-only, and the section is
   appended at end of file rather than anchored on a heading — `### Carried forward for the next run`
-  now appears **eight** times in it, and Run 16's close-out records a section filed under the wrong
+  appeared **eight** times in the base log at `36fc999` and appears **nine** times once this
+  change's own section lands, and Run 16's close-out records a section filed under the wrong
   run because an edit anchored on a repeated heading and `replace(old, new, 1)` took the first.
 
 **Self-critique:** the risk is a summary that stops matching the body it summarises — four

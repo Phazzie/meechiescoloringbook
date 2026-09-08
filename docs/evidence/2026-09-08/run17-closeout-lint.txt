@@ -1,9 +1,9 @@
 # Purpose: eslint transcript for the Run 17 close-out head
-# Why: AGENTS.md L141-143 and L213-214 require the chain and the build to be run and their output committed before every push — including for a documentation-only change. Run 16's close-out was reviewed for skipping exactly this.
+# Why: AGENTS.md L141-143 and L213-214 require the chain and the build to be run and their output committed before every push — including for a documentation-only change.
 # Info flow: command -> stdout/stderr captured verbatim below -> this transcript, ending with the command's own exit status.
-# Invariants: Distinctly named so it cannot overwrite the feature branch's run17-*.txt artifacts, which DECISIONS.md cites by exact path, nor Run 16's. This file cannot certify the tree that contains it: it is written before its own final bytes exist. What it certifies is the head it names below.
+# Invariants: Distinctly named so it cannot overwrite the feature branch's run17-*.txt artifacts, which DECISIONS.md cites by exact path, nor Run 16's. This file cannot certify the tree that contains it; it certifies the head named below. `npm run proof:tape` is re-run AFTER this file is closed, so the evidence inventory records this file's final byte count rather than its pre-exit-line one.
 # Command: npm run lint
-# Head: 36fc999+working tree (pre-commit)
+# Head: f11c8f5+working tree (pre-commit)
 # Date: 2026-09-08
 
 

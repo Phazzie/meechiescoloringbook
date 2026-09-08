@@ -13208,12 +13208,26 @@ and `AGENTS.md` holds a merge for *a human reviewer's* unresolved changes-reques
 entry lists `ChatInterpretationSeam` among five seams and reads Open. The rule allows "resolve it
 first, **or state why the change is safe without it**", and that statement is in the merge comment:
 its scope is live provider acceptance on a deployment, it predates this change, it already covers
-five merged surfaces calling the same endpoints, this pull request adds no new provider call, it
-cannot be resolved from a container with no key and no deploy access, and the new surface fails
-safely against exactly that uncertainty — every error code the endpoint can emit has a
-reader-facing sentence and a test, and a failure costs one quota unit rather than a generation. The
-other two open-looking Assumptions naming this seam were checked by parsing their `Status` fields
-and both read `closed`.
+five merged surfaces calling the same endpoints, it cannot be resolved from a container with no key
+and no deploy access, and the new surface fails safely against exactly that uncertainty — every
+error code the endpoint can emit has a reader-facing sentence and a test, and a failure costs one
+quota unit rather than a generation. The other two open-looking Assumptions naming this seam were
+checked by parsing their `Status` fields and both read `closed`.
+
+**A correction to that argument, made under review of this very entry.** An earlier draft of the
+sentence above also said "this pull request adds no new provider call", and a Codex P2 was right
+that this is false and load-bearing: `/describe` is the *first* interface through which a reader can
+cause `/api/chat-interpretation` to reach `providerAdapter.createChatCompletion` at all. The
+endpoint existing beforehand is not the same fact — that is the whole finding this run is about, and
+the claim contradicted it. **The conclusion survives on the other four grounds and is stronger
+without the false one:** the Assumption is about whether a deployed provider *accepts* the payload,
+which no interface change affects; the payload shape reaching the provider is unchanged, because it
+is the pipeline that builds it and the pipeline was not touched; and the surface is built so a
+refusal or an error is a sentence rather than a broken page.
+
+*A gate decision recorded on a premise that is convenient and false is worse than one recorded on
+four true premises and a stated limit — because the false premise is the one a later reader will
+cite.*
 
 ### Where the findings came from, and what they cost
 
@@ -13335,14 +13349,28 @@ constraint the pair exposes.
 - **Four evidence transcripts still have no file header:** `docs/evidence/2026-09-08/verify-outer.txt`,
   `lint.txt`, `build.txt`, `e2e.txt`. Inherited from Run 16 unchanged; this run added its own with
   headers and exit statuses rather than rewriting those.
-- **The unidentified SonarCloud issue from Runs 13/14/15 — now identified as a *constraint*, not a
+- **The inherited SonarCloud finding, which was never unidentified — and whose line reference this
+  run moved.** An earlier draft of this list replaced it with the item below and called it "the
+  unidentified SonarCloud issue", which **this log contradicts in four places**: Runs 13, 14 and 15
+  each name it exactly — `constructor-for-side-effects` at `verdict-page-state.test.ts:1022`,
+  established as pre-existing at commit `724332b` by `git log -L` and
+  `git merge-base --is-ancestor`. A Codex P2 caught the replacement, correctly: collapsing a
+  *diagnosed, not-ours* finding into a *new, unread* one loses the diagnosis and leaves neither
+  resolved nor disproved. They are two work items and stay two.
+
+  **Re-measured this run, because this run changed the file it lives in.** The bare
+  `new VerdictPageState({ fileBaseSlug: 'who-fucked-up' });` expression statement is still there and
+  still pre-existing — but the harness extraction removed ~90 lines above it, so it is now at
+  **`verdict-page-state.test.ts:931`**, not 1022. A future run following the inherited line number
+  would land in a `copyVerdict` test and find nothing. *An inherited finding cited by line number
+  has to be re-measured by whoever moves the lines.*
+- **PR #335's three new SonarCloud issues — a separate item, and a *constraint* rather than a
   mystery.** The gate that passed this run's final head reported **"3 New issues"** alongside it, and
   the merge went ahead on the gate. Read the annotations, not the gate: this repository's gate
   passes with open issues, so "Quality Gate passed" has never meant "no findings".
 
-  **This run tried to read them and could not**, and the reason is worth recording because it is
-  almost certainly why three previous runs left the same item unresolved: **outbound network access
-  to `sonarcloud.io` is denied by this container's egress proxy** (`EGRESS_BLOCKED`; the proxy's own
+  **This run tried to read them and could not**, and the reason is worth recording: **outbound
+  network access to `sonarcloud.io` is denied by this container's egress proxy** (`EGRESS_BLOCKED`; the proxy's own
   status endpoint shows it rejecting arbitrary hosts, `fonts.googleapis.com` included). So
   `GET /api/issues/search?componentKeys=…&pullRequest=…` — the one call that would name them — is
   unreachable from here. The check run's `output.text` comes back empty, and check-run *annotations*
@@ -13353,6 +13381,10 @@ constraint the pair exposes.
   `eslint-plugin-sonarjs` to the repo so the same rule family runs locally in `npm run lint` and the
   findings arrive before the push instead of after the merge. The second is a small, self-contained
   change and would close this item permanently rather than for one run.
+
+  Note what this does *not* explain: the item above was named without any of this, from the check
+  annotations of an earlier run. So the dashboard is not the only route, and "blocked" is a reason
+  this run could not read them rather than a reason nobody can.
 
   **Candidates measured locally, offered as candidates and not as the answer** — SonarJS's
   `no-duplicate-string` fires at three occurrences, and the files this run added carry:

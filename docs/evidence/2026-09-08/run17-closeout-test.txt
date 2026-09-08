@@ -1,9 +1,9 @@
 # Purpose: full vitest run for the Run 17 close-out head
-# Why: AGENTS.md L141-143 and L213-214 require the chain and the build to be run and their output committed before every push — including for a documentation-only change. Run 16's close-out was reviewed for skipping exactly this.
+# Why: AGENTS.md L141-143 and L213-214 require the chain and the build to be run and their output committed before every push — including for a documentation-only change.
 # Info flow: command -> stdout/stderr captured verbatim below -> this transcript, ending with the command's own exit status.
-# Invariants: Distinctly named so it cannot overwrite the feature branch's run17-*.txt artifacts, which DECISIONS.md cites by exact path, nor Run 16's. This file cannot certify the tree that contains it: it is written before its own final bytes exist. What it certifies is the head it names below.
+# Invariants: Distinctly named so it cannot overwrite the feature branch's run17-*.txt artifacts, which DECISIONS.md cites by exact path, nor Run 16's. This file cannot certify the tree that contains it; it certifies the head named below. `npm run proof:tape` is re-run AFTER this file is closed, so the evidence inventory records this file's final byte count rather than its pre-exit-line one.
 # Command: npm test
-# Head: 36fc999+working tree (pre-commit)
+# Head: f11c8f5+working tree (pre-commit)
 # Date: 2026-09-08
 
 
@@ -42,8 +42,8 @@ Not implemented: HTMLCanvasElement's getContext() method: without installing the
 
 [2m Test Files [22m [1m[32m106 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (107)[39m
 [2m      Tests [22m [1m[32m1800 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (1801)[39m
-[2m   Start at [22m 07:33:50
-[2m   Duration [22m 42.38s[2m (transform 5.65s, setup 1.16s, import 10.37s, tests 9.82s, environment 82.05s)[22m
+[2m   Start at [22m 07:55:15
+[2m   Duration [22m 31.91s[2m (transform 4.86s, setup 936ms, import 8.65s, tests 8.84s, environment 60.27s)[22m
 
 
 exit=0

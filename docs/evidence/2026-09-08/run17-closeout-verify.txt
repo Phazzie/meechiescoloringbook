@@ -1,9 +1,9 @@
 # Purpose: outer transcript of the whole npm run verify chain for the Run 17 close-out head
-# Why: AGENTS.md L141-143 and L213-214 require the chain and the build to be run and their output committed before every push — including for a documentation-only change. Run 16's close-out was reviewed for skipping exactly this.
+# Why: AGENTS.md L141-143 and L213-214 require the chain and the build to be run and their output committed before every push — including for a documentation-only change.
 # Info flow: command -> stdout/stderr captured verbatim below -> this transcript, ending with the command's own exit status.
-# Invariants: Distinctly named so it cannot overwrite the feature branch's run17-*.txt artifacts, which DECISIONS.md cites by exact path, nor Run 16's. This file cannot certify the tree that contains it: it is written before its own final bytes exist. What it certifies is the head it names below.
+# Invariants: Distinctly named so it cannot overwrite the feature branch's run17-*.txt artifacts, which DECISIONS.md cites by exact path, nor Run 16's. This file cannot certify the tree that contains it; it certifies the head named below. `npm run proof:tape` is re-run AFTER this file is closed, so the evidence inventory records this file's final byte count rather than its pre-exit-line one.
 # Command: npm run verify
-# Head: 36fc999+working tree (pre-commit)
+# Head: f11c8f5+working tree (pre-commit)
 # Date: 2026-09-08
 
 
@@ -33,8 +33,8 @@ svelte-check found 0 errors and 0 warnings
 
 [2m Test Files [22m [1m[32m106 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (107)[39m
 [2m      Tests [22m [1m[32m1800 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (1801)[39m
-[2m   Start at [22m 07:35:03
-[2m   Duration [22m 111.30s[2m (transform 4.17s, setup 1.05s, import 8.38s, tests 9.15s, environment 72.55s)[22m
+[2m   Start at [22m 07:56:12
+[2m   Duration [22m 81.52s[2m (transform 3.64s, setup 863ms, import 7.10s, tests 7.85s, environment 50.79s)[22m
 
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
