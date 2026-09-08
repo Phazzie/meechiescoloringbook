@@ -235,6 +235,22 @@ describe('AiQuotaMeter silence', () => {
 		expect(meter.image?.remaining).toBe(5);
 	});
 
+	// Cancelling existing timers is not enough: a request still in flight when the reader navigates
+	// away resolves afterwards and would arm a FRESH timer on a meter nobody is reading, holding the
+	// unmounted route's state — and its generated image bytes — until that window closed.
+	it('ignores a reading that arrives after disposal', () => {
+		const clock = drivenClock();
+		const meter = meterWith(clock);
+		meter.dispose();
+
+		meter.record(quotaHeaders(8, 5, 30), NOW, 'image');
+
+		expect(meter.image).toBeNull();
+		expect(meter.pictureMessage()).toBe('');
+		// The important half: no timer was armed by the late reply.
+		expect(clock.scheduledAt).toEqual([]);
+	});
+
 	it('releases every pending timer on dispose', () => {
 		const clock = drivenClock();
 		const meter = meterWith(clock);

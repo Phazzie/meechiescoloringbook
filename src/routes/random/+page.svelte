@@ -58,6 +58,12 @@ Info flow: Tap -> VerdictPageState.requestVerdict (random_meechie) -> saying -> 
 				data-testid="random-tap"
 				onclick={() => void tap()}
 				aria-label="Get a Meechie saying"
+				aria-describedby={studio.quota.textMessage({
+					actionNoun: 'verdict',
+					unitsPerAction: MEECHIE_TOOL_QUOTA_COST
+				})
+					? 'verdict-budget'
+					: undefined}
 				disabled={studio.verdictQuotaExhausted}
 			>
 				Tap For Truth
@@ -92,6 +98,12 @@ Info flow: Tap -> VerdictPageState.requestVerdict (random_meechie) -> saying -> 
 					class="ghost-btn"
 					data-testid="random-another"
 					onclick={() => void tap()}
+					aria-describedby={studio.quota.textMessage({
+						actionNoun: 'verdict',
+						unitsPerAction: MEECHIE_TOOL_QUOTA_COST
+					})
+						? 'verdict-budget'
+						: undefined}
 					disabled={studio.isWorking ||
 						studio.isGenerating ||
 						studio.verdictQuotaExhausted}

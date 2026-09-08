@@ -119,10 +119,7 @@ describe('rate-limit guard', () => {
 				'Cache-Control': 'no-store',
 				'RateLimit-Limit': '20',
 				'RateLimit-Remaining': '17',
-				'RateLimit-Reset': '59',
-				// The store's own absolute instant, so a client never has to guess when the charge
-				// happened in order to know when the window reopens.
-				'RateLimit-Reset-At': '60000'
+				'RateLimit-Reset': '59'
 			},
 			identityKind: 'pseudonymous',
 			store: 'durable',
@@ -162,7 +159,6 @@ describe('rate-limit guard', () => {
 				'RateLimit-Limit': '8',
 				'RateLimit-Remaining': '0',
 				'RateLimit-Reset': '60',
-				'RateLimit-Reset-At': '61000',
 				'Retry-After': '60'
 			},
 			error: {

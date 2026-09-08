@@ -85,6 +85,15 @@ export class AiQuotaMeter {
 	 * expiring must not cancel the timer holding a live text reading on screen.
 	 */
 	private readonly cancelExpiry = new Map<AiQuotaBucket, () => void>();
+	/**
+	 * Set by `dispose()`, and never cleared.
+	 *
+	 * Cancelling the timers that exist is not enough on its own: a request already in flight when
+	 * the reader navigates away still resolves, still calls `record`, and would arm a *fresh* timer
+	 * on a meter nobody is reading — holding the unmounted route's state, and its generated image
+	 * bytes, until that window closed. Teardown has to be a state, not just an action.
+	 */
+	private disposed = false;
 
 	constructor(options: AiQuotaMeterOptions = {}) {
 		this.clock = options.clock ?? ((): ClockSeam => clockSeam);
@@ -116,6 +125,8 @@ export class AiQuotaMeter {
 		requestedAtMs: number,
 		bucket: AiQuotaBucket
 	): void {
+		// The surface that owns this meter is gone; a late reply has nothing to report to.
+		if (this.disposed) return;
 		const snapshot = readAiQuota(source, requestedAtMs, { bucket });
 		if (!snapshot) return;
 		const updated = recordQuotaReading(this.ledger, snapshot);
@@ -209,6 +220,7 @@ export class AiQuotaMeter {
 	 * fires against a ledger nobody is reading.
 	 */
 	dispose(): void {
+		this.disposed = true;
 		for (const cancel of this.cancelExpiry.values()) cancel();
 		this.cancelExpiry.clear();
 	}

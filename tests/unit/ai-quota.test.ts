@@ -141,28 +141,12 @@ describe('describeAiQuota', () => {
 	});
 });
 
-// Every delta header is relative to the instant the quota was CHARGED, which is server-side. The
-// client only knows when it sent the request; on `/api/wig-try-on` the route fetches an external
-// image before charging, so anchoring the delta to the send instant computes a reset that is early
-// by all of that work — and early is the harmful direction, since it invites a refused retry.
+// The reset instant is computed from the CALLER's clock and a delta, never from a server
+// timestamp: the two clocks are unrelated, and a skewed device would otherwise treat a fresh window
+// as expired (or hold controls disabled long after the bucket refilled). An earlier head of this
+// branch preferred a server-sent `RateLimit-Reset-At`; it was reverted for exactly that reason.
 describe('readAiQuota reset anchoring', () => {
-	it('prefers the server absolute instant over the delta', () => {
-		const snapshot = readAiQuota(
-			headers({
-				'RateLimit-Limit': '8',
-				'RateLimit-Remaining': '5',
-				'RateLimit-Reset': '30',
-				'RateLimit-Reset-At': String(NOW + 42_000)
-			}),
-			NOW,
-			{ bucket: 'image' }
-		);
-
-		// Not NOW + 30_000: the server said when, so the client does not compute it.
-		expect(snapshot?.resetAtMs).toBe(NOW + 42_000);
-	});
-
-	it('falls back to the delta when the server sent no absolute instant', () => {
+	it('derives the instant from the caller clock and the delta', () => {
 		const snapshot = readAiQuota(
 			headers({
 				'RateLimit-Limit': '8',
@@ -176,18 +160,37 @@ describe('readAiQuota reset anchoring', () => {
 		expect(snapshot?.resetAtMs).toBe(NOW + 30_000);
 	});
 
-	it('ignores an unusable absolute instant rather than trusting it', () => {
+	// A server epoch value must not be able to steer the client's timeline, however it arrives.
+	it('ignores a server timestamp header entirely', () => {
 		const snapshot = readAiQuota(
 			headers({
 				'RateLimit-Limit': '8',
 				'RateLimit-Remaining': '5',
 				'RateLimit-Reset': '30',
-				'RateLimit-Reset-At': 'soon'
+				'RateLimit-Reset-At': String(NOW + 9_000_000)
 			}),
 			NOW,
 			{ bucket: 'image' }
 		);
 
 		expect(snapshot?.resetAtMs).toBe(NOW + 30_000);
+	});
+
+	// `Retry-After` is still the authority on a refusal — it is a delta too, so it stays on the
+	// caller's clock.
+	it('prefers Retry-After on a denial, still as a delta', () => {
+		const snapshot = readAiQuota(
+			headers({
+				'RateLimit-Limit': '8',
+				'RateLimit-Remaining': '0',
+				'RateLimit-Reset': '30',
+				'Retry-After': '35'
+			}),
+			NOW,
+			{ bucket: 'image' }
+		);
+
+		expect(snapshot?.resetAtMs).toBe(NOW + 35_000);
+		expect(snapshot?.exhausted).toBe(true);
 	});
 });

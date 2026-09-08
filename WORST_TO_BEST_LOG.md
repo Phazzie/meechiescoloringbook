@@ -11565,6 +11565,54 @@ CI did** — `cognitive-complexity` at 16/15 in `handleMakePage`, caused by the 
 (fixed by folding two early returns into one), and `no-identical-functions` from a header helper I
 had duplicated rather than reused. The remaining seven findings were re-confirmed pre-existing.
 
+### The third Codex round — four findings, and the one where I had to undo my own fix
+
+| # | Finding | Outcome |
+|---|---|---|
+| 1 | Verdict buttons have `id="verdict-budget"` beside them and no `aria-describedby` to it | Fixed |
+| 2 | `RateLimit-Reset-At` puts a **server** epoch on the **client's** timeline | **Fixed by reverting the previous round's fix** |
+| 3 | `dispose()` cancels existing timers but `record()` still works afterwards | Fixed |
+| 4 | P1 — the new response header is new observable behaviour at a network boundary | **Dissolved by the same revert** |
+
+**Finding 2 is the important one, and it is about the fix I shipped one round earlier.** The previous
+round answered "the reset delta is anchored to the client's send instant, but the charge happens
+later" by having the server send `RateLimit-Reset-At` — the store's absolute instant — and having the
+client prefer it. That reply was confident and it was wrong.
+
+A server epoch value is meaningless on the browser's timeline. `scheduleAt` and every comparison run
+on the client's clock, and the two clocks are unrelated. A device five minutes fast treats a freshly
+exhausted window as already expired, clears the reading and re-enables controls the server will
+still refuse; a device five minutes slow holds them disabled long after the bucket refilled.
+
+**So the "fix" traded a bounded, seconds-scale error on one route for an unbounded error on any
+device with a wrong clock.** The delta it replaced was *skew-immune* precisely because every value
+stayed on one clock.
+
+Reverted in full — server header, client preference, and the tests written for it. A correct version
+needs a server/client offset (the standard `Date` header plus the absolute instant), which is more
+machinery at the network boundary, and which is exactly what the accompanying **P1** said would need
+the full Seam-Driven Development workflow. `AGENTS.md` on this routine: *"or pick a rebuild that does
+not need it. Never half-do it."* Reverting is picking that. **The original anchoring skew goes back
+to being a known, bounded, documented limitation, carried forward below rather than papered over.**
+
+*The lesson is not "check for clock skew". It is that a fix invented in response to a review finding
+gets the same scrutiny as the code it replaces — and this one shipped in the same commit as its own
+justification, with a test suite that could not see the defect because every test used one clock.*
+
+The P1 was declined on its predecessor's reasoning (consuming `ClockSeam` through its contract is not
+a seam change) and is **not** declined here: adding a header genuinely is new observable behaviour.
+It stops applying because the header is gone, not because the argument failed.
+
+**Finding 3 is teardown-as-an-action versus teardown-as-a-state.** `dispose()` cancelled the timers
+that existed; a request already in flight when the reader navigated away still resolved, still called
+`record`, and armed a *fresh* timer on a meter nobody was reading — holding the unmounted route's
+state and its generated image bytes for up to a window. The meter now carries a `disposed` flag that
+`record` checks. Red proof: removing the check fails 1.
+
+**Finding 1 is the third `aria-describedby` omission in this pull request** — home studio, try-on,
+and now the eight verdict controls. Each time I added the line and the gate and forgot the link
+between them, which is the same shape of half-finished work the feature itself is about.
+
 ### Carried forward for the next run
 
 - **The packaged print PDF still bleeds to all four edges.** `output-packaging-seam/index.ts` scales
@@ -13776,6 +13824,19 @@ than they look. Unchanged by this run, and worth a look from a run with deploy a
 
 Re-measured on this run's base where the item names a line number; **do not inherit these, re-measure.**
 
+- **The quota reset instant is early on routes that work before charging.** `RateLimit-Reset` is a
+  delta from the instant the quota was *charged*; the client can only anchor it to the instant it
+  *sent* the request, so any route doing work before `consumeQuota` reports a reset that early by
+  that much. `/api/wig-try-on` is the worst case — `runWigTryOnPipeline` does a catalog lookup and an
+  **external wig-image fetch** before charging. Early is the harmful direction: it invites a retry
+  the server refuses, and it can push a concurrent reading outside the 2-second window tolerance and
+  get it discarded by `supersedes`.
+  **This run tried to fix it with a server-sent absolute instant and had to revert** — see the third
+  Codex round above; a server epoch on the client's timeline is unbounded-ly worse than a bounded
+  delta skew. A correct fix needs a server/client clock offset (the standard `Date` header alongside
+  an absolute reset), which is new observable behaviour at a network boundary and therefore the full
+  Seam-Driven Development workflow with a Cipher Gate — its own pull request, not a rider on this one.
+  Do not attempt it as a quick win.
 - **`chatInterpretationAdapter` still has no callers.** Run 17's item, unchanged and untouched here.
   Either give it a timeout and header access through the full Seam-Driven Development workflow, or
   delete it. This run makes the case sharper, not weaker: the adapter discards `RateLimit-*`, and

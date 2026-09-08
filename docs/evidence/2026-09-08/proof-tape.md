@@ -5,7 +5,7 @@ Info flow: evidence files -> summary -> review.
 -->
 # Proof Tape
 
-Generated at: 2026-09-08T13:58:42.929Z
+Generated at: 2026-09-08T14:18:38.729Z
 Evidence folder: docs/evidence/2026-09-08
 
 Files included (this tape's own outputs, proof-tape.json and proof-tape.md, are written
@@ -50,6 +50,7 @@ after this inventory is taken, so they are not listed):
   Commands: meechies-coloringbook@0.1.0 build | vite build | Using @sveltejs/adapter-vercel
 - run18-e2e-codex-round.txt (10036 bytes) — PREDATES THIS VERIFY RUN
 - run18-e2e-codex-round2.txt (9942 bytes) — PREDATES THIS VERIFY RUN
+- run18-e2e-codex-round3.txt (9941 bytes) — PREDATES THIS VERIFY RUN
 - run18-e2e-sonar-round.txt (9940 bytes) — PREDATES THIS VERIFY RUN
 - run18-e2e.txt (10230 bytes) — PREDATES THIS VERIFY RUN
 - run18-lint.txt (161 bytes) — PREDATES THIS VERIFY RUN
@@ -58,7 +59,9 @@ after this inventory is taken, so they are not listed):
   Commands: meechies-coloringbook@0.1.0 test | vitest run
 - run18-verify-codex-round.txt (3861 bytes) — PREDATES THIS VERIFY RUN
   Commands: meechies-coloringbook@0.1.0 verify | npm run audit:gate && node scripts/chamber-lock.mjs && node scripts/verify-runner.mjs && node scripts/shaolin-lint.mjs && node scripts/assumption-alarm.mjs && node scripts/seam-ledger.mjs && node scripts/clan-chain.mjs && node scripts/proof-tape.mjs | meechies-coloringbook@0.1.0 audit:gate | npm audit --audit-level=high | meechies-coloringbook@0.1.0 check | svelte-kit sync && svelte-check --tsconfig ./tsconfig.json | meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
-- run18-verify-codex-round2.txt (3819 bytes)
+- run18-verify-codex-round2.txt (3835 bytes) — PREDATES THIS VERIFY RUN
+  Commands: meechies-coloringbook@0.1.0 verify | npm run audit:gate && node scripts/chamber-lock.mjs && node scripts/verify-runner.mjs && node scripts/shaolin-lint.mjs && node scripts/assumption-alarm.mjs && node scripts/seam-ledger.mjs && node scripts/clan-chain.mjs && node scripts/proof-tape.mjs | meechies-coloringbook@0.1.0 audit:gate | npm audit --audit-level=high | meechies-coloringbook@0.1.0 check | svelte-kit sync && svelte-check --tsconfig ./tsconfig.json | meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
+- run18-verify-codex-round3.txt (3819 bytes)
   Commands: meechies-coloringbook@0.1.0 verify | npm run audit:gate && node scripts/chamber-lock.mjs && node scripts/verify-runner.mjs && node scripts/shaolin-lint.mjs && node scripts/assumption-alarm.mjs && node scripts/seam-ledger.mjs && node scripts/clan-chain.mjs && node scripts/proof-tape.mjs | meechies-coloringbook@0.1.0 audit:gate | npm audit --audit-level=high | meechies-coloringbook@0.1.0 check | svelte-kit sync && svelte-check --tsconfig ./tsconfig.json | meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
 - run18-verify-sonar-round.txt (3833 bytes) — PREDATES THIS VERIFY RUN
   Commands: meechies-coloringbook@0.1.0 verify | npm run audit:gate && node scripts/chamber-lock.mjs && node scripts/verify-runner.mjs && node scripts/shaolin-lint.mjs && node scripts/assumption-alarm.mjs && node scripts/seam-ledger.mjs && node scripts/clan-chain.mjs && node scripts/proof-tape.mjs | meechies-coloringbook@0.1.0 audit:gate | npm audit --audit-level=high | meechies-coloringbook@0.1.0 check | svelte-kit sync && svelte-check --tsconfig ./tsconfig.json | meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
@@ -67,14 +70,14 @@ after this inventory is taken, so they are not listed):
 - seam-ledger.json (37511 bytes)
 - seam-ledger.md (2981 bytes)
 - shaolin-lint.json (518 bytes)
-- test.txt (3334 bytes)
+- test.txt (3335 bytes)
   Commands: meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
 - verify-outer.txt (3743 bytes) — PREDATES THIS VERIFY RUN
   Commands: meechies-coloringbook@0.1.0 verify | npm run audit:gate && node scripts/chamber-lock.mjs && node scripts/verify-runner.mjs && node scripts/shaolin-lint.mjs && node scripts/assumption-alarm.mjs && node scripts/seam-ledger.mjs && node scripts/clan-chain.mjs && node scripts/proof-tape.mjs | meechies-coloringbook@0.1.0 audit:gate | npm audit --audit-level=high | meechies-coloringbook@0.1.0 check | svelte-kit sync && svelte-check --tsconfig ./tsconfig.json | meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
-- verify.txt (3659 bytes)
+- verify.txt (3660 bytes)
   Commands: meechies-coloringbook@0.1.0 check | svelte-kit sync && svelte-check --tsconfig ./tsconfig.json | meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
 
-Older than this run's chamber-lock.json: build.txt, closeout-build.txt, closeout-lint.txt, closeout-test.txt, closeout-verify.txt, e2e.txt, lint.txt, print-margin-before.txt, run17-build.txt, run17-closeout-build.txt, run17-closeout-lint.txt, run17-closeout-test.txt, run17-closeout-verify.txt, run17-e2e.txt, run17-lint.txt, run17-test.txt, run17-verify-outer.txt, run18-build.txt, run18-e2e-codex-round.txt, run18-e2e-codex-round2.txt, run18-e2e-sonar-round.txt, run18-e2e.txt, run18-lint.txt, run18-test.txt, run18-verify-codex-round.txt, run18-verify-sonar-round.txt, run18-verify.txt, verify-outer.txt.
+Older than this run's chamber-lock.json: build.txt, closeout-build.txt, closeout-lint.txt, closeout-test.txt, closeout-verify.txt, e2e.txt, lint.txt, print-margin-before.txt, run17-build.txt, run17-closeout-build.txt, run17-closeout-lint.txt, run17-closeout-test.txt, run17-closeout-verify.txt, run17-e2e.txt, run17-lint.txt, run17-test.txt, run17-verify-outer.txt, run18-build.txt, run18-e2e-codex-round.txt, run18-e2e-codex-round2.txt, run18-e2e-codex-round3.txt, run18-e2e-sonar-round.txt, run18-e2e.txt, run18-lint.txt, run18-test.txt, run18-verify-codex-round.txt, run18-verify-codex-round2.txt, run18-verify-sonar-round.txt, run18-verify.txt, verify-outer.txt.
 These files were written by an earlier run, so they describe a different run than
 the one this tape summarizes. Regenerate them or read them as history, not as proof
 of the current change.

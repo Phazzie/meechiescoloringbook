@@ -107,6 +107,12 @@ Info flow: Excuse input -> VerdictPageState.requestVerdict (rate_excuse) -> scor
 				class="cta"
 				data-testid="rate-submit"
 				onclick={() => void submit()}
+				aria-describedby={studio.quota.textMessage({
+					actionNoun: 'verdict',
+					unitsPerAction: MEECHIE_TOOL_QUOTA_COST
+				})
+					? 'verdict-budget'
+					: undefined}
 				disabled={studio.isWorking ||
 					!excuse.trim() ||
 					studio.verdictQuotaExhausted}
@@ -150,6 +156,12 @@ Info flow: Excuse input -> VerdictPageState.requestVerdict (rate_excuse) -> scor
 					class="ghost-btn"
 					data-testid="rate-again"
 					onclick={() => void submit()}
+					aria-describedby={studio.quota.textMessage({
+						actionNoun: 'verdict',
+						unitsPerAction: MEECHIE_TOOL_QUOTA_COST
+					})
+						? 'verdict-budget'
+						: undefined}
 					disabled={studio.isWorking ||
 						studio.isGenerating ||
 						studio.verdictQuotaExhausted}

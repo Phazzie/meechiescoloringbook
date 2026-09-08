@@ -78,6 +78,12 @@ Info flow: Situation input -> VerdictPageState.requestVerdict (red_flag_or_run) 
 				class="cta"
 				data-testid="who-submit"
 				onclick={submit}
+				aria-describedby={studio.quota.textMessage({
+					actionNoun: 'verdict',
+					unitsPerAction: MEECHIE_TOOL_QUOTA_COST
+				})
+					? 'verdict-budget'
+					: undefined}
 				disabled={studio.isWorking ||
 					!situation.trim() ||
 					studio.verdictQuotaExhausted}
@@ -113,6 +119,12 @@ Info flow: Situation input -> VerdictPageState.requestVerdict (red_flag_or_run) 
 					class="ghost-btn"
 					data-testid="who-again"
 					onclick={submit}
+					aria-describedby={studio.quota.textMessage({
+						actionNoun: 'verdict',
+						unitsPerAction: MEECHIE_TOOL_QUOTA_COST
+					})
+						? 'verdict-budget'
+						: undefined}
 					disabled={studio.isWorking ||
 						studio.isGenerating ||
 						studio.verdictQuotaExhausted}

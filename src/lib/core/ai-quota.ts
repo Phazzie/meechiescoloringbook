@@ -136,18 +136,19 @@ export const readAiQuota = (
 	// return. Where both are present it is the one that was computed for the refusal.
 	const retryAfterSeconds = readCount(source, 'Retry-After');
 	const secondsUntilReset = retryAfterSeconds ?? resetSeconds;
-	// Preferred when the server sent it, because it needs no anchor at all. Every delta header is
-	// relative to the instant the quota was charged, which is server-side and unknowable here — the
-	// caller can only offer the instant it sent the request, and the charge happens later by however
-	// long the route's pre-charge work took. `/api/wig-try-on` fetches an external image first, so
-	// that gap is seconds rather than milliseconds. Falling back to the delta keeps every older
-	// response, and every test written against one, working unchanged.
-	const resetAtHeader = readCount(source, 'RateLimit-Reset-At');
+	// Deliberately computed from the CALLER's clock and a delta, never from a server timestamp.
+	// A server epoch value would have to be read on the browser's timeline to be scheduled against,
+	// and the two clocks are unrelated: a device five minutes fast would treat a fresh window as
+	// already expired and re-enable controls the server still refuses, while a slow one would hold
+	// them disabled long after the bucket refilled. The delta keeps every value on one clock, so
+	// skew cancels out. Its known cost is recorded in DECISIONS.md: the delta is relative to the
+	// instant the quota was CHARGED, and the caller can only anchor it to the instant it sent the
+	// request, so a route that does work before charging reports a reset that is early by that much.
 	return {
 		bucket: options.bucket,
 		limit,
 		remaining,
-		resetAtMs: resetAtHeader ?? nowMs + secondsUntilReset * 1_000,
+		resetAtMs: nowMs + secondsUntilReset * 1_000,
 		exhausted: options.exhausted === true || retryAfterSeconds !== null
 	};
 };

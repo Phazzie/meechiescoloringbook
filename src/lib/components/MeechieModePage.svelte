@@ -128,6 +128,12 @@ Info flow: ModeConfig + reader's answers -> VerdictPageState.requestVerdict -> v
 				class="cta"
 				data-testid="mode-submit"
 				onclick={() => void submit()}
+				aria-describedby={studio.quota.textMessage({
+					actionNoun: 'verdict',
+					unitsPerAction: MEECHIE_TOOL_QUOTA_COST
+				})
+					? 'verdict-budget'
+					: undefined}
 				disabled={studio.isWorking || !canSubmit || studio.verdictQuotaExhausted}
 			>
 				{studio.isWorking ? "She's reading it…" : config.button}
@@ -165,6 +171,12 @@ Info flow: ModeConfig + reader's answers -> VerdictPageState.requestVerdict -> v
 					class="ghost-btn"
 					data-testid="mode-again"
 					onclick={() => void submit()}
+					aria-describedby={studio.quota.textMessage({
+						actionNoun: 'verdict',
+						unitsPerAction: MEECHIE_TOOL_QUOTA_COST
+					})
+						? 'verdict-budget'
+						: undefined}
 					disabled={studio.isWorking ||
 						studio.isGenerating ||
 						!canSubmit ||
