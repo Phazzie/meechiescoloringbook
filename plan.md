@@ -8,6 +8,65 @@ Info flow: User request -> execution specs -> implementation -> review evidence.
 
 Current active plan is listed first. Older dated entries remain below as historical context and are not active unless explicitly reselected.
 
+## Run 16 (2026-09-08) — the packaged print download
+
+**Goal:** the file the whole app funnels into — the download labelled "Printable PDF · US Letter —
+ready to print" — is the one file in the app that is not ready to print. Give it a real printable
+margin, make that margin the same number the browser print path already reserves, and make the print
+raster page-shaped for every source format instead of only for two of them.
+
+**The measurement that picked it** (reproducing `output-packaging-seam/index.ts` L375-386):
+
+| Paper | Source | Placed | Smallest margin | Clipped at 100% |
+|---|---|---|---|---|
+| US Letter | 1024x1024 (the shipped default) | 612.0 x 612.0pt | **0.0pt** | yes |
+| US Letter | 1024x1536 | 528.0 x 792.0pt | **0.0pt** | yes |
+| US Letter | 2550x3300 | 612.0 x 792.0pt | **0.0pt** | yes |
+| A4 | 1024x1024 | 595.0 x 595.0pt | **0.0pt** | yes |
+| A4 | 1024x1536 | 561.3 x 842.0pt | **0.0pt** | yes |
+| A4 | 2550x3300 | 595.0 x 770.0pt | **0.0pt** | yes |
+
+Every combination bleeds on at least one axis. `+layout.svelte` L486 already says so in a comment
+Run 13 wrote and did not act on: "The packaged PDF bleeds its image to all four edges; this does
+not."
+
+**Seams:** `OutputPackagingSeam` (in `docs/seams.md`). **The contract does not change** — no field is
+added, removed or retyped; the change is to where the adapter puts the ink. Full Seam-Driven
+Development workflow anyway, per `AGENTS.md` L102-104, plus a Cipher Gate entry in `DECISIONS.md`.
+
+| File | Action | What changes |
+|---|---|---|
+| `src/lib/core/print-layout.ts` | [NEW] | the pure geometry: paper sizes in points, `PRINT_SAFE_MARGIN_MM`, `planPrintPlacement`, `printCanvasPx`, `placementToPx` |
+| `src/lib/adapters/output-packaging-seam/index.ts` | [MODIFY] | `PAGE_SIZES`/`PRINT_WIDTH`/`PRINT_HEIGHT` deleted and imported from core; `drawImageToCanvas` gains a target rect; the `print` PDF and the `print` PNG both placed by `planPrintPlacement`; the PNG passthrough for `format === 'png'` removed from the print path only |
+| `tests/unit/print-layout.test.ts` | [NEW] | the pure geometry, including the red proof and the `@page` drift guard |
+| `src/lib/seams/output-packaging-seam/test.ts` | [MODIFY] | asserts the adapter's placement against the plan |
+| `tests/e2e/print.spec.ts` | [MODIFY] | reads the real packaged PDF out of the download link and measures the margin on actual bytes |
+| `DECISIONS.md` | [MODIFY] | Cipher Gate entry |
+| `WORST_TO_BEST_LOG.md`, `CHANGELOG.md`, `CLAUDE.md`, `plan.md` | [MODIFY] | the run entry, the user-visible change, the file map, this plan |
+
+**Anti-goals (do not touch):** the `square` and `chat` variants keep filling their canvas edge to
+edge — they are for posting and sending, not printing, and `share-page.ts` documents that the square
+one letterboxes onto white. Do not change `OutputPackagingInputSchema` or add a margin field to it.
+Do not change `@page { margin: 12mm }` in `+layout.svelte` — core adopts that number, it does not
+overrule it. Do not touch `describeOriginalImageExport`: "exactly what the generator sent" stays the
+unmodified passthrough, which is what makes removing the print-path passthrough lossless.
+
+**Riskiest assumption:** that 12mm clears real printer hardware margins. Validation: the widest
+consumer hardware margin is ~6.4mm (0.25in); 12mm is 1.9x that and is already the number the browser
+print path ships. Stated in the code, not inferred at review time.
+
+**Self-critique — what could be wrong:** (1) a smaller picture is a real cost, and the honest trade
+is a picture that prints whole over one that prints bigger and clipped; (2) removing the PNG
+passthrough changes bytes readers may have been relying on — mitigated because the `original`
+download is that passthrough and is untouched; (3) A4 as 595x842 is a rounding of 210x297mm, and
+once the content box is derived from the paper the paper should be the real one, so core uses
+595.276 x 841.89.
+
+**Definition of done (literal):**
+`npm run check && npm run lint && npm test && npm run build && npm run verify && npx playwright test tests/e2e/print.spec.ts`
+
+---
+
 ## Run 12 close-out (2026-09-06) — micro plan, PR for the merge record
 
 Required by `AGENTS.md` L108: a governance-only documentation change still needs a plan listing the

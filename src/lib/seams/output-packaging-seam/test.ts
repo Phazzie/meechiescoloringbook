@@ -2,13 +2,14 @@
  * Purpose: Contract and unit verification for OutputPackagingSeam.
  * Why: Ensure OutputPackagingSeam contract invariants hold across scenarios without Canvas/DOM binaries.
  * Info flow: Fixtures -> Mock/Contract -> Vitest assertions.
- * Invariants: Sample returns ok: true with expected files; fault returns NO_IMAGES error envelope; viewBox aspect ratio correctly resolved.
+ * Invariants: Sample returns ok: true with expected files; fault returns NO_IMAGES error envelope; viewBox aspect ratio correctly resolved; the dimensionless-SVG fallback is the page geometry `src/lib/core/print-layout.ts` owns, not a second copy of it.
  */
 import { describe, expect, it } from 'vitest';
 import { OutputPackagingInputSchema } from './contract';
 import { outputPackagingSampleFixture, outputPackagingFaultFixture } from './fixtures';
 import { createOutputPackagingMock } from './mock';
 import { parseSvgSize } from '../../adapters/output-packaging-seam';
+import { printCanvasPx } from '../../core/print-layout';
 
 describe('OutputPackagingSeam contract (self-contained)', () => {
 	it('mock returns sample fixture output', async () => {
@@ -44,6 +45,14 @@ describe('OutputPackagingSeam contract (self-contained)', () => {
 			fileBaseName: ''
 		});
 		expect(missingBaseName.success).toBe(false);
+	});
+
+	it('rasterises a dimensionless SVG at the page geometry core owns', () => {
+		// No width, no height, no viewBox: the fallback. It used to be a hardcoded `2550 x 3300` pair
+		// in the adapter, which is 300dpi US Letter written out by hand. Same numbers, one owner —
+		// this fails if the two ever start disagreeing about what a sheet of paper is.
+		const size = parseSvgSize('<svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0h10v10H0z"/></svg>');
+		expect(size).toEqual(printCanvasPx('US_Letter'));
 	});
 
 	it('computes 2:1 aspect ratio canvas bounds from SVG with only viewBox', () => {

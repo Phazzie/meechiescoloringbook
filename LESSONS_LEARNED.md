@@ -7,6 +7,24 @@ Info flow: Experience -> lesson -> action applied to future changes.
 
 Short, dated entries capturing pitfalls, surprises, and fixes.
 
+## 2026-09-08
+- Date: 2026-09-08
+- Context: Run 16 rebuilt the packaged print download. Its first red proof set `PRINT_SAFE_MARGIN_MM` to 0 and only 4 of 27 tests failed.
+- Lesson: **A test that asserts an invariant against the constant that produces it is self-referential and proves nothing.** Fourteen margin assertions compared the placement to `PRINT_SAFE_MARGIN_PT`; zeroing that constant moved both sides of every comparison at once, so a layout that bleeds to the edge of the paper passed its own margin tests.
+- Action: Measure an invariant against a floor that is stated independently and owned by nothing under test — here `HARDWARE_CLEARANCE_PT` (0.25in, the printer's physical unprintable border). The same edit then fails 20 of 27. Run 15 recorded the general form of this and it still had to be rediscovered; when writing a red proof, check *how many* tests fail, not just that some do.
+
+## 2026-09-08
+- Date: 2026-09-08
+- Context: The packaging adapter needed the image's intrinsic size to lay it out, so canvas creation moved inside `image.onload`.
+- Lesson: **Moving a guard behind an event moves it behind an event that may never fire.** `Image` never fires `load` in jsdom, so an early `getContext` check that used to return `CANVAS_UNAVAILABLE` immediately became unreachable, and 20 existing tests hung to a five-second timeout each instead of failing fast.
+- Action: Take the failable resource up front and only *resize* it once the event arrives. A guard's value is in running on the paths where the thing it guards is missing, which are exactly the paths where the happy-path event does not arrive.
+
+## 2026-09-08
+- Date: 2026-09-08
+- Context: `src/routes/+layout.svelte` carried the comment "The packaged PDF bleeds its image to all four edges; this does not" — written by Run 13, beside the fix for the *other* print path.
+- Lesson: A defect that has been written down in a comment is not a defect that has been reported. It sat in the source for three runs, in the file most relevant to it, and no run picked it up because a comment is not a test, an issue, or a log entry.
+- Action: When a change notices a defect it is deliberately not fixing, put it in the log's "carried forward" list as well as in the comment. Run 15 did exactly that for this one, which is how Run 16 found it.
+
 ## 2026-01-22
 - Date: 2026-01-22
 - Context: Secret management for local development.
