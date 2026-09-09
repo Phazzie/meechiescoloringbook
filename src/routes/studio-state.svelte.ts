@@ -54,6 +54,7 @@ import { WIG_TRY_ON_QUOTA_COST } from '$lib/core/ai-quota';
 import {
 	classifyGenerationFailure,
 	PAGE_SUBJECT,
+	TRY_ON_SUBJECT,
 	VERDICT_SUBJECT,
 	type GenerationFailure
 } from '$lib/core/generation-failure';
@@ -133,6 +134,46 @@ export type SettingChangeSource = 'theme' | 'style' | 'setting';
  * sentence drift apart and the reader is told two different things about the same failure.
  */
 const UNCHECKED_SETTINGS_MESSAGE = 'Page settings could not be checked.';
+
+/**
+ * The property `recordFailure` writes onto each failure it classifies, recording the order it
+ * happened in relative to this studio's other failures.
+ *
+ * Deliberately not part of `GenerationFailure`: the ordering question is this studio's alone —
+ * it is the only surface in the app with three independent failures that can be live at once —
+ * and every other surface would carry a field it never writes. A string key rather than a symbol
+ * because this value is read back through a `$state` proxy, and a plain property read is the one
+ * thing a proxy is guaranteed not to change.
+ */
+const FAILURE_STAMP = 'studioFailureStamp';
+
+type StampedFailure = GenerationFailure & {
+	readonly [FAILURE_STAMP]: number;
+};
+
+/** A failure's stamp, or `0` for one that never went through `recordFailure`. */
+const stampOf = (failure: GenerationFailure | null): number => {
+	if (failure === null) return 0;
+	const stamp = (failure as Partial<StampedFailure>)[FAILURE_STAMP];
+	return typeof stamp === 'number' ? stamp : 0;
+};
+
+/**
+ * The most recently classified of the failures still being held, or `null` when none is.
+ *
+ * `>` rather than `>=`, so an unstamped failure — one a test assigned directly, which is the only
+ * way to get one — loses to the earlier entries rather than displacing them.
+ */
+const newestFailure = (
+	failures: readonly (GenerationFailure | null)[]
+): GenerationFailure | null =>
+	failures.reduce<GenerationFailure | null>(
+		(best, failure) =>
+			failure !== null && (best === null || stampOf(failure) > stampOf(best))
+				? failure
+				: best,
+		null
+	);
 
 /**
  * A spec with the reader's current dedication on it, and no `dedication` key at all when there is
@@ -352,6 +393,28 @@ export class StudioState {
 	 * here too, as `request_rejected`, which is exactly what they are.
 	 */
 	pageFailure = $state<GenerationFailure | null>(null);
+	/**
+	 * Counts classifications on this studio, so the newest live failure can be identified.
+	 *
+	 * System Trace shows one diagnostic and this studio has three failures that can be live at once,
+	 * so something has to say which one it is about. That was `pageFailure?.detail ??
+	 * textFailure?.detail ?? null` at the call site, and a fixed order cannot answer it: a text
+	 * failure followed by a try-on failure leaves both set, and so does a try-on failure followed by
+	 * a text failure. Whichever field is listed first wins both times, so it names the stale one in
+	 * exactly one of them — and the panel is where a reader goes to find out what just went wrong.
+	 *
+	 * A stamp written *onto* each classified failure by `recordFailure`, rather than a
+	 * `lastClassified` field compared by identity against the three. Identity is not available here:
+	 * `$state` deep-proxies whatever is assigned to it, so two fields holding the same object return
+	 * two different proxies of it and `===` is false between them — Svelte says so out loud, as
+	 * `state_proxy_equality_mismatch`. Reading a property through a proxy is unaffected, which is why
+	 * a stamp works where identity does not. It also needs no synchronising with the many
+	 * `pageFailure = null` writes scattered through this class: a field holding nothing is skipped,
+	 * and a field still holding a failure still carries its own stamp.
+	 *
+	 * Not `$state`: it is never read during rendering, only written onto values that are.
+	 */
+	private failureStamp = 0;
 	/**
 	 * Which of the two page generators was last attempted, so a retry runs the same one.
 	 *
@@ -750,7 +813,40 @@ export class StudioState {
 	selfieBase64 = $state('');
 	selfieMimeType = $state<'image/jpeg' | 'image/png' | 'image/webp'>('image/jpeg');
 	isTryingOn = $state(false);
-	tryOnError = $state('');
+	/**
+	 * The one failed try-on the reader is currently being told about, classified.
+	 *
+	 * This was a bare `string` holding whatever the request threw, rendered in a crimson box: an
+	 * offline attempt read `Failed to fetch`, a bad gateway read
+	 * `postJson: HTTP 502 Bad Gateway from /api/wig-try-on: empty response body`, and a rate-limit
+	 * refusal said "the current window" a few pixels below a meter that already knew the instant.
+	 * It was the last of the app's eight `postJson` call sites still doing that, months after
+	 * `TRY_ON_SUBJECT` and eight `WIG_TRY_ON_*` cause mappings were written for it and left unused.
+	 */
+	tryOnFailure = $state<GenerationFailure | null>(null);
+	/**
+	 * The reader-facing sentence for the last try-on failure. Derived, so there is one writer.
+	 *
+	 * Read by the tests rather than by a surface, exactly as `textError` is: the panel takes the
+	 * whole failure, because it needs the retry advice as well as the words.
+	 */
+	tryOnError = $derived(this.tryOnFailure?.message ?? '');
+	/**
+	 * The raw diagnostic System Trace renders under "What Went Wrong Underneath", or `null`.
+	 *
+	 * Declared here rather than beside `failureStamp`, which is where it belongs by subject: a
+	 * `$derived` is evaluated in field order, and `tryOnFailure` is declared further down the class,
+	 * so up there it would read a field that does not exist yet.
+	 *
+	 * The newest *live* failure wins, so a failure that has been cleared stops being explained the
+	 * moment it leaves the screen, and an older one still on screen is described rather than
+	 * ignored. Ties go to the order listed, which only arises between failures that never went
+	 * through `recordFailure` and so carry no stamp at all.
+	 */
+	traceFailureDetail = $derived(
+		newestFailure([this.pageFailure, this.textFailure, this.tryOnFailure])?.detail ??
+			null
+	);
 	/**
 	 * Every portrait made from the current selfie, keyed by the wig it was made for.
 	 *
@@ -1591,7 +1687,7 @@ export class StudioState {
 	 */
 	private resetTryOnPageState(): void {
 		this.resetGeneratedPage();
-		this.tryOnError = '';
+		this.tryOnFailure = null;
 	}
 
 	/**
@@ -1883,13 +1979,30 @@ export class StudioState {
 	 * helper above uses the other one. Two helpers rather than one shared with a `bucket` argument,
 	 * so a call site cannot pick the wrong bucket at all.
 	 */
+	/**
+	 * Classify, and stamp the result with when it happened relative to this studio's other failures.
+	 *
+	 * Every classification on this studio goes through here, so the three helpers below cannot each
+	 * keep their own idea of what "most recent" means. A classification the caller then discards is
+	 * simply never read, because `traceFailureDetail` only looks at failures a field still holds.
+	 */
+	private recordFailure(
+		input: Parameters<typeof classifyGenerationFailure>[0]
+	): StampedFailure {
+		this.failureStamp += 1;
+		return {
+			...classifyGenerationFailure(input),
+			[FAILURE_STAMP]: this.failureStamp
+		};
+	}
+
 	private classifyPageFailure(
 		input: Pick<
 			Parameters<typeof classifyGenerationFailure>[0],
 			'thrown' | 'apiError' | 'offContract' | 'rejected'
 		>
 	): GenerationFailure {
-		return classifyGenerationFailure({
+		return this.recordFailure({
 			...input,
 			subject: PAGE_SUBJECT,
 			// This studio clears the page before generating a replacement, so there is never one
@@ -1906,13 +2019,42 @@ export class StudioState {
 	 * The TEXT bucket's reset instant: `/api/meechie-studio-text` spends that one, and naming the
 	 * image window's instant here would be the bucket mix-up `AiQuotaLedger` exists to prevent.
 	 */
+	/**
+	 * Classify one failed wig try-on.
+	 *
+	 * The IMAGE bucket's reset instant, because `/api/wig-try-on` charges `WIG_TRY_ON_QUOTA_COST`
+	 * against that bucket — the same eight units a minute that fund coloring pages, which is why
+	 * `tryOnQuotaMessage` a few lines above reads from it too. Naming the text window's instant here
+	 * would be the bucket mix-up `AiQuotaLedger` exists to prevent, and it would be visible: the
+	 * quota line and the failure's "ready again at" sit in the same column of the same panel.
+	 */
+	private classifyTryOnFailure(
+		input: Pick<
+			Parameters<typeof classifyGenerationFailure>[0],
+			'thrown' | 'apiError' | 'offContract' | 'rejected'
+		>
+	): GenerationFailure {
+		return this.recordFailure({
+			...input,
+			subject: TRY_ON_SUBJECT,
+			// A try-on clears the coloring page before it starts (`resetTryOnPageState`), so there is
+			// never one underneath the failure for the sentence to reassure the reader about. The
+			// portraits in the compare strip do survive, but `pageKept` is about the page on paper,
+			// and widening it to mean "something else on screen survived" would make the sentence it
+			// appends untrue on every other surface that reads it.
+			pageKept: false,
+			quotaResetAtMs: this.quota.image?.resetAtMs ?? null,
+			isOnline: this.readConnection()
+		});
+	}
+
 	private classifyTextFailure(
 		input: Pick<
 			Parameters<typeof classifyGenerationFailure>[0],
 			'thrown' | 'apiError' | 'offContract' | 'rejected'
 		>
 	): GenerationFailure {
-		return classifyGenerationFailure({
+		return this.recordFailure({
 			...input,
 			subject: VERDICT_SUBJECT,
 			// A text failure never touches the page on the paper: it is about the words, and the
@@ -2400,7 +2542,14 @@ export class StudioState {
 	handleWigTryOn = async (): Promise<void> => {
 		const wig = this.selectedWig;
 		if (!wig || !this.selectedWigId || !this.selfieBase64) {
-			this.tryOnError = 'Select a wig and upload your selfie first.';
+			// `rejected`, not `apiError`: nothing was sent, so this is the app declining to spend the
+			// reader's quota rather than Meechie refusing the look. Routed through the code map it
+			// would read "Meechie would not make that try-on: Select a wig and upload your selfie
+			// first", which blames her for two controls the reader can simply use. It still lands as
+			// `request_rejected`, so no retry control is offered against an unchanged request.
+			this.tryOnFailure = this.classifyTryOnFailure({
+				rejected: 'Select a wig and upload your selfie first.'
+			});
 			return;
 		}
 		// Both captured before the await: styling takes long enough that the reader can pick another
@@ -2436,15 +2585,24 @@ export class StudioState {
 			);
 			const parsed = WigTryOnResultSchema.safeParse(payload);
 			if (!parsed.success) {
-				this.setTryOnError(
-					'Try-on response did not match contract.',
+				this.setTryOnFailure(
+					this.classifyTryOnFailure({ offContract: true }),
 					requestedWig.id,
 					requestedSelfieToken
 				);
 				return;
 			}
 			if (!parsed.data.ok) {
-				this.setTryOnError(parsed.data.error.message, requestedWig.id, requestedSelfieToken);
+				// The route's own message, which reached the reader through
+				// `toPublicProviderError`'s allowlist and was written to be read. The code beside it
+				// is what turns a 429 into a named instant and a config error into "not something you
+				// can fix from here" — every `WIG_TRY_ON_*` code this route emits is already mapped in
+				// `CAUSE_BY_CODE`, and until now not one of them could be reached.
+				this.setTryOnFailure(
+					this.classifyTryOnFailure({ apiError: parsed.data.error }),
+					requestedWig.id,
+					requestedSelfieToken
+				);
 				return;
 			}
 			// The portrait is of the selfie that was current when it was requested. If that is no
@@ -2455,8 +2613,11 @@ export class StudioState {
 				portraitUrl: `data:${parsed.data.value.portraitMimeType};base64,${parsed.data.value.portraitBase64}`
 			});
 		} catch (error) {
-			this.setTryOnError(
-				error instanceof Error ? error.message : 'Wig try-on failed.',
+			// The thrown value goes in whole and is classified by its shape. Its text reaches
+			// `failure.detail` and System Trace, and never the sentence — this line is where
+			// `Failed to fetch` used to become the app's account of itself.
+			this.setTryOnFailure(
+				this.classifyTryOnFailure({ thrown: error }),
 				requestedWig.id,
 				requestedSelfieToken
 			);
@@ -2466,14 +2627,34 @@ export class StudioState {
 	};
 
 	/**
+	 * Try the same look again.
+	 *
+	 * It re-runs `handleWigTryOn`, which reads the live wig and the live selfie — and that is the
+	 * *correct* request rather than a convenient one, because `setTryOnFailure` below only ever puts
+	 * a failure on screen while its own wig is still selected and its own selfie still uploaded. So a
+	 * visible try-on failure is, by construction, a failure of exactly what those two controls hold
+	 * now. The other surfaces pin the attempted request in a `lastAttempted…` field precisely because
+	 * they have no such guard; adding one here would be a second source of truth for "which wig is on
+	 * screen", which is the thing `selectedWigId` is derived rather than stored to avoid.
+	 */
+	retryWigTryOn = async (): Promise<void> => {
+		if (this.isTryingOn) return;
+		await this.handleWigTryOn();
+	};
+
+	/**
 	 * Shows a try-on failure only while it is still the reader's failure to read: the wig it
 	 * happened to is still on screen, and the selfie it was for is still the uploaded one. A
 	 * failure for a wig they have moved off, or for a photo they have replaced, is neither.
 	 */
-	private setTryOnError(message: string, wigId: string, selfieToken: number): void {
+	private setTryOnFailure(
+		failure: GenerationFailure,
+		wigId: string,
+		selfieToken: number
+	): void {
 		if (this.selectedWigId !== wigId) return;
 		if (selfieToken !== this.selfieToken) return;
-		this.tryOnError = message;
+		this.tryOnFailure = failure;
 	}
 
 	copyQuote = async (): Promise<void> => {

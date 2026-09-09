@@ -23,8 +23,10 @@ Info flow: User selects wig + uploads photo → callbacks fire → parent calls 
 
 <script lang="ts">
 	import AiQuotaLine from '$lib/components/AiQuotaLine.svelte';
+	import GenerationFailureNotice from '$lib/components/GenerationFailureNotice.svelte';
 	import WigCarousel from '$lib/components/WigCarousel.svelte';
 	import SelfieUpload from '$lib/components/SelfieUpload.svelte';
+	import type { GenerationFailure } from '$lib/core/generation-failure';
 	import type { Wig } from '$lib/seams/wig-catalog-seam/contract';
 	import type { TryOnPortrait } from '../../../routes/studio-state.svelte';
 
@@ -37,7 +39,7 @@ Info flow: User selects wig + uploads photo → callbacks fire → parent calls 
 		tryOnPortraits,
 		canCompareTryOns,
 		canGenerateTryOnPage,
-		tryOnError,
+		tryOnFailure,
 		isTryingOn,
 		canTryOn,
 		tryOnQuotaMessage,
@@ -45,6 +47,7 @@ Info flow: User selects wig + uploads photo → callbacks fire → parent calls 
 		onWigSelect,
 		onSelfieUpload,
 		onWigTryOn,
+		onRetryTryOn,
 		onGenerateTryOnPage
 	}: {
 		selectedWigId: string | null;
@@ -55,7 +58,14 @@ Info flow: User selects wig + uploads photo → callbacks fire → parent calls 
 		tryOnPortraits: TryOnPortrait[];
 		canCompareTryOns: boolean;
 		canGenerateTryOnPage: boolean;
-		tryOnError: string;
+		/**
+		 * The classified failure of the last try-on, or `null`.
+		 *
+		 * A `GenerationFailure` rather than the string this used to take, so the panel renders the
+		 * same notice — sentence, wait, retry — that the other seven AI call sites render, instead of
+		 * putting the exception's own text in a crimson box.
+		 */
+		tryOnFailure: GenerationFailure | null;
 		isTryingOn: boolean;
 		canTryOn: boolean;
 		/**
@@ -69,6 +79,8 @@ Info flow: User selects wig + uploads photo → callbacks fire → parent calls 
 		onWigSelect: (_wig: Wig) => Promise<void>;
 		onSelfieUpload: (_base64: string, _mimeType: 'image/jpeg' | 'image/png' | 'image/webp') => void;
 		onWigTryOn: () => Promise<void>;
+		/** Re-run the try-on that failed. See `retryWigTryOn` for why "the live one" is that one. */
+		onRetryTryOn: () => void;
 		onGenerateTryOnPage: () => Promise<void>;
 	} = $props();
 
@@ -116,9 +128,12 @@ Info flow: User selects wig + uploads photo → callbacks fire → parent calls 
 					testId="home-try-on-quota"
 					id="try-on-budget"
 				/>
-				{#if tryOnError}
-					<p class="error" data-testid="home-try-on-error">{tryOnError}</p>
-				{/if}
+				<GenerationFailureNotice
+					failure={tryOnFailure}
+					onRetry={onRetryTryOn}
+					isBusy={isTryingOn}
+					testId="home-try-on-error"
+				/>
 				<a
 					href={selectedWig.affiliateUrl}
 					target="_blank"

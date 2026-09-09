@@ -824,3 +824,21 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
 - Context: Probing what the Quote Vault shows, by seeding `cb_creations_v1` in a real browser before visiting each route.
 - Lesson: The first probe reported zero saved pages on *every* surface, including the one that works — which looked like a far larger finding than the real one. The seeded records used `pageSize: 'us_letter'` and `border: 'thin'`; the schema's enums are `US_Letter` and `none|plain|decorative`, so `parseCreationRecord` rejected all seven and the vault correctly rendered its empty state. A storage probe whose seed does not parse measures the empty state and reads as a defect in the feature.
 - Action: Seed storage probes from the repository's own fixtures (`fixtures/creation-store/sample.json` here), varying only the fields the probe is about. Before believing a probe that reports "nothing anywhere", check it against the one surface already known to work — a probe that finds the working case broken is measuring itself.
+
+## 2026-09-09
+- Date: 2026-09-09
+- Context: Deciding which of a studio's three live failures System Trace should explain, by keeping the most recently classified one and comparing it back against the three fields with `===`.
+- Lesson: **`===` between two `$state`-held references to the same object is always false.** Svelte deep-proxies whatever is assigned to a `$state` field, so two fields holding one object hand back two different proxies of it. The identity guard silently matched nothing and the panel showed no diagnostic at all — and Svelte said so explicitly, as `state_proxy_equality_mismatch` on stderr, which a test run prints above the failure rather than as it. Property *reads* through a proxy are unaffected, which is what makes a stamp written onto the value work where identity does not.
+- Action: Never key logic on object identity across `$state` fields. Carry a comparable value — a stamp, an id, a version — on the object itself, and read it back as a property. Treat `state_proxy_equality_mismatch` in test stderr as a failing assertion about the design, not as noise: it names the exact line that cannot work.
+
+## 2026-09-09
+- Date: 2026-09-09
+- Context: Auditing whether a shared module was actually reaching every surface it was written for, by counting call sites rather than reading the module.
+- Lesson: A shared abstraction can ship complete, tested and documented and still miss a caller, and neither the tests nor the types will say so — the unwired surface keeps compiling and keeps passing its own old tests. Here `grep -c postJson` returned eight call sites and `grep -c classifyGenerationFailure` returned seven, and the missing one had a purpose-built subject constant (`TRY_ON_SUBJECT`) and eight route-code mappings sitting in the classifier with **zero references anywhere in `src/` or `tests/`**. An exported constant with no callers is the cheapest possible signal that a rebuild stopped one surface short.
+- Action: After extracting a shared module, count its call sites against the count of the thing it replaced, and grep every symbol it exports for references outside its own file and test. A zero means an unfinished migration, not a spare part. Record the count in the pull request so the next reader can re-measure it in one command.
+
+## 2026-09-09
+- Date: 2026-09-09
+- Context: Running the Playwright suite three times in one session while an earlier run was still holding the preview server.
+- Lesson: Concurrent Playwright runs against this repo's `webServer` config report **different totals for the same suite** — 79, then 57 — without failing, so a green summary line can describe a partial run. Combined with the already-recorded fact that a `| tail`ed pipeline reports `tail`'s exit code, two independent ways for a run to look green while proving less than it claims can stack in one command.
+- Action: Run the end-to-end suite once, alone, with nothing else in the background; write the full output to a file rather than piping to `tail`; and **check the test count against the previous run's** before believing the word "passed". A count that dropped is a failed run whatever the summary says.
