@@ -4,7 +4,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
 	classifyGenerationFailure,
-	PAGE_SUBJECT
+	PAGE_SUBJECT,
+	retryControlLabel
 } from '../../src/lib/core/generation-failure';
 import { creationStoreAdapter } from '../../src/lib/adapters/creation-store.adapter';
 import { outputPackagingAdapter } from '../../src/lib/adapters/output-packaging.adapter';
@@ -4720,5 +4721,256 @@ describe('StudioState mode spotlight', () => {
 		} finally {
 			studio.destroy();
 		}
+	});
+});
+
+/**
+ * The wig try-on's failure path.
+ *
+ * This was the last of the app's eight `postJson` call sites still writing the caught exception's
+ * own message into a crimson box, months after `TRY_ON_SUBJECT` and eight `WIG_TRY_ON_*` cause
+ * mappings were added to `generation-failure.ts` for it and left with no caller. Every test here
+ * asserts on what a *reader* is shown, and several assert that the developer's string is absent —
+ * because a classifier that words a sentence and then also leaks the raw text has not fixed
+ * anything.
+ */
+describe('StudioState wig try-on failures', () => {
+	const TRY_ON_NOW_MS = 1_770_000_000_000;
+
+	const arrangeTryOn = (): StudioState => {
+		const studio = new StudioState();
+		studio.selectedWig = SAMPLE_WIG;
+		studio.selfieBase64 = 'selfie-bytes';
+		// Stated rather than left to jsdom, so a test never depends on the harness's idea of the
+		// connection. `classifyGenerationFailure` reads it second and only to sharpen a sentence.
+		studio.readConnection = () => true;
+		return studio;
+	};
+
+	const routeRefusal = (code: string, message: string): Response =>
+		new Response(JSON.stringify({ ok: false, error: { code, message } }), {
+			status: 200,
+			statusText: 'OK'
+		});
+
+	afterEach(() => {
+		vi.unstubAllGlobals();
+	});
+
+	it('tells the reader they are offline instead of showing them `Failed to fetch`', async () => {
+		const studio = arrangeTryOn();
+		studio.readConnection = () => false;
+		vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')));
+
+		await studio.handleWigTryOn();
+
+		expect(studio.tryOnFailure?.cause).toBe('offline');
+		expect(studio.tryOnError).toContain('You are offline');
+		// The exception's text is kept, and kept *out* of the sentence. This assertion is the whole
+		// point of the module: the diagnostic survives for System Trace and never becomes the app's
+		// account of itself.
+		expect(studio.tryOnError).not.toContain('Failed to fetch');
+		expect(studio.tryOnFailure?.detail).toBe('Failed to fetch');
+		// Nothing to count down to — the button waits for a connection, not for a clock.
+		expect(studio.tryOnFailure?.retry).toEqual({ kind: 'reconnect' });
+	});
+
+	it('does not show postJson\'s own HTTP sentence to a reader', async () => {
+		const studio = arrangeTryOn();
+		const raw =
+			'postJson: HTTP 502 Bad Gateway from /api/wig-try-on: empty response body';
+		vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error(raw)));
+
+		await studio.handleWigTryOn();
+
+		// A response genuinely arrived and was unusable, which is a different fact from never
+		// reaching the server, and the reader is told a different sentence for each.
+		expect(studio.tryOnFailure?.cause).toBe('unreadable_response');
+		expect(studio.tryOnError).not.toContain('postJson');
+		expect(studio.tryOnFailure?.detail).toBe(raw);
+	});
+
+	it('names the instant the image bucket refills, from the refusal that named it', async () => {
+		const clock = createMockClockSeam(TRY_ON_NOW_MS);
+		const studio = arrangeTryOn();
+		studio.clock = clock;
+		vi.stubGlobal(
+			'fetch',
+			vi.fn().mockResolvedValue(
+				new Response(
+					JSON.stringify({
+						ok: false,
+						error: {
+							code: 'RATE_LIMITED',
+							message: 'Too many requests. Try again after the current window resets.'
+						}
+					}),
+					{
+						status: 429,
+						statusText: 'Too Many Requests',
+						headers: {
+							'RateLimit-Limit': '8',
+							'RateLimit-Remaining': '0',
+							'RateLimit-Reset': '30'
+						}
+					}
+				)
+			)
+		);
+
+		await studio.handleWigTryOn();
+
+		expect(studio.tryOnFailure?.cause).toBe('rate_limited');
+		// The IMAGE bucket, which is what `/api/wig-try-on` charges. Reading the text bucket's
+		// instant here would put a number on screen from a window this button never spends — and
+		// the try-on quota line sits in the same column of the same panel.
+		expect(studio.tryOnFailure?.retry).toEqual({
+			kind: 'after',
+			readyAtMs: TRY_ON_NOW_MS + 30_000
+		});
+		expect(studio.quota.image?.resetAtMs).toBe(TRY_ON_NOW_MS + 30_000);
+	});
+
+	it('offers no retry control for a service that is not set up', async () => {
+		const studio = arrangeTryOn();
+		vi.stubGlobal(
+			'fetch',
+			vi.fn().mockResolvedValue(
+				routeRefusal('WIG_TRY_ON_CONFIG_ERROR', 'Wig try-on is temporarily unavailable.')
+			)
+		);
+
+		await studio.handleWigTryOn();
+
+		expect(studio.tryOnFailure?.cause).toBe('provider_unconfigured');
+		// Nothing the reader does from here helps, so a button would only spend their allowance to
+		// buy the identical refusal back.
+		expect(studio.tryOnFailure?.retry).toEqual({ kind: 'none' });
+		expect(retryControlLabel(studio.tryOnFailure!)).toBeNull();
+	});
+
+	it('offers no retry control for a request the route refused on its merits', async () => {
+		const studio = arrangeTryOn();
+		vi.stubGlobal(
+			'fetch',
+			vi.fn().mockResolvedValue(
+				routeRefusal('WIG_TRY_ON_VALIDATION_ERROR', 'Wig try-on request is invalid.')
+			)
+		);
+
+		await studio.handleWigTryOn();
+
+		expect(studio.tryOnFailure?.cause).toBe('request_rejected');
+		expect(retryControlLabel(studio.tryOnFailure!)).toBeNull();
+	});
+
+	it('reads a response that does not match the contract without saying so in developer language', async () => {
+		const studio = arrangeTryOn();
+		vi.stubGlobal(
+			'fetch',
+			vi.fn().mockResolvedValue(
+				new Response(JSON.stringify({ ok: true, value: { nothing: 'useful' } }), {
+					status: 200,
+					statusText: 'OK'
+				})
+			)
+		);
+
+		await studio.handleWigTryOn();
+
+		expect(studio.tryOnFailure?.cause).toBe('unreadable_response');
+		expect(studio.tryOnError).not.toContain('contract');
+		expect(studio.tryOnFailure?.detail).toBe('Response did not match contract.');
+	});
+
+	it('blames the form, not Meechie, for a try-on this app declined to send', async () => {
+		const studio = new StudioState();
+		const fetchSpy = vi.fn();
+		vi.stubGlobal('fetch', fetchSpy);
+
+		await studio.handleWigTryOn();
+
+		// Verbatim. Routed through the code map it would read "Meechie would not make that try-on:
+		// Select a wig and upload your selfie first", which blames her for two controls the reader
+		// can simply use.
+		expect(studio.tryOnError).toBe('Select a wig and upload your selfie first.');
+		expect(studio.tryOnFailure?.cause).toBe('request_rejected');
+		expect(retryControlLabel(studio.tryOnFailure!)).toBeNull();
+		// Nothing was sent, so nothing was spent.
+		expect(fetchSpy).not.toHaveBeenCalled();
+	});
+
+	it('retries the wig that failed, and refuses to double-fire while one is running', async () => {
+		const studio = arrangeTryOn();
+		const fetchSpy = vi
+			.fn()
+			.mockResolvedValueOnce(
+				routeRefusal('WIG_TRY_ON_HTTP_ERROR', 'Wig try-on could not create a portrait.')
+			)
+			.mockResolvedValue(
+				new Response(
+					JSON.stringify({
+						ok: true,
+						value: { portraitBase64: 'cmV0cnk=', portraitMimeType: 'image/png' }
+					}),
+					{ status: 200, statusText: 'OK' }
+				)
+			);
+		vi.stubGlobal('fetch', fetchSpy);
+
+		await studio.handleWigTryOn();
+		expect(studio.tryOnFailure?.cause).toBe('provider_unavailable');
+
+		await studio.retryWigTryOn();
+
+		expect(fetchSpy).toHaveBeenCalledTimes(2);
+		// The second request is for the wig that failed, which is what the panel was showing.
+		expect(JSON.parse(String(fetchSpy.mock.calls[1][1].body)).wigId).toBe(SAMPLE_WIG.id);
+		expect(studio.tryOnFailure).toBeNull();
+		expect(studio.tryOnPortraits).toEqual([
+			{ wig: SAMPLE_WIG, portraitUrl: 'data:image/png;base64,cmV0cnk=' }
+		]);
+
+		// A retry pressed while one is already running spends nothing.
+		studio.isTryingOn = true;
+		await studio.retryWigTryOn();
+		expect(fetchSpy).toHaveBeenCalledTimes(2);
+	});
+
+	it('shows System Trace the newest failure, not whichever field is listed first', async () => {
+		const studio = arrangeTryOn();
+		vi.stubGlobal(
+			'fetch',
+			vi.fn().mockRejectedValue(new Error('the try-on diagnostic'))
+		);
+
+		await studio.handleWigTryOn();
+		expect(studio.traceFailureDetail).toBe('the try-on diagnostic');
+
+		// A text action fails next. Both failures are now live — `runTextAction` does not clear the
+		// try-on's — so the fixed `pageFailure ?? textFailure` order this replaced would have named
+		// whichever came first in the chain regardless of which one just happened.
+		studio.evidence = 'He said the traffic was bad again.';
+		vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('the text diagnostic')));
+		await studio.runTextAction('generate_text');
+
+		expect(studio.tryOnFailure).not.toBeNull();
+		expect(studio.textFailure).not.toBeNull();
+		expect(studio.traceFailureDetail).toBe('the text diagnostic');
+	});
+
+	it('shows no diagnostic once the failure it described has left the screen', async () => {
+		const studio = arrangeTryOn();
+		vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('a diagnostic')));
+
+		await studio.handleWigTryOn();
+		expect(studio.traceFailureDetail).toBe('a diagnostic');
+
+		// Moving to another wig clears the try-on failure. The panel must not go on explaining a
+		// failure the reader can no longer see.
+		await studio.selectWigForTryOn(OTHER_WIG);
+
+		expect(studio.tryOnFailure).toBeNull();
+		expect(studio.traceFailureDetail).toBeNull();
 	});
 });

@@ -3928,3 +3928,72 @@ guess — so `unknown` still offers a retry and still says something true.
 ### Definition of done
 
 `npm run check && npm run lint && npm test && npm run build && npm run verify`, each exit 0.
+
+## Run 21 — 2026-09-09 — The wig try-on's failure path
+
+### Goal
+
+Wire the wig try-on into `classifyGenerationFailure`. It is the **one** of the app's eight `postJson`
+call sites that still writes a caught exception's own message into a crimson box, and the classifier
+it needs was written for it and left with no caller: `TRY_ON_SUBJECT` has zero references anywhere in
+`src/` or `tests/`, and eight `WIG_TRY_ON_*` entries in `CAUSE_BY_CODE` are unreachable because the
+only surface that receives those codes never calls the classifier.
+
+### Seams
+
+**None.** No file under `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`, `src/lib/adapters/`
+or `src/lib/seams/` is touched. No route's wire shape, error code or `RateLimit-*` header changes.
+`/api/wig-try-on` and `runWigTryOnPipeline` are read and not modified: every code the reader now gets
+a proper sentence for is one the pipeline already emitted.
+
+### Exact file inventory
+
+- **`[MODIFY] src/routes/studio-state.svelte.ts`** — `tryOnError: string` becomes
+  `tryOnFailure: GenerationFailure | null` with `tryOnError` derived from it; new
+  `classifyTryOnFailure` (subject `TRY_ON_SUBJECT`, the **image** bucket's reset instant, the
+  connection read); `setTryOnError` becomes `setTryOnFailure`, keeping both staleness guards; new
+  `retryWigTryOn`; the four failure exits classify instead of assigning a string. New
+  `recordFailure` stamps every classification so System Trace can name the newest live failure.
+- **`[MODIFY] src/lib/components/studio/WigTryOnStudio.svelte`** — the `tryOnError` prop becomes
+  `tryOnFailure`, plus `onRetryTryOn`; `<p class="error">` becomes `GenerationFailureNotice`.
+- **`[MODIFY] src/routes/+page.svelte`** — pass the failure and the retry;
+  `failureDetail` reads `studio.traceFailureDetail` instead of a fixed `??` chain.
+- **`[MODIFY] tests/unit/studio-state.test.ts`** — ten cases: offline, `postJson` HTTP, rate limit
+  with the image bucket's instant, unconfigured, rejected, off-contract, the local refusal, retry,
+  and the two trace-precedence cases.
+- **`[MODIFY] tests/e2e/smoke.spec.ts`** — two browser cases: a provider failure with a working
+  retry, and a rate-limited failure whose control names an instant and is disabled.
+
+### Anti-goals
+
+Do not touch any seam directory. Do not change `GenerationFailure`, `classifyGenerationFailure` or
+`GenerationFailureNotice.svelte` — if the classifier does not already fit this surface, that is a
+finding to record, not a reason to widen it. Do not touch the try-on's staleness tokens
+(`selfieToken`, the wig guard): they are correct and this change depends on them. Do not add a
+`ConnectionSeam`; read the connection exactly where the other surfaces read it.
+
+### Self-critique
+
+The riskiest assumption is that **a retry can read the live wig and live selfie**. Every other
+surface pins the attempted request in a `lastAttempted…` field. This one does not, and the reason has
+to be a guarantee rather than a convenience: `setTryOnFailure` refuses to display a failure whose wig
+is no longer selected or whose selfie has been replaced, so a *visible* try-on failure is by
+construction a failure of what those two controls hold now. If that guard were ever relaxed, the
+retry would silently re-ask for the wrong wig. Proven by a test that fails a try-on, retries, and
+asserts the second request's `wigId`.
+
+The second risk is **naming the wrong bucket's reset instant**. `/api/wig-try-on` charges the image
+bucket; reading `quota.text` would put a number on screen from a window this button never spends, a
+few pixels from the try-on quota line that reads the other one. Proven by a test asserting
+`retry.readyAtMs` equals the image bucket's `resetAtMs`.
+
+What could still be wrong: routing the local "select a wig and upload your selfie" refusal through
+the code map would produce "Meechie would not make that try-on: Select a wig…", blaming her for two
+controls the reader can simply use. That is the exact mistake the previous rebuild of this classifier
+made, and `rejected` exists because of it — so this uses `rejected`, and a test asserts the sentence
+is verbatim.
+
+### Definition of done
+
+`npm run check && npm run lint && npm test && npm run build && npm run verify`, each exit 0, plus the
+full Playwright suite.

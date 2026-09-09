@@ -1890,3 +1890,104 @@ test('a verdict Meechie could not rule on says so, and warns the button that cos
 	await page.getByTestId('home-verdict-add-evidence').click();
 	await expect(page.getByTestId('home-evidence')).toBeFocused();
 });
+
+/**
+ * The wig try-on's failure path, in a browser.
+ *
+ * The unit tests prove the classifier is reached. This proves what a reader actually sees, which is
+ * the check that catches a sentence routed through the wrong door — the mistake the previous rebuild
+ * of this classifier made twice, and found both times by reading the output rather than the code.
+ */
+test('a failed try-on says what happened and offers a way back', async ({ page }) => {
+	await gotoHydrated(page, '/');
+
+	// A bad gateway, which is what the app used to render as
+	// `postJson: HTTP 502 Bad Gateway from /api/wig-try-on: empty response body`.
+	let attempts = 0;
+	await page.route('**/api/wig-try-on', async (route) => {
+		attempts += 1;
+		if (attempts === 1) {
+			await route.fulfill({
+				status: 502,
+				json: {
+					ok: false,
+					error: {
+						code: 'WIG_TRY_ON_HTTP_ERROR',
+						message: 'Wig try-on could not create a portrait.'
+					}
+				}
+			});
+			return;
+		}
+		await route.fulfill({
+			json: {
+				ok: true,
+				value: {
+					portraitBase64: await wigJpegBase64,
+					portraitMimeType: 'image/jpeg'
+				}
+			}
+		});
+	});
+
+	await page.getByRole('button', { name: 'Select Sleek Straight Goddess' }).click();
+	await page.locator('#selfie-input').setInputFiles(wigJpegPath);
+	await page.getByTestId('home-try-on').click();
+
+	const notice = page.getByTestId('home-try-on-error');
+	await expect(notice).toBeVisible();
+	// The app's own voice, not the transport's.
+	await expect(notice).toContainText("Meechie's art service did not answer");
+	await expect(notice).not.toContainText('postJson');
+	await expect(notice).not.toContainText('502');
+
+	// And a control, which is the half the app never had: six of its own messages told the reader to
+	// try again and there was nothing anywhere to press.
+	const retry = page.getByTestId('home-try-on-error-retry');
+	await expect(retry).toHaveText('Try the wig again');
+	await expect(retry).toBeEnabled();
+
+	await retry.click();
+
+	// The retry asked for the wig that failed, and the notice leaves with the failure it described.
+	await expect(page.getByTestId('home-try-on-portrait')).toBeVisible();
+	await expect(notice).toHaveCount(0);
+});
+
+test('a rate-limited try-on names when it can be tried again, and will not be pressed before then', async ({
+	page
+}) => {
+	await gotoHydrated(page, '/');
+
+	await page.route('**/api/wig-try-on', async (route) => {
+		await route.fulfill({
+			status: 429,
+			headers: {
+				'RateLimit-Limit': '8',
+				'RateLimit-Remaining': '0',
+				// Far enough out that the window cannot reopen while the assertions below run.
+				'RateLimit-Reset': '600',
+				'Retry-After': '600'
+			},
+			json: {
+				ok: false,
+				error: {
+					code: 'RATE_LIMITED',
+					message: 'Too many requests. Try again after the current window resets.'
+				}
+			}
+		});
+	});
+
+	await page.getByRole('button', { name: 'Select Sleek Straight Goddess' }).click();
+	await page.locator('#selfie-input').setInputFiles(wigJpegPath);
+	await page.getByTestId('home-try-on').click();
+
+	const notice = page.getByTestId('home-try-on-error');
+	await expect(notice).toContainText("Meechie's desk is full");
+	// The instant, not "the current window" — the meter on this same panel already knew it.
+	await expect(page.getByTestId('home-try-on-error-wait')).toContainText('Ready again at');
+	// And the control is present but inert, so pressing it cannot spend an image credit to buy the
+	// identical refusal back.
+	await expect(page.getByTestId('home-try-on-error-retry')).toBeDisabled();
+});

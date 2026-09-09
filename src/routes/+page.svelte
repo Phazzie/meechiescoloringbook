@@ -7,7 +7,9 @@ Invariants: `SystemTrace` receives `promptWasSent` from the state and must never
             it from `assembledPrompt` being non-empty — the try-on flow fills that field with a
             description it never sent. Likewise `report` is passed whole: the panel switches on its
             state, so handing it loose arrays would put the "empty means clean" inference back in a
-            component.
+            component. `failureDetail` is `studio.traceFailureDetail` for the same reason: this
+            studio holds three failures that can be live at once, and picking one of them here with
+            a `??` chain named the stale one in half the orderings.
 -->
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
@@ -152,7 +154,7 @@ Invariants: `SystemTrace` receives `promptWasSent` from the state and must never
 		tryOnPortraits={studio.tryOnPortraits}
 		canCompareTryOns={studio.canCompareTryOns}
 		canGenerateTryOnPage={studio.canGenerateTryOnPage}
-		tryOnError={studio.tryOnError}
+		tryOnFailure={studio.tryOnFailure}
 		isTryingOn={studio.isTryingOn}
 		canTryOn={studio.canTryOn}
 		tryOnQuotaMessage={studio.tryOnQuotaMessage}
@@ -160,6 +162,7 @@ Invariants: `SystemTrace` receives `promptWasSent` from the state and must never
 		onWigSelect={studio.selectWigForTryOn}
 		onSelfieUpload={studio.setSelfieForTryOn}
 		onWigTryOn={studio.handleWigTryOn}
+		onRetryTryOn={() => void studio.retryWigTryOn()}
 		onGenerateTryOnPage={studio.handleGenerateTryOnPage}
 	/>
 
@@ -177,7 +180,7 @@ Invariants: `SystemTrace` receives `promptWasSent` from the state and must never
 	/>
 
 	<SystemTrace
-		failureDetail={studio.pageFailure?.detail ?? studio.textFailure?.detail ?? null}
+		failureDetail={studio.traceFailureDetail}
 		assembledPrompt={studio.assembledPrompt}
 		revisedPrompt={studio.revisedPrompt}
 		promptWasSent={studio.promptWasSent}

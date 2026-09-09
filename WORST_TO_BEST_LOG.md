@@ -14559,3 +14559,278 @@ Everything in the Run 20 entry above, unchanged, plus:
 - **Codex reviews can hang.** If one is still "Running" against a superseded commit when the gates
   are green, it is not an unaddressed review comment. Say so and merge; do not wait it out.
 - **Try the SonarCloud technique above before recording another unread finding.**
+
+## Run 21 — 2026-09-09 — The wig try-on's failure path, and the classifier written for it that nobody called
+
+### The pick
+
+The worst feature is **what the wig try-on says when it fails**. It is the one AI call in the app
+that still hands the reader a developer's string and no way forward — and the thing that makes it
+the worst rather than merely the last is that *the app already contains the fix, built for this
+exact surface, with no caller*.
+
+Run 20 rebuilt every failure path in the app and shipped `src/lib/core/generation-failure.ts`. While
+doing it, it wrote `TRY_ON_SUBJECT` — the noun and retry label for this feature and no other — and
+mapped all eight `WIG_TRY_ON_*` route codes into `CAUSE_BY_CODE`. Then it wired fifteen surfaces and
+stopped one short. This is Run 17's shape exactly (a finished seam with zero callers), one layer
+down.
+
+### The evidence, measured at this run's base (`069901c`)
+
+**Eight `postJson` call sites. Seven classify. One does not.**
+
+```
+$ rg -c 'postJson\(' src/ --glob '!**/http-client.ts'   # 8 call sites
+$ rg -l 'classifyGenerationFailure' src/                # 7 of them
+```
+
+The eighth is `handleWigTryOn` in `src/routes/studio-state.svelte.ts` L2400-2465.
+
+**The classifier's try-on support had zero callers anywhere.**
+
+```
+$ rg 'TRY_ON_SUBJECT' src/ tests/ | grep -v generation-failure.ts:
+$ echo $?
+1
+```
+
+`TRY_ON_SUBJECT` (`generation-failure.ts` L184-187) was exported, documented and unreferenced. So
+were the eight `WIG_TRY_ON_*` entries at L212-240: every one of them is a code
+`runWigTryOnPipeline` really emits, and not one was reachable, because the only surface that
+receives those codes never called the classifier.
+
+**What the four failure exits actually rendered**, all into `<p class="error">{tryOnError}</p>`
+(`WigTryOnStudio.svelte` L120):
+
+| Exit | `studio-state.svelte.ts` at base | What the reader saw |
+|------|----------------------------------|---------------------|
+| Thrown | L2459 `error instanceof Error ? error.message : 'Wig try-on failed.'` | `Failed to fetch`, or `postJson: HTTP 502 Bad Gateway from /api/wig-try-on: empty response body` |
+| Off-contract | L2440 | `Try-on response did not match contract.` |
+| Route refusal | L2447 `parsed.data.error.message` | The server's sentence, unmapped — a 429 read "Try again after the current window resets" |
+| Local refusal | L2403 | `Select a wig and upload your selfie first.` |
+
+*The shape Run 20 named is here too: in `e instanceof Error ? e.message : '<fallback>'` the author's
+own sentence runs only when something that is **not** an `Error` was thrown. `'Wig try-on failed.'`
+was written for a reader and, in normal operation, never once ran.*
+
+**No retry control, on the app's most expensive failure to get wrong.** A try-on charges
+`WIG_TRY_ON_QUOTA_COST` against the **image** bucket — the same eight units a minute that fund
+coloring pages — waits up to 120 seconds (`POST_JSON_TIMEOUTS_MS.wigTryOn`), and involves the reader
+uploading a photo of their own face. The reader's only move was to press Try On again, which spends
+the allowance again, and which for a rate-limited or unconfigured failure is guaranteed to fail.
+
+**The facts that would have helped were on the same panel.** `AiQuotaLine` renders
+`tryOnQuotaMessage` directly beneath the button, reading the image bucket's `resetAtMs` — the exact
+instant the failure a few pixels above it declined to name.
+
+### What it is now
+
+**The try-on classifies, like everything else.** `classifyTryOnFailure` supplies `TRY_ON_SUBJECT`,
+the **image** bucket's reset instant and the connection reading. The four exits become `thrown`,
+`offContract`, `apiError` and `rejected` — and the eight `WIG_TRY_ON_*` mappings became reachable for
+the first time.
+
+**`rejected`, not the code map, for the request the app declined to send.** Routed through
+`apiError` it would read *"Meechie would not make that try-on: Select a wig and upload your selfie
+first"*, blaming her for two controls the reader can simply use. This is the mistake Run 20 made and
+caught by reading its own output; `rejected` exists because of it.
+
+*Stated precisely, because the first draft of this entry overclaimed it:* **that branch is defensive
+and no reader can reach it today.** `canTryOn` already requires both a wig and a selfie, so the
+button is disabled in exactly the case the guard catches, and with no wig the panel holding the
+notice is not rendered at all. It is classified rather than left as a bare string so that it stays
+correct if a caller ever arrives that is not that button — which is a reason to word it properly, not
+a reader-facing improvement, and the entry now says so.
+
+**A retry that re-asks for the wig that failed** — and this surface gets there differently from the
+other three, on purpose. They pin the attempted request in a `lastAttempted…` field. `setTryOnFailure`
+already refuses to *display* a failure whose wig has been deselected or whose selfie has been
+replaced, so a visible try-on failure is by construction a failure of what those controls hold now.
+Pinning a copy would create the second source of truth for "which wig is on screen" that
+`selectedWigId` is `$derived` rather than stored to prevent. The coupling is real, so both methods
+name each other, a test asserts the retried `wigId`, and `DECISIONS.md` records the revisit
+criterion: if those guards are ever loosened, the pin has to arrive in the same change.
+
+**The retry is offered only where pressing it helps.** Rate-limited: on screen, disabled, naming the
+instant, re-enabling itself on a `ClockSeam` timer. Unconfigured or refused: no control at all.
+
+**System Trace now names the newest failure, not the first field in a list.** The home studio is the
+one surface with three failures that can be live at once, and they are not mutually exclusive —
+`runTextAction` clears only `textFailure`, `resetTryOnPageState` clears only two of the three. The
+call site read `pageFailure?.detail ?? textFailure?.detail ?? null`, which names the stale one in
+exactly one of the two orderings. Every classification now goes through one `recordFailure` that
+stamps it, and `traceFailureDetail` renders the newest failure still held. This also gives the
+try-on's raw diagnostic somewhere to go, closing Run 20's carried-forward gap for this one surface —
+the try-on exists only on the home studio, which is the only surface with a diagnostics panel.
+
+### What this run got wrong first, and what it cost
+
+**The stamp began as an identity check and could never have worked.** The first version kept a
+`lastClassifiedFailure` field and compared it back to the three with `===`. `$state` deep-proxies
+whatever is assigned to it, so two fields holding one object hand back two different proxies and the
+comparison is always false; the panel showed nothing at all. Svelte says so out loud —
+`state_proxy_equality_mismatch` — on stderr, above the failure rather than as it.
+
+Two things are worth taking from it. The first is the rule: **never key logic on object identity
+across `$state` fields**; carry a comparable value on the object and read it back as a property,
+which a proxy is guaranteed not to alter. The second is that it was the *test written for the
+behaviour* that caught it, before any push — a test asserting the panel names the newest failure,
+written because the `??` chain looked wrong, not because anything had failed yet.
+
+**An end-to-end test that did not test its own name.** The first browser case was called *"a try-on
+the app declined to send blames the form, not Meechie, and offers no retry"* and asserted only that
+the button was disabled and no notice was showing — true, passing, and not evidence of anything in
+its title. It was replaced with the rate-limited case, which a browser can actually demonstrate: the
+notice names an instant and the control is present and inert. *A green test whose name overstates it
+is worse than no test, because it retires the question.*
+
+### Seams
+
+**None touched.** `git status` against `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`,
+`src/lib/adapters/` and `src/lib/seams/` returns nothing. `/api/wig-try-on` and
+`runWigTryOnPipeline` were read and not modified: every code the reader now gets a proper sentence
+for is one the pipeline already emitted. No Cipher Gate is required and the merge rule's
+contract-change exclusion does not apply.
+
+Two judgement calls are recorded in `DECISIONS.md` rather than argued away: the stamp property that
+is deliberately not part of `GenerationFailure`, and the retry that reads the live controls instead
+of pinning the attempted request.
+
+### Gates
+
+`npm run check` 0 errors 0 warnings. `npm run lint` clean. `npm test` 1,901 passed, 1 skipped, up
+from 1,891. `npm run build` exit 0. Playwright 81 tests, up from 79.
+
+*Playwright still does not run in this container as configured*, unchanged from Run 20:
+`@playwright/test` wants Chromium 1208 and `/opt/pw-browsers` has 1194. It was run with a scratch
+config pointing `executablePath` at `/opt/pw-browsers/chromium-1194/chrome-linux/chrome`, which is
+deliberately not committed.
+
+**A new way for that suite to lie, found here.** Two Playwright runs overlapping against this repo's
+`webServer` config reported **different totals for the same suite — 79, then 57 — without failing**.
+A partial run summarises as "57 passed", which reads as green. Stacked with Run 20's finding that a
+`| tail`ed pipeline reports `tail`'s exit code, there are now two independent ways for this suite to
+look green while proving less than it claims. Run it once, alone, to a file, and **check the count
+against the previous run before believing the word "passed"**.
+
+### Carried forward for the next run
+
+Re-measure everything below; do not inherit it.
+
+- **`grep` an extracted module's exported symbols for zero references before calling a rebuild
+  finished.** This run's whole pick was findable in one command, and was sitting in the repository
+  for the length of a run. New this run, and the cheapest audit on this list.
+- **Fourteen surfaces still hold a `failure.detail` with nowhere to render it.** Run 20's item,
+  narrowed by one: the home studio's three failures now all reach System Trace, so what remains is
+  the shared diagnostics disclosure for the other surfaces, extracted the way `QualityReportPanel`
+  was. Touches no seam.
+- **A `ConnectionSeam` is still the right home for the `navigator.onLine` read.** Unchanged from
+  Run 20; this run added no new direct read, going through `readConnection` like every other surface.
+- **`MeechieTools.svelte` is still in legacy (non-runes) mode**, and still reads `navigator.onLine`
+  directly. Unchanged.
+- **The try-on's `rejected` branch is unreachable from the UI**, because `canTryOn` requires both a
+  wig and a selfie before the button that calls it is enabled. New this run and found while
+  re-reading the diff. Either the guard is redundant and should say so, or `canTryOn` is the wrong
+  place for one of those two conditions — a reader who uploads a photo and picks no wig is currently
+  told nothing at all, because the whole panel is behind `{#if selectedWig}`. Worth one run's
+  attention; it is a question about the panel's structure, not about the classifier.
+- **The two remaining raw `<p class="error">{string}</p>` renderings are storage, not AI**:
+  `VaultGallery.svelte` L126 (`vault.error`) and `StudioInputPanel.svelte` L174
+  (`draftSaveError`, prefixed "Draft not saved:"). Neither goes through a classifier, and there is no
+  storage equivalent of `generation-failure.ts`. That is a defensible next pick and would be a new
+  module rather than a wiring job.
+- Every item on **Run 19's carried-forward list** is untouched by this run and still stands: the
+  unparseable stored record destroyed by the next write, the unreclaimable earlier-session pages, the
+  entropy seam, the missing version stamp on the creations array, evicting the oldest unpinned page,
+  the early quota reset instant, `chatInterpretationAdapter` and `/api/image-generation` having no
+  callers, the three unread SonarCloud issues, the 1024x1024 square, `placedDpi`, the `chat`
+  packaging variant, mode persistence, `quoteScore` and `modelMetadata`, and the evidence
+  transcripts' missing file headers.
+- **Run 18 still has no merge close-out entry.** Not reconstructed here either.
+- **Sourcery's weekly budget was exhausted until roughly 2026-09-10 23:00 UTC**, per Run 20. This run
+  falls inside that window and should expect no line-by-line Sourcery review. Check the budget before
+  reading a skip as a comment on the diff size.
+- **SonarCloud still cannot be read from this container** (`sonarcloud.io` refused by the egress
+  proxy). Run 20's technique — enumerate the default profile's rules, grep the diff for each, act
+  only where there is exactly one candidate — is the thing to try before recording another unread
+  finding.
+- **Governance deviation, recorded rather than smoothed over:** `AGENTS.md` requires the plan in
+  `plan.md` before code changes. The plan for this run was formed before implementation but written
+  to `plan.md` during it. The file inventory and self-critique it contains describe the change as
+  actually made; the ordering requirement was not met.
+
+## Run 21, first close-out — 2026-09-09 — the SonarCloud round, and a Rosentic stand-down
+
+### The one New issue was found, and it was this run's own duplication
+
+SonarCloud's quality gate **passed** with **1 New issue** — non-blocking, and chased anyway, because
+Run 20 established that the count alone is not a finding. `sonarcloud.io` is still refused by this
+container's egress proxy (`curl` returns nothing), so the issue was located locally instead, using
+the reproduction from the 2026-09-07 lesson: `eslint-plugin-sonarjs` at its recommended profile, with
+`languageOptions.parserOptions.parser` set for `.svelte` files so components are not silently
+skipped.
+
+Five findings across the changed files. Four of them are on lines that exist verbatim on the base
+`069901c` — a nested ternary at `studio-state.svelte.ts` L1623, and three in `smoke.spec.ts` at
+L112, L270 and L744, all far above this run's additions. **Exactly one was new**, and the mechanism
+is worth recording because it is invisible from the diff alone:
+
+> `sonarjs/use-type-alias` (S4323) fires when a union type is written out **three** times.
+> `Pick<Parameters<typeof classifyGenerationFailure>[0], 'thrown' | 'apiError' | 'offContract' |
+> 'rejected'>` appeared **twice** on the base — `classifyPageFailure` and `classifyTextFailure` —
+> which is under the threshold. `classifyTryOnFailure` was the third.
+
+So this run did not add a new *kind* of problem; it pushed an existing pattern over a counting rule's
+edge. *That is a general shape worth watching for: a rule keyed on repetition count means the change
+that trips it is not necessarily the one that should be blamed for it, and the third copy is simply
+the one holding the bag.* The fix is the right one either way — the union is now a named
+`FailureCallSiteInput`, used by all three helpers, and the local reproduction returns only the
+pre-existing nested ternary afterwards.
+
+**The technique is now two-for-two in this container and should be the default**, not the last
+resort: enumerate the analyser's default profile locally, run it over the changed files, and diff
+each hit against the base rather than reading the code for likely candidates. It located this in
+one command and, unlike Run 20's version, did not require the finding to have exactly one plausible
+suspect — it names the line.
+
+### Rosentic: three findings, none of them this branch's
+
+Rosentic reported a possible cross-branch break: `claude/great-bell-k1i146` removes the `page`
+parameter from `makeToolkitVerdict`, and this branch calls it with one argument at
+`smoke.spec.ts` L123, L1256 and L1290.
+
+Measured against the bar in `AGENTS.md` rather than waved off as known noise:
+
+```
+$ git diff 069901c HEAD -- tests/e2e/smoke.spec.ts | grep -c makeToolkitVerdict
+0
+$ git show 069901c:tests/e2e/smoke.spec.ts | grep -n makeToolkitVerdict
+123:  await makeToolkitVerdict(page);
+134: const makeToolkitVerdict = async (page: Page): Promise<void> => {
+1256: await makeToolkitVerdict(page);
+1290: await makeToolkitVerdict(page);
+```
+
+The helper and all three call sites exist verbatim on the base and this diff touches them zero
+times. The incompatibility is entirely between the base and an unrelated open branch. The
+`Rosentic - Conflict Detection` **check run itself is green**, so this is an advisory comment rather
+than a failing check, and `AGENTS.md` names exactly this as pre-existing noise for these routines:
+note it, do not drain the backlog. No pull request comment was posted, because nothing failed.
+
+*A method note: the first attempt to check this measured against the local `main` ref and got the
+wrong answer.* This container's clone had `origin/main` at `bd070e2`, four commits stale, so
+`git diff main...HEAD` attributed four merged runs' work to this branch and appeared to show this
+diff adding `makeToolkitVerdict` itself. **Fetch and name the true base commit before measuring
+whether a finding belongs to your diff.**
+
+### The other reviewers
+
+**Sourcery** refused, as Run 20 predicted to the day: "you've used your own review budget of 250,000
+diff characters for the last 7 days… you can request another review in 1 day and 13 hours". It still
+posted a Reviewer's Guide, which read the change accurately. **CodeRabbit** skipped for the
+repository having fewer than ten stars, a standing condition. **Codex** was still "Running" against
+`ed65728` at the time of writing. **CodeQL** passed both analyses.
+
+So the review coverage on this run is SonarCloud, CodeQL and this run's own adversarial re-reading —
+the same thin coverage Run 20 recorded, for the same reasons, and worth knowing when reading what
+shipped.
