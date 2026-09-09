@@ -87,10 +87,20 @@ export const VAULT_RECORD_CAP_REFUSAL =
  * asserting, rather than reassuring. Deliberately does not name a number of pages: the ceiling is
  * bytes, it depends on the size of the pictures already stored, and inventing a page count for it
  * would be the same kind of fiction as capping at fifty.
+ *
+ * The last clause exists because "delete a saved page" is a dead end for one reader: the one whose
+ * `cb_session_id_v1` was regenerated while `cb_creations_v1` still holds the previous session's
+ * pages. Those pages consume the quota, `listCreations` filters them out, and so the vault shows
+ * empty while every save is refused — an instruction to delete something they cannot see. Clearing
+ * the site's stored data is a blunt remedy and it is the only one a reader has today; a consented
+ * "reclaim pages from an earlier session" action would be better and is carried in
+ * `WORST_TO_BEST_LOG.md`. Naming a bad remedy beats naming none.
  */
 export const VAULT_DEVICE_FULL_REFUSAL =
 	'There is no room left on this device for another saved page. Nothing already saved was lost. ' +
-	'Delete a saved page to make room for this one.';
+	'Delete a saved page to make room for this one. If your vault looks empty, the room is being ' +
+	"held by pages from an earlier session on this device, and clearing this site's stored data is " +
+	'the only way to get it back.';
 
 /** Every refusal that a reader clears by freeing space in the vault. */
 export const VAULT_MAKE_ROOM_REFUSALS: readonly string[] = [

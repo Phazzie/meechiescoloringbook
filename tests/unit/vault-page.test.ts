@@ -159,6 +159,15 @@ describe('what the vault says about itself', () => {
 		}
 	});
 
+	it('gives the one reader whose vault looks empty somewhere to go', () => {
+		// "Delete a saved page" is a dead end for a reader whose session id was regenerated: the
+		// previous session's pages hold the room, `listCreations` filters them out, and the vault
+		// shows empty while every save is refused. Naming a blunt remedy beats naming none.
+		expect(VAULT_DEVICE_FULL_REFUSAL).toContain('looks empty');
+		expect(VAULT_DEVICE_FULL_REFUSAL).toContain('earlier session');
+		expect(VAULT_DEVICE_FULL_REFUSAL).toContain('stored data');
+	});
+
 	it('confirms a save without naming a page to go and look at it on', () => {
 		// The whole defect: twelve surfaces said "Find it on the home page", which is a navigation
 		// instruction rather than a link. The link is rendered beside this, not written into it.

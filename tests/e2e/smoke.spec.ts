@@ -638,6 +638,11 @@ test('a full vault refuses a save instead of deleting a page, and offers a way t
 	const link = page.getByTestId('home-status-link');
 	await expect(link).toHaveText('Make room in the vault');
 	await expect(link).toHaveAttribute('href', '/vault');
+	// A NEW tab. The page being refused is unsaved, was paid for with a generation, and lives only
+	// in this route's memory — so a same-tab link would destroy the very page it offers to make
+	// room for. The confirmation's link is same-tab, because by then there is nothing left to lose.
+	await expect(link).toHaveAttribute('target', '_blank');
+	await expect(link).toHaveAttribute('rel', 'noopener');
 
 	// And the assertion the old behaviour could not pass: every page that was there is still there.
 	const remaining = await page.evaluate(

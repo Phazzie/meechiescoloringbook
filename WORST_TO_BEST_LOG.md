@@ -14118,6 +14118,26 @@ page *and* left the owner holding fifty-one.
 | Undo relays "delete a saved page" and loses the held page | 1 |
 | The mock replays success for a full vault | 1 |
 
+### The third review round — the link itself was destroying pages
+
+Codex reviewed the fixes and found that **the "Make room in the vault" link introduced two rounds
+earlier was itself destructive.** It was a same-tab navigation, and the page being refused is
+unsaved, was paid for with a generation, and lives only in the route's memory — the mode and
+describe routes dispose their state on navigation, and the home studio's draft stores neither the
+image nor the exports. So following the app's own advice destroyed the very page it was offering to
+make room for. The refusal's link now opens in a new tab; the confirmation's stays same-tab, because
+by then there is nothing left to lose.
+
+*An affordance added to soften a refusal can cost more than the refusal did.* The link was reasoned
+about as wording — errand versus invitation — and not as navigation, which is the thing a link
+actually is.
+
+It also found the device-full refusal to be a **dead end for exactly one reader**: the one whose
+`cb_session_id_v1` was regenerated while `cb_creations_v1` still holds the previous session's pages.
+Those pages consume the quota, `listCreations` filters them out, so the vault shows empty while every
+save is refused — "delete a saved page" naming something they cannot see. The message now names the
+blunt remedy that does exist. A consented reclaim action would be better and is carried below.
+
 ### What this run could not prove, stated plainly
 
 **The read-plan-write sequence is not atomic across tabs**, as above. Nothing in this repository can
@@ -14147,6 +14167,13 @@ re-measure.**
   parse cannot be rendered, reopened or downloaded, and preserving it would consume bytes on a store
   whose real limit is bytes, with no way for a reader to remove it. Telling the reader it happened
   is the better fix and needs contract room to carry the count.
+- **There is no consented way to reclaim pages from an earlier session.** When `cb_session_id_v1` is
+  regenerated, the previous session's records hold storage the reader cannot see, list or delete.
+  This run stopped those records counting against the reader's fifty and named the blunt remedy
+  (clear the site's stored data) in the device-full refusal, but the good answer is a deliberate
+  "reclaim pages from an earlier session" action in the vault — consented, so it is not the silent
+  deletion this run removed. Needs a way to list records the current owner does not own, which
+  `listCreations` cannot express; that is a contract addition.
 - **Identifier entropy is not behind a seam.** `newCreationId` reads Web Crypto directly, and its
   fallback reads `performance` and the clock. `AGENTS.md` classifies both randomness and clock/time
   as seam boundaries, and there is no seam in `docs/seams.md` for either kind of entropy. Raised by

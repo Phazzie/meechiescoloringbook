@@ -42,7 +42,23 @@ Invariants: The link appears only for sentences this app wrote, matched exactly,
 	<p class="status" class:refused data-testid={testId}>
 		{status}
 		{#if link}
-			<a class="vault-link" href={VAULT_PATH} data-testid="{testId}-link">{link.text}</a>
+			<!--
+				A refusal's link opens in a NEW tab; the confirmation's does not. The difference is
+				the page on screen. After a successful save there is nothing left to lose, so
+				navigating away is what the reader wants. After a refusal the page is unsaved, was
+				paid for with a generation, and lives only in this route's memory — the mode and
+				describe routes dispose their state on navigation, and the home studio's draft
+				stores neither the image nor the exports. So a same-tab "Make room in the vault"
+				destroyed the very page it was offering to make room for, before the reader could
+				free a slot and press Save again.
+			-->
+			<a
+				class="vault-link"
+				href={VAULT_PATH}
+				data-testid="{testId}-link"
+				target={refused ? '_blank' : undefined}
+				rel={refused ? 'noopener' : undefined}>{link.text}</a
+			>
 		{/if}
 	</p>
 {/if}
