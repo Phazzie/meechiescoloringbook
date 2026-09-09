@@ -47,6 +47,7 @@ import type { PageExport, PageExportAttempt } from '$lib/core/page-exports';
 import { GenerateResultSchema } from '../../../contracts/generate.contract';
 import type { GenerateResponseValue } from '../../../contracts/generate.contract';
 import { VAULT_SAVED_CONFIRMATION } from '$lib/core/vault-page';
+import { newCreationId } from '$lib/components/creation-id';
 import type { CreationOwner } from '$lib/seams/creation-store-seam/contract';
 import type { MeechieStudioTextOutput } from '../../../contracts/meechie-studio-text.contract';
 import type { GeneratedImage } from '../../../contracts/image-generation.contract';
@@ -143,61 +144,6 @@ const packageOneVariant = async (
 					: 'Packaging failed.'
 		};
 	}
-};
-
-/**
- * A record id that cannot collide with another save.
- *
- * `crypto.randomUUID` is gated on a secure context, so it is simply absent over plain HTTP and in
- * some embedded webviews. The previous fallback was `creation-${Date.now()}`, and
- * `upsertRecord` in `creation-store.adapter.ts` drops any existing record sharing an id — so two
- * saves landing in the same millisecond (two tabs on one vault) silently destroyed the first.
- *
- * `crypto.getRandomValues` is *not* secure-context gated, so it covers almost everything
- * `randomUUID` misses. The last resort matches `session.adapter.ts`'s existing fallback, which
- * mixes the clock with a random suffix rather than trusting the millisecond alone.
- */
-let fallbackCounter = 0;
-
-/**
- * A value that differs between two documents of the same origin, without a PRNG.
- *
- * `performance.timeOrigin` is the instant *this document* started, at sub-millisecond resolution,
- * so two tabs almost never share one. It exists only to separate tabs in the last-resort id below;
- * it is not a secret and nothing depends on it being unguessable.
- */
-const documentToken = ((): string => {
-	if (typeof performance === 'undefined') return '0';
-	const origin =
-		typeof performance.timeOrigin === 'number' ? performance.timeOrigin : 0;
-	return Math.trunc((origin + performance.now()) * 1000).toString(36);
-})();
-
-const newCreationId = (): string => {
-	if (typeof crypto !== 'undefined') {
-		if (typeof crypto.randomUUID === 'function') return crypto.randomUUID();
-		if (typeof crypto.getRandomValues === 'function') {
-			const bytes = crypto.getRandomValues(new Uint8Array(16));
-			const hex = Array.from(bytes, (byte) =>
-				byte.toString(16).padStart(2, '0')
-			).join('');
-			return `creation-${hex}`;
-		}
-	}
-	// Last resort, and deliberately not `Math.random()`: reaching for a pseudorandom source when a
-	// cryptographic one sits right above it is the habit SonarCloud's PRNG rule exists to break.
-	//
-	// Uniqueness here needs two separate things, because the two collisions are different. The
-	// counter separates saves *within* one document, which is what `Date.now()` alone could not do.
-	// `documentToken` separates *documents*, which the counter alone could not do — two tabs each
-	// start their own counter at zero, so both would otherwise emit `-1` in the same millisecond.
-	//
-	// This is a bound, not a proof: two documents whose `timeOrigin` matches to the microsecond,
-	// saving in the same millisecond, would still collide. Reaching this branch at all requires a
-	// browser with no Web Crypto whatsoever — `getRandomValues`, unlike `randomUUID`, is not
-	// secure-context gated — which no browser able to run this app has been for over a decade.
-	fallbackCounter += 1;
-	return `creation-${Date.now()}-${documentToken}-${fallbackCounter}`;
 };
 
 /**
@@ -733,9 +679,9 @@ export class PageArtifactState {
 					// happen — and a later reader could not tell a drifted page from a corrected
 					// one. `violations` above still carries the full drift evidence, which is the
 					// part that is actually true. The two older call sites
-					// (`studio-state.svelte.ts`, `MeechieTools.svelte`) still write recommendations
-					// here; that is a pre-existing defect in persisted-record semantics and fixing
-					// it belongs in its own change.
+					// (`studio-state.svelte.ts`, `MeechieTools.svelte`) wrote recommendations here
+					// until the change that added this clause; all fifteen savers now omit the
+					// field, so no path in the app records a correction that did not happen.
 					images: images.map((image) => ({ b64: generatedImageBase64(image) })),
 					owner
 				}

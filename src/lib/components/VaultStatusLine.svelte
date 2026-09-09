@@ -8,12 +8,18 @@ Why: Twelve of the thirteen page-making surfaces ended a successful save with "S
      again.
 Info flow: A status string from the surface's own state -> rendered; when it is the save
      confirmation exactly, the vault link is rendered beside it.
-Invariants: The link appears only for the confirmation constant, never for an arbitrary status. A
-     failure message is rendered as-is with no link, because "see all your saved pages" under an
-     error that says the save failed would be an invitation to go and look at nothing.
+Invariants: The link appears only for sentences this app wrote, matched exactly, never for an
+     arbitrary status. Most failures carry no link, because "see all your saved pages" under an
+     error that says the save failed would be an invitation to go and look at nothing — but the two
+     refusals that mean "the vault is full" carry one that says "make room", because for those the
+     vault is not somewhere to browse, it is where the remedy is.
 -->
 <script lang="ts">
-	import { VAULT_PATH, VAULT_SAVED_LINK_TEXT, showsVaultLink } from '$lib/core/vault-page';
+	import {
+		VAULT_PATH,
+		VAULT_SAVED_CONFIRMATION,
+		vaultLinkFor
+	} from '$lib/core/vault-page';
 
 	let {
 		status,
@@ -26,16 +32,32 @@ Invariants: The link appears only for the confirmation constant, never for an ar
 	} = $props();
 
 	// The decision is in core, where it is unit-tested against the real failure messages this same
-	// line carries. See `showsVaultLink` for why it is an exact match and not a search.
-	const savedToVault = $derived(showsVaultLink(status));
+	// line carries. See `vaultLinkFor` for why it is an exact match and not a search.
+	const link = $derived(vaultLinkFor(status));
+	// A refusal is not good news, so it must not be rendered in the confirmation's green.
+	const refused = $derived(!!link && status !== VAULT_SAVED_CONFIRMATION);
 </script>
 
 {#if status}
-	<p class="status" data-testid={testId}>
+	<p class="status" class:refused data-testid={testId}>
 		{status}
-		{#if savedToVault}
-			<a class="vault-link" href={VAULT_PATH} data-testid="{testId}-link"
-				>{VAULT_SAVED_LINK_TEXT}</a
+		{#if link}
+			<!--
+				A refusal's link opens in a NEW tab; the confirmation's does not. The difference is
+				the page on screen. After a successful save there is nothing left to lose, so
+				navigating away is what the reader wants. After a refusal the page is unsaved, was
+				paid for with a generation, and lives only in this route's memory — the mode and
+				describe routes dispose their state on navigation, and the home studio's draft
+				stores neither the image nor the exports. So a same-tab "Make room in the vault"
+				destroyed the very page it was offering to make room for, before the reader could
+				free a slot and press Save again.
+			-->
+			<a
+				class="vault-link"
+				href={VAULT_PATH}
+				data-testid="{testId}-link"
+				target={refused ? '_blank' : undefined}
+				rel={refused ? 'noopener' : undefined}>{link.text}</a
 			>
 		{/if}
 	</p>
@@ -48,6 +70,14 @@ Invariants: The link appears only for the confirmation constant, never for an ar
 		margin: 0.7rem 0 0;
 		color: var(--emerald);
 		font-weight: 700;
+	}
+
+	/* A full vault is the one refusal on this line that carries a link, so it is also the one that
+	   could be mistaken for the confirmation at a glance — same shape, same link, same green.
+	   `--gold` rather than `--gold-bright`, which the link beside it uses: the sentence has to read
+	   as "not saved", and the link still has to be the brightest thing in the line. */
+	.status.refused {
+		color: var(--gold);
 	}
 
 	.vault-link {

@@ -13896,3 +13896,328 @@ Re-measured on this run's base where the item names a line number; **do not inhe
   the same answer — settle it deliberately rather than leaving it as a third thing.
 
 Do not inherit this entry's measurements. Re-measure.
+
+## Run 19 — 2026-09-09 — "Keep" (the vault's save, which deleted a page to make room and said "Saved")
+
+**Branch:** `claude/great-bell-9pdike` · **Base:** `main` at `bd070e2`
+
+### The feature, and the case against it
+
+The vault has been rebuilt twice. **Run 1** made its rows browsable — thumbnails, search, dates.
+**Run 15** gave it an address at `/vault` and put a link to it on every screen. Both runs were about
+the vault as a thing you *read*. Neither looked at the write.
+
+The write is one expression, `upsertRecord` in
+`src/lib/adapters/creation-store-seam/index.ts:132-139` on `bd070e2`:
+
+```ts
+const filtered = records.filter((existing) => existing.id !== record.id);
+const next = [record, ...filtered];
+return next.slice(0, MAX_CREATIONS);
+```
+
+`saveCreation` then returns `{ ok: true }`, and all fifteen page-making surfaces render
+`VAULT_SAVED_CONFIRMATION` — `'Saved to the vault.'` — from it. **So the fifty-first save deleted
+the reader's oldest saved page and reported success.** Not an error the reader could act on, not a
+warning: the same green sentence as every save that cost nothing.
+
+Three things follow from that one line, and each is worse than it looks.
+
+**1. Pinning did not protect a page.** `favorite` is offered on every row of `VaultGallery.svelte`
+and is the reader's one "keep this one" control. It appears nowhere in the expression above. The
+oldest record went whether it was pinned or not, so the app's only answer to "keep this one" was
+read by nothing that decided what to throw away.
+
+**2. Fifty is not a boundary any reader reaches.** Measured, not assumed — a real captured provider
+response lives in the repo:
+
+```
+$ node -e "…JSON.parse(fs.readFileSync('fixtures/image-generation/sample.json'))…"
+key data len 236380
+```
+
+**236,380 base64 characters for one page's picture.** Browsers give localStorage roughly five
+megabytes. Fifty of those cannot fit, and `spec.variations` goes to four, so a four-picture page
+stores four of them. **The reader runs out of bytes somewhere in the single digits and never sees
+the record cap at all.** What they got at that point was `writeJson`'s message:
+
+> Failed to write storage for cb_creations_v1.
+
+An internal storage key, and no remedy.
+
+That inverts the whole picture. The app had built careful machinery around fifty — `VAULT_CAPACITY`,
+`undoDelete`'s guard, the `vaultFullRefusal` sentence, and a test in `vault-gallery.test.ts` that
+drives the real store past it — all defending a boundary that never happens, while the boundary that
+does happen was unhandled. The tests passed because they store a nine-byte stub image
+(`{ b64: 'c3R1Yi1pbWFnZQ==' }`) rather than a page.
+
+**3. The cap counted every owner; the list counted one.** `upsertRecord` sliced the whole stored
+array while `listCreations` filters by owner. Records left under a previous `cb_session_id_v1`
+occupy slots the reader cannot see, cannot delete, and which evicted their visible pages.
+`vault-collection.svelte.ts:196-206` already knew and said so in a comment — "a lower bound, not a
+store-wide guarantee" — and deferred it as needing a contract change.
+
+**Why it stayed broken for eighteen runs.** The measurement that settles it — cap times payload
+against the storage budget — is one multiplication that nobody had a reason to do, because every
+part of the code around it was individually careful. And the failure is silent by construction: the
+save reports success, so no surface, no test and no reader ever sees the loss happen.
+
+### What shipped
+
+**A save never removes a stored page.** `planCreationWrite`
+(`src/lib/core/vault-capacity.ts`, new and pure) either returns the exact array to store or refuses,
+with a sentence naming the remedy. This is the load-bearing decision and it is deliberately the
+*less* clever of the two options: evicting the oldest **unpinned** page and naming it in the
+confirmation is a better vault, and it is what I would have shipped if `saveCreation` could report
+what it displaced. It cannot without a new output field — a contract change, which `AGENTS.md`
+puts behind "do not auto-merge". Refusing is also better on the merits: **the page being refused is
+still on screen, still printable, still downloadable; the pages it would have evicted are not
+recoverable at all.** Refusing loses the cheap thing and keeps the expensive ones.
+
+**The pin defect is fixed by there being no eviction**, which is why `vault-capacity.ts` contains no
+eviction ordering at all. The test states the invariant that actually holds — everything stored is
+still stored — rather than an ordering that could drift.
+
+**The cap is counted per owner.** That fixes the orphan case *and* turns `undoDelete`'s documented
+estimate into the same number the store applies. The write still carries every owner's records, so
+one reader's save can never delete another session's pages — the failure relocated is not the
+failure removed, and there is a test for exactly that.
+
+**The device limit is reported as itself.** `isStorageFullError` checks the three signatures browsers
+actually use (`QuotaExceededError`, Firefox's `NS_ERROR_DOM_QUOTA_REACHED`, and the legacy numeric
+codes 22 and 1014). It is told apart from `STORAGE_WRITE_FAILED` because only one of the two has a
+remedy: a `SecurityError` from a browser with site data blocked is not fixed by deleting a page, so
+handing that reader "delete a saved page" would be the one useless instruction available. No byte
+ceiling is predicted — it depends on the browser and on what is already stored, so picking a number
+would be the same fiction as fifty.
+
+**A refusal carries a link, which required deleting a rule.** `showsVaultLink` was a boolean whose
+documented invariant was that a failure never gets a link — "an invitation to go and look at
+nothing". True for every failure except these two, which fail *because the vault is full* and whose
+remedy is in the vault. It is now `vaultLinkFor`, returning different link text: "Make room in the
+vault", not "See all your saved pages", because a refusal is an errand and not an invitation.
+
+**Replacing a stored record is never a capacity question.** `toggleFavorite` and `undoDelete` both
+reach `saveCreation` with an id already stored. Without this, a reader could no longer pin anything
+the moment the vault filled — the exact state that makes pinning matter.
+
+**`VAULT_CAPACITY` stops being a hand-copied `50`** and re-exports `MAX_CREATIONS` from the contract.
+The comment justifying the copy said the constant was module-private in
+`creation-store.adapter.ts`; that had stopped being true. A duplicate defended by a stale reason.
+
+**Three savers became one on the two things they disagreed about.** `newCreationId` now lives in
+`src/lib/core/creation-id.ts` and all fifteen surfaces use it — the home studio and the tools hub
+fell back to `creation-${Date.now()}`, and a save replaces any record sharing its id, so two saves in
+one millisecond destroyed the first on a browser without `crypto.randomUUID`. Both also stop writing
+`fixesApplied` from recommendations they never applied — the defect `PageArtifactState`'s own comment
+named and could not reach from where it sat — and both now take their timestamp from `ClockSeam`.
+
+**The contract, its schemas, its fixtures and its mock are unchanged.** Only the adapter's behaviour
+within shapes the contract already declared. Confirmed by `git diff --name-only origin/main...HEAD`
+against those paths rather than asserted.
+
+### Red proofs, run because a green test proves nothing on its own
+
+Four mutations, each reverted immediately, each checked for how many tests fail:
+
+| Mutation | Tests that failed |
+|---|---|
+| Evict the oldest page instead of refusing (the original defect, restated) | 3 |
+| Count every owner's records against the saving reader | 2 |
+| Treat a replacement as a new record (a pin on a full vault) | 2 |
+| Report a full device as a generic write failure | 2 |
+
+### The red proof that was wrong, and what it looked like
+
+The pin mutation was first written as `if (!isReplacement)` → `if (isReplacement || true)`, forcing
+the capacity branch to always run. **Every test passed**, which read as "no test covers this".
+
+It was the mutation that was wrong. The count is taken from the array with the replaced record
+already removed, so a replacement on a full vault still measured forty-nine and still fitted.
+Reproducing the defect needed two edits, not one — the branch *and* the array it counts.
+
+*A mutation that does not reproduce the defect proves nothing about the tests, only about the
+mutation.* Taking that first result at face value would have added a test for behaviour that was
+already covered, or worse, concluded the gap was real and rewritten working code to close it.
+
+### The review round, and the door this change left open
+
+Sourcery raised four findings on the first push. All four were real; three were fixed and the
+fourth was answered.
+
+**The one that mattered: a cross-owner id collision was an overwrite.** `planCreationWrite` decided
+"is this a replacement?" on `id` alone. A record with that id belonging to a *different* owner was
+therefore dropped from the array, the capacity check was skipped, and the write landed on top of a
+page the saving reader can neither see nor delete. **That is the exact deletion this whole change
+exists to prevent, through the one door left open** — and it contradicted the module's own header
+and a test in this run asserting that one session's save can never delete another's. Now refused as
+`VAULT_ID_COLLISION`, with a message that is self-healing: every saver mints a fresh id per attempt,
+so pressing Save again works. Not reachable through `newCreationId`, which mints a UUID, but records
+written by older builds carry ids minted from the clock alone, which collide by construction.
+
+**A legacy numeric quota code was only recognised on a real `DOMException`.** A storage wrapper that
+catches and rethrows keeps `code` and loses the prototype, and that case was being sent to the
+generic write error — the branch with no remedy. The numbers are now checked on any object carrying
+one, which is safe because the only caller passes what `localStorage.setItem` threw.
+
+**A comment in `page-artifact-state.svelte.ts` still named the two older savers as writing
+`fixesApplied`** — which this run's own diff had just fixed. Corrected.
+
+**The fourth was right about the problem and wrong about the fix.** Reading, planning and writing is
+not atomic across browser tabs: two tabs can read the same array and the second `setItem` lands
+without the first's new record. Real, and it makes "never removes a stored page" a claim about one
+tab rather than about the store. The suggested fix — re-read immediately before committing — closes
+nothing, because **there is no `await` between the load and the `setItem`**, so there is no
+suspension point for a re-read to move past. Closing it needs a version stamp written with the array
+and a compare-and-retry. The window is unchanged by this run: the expression this replaced had the
+same one, and also evicted. Stated in the module's invariants and carried below.
+
+Two more red proofs, each reverted immediately:
+
+| Mutation | Tests that failed |
+|---|---|
+| A cross-owner id collision overwrites the stranger's page | 2 |
+| Legacy numeric quota codes recognised only under `DOMException` | 1 |
+
+### The second review round — Codex, four more
+
+**An undo refused for device room told the reader to do the one thing that would destroy it.** The
+best finding of either round, and a path this run created. `undoDelete` guards on the record count
+and refuses with `vaultFullRefusal`, whose whole purpose is to warn that deleting to make room
+replaces what Undo is holding. But the byte wall is a *different* wall: the count can be under fifty
+while the device is out of room, and that refusal fell through to the adapter's own sentence —
+"Delete a saved page to make room for this one." Following it calls `remove`, which overwrites
+`undoableDeletion` with the page just deleted, destroying the held one permanently. Now intercepted,
+with the same warning given for the same trap arriving by the other door. `vaultFullRefusal` gained
+a `because` argument, because "the vault is full at 50 pages" over a vault holding nine would be a
+plain untruth.
+
+**The mock could not express either refusal, and that was documented rather than fixed.** The first
+push answered this with a passing test that stated the gap. Codex was right that a stated gap is
+still a gap: this mock's own invariant is that a record the adapter would refuse is refused here the
+same way, and a consumer driving fifty-one saves through it got fifty-one successes. The mock now
+keeps the records it has been handed and asks `planCreationWrite` — the same pure function the
+adapter asks, so the two cannot drift into different answers. Every successful *output* still comes
+from the fixture; the store only decides whether a save is one. No contract change: the store is per
+`createCreationStoreMock` call, so nothing leaks between tests, and there is a test for that too.
+
+**`newCreationId` had no business in `src/lib/core`.** Core is declared deterministic and that
+function is not — it reads Web Crypto, and its last-resort branch reads the clock. It now lives at
+`src/lib/components/creation-id.ts`, beside the components that save: browser-side helper code for
+browser-side callers, still one implementation for all fifteen savers, with core left clean. Putting
+it behind a seam of its own, which is what `AGENTS.md` implies for randomness, needs a new contract,
+probe, fixtures, mock and adapter — a contract addition and its own change, carried below. This run
+only reduced three implementations to one; it did not introduce the entropy.
+
+**The fourth repeated Sourcery's ownership finding**, already fixed, with a sharper case: fifty
+records for the incoming owner plus a stranger's record sharing an id both deleted the stranger's
+page *and* left the owner holding fifty-one.
+
+| Mutation | Tests that failed |
+|---|---|
+| Undo relays "delete a saved page" and loses the held page | 1 |
+| The mock replays success for a full vault | 1 |
+
+### The third review round — the link itself was destroying pages
+
+Codex reviewed the fixes and found that **the "Make room in the vault" link introduced two rounds
+earlier was itself destructive.** It was a same-tab navigation, and the page being refused is
+unsaved, was paid for with a generation, and lives only in the route's memory — the mode and
+describe routes dispose their state on navigation, and the home studio's draft stores neither the
+image nor the exports. So following the app's own advice destroyed the very page it was offering to
+make room for. The refusal's link now opens in a new tab; the confirmation's stays same-tab, because
+by then there is nothing left to lose.
+
+*An affordance added to soften a refusal can cost more than the refusal did.* The link was reasoned
+about as wording — errand versus invitation — and not as navigation, which is the thing a link
+actually is.
+
+It also found the device-full refusal to be a **dead end for exactly one reader**: the one whose
+`cb_session_id_v1` was regenerated while `cb_creations_v1` still holds the previous session's pages.
+Those pages consume the quota, `listCreations` filters them out, so the vault shows empty while every
+save is refused — "delete a saved page" naming something they cannot see. The message now names the
+blunt remedy that does exist. A consented reclaim action would be better and is carried below.
+
+### What this run could not prove, stated plainly
+
+**The read-plan-write sequence is not atomic across tabs**, as above. Nothing in this repository can
+test it: `jsdom` gives one `localStorage` per environment and Playwright cannot interleave two tabs'
+synchronous storage operations to sub-millisecond precision.
+
+**No test here fills a real browser's localStorage to its true limit.** The device-full path is
+driven by throwing the three real quota signatures from a spied `setItem`, which is the *shape* of
+the failure rather than the failure itself. The record-cap path is driven against the real adapter
+and real `localStorage` in jsdom, and does not depend on any double.
+
+**The 236,380-character measurement is one captured response, not a distribution.** It is the
+largest real image in the repository and it is a genuine provider capture, not a fixture someone
+wrote — but a different prompt, size or provider setting produces a different number, and the
+argument only needs it to be within an order of magnitude of a quarter-megabyte to hold.
+
+### Carried forward for the next run
+
+Re-measured on this run's base where the item names a line number; **do not inherit these,
+re-measure.**
+
+- **A stored entry that fails schema validation is still destroyed by the next write.**
+  `parseRecords` skips it and every later `saveRecords` persists only the survivors, so one record
+  from an older build is permanently deleted by the reader's next save, delete or pin.
+  `skippedIndices` is computed for exactly this and reaches nothing but `console.warn`. **Measured
+  and deliberately not fixed this run**, with the reasoning in `DECISIONS.md`: an entry nothing can
+  parse cannot be rendered, reopened or downloaded, and preserving it would consume bytes on a store
+  whose real limit is bytes, with no way for a reader to remove it. Telling the reader it happened
+  is the better fix and needs contract room to carry the count.
+- **There is no consented way to reclaim pages from an earlier session.** When `cb_session_id_v1` is
+  regenerated, the previous session's records hold storage the reader cannot see, list or delete.
+  This run stopped those records counting against the reader's fifty and named the blunt remedy
+  (clear the site's stored data) in the device-full refusal, but the good answer is a deliberate
+  "reclaim pages from an earlier session" action in the vault — consented, so it is not the silent
+  deletion this run removed. Needs a way to list records the current owner does not own, which
+  `listCreations` cannot express; that is a contract addition.
+- **Identifier entropy is not behind a seam.** `newCreationId` reads Web Crypto directly, and its
+  fallback reads `performance` and the clock. `AGENTS.md` classifies both randomness and clock/time
+  as seam boundaries, and there is no seam in `docs/seams.md` for either kind of entropy. Raised by
+  a review bot on this run and answered by moving the function out of `src/lib/core` rather than by
+  building the seam, which needs a new contract, probe, fixtures, mock and adapter — a contract
+  addition. It is pre-existing: the same code ran in `page-artifact-state.svelte.ts` before this run
+  and in two weaker copies elsewhere.
+- **The creations array has no version stamp, so two tabs saving at once can lose a page.** Raised by
+  a review bot on this run's first push and confirmed rather than waved off; see the review round
+  above for why the suggested fix closes nothing. A real fix writes a version alongside the array
+  and retries on a mismatch — new observable behaviour at the seam, so the full workflow. It is a
+  pre-existing window, not one this run opened.
+- **Evicting the oldest *unpinned* page and naming it beats refusing**, and is blocked only on
+  `saveCreation` having somewhere to report what it displaced. That is one optional field on the
+  seam's output — a contract change, its own pull request, and a merge that must not be automatic.
+  This is the single highest-value follow-up to this run.
+- **The quota reset instant is early on routes that work before charging.** Run 18's item,
+  unchanged. Do not attempt it as a quick win; it needs a server/client clock offset and the full
+  workflow.
+- **`chatInterpretationAdapter` still has no callers**, and **`/api/image-generation` has no client
+  caller either.** Runs 17 and 18's items, unchanged. Settle both deliberately rather than carrying
+  them a fourth time.
+- **The three SonarCloud issues Run 17 identified** — the empty `clearSourceStatus`, the
+  `export…from` re-export in `describe-page.ts`, the useless `init.headers ?? {}` in
+  `page-artifact-harness.ts`. Still open. **Line numbers have moved again**; re-measure.
+- **The app configures a 1024x1024 square it never asks the provider for.** Run 17's item, still
+  blocked on a key.
+- **`placedDpi` has no production consumer.** Unchanged.
+- **The `chat` packaging variant has zero consumers.** Unchanged, Run 14's reasoning.
+- **Mode persistence** — Run 12's pick, blocked on the seam rule for the eighth run running.
+- `MeechieToolOutput.quoteScore` and `modelMetadata`, from Run 11's list.
+- **SonarCloud reported 3 new issues on this run's first push, and they could not be read.** The
+  Quality Gate passed, duplication on new code was 0.0%, and the check run's own output carries only
+  the count. `sonarcloud.io` is blocked by this container's egress proxy (`connect_rejected`), so
+  neither the API nor the dashboard is reachable from a run. A run with network access to
+  SonarCloud, or the owner, should read and settle them; the same blindness applies to every future
+  run in this container.
+- **Evidence transcripts still have no file header**, against `AGENTS.md`'s File Header
+  Requirement — this run's `check.txt`, `lint.txt`, `build.txt` and `verify-outer.txt` included.
+  Carried since Run 16 and left again deliberately: `proof-tape.mjs` parses these transcripts for
+  the `Commands:` lines it prints, so prepending anything is a change to the verify chain's input
+  and belongs in a run that can re-run the chain to prove it, not as a rider on a seam change.
+- **Run 18 has no merge close-out entry in this log.** PR #337 merged as `bd070e2`; the close-out
+  that every run from 8 onwards recorded was never written. Noted rather than invented — this run
+  did not observe that pull request's review rounds and will not reconstruct them.
+
+Do not inherit this entry's measurements. Re-measure.

@@ -585,6 +585,72 @@ test('home quote vault can save, load, pin, and delete creations', async ({
 	);
 });
 
+test('a full vault refuses a save instead of deleting a page, and offers a way to make room', async ({
+	page
+}) => {
+	// The defect, from the reader's chair. Before this, the save below returned the same green
+	// "Saved to the vault." as any other while the oldest saved page was deleted from localStorage.
+	await gotoHydrated(page, '/');
+	await page
+		.getByTestId('home-evidence')
+		.fill('He changed the story after the receipt appeared.');
+	await page.getByTestId('home-generate-verdict').click();
+	await expect(page.getByTestId('home-verdict-quote')).toContainText(
+		'The story folded before the receipt opened.'
+	);
+	await page.getByTestId('home-save-vault').click();
+	await expect(page.getByTestId('home-status')).toContainText(
+		'Saved to the vault.'
+	);
+
+	// Fill the vault by cloning the record the app itself just wrote, rather than by building one
+	// here: a hand-written record could drift from the schema and be skipped on read, which would
+	// leave the vault under capacity and quietly turn this into a test of nothing.
+	const stored = await page.evaluate(() => {
+		const KEY = 'cb_creations_v1';
+		const records = JSON.parse(localStorage.getItem(KEY) ?? '[]');
+		const seed = records[0];
+		if (!seed) return 0;
+		const filled = Array.from({ length: 50 }, (_unused, index) => ({
+			...seed,
+			id: `filler-${index}`
+		}));
+		localStorage.setItem(KEY, JSON.stringify(filled));
+		return filled.length;
+	});
+	expect(stored).toBe(50);
+
+	await gotoHydrated(page, '/');
+	await page
+		.getByTestId('home-evidence')
+		.fill('He changed the story after the receipt appeared.');
+	await page.getByTestId('home-generate-verdict').click();
+	await expect(page.getByTestId('home-verdict-quote')).toContainText(
+		'The story folded before the receipt opened.'
+	);
+	await page.getByTestId('home-save-vault').click();
+
+	await expect(page.getByTestId('home-status')).toContainText(
+		'Nothing was removed'
+	);
+	// The one failure on this line that earns a link, because the remedy is where the link goes.
+	// The wording has to be an errand rather than an invitation to browse.
+	const link = page.getByTestId('home-status-link');
+	await expect(link).toHaveText('Make room in the vault');
+	await expect(link).toHaveAttribute('href', '/vault');
+	// A NEW tab. The page being refused is unsaved, was paid for with a generation, and lives only
+	// in this route's memory — so a same-tab link would destroy the very page it offers to make
+	// room for. The confirmation's link is same-tab, because by then there is nothing left to lose.
+	await expect(link).toHaveAttribute('target', '_blank');
+	await expect(link).toHaveAttribute('rel', 'noopener');
+
+	// And the assertion the old behaviour could not pass: every page that was there is still there.
+	const remaining = await page.evaluate(
+		() => JSON.parse(localStorage.getItem('cb_creations_v1') ?? '[]').length
+	);
+	expect(remaining).toBe(50);
+});
+
 test('home quote vault searches saved pages and reveals the ones past the preview', async ({
 	page
 }) => {

@@ -24,6 +24,7 @@ import {
 	sortVaultCreations
 } from '$lib/core/vault-gallery';
 import { vaultFullRefusal } from '$lib/core/vault-page';
+import { VAULT_MAKE_ROOM_REFUSALS } from '$lib/core/vault-capacity';
 import type { AppOriginSeam } from '$lib/seams/app-origin-seam/contract';
 import { nextUtcDayBoundary, type ClockSeam } from '$lib/seams/clock-seam/contract';
 import type { CreationOwner, CreationRecord } from '$lib/seams/creation-store-seam/contract';
@@ -190,26 +191,33 @@ export class VaultCollection {
 	undoDelete = async (): Promise<void> => {
 		const record = this.undoableDeletion;
 		if (!record) return;
-		// The store keeps a fixed number of records and drops the oldest past that. If the slot
-		// freed by the delete has since been taken by a new save, restoring would push the list
-		// back over the cap and silently evict another page — the exact failure this whole feature
-		// exists to stop — while reporting only that this one came back. Refuse, and say why,
-		// rather than trading one lost page for another.
+		// The store keeps a fixed number of records per owner. If the slot freed by the delete has
+		// since been taken by a new save, restoring would push the list back over the cap — so the
+		// restore would be refused by the store anyway. Saying why here, in a sentence about undo,
+		// beats letting the adapter's generic full-vault refusal stand in for it: only this branch
+		// knows that the page being refused is one Undo is still holding and about to lose.
 		//
-		// This is a lower bound, not a store-wide guarantee. `creations` holds only the records
-		// matching the current owner, while the adapter applies its cap to the whole stored array.
-		// The two agree while `cb_session_id_v1` survives, since one owner is derived from it;
-		// records orphaned under a previous session id still occupy slots this count cannot see.
-		// Closing that gap means deciding capacity inside `CreationStoreSeam` or exposing it
-		// through the contract — a contract change, and so the full Seam-Driven Development
-		// workflow. It is tracked with the other deferred seam work in `WORST_TO_BEST_LOG.md`.
+		// This count used to be a lower bound rather than an answer, because the adapter capped the
+		// whole stored array while `creations` holds only this owner's records — so pages orphaned
+		// under a previous `cb_session_id_v1` occupied slots this number could not see. The cap is
+		// now counted per owner in `planCreationWrite`, which makes the two exactly agree: this is
+		// the same number the store will apply, not an estimate of it.
 		if (this.creations.length >= VAULT_CAPACITY) {
 			this.error = vaultFullRefusal(record.intent.title);
 			return;
 		}
 		const result = await creationStoreAdapter.saveCreation({ record });
 		if (!result.ok) {
-			this.error = result.error.message;
+			// A store that is out of ROOM lands here rather than in the count guard above: the record
+			// cap can be satisfied while the device's bytes are not. Its message is "Delete a saved
+			// page to make room for this one." — and following that instruction from here calls
+			// `remove`, which overwrites `undoableDeletion` with the page just deleted and destroys
+			// the one Undo is holding. The count guard's sentence already carries the warning that
+			// deleting to make room costs you this page, so the same warning is given for the same
+			// trap arriving by the other door.
+			this.error = VAULT_MAKE_ROOM_REFUSALS.includes(result.error.message)
+				? vaultFullRefusal(record.intent.title, 'device')
+				: result.error.message;
 			return;
 		}
 		this.error = '';
