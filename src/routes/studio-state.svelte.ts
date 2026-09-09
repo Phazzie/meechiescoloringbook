@@ -2542,6 +2542,12 @@ export class StudioState {
 	handleWigTryOn = async (): Promise<void> => {
 		const wig = this.selectedWig;
 		if (!wig || !this.selectedWigId || !this.selfieBase64) {
+			// A defensive guard, not a path the reader can reach today: `canTryOn` already requires
+			// both a wig and a selfie, so the button that calls this is disabled in exactly the case
+			// this catches, and with no wig the panel holding it is not rendered at all. It is
+			// classified rather than left as a bare string so that it stays correct if a caller ever
+			// arrives that is not that button.
+			//
 			// `rejected`, not `apiError`: nothing was sent, so this is the app declining to spend the
 			// reader's quota rather than Meechie refusing the look. Routed through the code map it
 			// would read "Meechie would not make that try-on: Select a wig and upload your selfie

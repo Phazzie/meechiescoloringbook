@@ -14633,8 +14633,14 @@ the first time.
 **`rejected`, not the code map, for the request the app declined to send.** Routed through
 `apiError` it would read *"Meechie would not make that try-on: Select a wig and upload your selfie
 first"*, blaming her for two controls the reader can simply use. This is the mistake Run 20 made and
-caught by reading its own output; `rejected` exists because of it, and using it here is the whole
-reason that field was worth adding.
+caught by reading its own output; `rejected` exists because of it.
+
+*Stated precisely, because the first draft of this entry overclaimed it:* **that branch is defensive
+and no reader can reach it today.** `canTryOn` already requires both a wig and a selfie, so the
+button is disabled in exactly the case the guard catches, and with no wig the panel holding the
+notice is not rendered at all. It is classified rather than left as a bare string so that it stays
+correct if a caller ever arrives that is not that button — which is a reason to word it properly, not
+a reader-facing improvement, and the entry now says so.
 
 **A retry that re-asks for the wig that failed** — and this surface gets there differently from the
 other three, on purpose. They pin the attempted request in a `lastAttempted…` field. `setTryOnFailure`
@@ -14722,6 +14728,12 @@ Re-measure everything below; do not inherit it.
   Run 20; this run added no new direct read, going through `readConnection` like every other surface.
 - **`MeechieTools.svelte` is still in legacy (non-runes) mode**, and still reads `navigator.onLine`
   directly. Unchanged.
+- **The try-on's `rejected` branch is unreachable from the UI**, because `canTryOn` requires both a
+  wig and a selfie before the button that calls it is enabled. New this run and found while
+  re-reading the diff. Either the guard is redundant and should say so, or `canTryOn` is the wrong
+  place for one of those two conditions — a reader who uploads a photo and picks no wig is currently
+  told nothing at all, because the whole panel is behind `{#if selectedWig}`. Worth one run's
+  attention; it is a question about the panel's structure, not about the classifier.
 - **The two remaining raw `<p class="error">{string}</p>` renderings are storage, not AI**:
   `VaultGallery.svelte` L126 (`vault.error`) and `StudioInputPanel.svelte` L174
   (`draftSaveError`, prefixed "Draft not saved:"). Neither goes through a classifier, and there is no
