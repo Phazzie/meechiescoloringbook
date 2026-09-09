@@ -14221,3 +14221,67 @@ re-measure.**
   did not observe that pull request's review rounds and will not reconstruct them.
 
 Do not inherit this entry's measurements. Re-measure.
+
+## Run 19 — merge close-out — 2026-09-09 — PR #339 merged as `ebe6231`
+
+**Merged:** `ebe6231`, squashed from five commits on `claude/great-bell-9pdike`.
+**Base at merge:** `main` at `bd070e2`. 41 files, +5,496 / -165.
+
+### Gates at merge
+
+All ten check runs green on the head `6a17258` — both `verify` jobs, CodeQL twice, SonarCloud
+twice, Rosentic conflict detection, Vercel preview comments — plus both commit statuses (Vercel
+deployment, CodeRabbit). Locally: `check`, `lint`, 1,868 tests, `build`, the full `verify` chain,
+`cipher:gate` and 77 Playwright tests, all exit 0, evidence in `docs/evidence/2026-09-09/`.
+
+No human reviewer requested changes; no contract, schema or data migration in the diff (empty
+`git diff` against the seam's contract, fixtures and mock); the only Assumption in `DECISIONS.md`
+naming `CreationStoreSeam` is closed. So the merge conditions in `AGENTS.md` were met and it was
+merged without asking, which is the rule.
+
+### Three review rounds, ten findings
+
+Sourcery raised four, Codex six. **Seven were fixed and pushed; three were answered and left open**
+because the fix is a contract change and belongs in its own pull request.
+
+Two of the seven were defects **this run created**, and both are worth remembering:
+
+**The undo trap.** `undoDelete` guarded the record cap and refused with a sentence warning that
+deleting to make room replaces what Undo holds. The byte wall is a different wall at a different
+count, and it fell through to the adapter's own "Delete a saved page to make room for this one."
+Following that calls `remove`, which overwrites `undoableDeletion` — destroying the held page. The
+protection existed; the new door bypassed it.
+
+**The link that destroyed pages.** The "Make room in the vault" link, added to soften a refusal, was
+a same-tab navigation. The page being refused is unsaved, was paid for with a generation, and lives
+only in the route's memory. So the app's own advice destroyed the page it was offering to make room
+for. Now `target="_blank"`.
+
+*Both are the same shape: a helpful addition reasoned about as **wording** rather than as the
+**mechanism** it actually is.* A refusal message is a control-flow branch, and a link is a
+navigation. Neither was tested as such until a reviewer looked at it that way.
+
+The third lesson is about the reviewers rather than the code: **Sourcery and Codex independently
+found the same cross-owner id hole**, and the diff shipped with a test asserting the opposite of it.
+A test written from the author's own model of the code cannot find the case the model omits.
+
+### What went in that was not in the plan
+
+`VAULT_ID_COLLISION` as a third refusal; `vaultFullRefusal` gaining a `because` argument; the mock
+becoming stateful so it refuses what the adapter refuses; `newCreationId` moving out of
+`src/lib/core` to `src/lib/components`. All five came from review, and all five are behaviour the
+plan's anti-goals did not anticipate — the plan named the contract as untouchable and that held, but
+it did not predict how much of the *within-contract* surface the change would need.
+
+### Still open on the merged pull request, deliberately
+
+Three threads, each answered with why not, each carried in this log's forward list: cross-tab write
+atomicity, identifier entropy behind a seam, and a consented reclaim action for records orphaned by
+a regenerated session id. All three need contract room; none is a regression this run introduced.
+
+### The one thing a future run should not repeat
+
+**SonarCloud reported new issues on every push and no run in this container can read them.**
+`sonarcloud.io` is refused by the egress proxy (`connect_rejected`), the check run's output carries
+only a count, and the Quality Gate passes regardless. Three issues on the first push, one on the
+last. They were neither read nor fixed, and saying so is the only honest option available from here.
