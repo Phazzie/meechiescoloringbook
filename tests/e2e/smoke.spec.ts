@@ -572,15 +572,17 @@ test('a damaged store is explained to the reader, not reported in the adapter\'s
 
 	const notice = page.getByTestId('vault-vault-error');
 	await expect(notice).toBeVisible();
-	// The reader's sentence names the condition and the only remedy there is.
+	// The reader's sentence names the condition and both things it can mean.
 	await expect(notice).toContainText('Your saved pages could not be read.');
-	await expect(notice).toContainText("Clearing this site's stored data");
+	await expect(notice).toContainText('blocking site data');
+	await expect(notice).toContainText("clearing this site's stored data");
 	// And never the adapter's own words, nor the storage key.
 	await expect(notice).not.toContainText('Failed to parse storage');
 	await expect(notice).not.toContainText('cb_creations_v1');
-	// No retry: re-reading the same bytes runs the same parse and fails identically. A button here
-	// would be an invitation to press it forever.
-	await expect(page.getByTestId('vault-vault-error-retry')).toHaveCount(0);
+	// The retry is offered, because one of the two causes is a browser setting the reader can
+	// change and pressing this is how they find out it took. It reads the store again rather than
+	// claiming anything, which is why the destructive remedy stays conditional in the sentence.
+	await expect(page.getByTestId('vault-vault-error-retry')).toHaveText('Read them again');
 	// A failed read must not read as an empty vault.
 	await expect(page.getByTestId('vault-vault-unreadable')).toBeVisible();
 	await expect(page.getByTestId('vault-vault-empty')).toHaveCount(0);

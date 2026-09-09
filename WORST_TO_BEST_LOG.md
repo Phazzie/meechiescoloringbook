@@ -15184,3 +15184,79 @@ candidate was wrong and this paragraph is the record of why.
 its `recommended` profile is **not** Sonar way in either direction — it omits rules Sonar runs
 (S1192) and would add rules Sonar does not. Run it type-aware at `recommended`, **then** run the
 Sonar-way rules it leaves off, and never widen to all 279.
+
+## Run 22, second close-out — 2026-09-09 — the Codex round on `32e658e`, and the remedy that would have deleted a reader's pages
+
+Five findings, **all five real**, all fixed. The first is the most serious thing this routine has
+shipped to a pull request in some time, and it is worth stating plainly: **the feature written to
+stop the app giving readers bad information was itself giving readers destructive advice.**
+
+### P1 — the message told a reader with healthy pages to delete them
+
+`readJson` in `src/lib/adapters/creation-store-seam/index.ts` wraps **both** `localStorage.getItem`
+and `JSON.parse` in one `try/catch` and reports either as `STORAGE_PARSE_FAILED`. A browser blocking
+site data therefore arrives under the same code as a genuinely corrupt store.
+
+This run mapped that code to `unreadable` and wrote it a sentence that sounded certain:
+
+> Something is stored that this app cannot read, and reading it again will not help. Clearing this
+> site's stored data will fix it, and will also remove any pages saved here.
+
+For the blocked-browser half of those readers, **their pages are fine and this instructs them to
+destroy the pages** — following it deletes the vault it is complaining about. The remedy is
+destructive, the diagnosis was a guess, and nothing in the code could tell the two apart.
+
+The sentence now names both causes, harmless check first, and makes the destructive one explicitly
+conditional on the harmless one being ruled out. It also gains a retry, which it previously withheld
+on the reasoning that "re-reading the same bytes runs the same parse" — true of one cause and false
+of the other, which is the whole point.
+
+**The lesson, and it is bigger than this diff: a classifier that cannot distinguish two causes must
+not prescribe a remedy that is safe for only one of them.** This module's stated invariants already
+banned putting a developer's words on screen and banned a retry that cannot work. Neither of them
+banned *confidently telling the reader to do the wrong thing*, which is worse than either.
+
+### P2 ×4, all confirmed against the code
+
+- **A blocked write promised a free retry and nothing else.** `writeJson`'s generic branch reports
+  `STORAGE_WRITE_FAILED`, and *the adapter's own comment says* that branch covers "a `SecurityError`
+  from a browser with site data blocked, where nothing the reader deletes helps". The message now
+  names that remedy alongside the free retry.
+- **A failed unpin said "could not be pinned"** and offered "Try pinning again", under a button that
+  unpins. One `toggleFavorite` serves both directions; `unpin` is now its own operation, captured
+  before the write.
+- **The draft failure said "Download it to keep it"** and there is no draft export anywhere in the
+  app. A remedy the surface cannot perform is the same defect as naming none. It now says what is
+  actually true: nothing is lost while the page stays open, so copy what you cannot retype.
+- **A stale retry survived the status that replaced it.** Reopening a saved page sets
+  `Reopened "..."` and left "Save it again" rendered under it — pressing it saved the page just
+  reopened, not the page whose save had failed. **A bug this run introduced.**
+
+### The stale-retry fix is an invariant, not five patches
+
+There are five assignments to `vaultStatus` in `StudioState` alone, and clearing the failure at each
+would work until the sixth. It is enforced in the **setter** instead, in all three hosts:
+
+```ts
+set vaultStatus(value: string) {
+    if (value !== this.vaultSaveFailure?.message) this.vaultSaveFailure = null;
+    this.vault.status = value;
+}
+```
+
+The save path assigns the failure *before* its message, so the comparison sees them equal and keeps
+it; every other assignment clears it. `PageArtifactState` gained an accessor pair over a `#private`
+field for this, and `MeechieTools` — still legacy, still plain `let`s, third run running — got a
+`setVaultStatus` function doing the same. **Both halves are tested**, because a guard that clears
+too eagerly would silently delete the failure the save path just recorded.
+
+### What this says about the review coverage
+
+Four runs in a row have merged with no line-by-line bot review, and this log has twice called that a
+standing condition worth an owner ruling. **Codex broke the streak and immediately found a P1 that
+four green gates, a full `verify` chain, 1,922 unit tests, 82 Playwright tests and this run's own
+adversarial re-reading all missed.** Every one of those measures the code against what it was
+written to do. None of them asks whether what it was written to do is a good idea for the reader.
+
+Re-validated: `check` 0/0, `lint`, **1,927 unit tests**, `build`, the full `verify` chain and **82
+Playwright tests**, all exit 0.

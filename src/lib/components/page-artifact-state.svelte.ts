@@ -289,7 +289,24 @@ export class PageArtifactState {
 		})
 	);
 
-	vaultStatus = $state('');
+	#vaultStatus = $state('');
+	get vaultStatus(): string {
+		return this.#vaultStatus;
+	}
+	/**
+	 * Setting a status that is not the current failure's own sentence clears the failure.
+	 *
+	 * The same invariant `StudioState` enforces, for the same reason: a status line that has moved on
+	 * to "Saving..." or a reopen confirmation must not keep rendering the previous failure's retry,
+	 * where pressing it would act on whatever page is on screen now.
+	 *
+	 * The save path assigns `vaultSaveFailure` before assigning its message here, so this sees them
+	 * equal and keeps it.
+	 */
+	set vaultStatus(value: string) {
+		if (value !== this.vaultSaveFailure?.message) this.vaultSaveFailure = null;
+		this.#vaultStatus = value;
+	}
 	/**
 	 * The last failed vault save, classified.
 	 *

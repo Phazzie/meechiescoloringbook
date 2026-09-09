@@ -296,13 +296,17 @@ export class VaultCollection {
 	};
 
 	toggleFavorite = async (creation: CreationRecord): Promise<void> => {
+		// Which way the reader was going, captured before the write. One `toggleFavorite` serves both
+		// directions, so reporting the failure as `pin` told a reader who pressed Unpin that the page
+		// "could not be pinned" and offered to "try pinning again" — under a button that unpins.
+		const operation: StorageOperation = creation.favorite ? 'unpin' : 'pin';
 		const result = await creationStoreAdapter.saveCreation({
 			record: { ...$state.snapshot(creation), favorite: !creation.favorite }
 		});
 		if (!result.ok) {
 			// The same record and therefore the same intended direction. Re-deriving the toggle from
 			// the list on retry would flip it back if the write had in fact landed.
-			this.fail('pin', result.error, () => this.toggleFavorite(creation));
+			this.fail(operation, result.error, () => this.toggleFavorite(creation));
 			return;
 		}
 		this.clearFailure();

@@ -1523,11 +1523,14 @@ describe('StudioState quote vault', () => {
 
 		const studio = await initVault([makeCreation('unreadable')]);
 
-		// A store nothing can parse: named as damaged, with the only remedy there is, and with no
-		// retry — re-reading the same bytes runs the same parse.
+		// STORAGE_PARSE_FAILED cannot say whether the browser blocked the read or the stored data is
+		// damaged — `readJson` reports both from one try/catch — so the sentence names both, the
+		// harmless check first, and a retry is offered because the first cause is a setting the
+		// reader can change.
 		expect(studio.vaultFailure?.cause).toBe('unreadable');
-		expect(studio.vaultFailure?.retry).toEqual({ kind: 'none' });
-		expect(studio.retryVaultOperation).toBeNull();
+		expect(studio.vaultFailure?.retry).toEqual({ kind: 'now' });
+		expect(studio.retryVaultOperation).not.toBeNull();
+		expect(studio.vaultFailure?.message).toContain('blocking site data');
 		expect(studio.vaultFailure?.detail).toBe('Failed to parse storage.');
 		expect(studio.vaultFailure?.message).not.toContain('Failed to parse storage.');
 	});

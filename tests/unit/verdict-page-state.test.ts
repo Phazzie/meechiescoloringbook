@@ -984,6 +984,38 @@ describe('saveToVault', () => {
 		expect(creationStoreAdapter.saveCreation).toHaveBeenCalledTimes(1);
 	});
 
+	// The retry is armed by a failure and rendered beside `vaultStatus`. Any status that replaces
+	// that sentence has replaced the failure too, and leaving the button under the new one offers to
+	// redo an operation the reader is no longer looking at — on whatever page is on screen by then.
+	it('drops the save retry as soon as the status line moves on', async () => {
+		vi.mocked(creationStoreAdapter.saveCreation).mockResolvedValue({
+			ok: false,
+			error: { code: 'STORAGE_WRITE_FAILED', message: 'Failed to write storage for x.' }
+		});
+		const state = await withPage();
+		await state.saveToVault();
+		expect(state.vaultSaveFailure).not.toBeNull();
+
+		state.vaultStatus = 'Reopened "Something else".';
+
+		expect(state.vaultSaveFailure).toBeNull();
+		expect(state.vaultStatus).toBe('Reopened "Something else".');
+	});
+
+	// The other half of the same invariant: setting the status to the failure's OWN sentence is what
+	// the save path does, and must not clear the failure it just recorded.
+	it('keeps the failure when the status line is the failure\'s own sentence', async () => {
+		vi.mocked(creationStoreAdapter.saveCreation).mockResolvedValue({
+			ok: false,
+			error: { code: 'STORAGE_WRITE_FAILED', message: 'Failed to write storage for x.' }
+		});
+		const state = await withPage();
+		await state.saveToVault();
+
+		expect(state.vaultSaveFailure).not.toBeNull();
+		expect(state.vaultStatus).toBe(state.vaultSaveFailure?.message);
+	});
+
 	it('surfaces a rejected save rather than reporting success', async () => {
 		vi.mocked(creationStoreAdapter.saveCreation).mockResolvedValue({
 			ok: false,

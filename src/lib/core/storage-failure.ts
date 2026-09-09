@@ -22,9 +22,19 @@
  *     character-for-character to decide whether the status line carries "Make room in the vault", so
  *     rewording one silently removes the link the reader needs most. Same rule, and the same reason,
  *     as the server-message allowlist in `public-provider-error.ts`.
- *   - A retry is offered only where retrying could plausibly succeed. Re-reading bytes that would
- *     not parse produces the identical failure, and a store that is out of room is still out of room
- *     a second later — those get a remedy sentence instead of a button that does nothing.
+ *   - A retry is offered only where retrying could plausibly succeed — and "plausibly" is the bar,
+ *     not "certainly". A store that is out of room is still out of room a second later, and a
+ *     record the store refuses for its own shape is refused identically: those get a remedy
+ *     sentence instead of a button that does nothing. A blocked browser gets a button, because the
+ *     sentence asks the reader to change a setting and pressing it is how they find out it took.
+ *   - **A remedy that destroys the reader's work is never given on a guess.** `readJson` reports a
+ *     denied `getItem` and an unparseable value under one code, so `unreadable` cannot know which
+ *     it is; its sentence therefore names both, harmless check first, and makes clearing stored
+ *     data explicitly conditional on the harmless one being ruled out. The first draft told every
+ *     such reader to clear their site data, which for the blocked-browser half of them would have
+ *     deleted saved pages that were never damaged.
+ *   - A remedy is never named that the surface cannot perform. The draft failure does not say
+ *     "download it": there is no draft export anywhere in the app.
  */
 
 import {
@@ -50,8 +60,17 @@ export type StorageOperation =
 	| 'delete'
 	/** Putting a deleted page back. */
 	| 'restore'
-	/** Pinning or unpinning a saved page. */
+	/** Pinning a saved page. */
 	| 'pin'
+	/**
+	 * Unpinning a saved page.
+	 *
+	 * Its own operation rather than sharing `pin`, because the two go through one `toggleFavorite`
+	 * and a shared sentence gets the direction wrong half the time: a reader who pressed Unpin was
+	 * told "This page could not be pinned" and offered "Try pinning again", under a button that
+	 * would in fact unpin it.
+	 */
+	| 'unpin'
 	/** Autosaving the studio's work in progress. */
 	| 'draft';
 
@@ -153,24 +172,30 @@ const SUBJECT: Record<StorageOperation, string> = {
 	delete: 'This page could not be deleted.',
 	restore: 'This page could not be put back.',
 	pin: 'This page could not be pinned.',
+	unpin: 'This page could not be unpinned.',
 	draft: 'Your work in progress could not be saved on this device.'
 };
 
 /**
- * Whether the operation's own failure means work already on screen is at risk.
+ * How the reader can keep the work this failure puts at risk, if they can at all.
  *
- * A failed `read` or `delete` threatens nothing the reader is holding — the pages are still stored,
- * or still stored *because* the delete failed. A failed `save`, `restore` or `draft` means something
- * the reader can currently see has nowhere to go, which is worth saying out loud because the window
- * to act on it closes when they navigate.
+ * A failed `read`, `delete` or pin change threatens nothing the reader is holding — the pages are
+ * still stored, or still stored *because* the delete failed. A failed `save` or `restore` means a
+ * finished page on screen has nowhere to go, and that page has a download.
+ *
+ * A failed `draft` is the case this got wrong at first. It was told to "download it", and there is
+ * nothing to download: a draft is the evidence, dedication and controls the reader is still typing,
+ * and `StudioInputPanel` offers no export of any of it. Naming a remedy the surface cannot perform
+ * is the same defect as naming none — so the draft says the thing that is actually available.
  */
-const HOLDS_UNSAVED_WORK: Record<StorageOperation, boolean> = {
-	read: false,
-	save: true,
-	delete: false,
-	restore: true,
-	pin: false,
-	draft: true
+const KEEP_INSTRUCTION: Record<StorageOperation, string> = {
+	read: '',
+	save: ' Download it to keep it, in case this does not clear.',
+	delete: '',
+	restore: ' Download it to keep it, in case this does not clear.',
+	pin: '',
+	unpin: '',
+	draft: ' Nothing typed here is lost while this page stays open, but it will not come back after a refresh — copy anything you cannot retype.'
 };
 
 /**
@@ -181,12 +206,37 @@ const HOLDS_UNSAVED_WORK: Record<StorageOperation, boolean> = {
  */
 const ALLOW_SITE_DATA = 'Check that your browser allows site data for this site, then try again.';
 
-/** The remedy for a store nothing can read, which is the one case with no good answer. */
-const DAMAGED_STORE =
-	'Something is stored that this app cannot read, and reading it again will not help. ' +
-	"Clearing this site's stored data will fix it, and will also remove any pages saved here.";
+/**
+ * The two things `unreadable` can mean, in the order it is safe to try them.
+ *
+ * It cannot be narrowed to one, and this sentence used to claim it could. `readJson` in
+ * `src/lib/adapters/creation-store-seam/index.ts` wraps `localStorage.getItem` and `JSON.parse` in
+ * ONE try/catch and reports both as `STORAGE_PARSE_FAILED` — so a browser blocking site data and a
+ * genuinely damaged store are indistinguishable at this code. The first draft of this message said
+ * only the second thing and told the reader to clear their site data: **destructive advice, given
+ * on a guess, to a reader whose saved pages were fine.**
+ *
+ * So both are named, the harmless check first, and the destructive one is explicitly conditional on
+ * the harmless one being ruled out. Telling the reader what this app cannot distinguish beats
+ * picking one and sounding certain.
+ */
+const UNREADABLE_REMEDY =
+	'That is either because this browser is blocking site data for this site, or because what is ' +
+	'stored here cannot be read. Check the site-data setting first and try again. If it is already ' +
+	"allowed, the stored data is damaged, and clearing this site's stored data is the only fix — " +
+	'which also removes any pages saved here.';
 
-const WRITE_ELSEWHERE = 'Download it to keep it, in case this does not clear.';
+/**
+ * The two things a failed write can mean, for the same reason.
+ *
+ * `writeJson`'s generic branch reports `STORAGE_WRITE_FAILED`, and its own comment says that branch
+ * covers "a `SecurityError` from a browser with site data blocked, where nothing the reader deletes
+ * helps". Promising only that a retry is free would leave that reader pressing a button that fails
+ * identically every time, with the one remedy that works unmentioned.
+ */
+const WRITE_FAILED_REMEDY =
+	'Trying again costs nothing — the vault is on this device, not sent anywhere. If it keeps ' +
+	'failing, check that your browser allows site data for this site.';
 
 /** The exception's own words, reduced to a string, for `detail` and never for `message`. */
 const detailOf = (error: unknown): string | null => {
@@ -220,16 +270,21 @@ const describe = (
 	operation: StorageOperation
 ): { message: string; retry: StorageRetry } => {
 	const subject = SUBJECT[operation];
-	const keepIt = HOLDS_UNSAVED_WORK[operation] ? ` ${WRITE_ELSEWHERE}` : '';
+	const keepIt = KEEP_INSTRUCTION[operation];
 	switch (cause) {
 		case 'unavailable':
-			// No retry: a browser that is refusing storage will refuse it again on the next press,
-			// and the setting has to change first. The sentence carries the only move there is.
-			return { message: `${subject} ${ALLOW_SITE_DATA}${keepIt}`, retry: { kind: 'none' } };
+			// A retry, because the sentence asks the reader to change a setting and pressing the
+			// button is how they find out whether it took. `BROWSER_REQUIRED` is emitted when
+			// `localStorage` is absent entirely, which a reader can genuinely turn back on — this is
+			// not a condition that provably cannot change, which is the bar for withholding a retry.
+			return { message: `${subject} ${ALLOW_SITE_DATA}${keepIt}`, retry: { kind: 'now' } };
 		case 'unreadable':
-			// No retry, and this is the case where offering one would be most tempting and most
-			// dishonest: re-reading the same bytes runs the same parse and fails identically.
-			return { message: `${subject} ${DAMAGED_STORE}${keepIt}`, retry: { kind: 'none' } };
+			// A retry, for the same reason and only since this stopped claiming to know which of the
+			// two causes it is. If the store is blocked, allowing site data and pressing again works;
+			// if it is genuinely damaged, this fails again and the sentence's second half is the
+			// answer. Withholding the button would serve only the second case, and the message can
+			// no longer tell the reader which one they are in.
+			return { message: `${subject} ${UNREADABLE_REMEDY}${keepIt}`, retry: { kind: 'now' } };
 		case 'rejected':
 			// No retry: the same value would be built and refused again. Says plainly that the
 			// reader's own stored pages are untouched, because every other sentence on this list
@@ -242,15 +297,10 @@ const describe = (
 			};
 		case 'write_failed':
 		case 'unknown':
-			// The one shape where trying again is genuinely worth it, and the reason the retry
-			// exists at all: a write can miss for a transient reason, the page is still on screen,
-			// and pressing again spends nothing.
-			return {
-				message:
-					`${subject} Trying again costs nothing — the vault is on this device, ` +
-					`not sent anywhere.${keepIt}`,
-				retry: { kind: 'now' }
-			};
+			// A write can miss for a transient reason, the page is still on screen, and pressing
+			// again spends nothing — but this branch also catches a browser blocking site data, so
+			// the sentence names that too rather than promising only that the retry is free.
+			return { message: `${subject} ${WRITE_FAILED_REMEDY}${keepIt}`, retry: { kind: 'now' } };
 		// The three capacity refusals never reach here: `classifyStorageFailure` returns the app's
 		// own sentence for them before calling this. Reaching this point would mean a code mapped to
 		// a capacity cause arrived carrying a message the app did not write, so say the true thing
@@ -341,6 +391,8 @@ export const storageRetryLabel = (
 			return 'Try putting it back';
 		case 'pin':
 			return 'Try pinning again';
+		case 'unpin':
+			return 'Try unpinning again';
 		case 'draft':
 			return 'Save the draft again';
 	}

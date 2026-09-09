@@ -808,6 +808,15 @@ export class StudioState {
 		return this.vault.status;
 	}
 	set vaultStatus(value: string) {
+		// Any status that is not this failure's own sentence has replaced it, and the failure — with
+		// the retry it arms — has to go with it. Enforced here rather than at each assignment because
+		// there are five of them and a sixth would forget: reopening a saved page sets "Reopened
+		// ..." and used to leave "Save it again" sitting under it, where pressing it saved the page
+		// just reopened rather than the one whose save had failed.
+		//
+		// The save path sets `vaultSaveFailure` BEFORE assigning its message here, so this comparison
+		// sees them equal and keeps the failure. Every other assignment clears it.
+		if (value !== this.vaultSaveFailure?.message) this.vaultSaveFailure = null;
 		this.vault.status = value;
 	}
 	get pendingDeleteId(): string | null {

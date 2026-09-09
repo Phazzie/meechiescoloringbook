@@ -243,6 +243,19 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 	// still in legacy (non-runes) mode, so this is a plain `let` reassigned on each save like every
 	// other piece of its state — the same value `PageArtifactState` holds as `$state` elsewhere.
 	let vaultSaveFailure: StorageFailure | null = null;
+
+	/**
+	 * Set the vault status, clearing any failure the new status has replaced.
+	 *
+	 * The same invariant `StudioState` and `PageArtifactState` enforce in their `vaultStatus`
+	 * setters, written as a function because this component is still in legacy (non-runes) mode and
+	 * has plain `let`s rather than accessors. Without it a status that moved on to "Saving..." would
+	 * keep the previous failure's retry rendered under it.
+	 */
+	const setVaultStatus = (value: string): void => {
+		if (value !== vaultSaveFailure?.message) vaultSaveFailure = null;
+		vaultStatus = value;
+	};
 	let isSaving = false;
 	let owner: CreationOwner | null = null;
 
@@ -321,7 +334,7 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 		driftCheckFailure = undefined;
 		lastRecipe = null;
 		pageVerdict = null;
-		vaultStatus = '';
+		setVaultStatus('');
 		copyStatus = '';
 	};
 
@@ -415,7 +428,7 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 		// the reader with nothing — the same defect as the verdict path, on the page path.
 		pageToken += 1;
 		pageFailure = null;
-		vaultStatus = '';
+		setVaultStatus('');
 		copyStatus = '';
 		isGenerating = true;
 		// Recorded before the request, so a retry re-asks for this page rather than for whatever
@@ -505,7 +518,7 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 			// started before this swap is caught by `handleSaveToVault`'s own recipe check rather
 			// than by the token — bumping the token here would make this very run read itself as
 			// stale and wedge the button.
-			vaultStatus = '';
+			setVaultStatus('');
 			copyStatus = '';
 			pageVerdict = verdict;
 			lastRecipe = recipe;
@@ -585,12 +598,12 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 		if (isSaving || !lastRecipe || !pageVerdict || generatedImages.length === 0)
 			return;
 		if (!owner) {
-			vaultStatus = 'Session is still connecting. Try again in a moment.';
+			setVaultStatus('Session is still connecting. Try again in a moment.');
 			return;
 		}
 		isSaving = true;
 		vaultSaveFailure = null;
-		vaultStatus = 'Saving...';
+		setVaultStatus('Saving...');
 		// Same staleness rule as generation: the record below is built synchronously from the
 		// current page, but the write is awaited, so its status must not be painted over a page
 		// the user has since replaced.
@@ -653,7 +666,7 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 			// becomes a sentence, and the seam's own words stop reaching the screen.
 			if (result.ok) {
 				vaultSaveFailure = null;
-				vaultStatus = VAULT_SAVED_CONFIRMATION;
+				setVaultStatus(VAULT_SAVED_CONFIRMATION);
 			} else {
 				const failure = classifyStorageFailure('save', result.error);
 				vaultSaveFailure = failure;
