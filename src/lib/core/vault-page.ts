@@ -9,6 +9,7 @@
 // Info flow: VaultEntry[] + a chosen order -> the list a surface renders; a record id -> the href
 //            that reopens it in the studio; counts and a query -> the sentence shown about them.
 import { VAULT_CAPACITY, type VaultEntry } from './vault-gallery';
+import { VAULT_MAKE_ROOM_REFUSALS } from './vault-capacity';
 
 /** The vault's own address. One definition, so a link and a route cannot disagree about it. */
 export const VAULT_PATH = '/vault';
@@ -38,16 +39,34 @@ export const VAULT_SAVED_CONFIRMATION = 'Saved to the vault.';
 export const VAULT_SAVED_LINK_TEXT = 'See all your saved pages';
 
 /**
- * Whether a status line has earned the link to the vault.
+ * The link offered when a save was refused for room, which is a different errand entirely.
  *
- * An exact match against the confirmation, never a substring search for "vault". The same line
+ * "See all your saved pages" under a refusal would invite the reader to browse. What they have to
+ * do is delete one, and the link text is the only part of the sentence they are certain to read.
+ */
+export const VAULT_MAKE_ROOM_LINK_TEXT = 'Make room in the vault';
+
+/**
+ * The link a status line has earned, or `null` for the lines that have earned none.
+ *
+ * Exact matches against known sentences, never a substring search for "vault". The same line
  * carries the copy confirmation and every failure the save can produce — and several of those
  * failures say the word "vault" while meaning the page did *not* get there
- * (`'Failed to save to vault.'`, the store's own messages). Offering "see all your saved pages"
- * under one of those sends the reader to look for something that was never written.
+ * (`'Failed to save to vault.'`). Offering "see all your saved pages" under one of those sends the
+ * reader to look for something that was never written.
+ *
+ * This began as a boolean answering only "did it save?", on the reasoning that a failure must never
+ * carry a link. That reasoning does not survive the two refusals below. They fail *because the
+ * vault is full*, and the remedy is in the vault — so those are the two failures where the reader
+ * needs the link most, and they are the exception the old rule could not express.
  */
-export const showsVaultLink = (status: string): boolean =>
-	status === VAULT_SAVED_CONFIRMATION;
+export const vaultLinkFor = (status: string): { text: string } | null => {
+	if (status === VAULT_SAVED_CONFIRMATION) return { text: VAULT_SAVED_LINK_TEXT };
+	if (VAULT_MAKE_ROOM_REFUSALS.includes(status)) {
+		return { text: VAULT_MAKE_ROOM_LINK_TEXT };
+	}
+	return null;
+};
 
 /** Shown where the vault is empty and the reader has saved nothing yet. */
 export const VAULT_EMPTY = 'No saved pages yet. Make one and hit Save to Vault.';

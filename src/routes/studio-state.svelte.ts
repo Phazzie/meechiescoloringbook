@@ -92,6 +92,7 @@ import type {
 } from '../../contracts/spec-validation.contract';
 import type { AppOriginSeam } from '$lib/seams/app-origin-seam/contract';
 import type { ClockSeam } from '$lib/seams/clock-seam/contract';
+import { newCreationId } from '$lib/core/creation-id';
 import type { PageVisibilitySeam } from '$lib/seams/page-visibility-seam/contract';
 import type { Wig } from '$lib/seams/wig-catalog-seam/contract';
 
@@ -1208,13 +1209,6 @@ export class StudioState {
 
 	// --- Private helpers ---
 
-	private generateCreationId(): string {
-		if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-			return crypto.randomUUID();
-		}
-		return `creation-${Date.now()}`;
-	}
-
 	private encodeBase64(value: string): string {
 		const bytes = new TextEncoder().encode(value);
 		let binary = '';
@@ -2115,7 +2109,7 @@ export class StudioState {
 			this.generatedStyleSelection = requestedStyle;
 			this.generatedSpec = requestedSpec;
 
-			const creationId = this.generateCreationId();
+			const creationId = newCreationId();
 			await this.attachPageExports(
 				`meechie-coloring-page-${creationId}`,
 				pageToken,
@@ -2209,7 +2203,7 @@ export class StudioState {
 			this.generatedSpec = requestedSpec;
 			// From here the paper is a portrait, so no verdict describes it. See `tryOnPageOnScreen`.
 			this.tryOnPageOnScreen = true;
-			const creationId = this.generateCreationId();
+			const creationId = newCreationId();
 			await this.attachPageExports(
 				`meechie-try-on-coloring-page-${creationId}`,
 				pageToken,
@@ -2373,7 +2367,7 @@ export class StudioState {
 		// record would otherwise be built from, and the two snapshot fields are reactive now.
 		const artifactSpec = $state.snapshot(this.generatedSpec);
 		const intent = artifactSpec ? withDedication(artifactSpec, liveSpec.dedication) : liveSpec;
-		const creationId = this.generateCreationId();
+		const creationId = newCreationId();
 		const storedImages = this.images.map((image) => ({
 			b64: image.encoding === 'base64' ? image.data : this.encodeBase64(image.data)
 		}));
@@ -2381,7 +2375,10 @@ export class StudioState {
 			const result = await creationStoreAdapter.saveCreation({
 				record: {
 					id: creationId,
-					createdAtISO: new Date().toISOString(),
+					// Through `ClockSeam`, not `new Date()`: `AGENTS.md` classifies clock/time as a
+					// seam, and this studio already holds one for the "Saved today" labels. It was
+					// the last direct wall-clock read on any save path in the app.
+					createdAtISO: new Date(this.clock.now()).toISOString(),
 					intent,
 					assembledPrompt,
 					// Only text that actually describes this page is saved as its own.
@@ -2389,7 +2386,14 @@ export class StudioState {
 					revisedPrompt: this.revisedPrompt || undefined,
 					images: storedImages.length > 0 ? storedImages : undefined,
 					violations: $state.snapshot(this.violations),
-					fixesApplied: this.recommendedFixes.map((fix) => fix.code),
+					// `fixesApplied` is deliberately omitted, not filled from `recommendedFixes`.
+					// This studio never applies a recommendation and never regenerates with one, so
+					// writing them into a field named "applied" recorded a correction that did not
+					// happen — and a later reader could not tell a drifted page from a corrected
+					// one. `violations` above still carries the full drift evidence, which is the
+					// part that is actually true. `PageArtifactState` reached this conclusion for
+					// the other thirteen surfaces and named this call site as the defect it could
+					// not fix from there.
 					authContext: this.authContext ?? undefined,
 					// The style that produced this page — captured when the picture was made, not read
 					// off the controls now. `intent` carries page size and border; the theme, voice
@@ -2557,7 +2561,7 @@ export class StudioState {
 		// freshly generated one does — and reports what it could not build instead of leaving a dead
 		// button with no reason, which is what its own near-copy of this used to do.
 		await this.attachPageExports(
-			`meechie-coloring-page-${this.generateCreationId()}`,
+			`meechie-coloring-page-${newCreationId()}`,
 			this.pageLoadToken,
 			creation.intent.pageSize
 		);

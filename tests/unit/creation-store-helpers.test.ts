@@ -6,6 +6,11 @@ import {
 	creationStoreAdapter,
 	parseRecords
 } from '../../src/lib/adapters/creation-store.adapter';
+import {
+	MAX_CREATIONS,
+	VAULT_DEVICE_FULL_REFUSAL,
+	VAULT_RECORD_CAP_REFUSAL
+} from '../../src/lib/core/vault-capacity';
 
 const validIntent = {
 	title: 'Test',
@@ -485,23 +490,152 @@ describe('creation-store adapter', () => {
 	});
 
 	describe('MAX_CREATIONS limit', () => {
+		const OWNER = { kind: 'anonymous' as const, sessionId: 'session-123' };
+
+		/** Fill this owner's vault to the brim, asserting nothing was refused on the way. */
+		const fillVault = async (): Promise<void> => {
+			for (let index = 0; index < MAX_CREATIONS; index += 1) {
+				const saved = await creationStoreAdapter.saveCreation({
+					record: { ...validRecord, id: `creation-${index}` }
+				});
+				expect(saved.ok, `save ${index}`).toBe(true);
+			}
+		};
+
 		it('limits stored creations to maximum', async () => {
-			// Save 51 records to exceed the 50 max
-			for (let i = 0; i < 51; i++) {
+			await fillVault();
+			await creationStoreAdapter.saveCreation({
+				record: { ...validRecord, id: 'creation-50' }
+			});
+
+			const result = await creationStoreAdapter.listCreations({ owner: OWNER });
+			expect(result.ok).toBe(true);
+			if (result.ok) {
+				expect(result.value.length).toBeLessThanOrEqual(MAX_CREATIONS);
+			}
+		});
+
+		it('refuses the save that does not fit instead of deleting the oldest page', async () => {
+			// The defect, stated against the real store. This used to return `ok` while
+			// `creation-0` — the reader's first saved page, pinned or not — was gone from
+			// localStorage, so every surface in the app reported "Saved to the vault."
+			await fillVault();
+
+			const refused = await creationStoreAdapter.saveCreation({
+				record: { ...validRecord, id: 'creation-50' }
+			});
+
+			expect(refused.ok).toBe(false);
+			if (!refused.ok) {
+				expect(refused.error.code).toBe('VAULT_FULL');
+				expect(refused.error.message).toBe(VAULT_RECORD_CAP_REFUSAL);
+			}
+			const stillThere = await creationStoreAdapter.getCreation({
+				id: 'creation-0'
+			});
+			expect(stillThere.ok).toBe(true);
+			if (stillThere.ok) expect(stillThere.value?.id).toBe('creation-0');
+		});
+
+		it('still lets a full vault be pinned', async () => {
+			// A replacement is not a capacity question. Losing the ability to pin at exactly the
+			// moment the vault fills up would break the one control that makes a full vault
+			// manageable.
+			await fillVault();
+
+			const pinned = await creationStoreAdapter.saveCreation({
+				record: { ...validRecord, id: 'creation-7', favorite: true }
+			});
+
+			expect(pinned.ok).toBe(true);
+			const listed = await creationStoreAdapter.listCreations({ owner: OWNER });
+			expect(listed.ok).toBe(true);
+			if (listed.ok) {
+				expect(listed.value).toHaveLength(MAX_CREATIONS);
+				expect(listed.value.find((r) => r.id === 'creation-7')?.favorite).toBe(true);
+			}
+		});
+
+		it('does not count another session’s orphaned pages against this reader', async () => {
+			// The store is one array shared by every session that has used this browser, and
+			// `listCreations` filters by owner. A reader whose `cb_session_id_v1` was cleared has
+			// records they cannot see and cannot delete; counting those against them would refuse a
+			// save with "your vault already holds 50 pages" over a vault showing none.
+			for (let index = 0; index < MAX_CREATIONS; index += 1) {
 				await creationStoreAdapter.saveCreation({
 					record: {
 						...validRecord,
-						id: `creation-${i}`
+						id: `orphan-${index}`,
+						owner: { kind: 'anonymous' as const, sessionId: 'a-cleared-session' }
 					}
 				});
 			}
 
-			const result = await creationStoreAdapter.listCreations({
-				owner: { kind: 'anonymous' as const, sessionId: 'session-123' }
+			const mine = await creationStoreAdapter.saveCreation({
+				record: { ...validRecord, id: 'mine' }
 			});
-			expect(result.ok).toBe(true);
-			if (result.ok) {
-				expect(result.value.length).toBeLessThanOrEqual(50);
+
+			expect(mine.ok).toBe(true);
+			// And the stranger's records are still there: the count is owner-scoped, the write is
+			// not, so one reader's save must never delete another session's pages.
+			const orphan = await creationStoreAdapter.getCreation({ id: 'orphan-0' });
+			expect(orphan.ok).toBe(true);
+			if (orphan.ok) expect(orphan.value).not.toBeNull();
+		});
+
+		it('tells a reader whose device is out of room what to do about it', async () => {
+			// The limit a reader actually reaches: a real captured provider image is 236,380 base64
+			// characters, so fifty of them never fit. This used to surface as
+			// "Failed to write storage for cb_creations_v1.", which names an internal key and no
+			// remedy.
+			const quota = new Error('exceeded');
+			quota.name = 'QuotaExceededError';
+			// Spied on the instance, not on `Storage.prototype`: jsdom's `localStorage` is a proxy
+			// whose `setItem` does not dispatch through the prototype, so a prototype spy is
+			// installed, never called, and the test passes for the wrong reason.
+			const setItem = vi
+				.spyOn(globalThis.localStorage, 'setItem')
+				.mockImplementation(() => {
+					throw quota;
+				});
+
+			try {
+				const result = await creationStoreAdapter.saveCreation({
+					record: validRecord
+				});
+
+				expect(result.ok).toBe(false);
+				if (!result.ok) {
+					expect(result.error.code).toBe('STORAGE_FULL');
+					expect(result.error.message).toBe(VAULT_DEVICE_FULL_REFUSAL);
+					expect(result.error.message).not.toContain('cb_creations_v1');
+				}
+			} finally {
+				setItem.mockRestore();
+			}
+		});
+
+		it('still reports a blocked store as a write failure, not as a full one', async () => {
+			// A browser with site data blocked throws too, and deleting a saved page does nothing
+			// about it. Collapsing the two — which is what the single `STORAGE_WRITE_FAILED` did in
+			// the other direction — would hand the reader an instruction that cannot work.
+			const blocked = new Error('denied');
+			blocked.name = 'SecurityError';
+			const setItem = vi
+				.spyOn(globalThis.localStorage, 'setItem')
+				.mockImplementation(() => {
+					throw blocked;
+				});
+
+			try {
+				const result = await creationStoreAdapter.saveCreation({
+					record: validRecord
+				});
+
+				expect(result.ok).toBe(false);
+				if (!result.ok) expect(result.error.code).toBe('STORAGE_WRITE_FAILED');
+			} finally {
+				setItem.mockRestore();
 			}
 		});
 	});

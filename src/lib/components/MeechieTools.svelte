@@ -23,6 +23,7 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 	import { MEECHIE_TOOL_QUOTA_COST } from '$lib/core/ai-quota';
 	import AiQuotaLine from './AiQuotaLine.svelte';
 	import { clockSeam } from '$lib/adapters/clock-seam';
+	import { newCreationId } from '$lib/core/creation-id';
 	import { buildQualityReport } from '$lib/core/quality-report';
 	import {
 		describeOriginalImageExport,
@@ -548,12 +549,13 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 		try {
 			const result = await creationStoreAdapter.saveCreation({
 				record: {
-					id:
-						typeof crypto !== 'undefined' &&
-						typeof crypto.randomUUID === 'function'
-							? crypto.randomUUID()
-							: `creation-${Date.now()}`,
-					createdAtISO: new Date().toISOString(),
+					// One generator, shared with the other twelve savers. The fallback this replaced
+					// was `creation-${Date.now()}`, and a save replaces any record sharing its id —
+					// so two saves in one millisecond destroyed the first. See `newCreationId`.
+					id: newCreationId(),
+					// Through `ClockSeam`, not `new Date()`: this file already imports the clock for
+					// its quota meter, and `AGENTS.md` classifies clock/time as a seam.
+					createdAtISO: new Date(clockSeam.now()).toISOString(),
 					intent: lastRecipe.spec,
 					assembledPrompt,
 					revisedPrompt: revisedPrompt || undefined,
@@ -566,7 +568,11 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 					// field keeps the save itself valid rather than losing the page.
 					studioText: buildToolStudioText(pageVerdict, lastRecipe) ?? undefined,
 					violations,
-					fixesApplied: recommendedFixes.map((fix) => fix.code),
+					// `fixesApplied` is deliberately omitted, not filled from `recommendedFixes`.
+					// This hub never applies a recommendation and never regenerates with one, so
+					// writing them into a field named "applied" recorded a correction that did not
+					// happen, leaving a later reader unable to tell a drifted page from a corrected
+					// one. `violations` above still carries the full drift evidence.
 					images: generatedImages.map((image) => ({
 						b64: generatedImageBase64(image)
 					})),

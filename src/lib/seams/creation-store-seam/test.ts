@@ -325,6 +325,24 @@ describe('CreationStoreSeam contract (self-contained)', () => {
 		);
 	});
 
+	it('records that the mock cannot stand in for a full vault, and why', async () => {
+		// The adapter has one refusal the mock cannot reproduce. `VAULT_FULL` depends on how many
+		// records are already stored under the saving owner, and this mock replays a fixture rather
+		// than holding a store — so there is no state for a capacity rule to read. Stated as a test
+		// rather than left as a silent gap: a consumer reading the mock could otherwise conclude that
+		// a schema-valid record in a browser always saves, which is exactly the assumption the
+		// capacity change makes false.
+		//
+		// The behaviour itself is covered against the REAL store, which is the only thing that has a
+		// capacity, in `tests/unit/creation-store-helpers.test.ts` — and the rule it applies is unit
+		// tested on its own in `tests/unit/vault-capacity.test.ts`.
+		const mock = createCreationStoreMock('sample');
+
+		const saved = await mock.saveCreation(creationStoreSampleFixture.input.saveCreation);
+
+		expect(saved.ok).toBe(true);
+	});
+
 	it('mock returns fault fixture outputs (BROWSER_REQUIRED)', async () => {
 		const mock = createCreationStoreMock('fault');
 		const operations = [

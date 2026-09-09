@@ -11,17 +11,23 @@ import {
 	VAULT_EMPTY,
 	VAULT_PATH,
 	VAULT_REOPEN_PARAM,
+	VAULT_MAKE_ROOM_LINK_TEXT,
 	VAULT_SAVED_CONFIRMATION,
+	VAULT_SAVED_LINK_TEXT,
 	VAULT_SORT_OPTIONS,
 	VAULT_UNREADABLE,
 	asVaultSortOrder,
 	describeVaultCount,
-	showsVaultLink,
 	sortVaultEntries,
 	vaultFullRefusal,
+	vaultLinkFor,
 	vaultNoMatches,
 	vaultReopenHref
 } from '../../src/lib/core/vault-page';
+import {
+	VAULT_DEVICE_FULL_REFUSAL,
+	VAULT_RECORD_CAP_REFUSAL
+} from '../../src/lib/core/vault-capacity';
 import { VAULT_CAPACITY, type VaultEntry } from '../../src/lib/core/vault-gallery';
 import type { CreationRecord } from '../../src/lib/seams/creation-store-seam/contract';
 
@@ -101,8 +107,10 @@ describe('what the vault says about itself', () => {
 		expect(refusal).not.toContain('then undo');
 	});
 
-	it('offers the vault link only for the confirmation, never for a failure that says "vault"', () => {
-		expect(showsVaultLink(VAULT_SAVED_CONFIRMATION)).toBe(true);
+	it('offers the vault link for the confirmation, never for a failure that merely says "vault"', () => {
+		expect(vaultLinkFor(VAULT_SAVED_CONFIRMATION)).toEqual({
+			text: VAULT_SAVED_LINK_TEXT
+		});
 
 		// The same line carries every failure the save can produce, and several of them say the
 		// word "vault" while meaning the page never got there. A substring search would send the
@@ -114,7 +122,40 @@ describe('what the vault says about itself', () => {
 			'Quote copied.',
 			''
 		]) {
-			expect(showsVaultLink(failure), failure).toBe(false);
+			expect(vaultLinkFor(failure), failure).toBeNull();
+		}
+	});
+
+	it('sends a reader whose save was refused for room to the vault to make some', () => {
+		// The two exceptions to the rule above, and the reason it stopped being a boolean. These
+		// failures mean "the vault is full", and the remedy is in the vault — so these are the two
+		// failures where the link matters most. The wording has to be an errand, not an invitation:
+		// "see all your saved pages" under a refusal reads as browsing, and the reader has to
+		// delete something.
+		for (const refusal of [
+			VAULT_RECORD_CAP_REFUSAL,
+			VAULT_DEVICE_FULL_REFUSAL
+		]) {
+			expect(vaultLinkFor(refusal), refusal).toEqual({
+				text: VAULT_MAKE_ROOM_LINK_TEXT
+			});
+		}
+		expect(VAULT_MAKE_ROOM_LINK_TEXT).not.toEqual(VAULT_SAVED_LINK_TEXT);
+	});
+
+	it('tells a reader refused for room that nothing of theirs was deleted', () => {
+		// The behaviour this replaced deleted the oldest saved page and reported success, so the
+		// first thing a reader needs from the new refusal is that the silent deletion did not
+		// happen. Without that, any failure here reads as something having gone wrong with the
+		// pages they already have.
+		for (const refusal of [
+			VAULT_RECORD_CAP_REFUSAL,
+			VAULT_DEVICE_FULL_REFUSAL
+		]) {
+			expect(refusal.toLowerCase(), refusal).toMatch(
+				/nothing (was removed|already saved was lost)/
+			);
+			expect(refusal, refusal).toContain('Delete a saved page');
 		}
 	});
 

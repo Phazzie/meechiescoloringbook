@@ -21,13 +21,17 @@ export type VaultImage = NonNullable<CreationRecord['images']>[number];
 export const VAULT_PREVIEW_COUNT = 4;
 
 /**
- * How many saved pages the store keeps before it drops the oldest. This mirrors `MAX_CREATIONS`
- * in `src/lib/adapters/creation-store.adapter.ts`, which is module-private; exporting it would be
- * an adapter change and so would need the full Seam-Driven Development workflow. The mirror is
- * not taken on trust — `tests/unit/vault-gallery.test.ts` drives the real adapter past this
- * number and fails if the store's actual cap ever stops matching.
+ * How many saved pages one owner may keep.
+ *
+ * This used to be a hand-copied `50` beside a comment explaining that `MAX_CREATIONS` was
+ * module-private in `src/lib/adapters/creation-store.adapter.ts` and could not be imported. That
+ * stopped being true: the constant is declared and exported by the seam's own contract, which is
+ * where a number both the store and the screen have to agree on belongs. The mirror is now a
+ * re-export, so there is nothing left to drift — and `tests/unit/vault-gallery.test.ts` still
+ * drives the real adapter to this number, because the constant agreeing with itself proves nothing
+ * about what the store does with it.
  */
-export const VAULT_CAPACITY = 50;
+export { MAX_CREATIONS as VAULT_CAPACITY } from '../../../contracts/creation-store.contract';
 
 // 24 base64 characters decode to exactly 18 bytes — more than every signature checked below
 // (WebP needs 12) and small enough that sniffing a megabyte-sized page costs nothing.
