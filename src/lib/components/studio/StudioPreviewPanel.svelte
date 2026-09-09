@@ -20,6 +20,7 @@ Critical invariant: the paper on screen shows the page's OWN look, never the liv
 	import PrintPageButton from '../PrintPageButton.svelte';
 	import SharePageButton from '../SharePageButton.svelte';
 	import VaultStatusLine from '../VaultStatusLine.svelte';
+	import type { StorageFailure } from '$lib/core/storage-failure';
 	import GenerationFailureNotice from '$lib/components/GenerationFailureNotice.svelte';
 	import type { GenerationFailure } from '$lib/core/generation-failure';
 
@@ -34,6 +35,9 @@ Critical invariant: the paper on screen shows the page's OWN look, never the liv
 		textOutput,
 		copyStatus,
 		vaultStatus,
+		vaultSaveFailure,
+		onRetrySaveToVault,
+		isSaving,
 		canSaveToVault,
 		glitter,
 		activeTheme,
@@ -56,6 +60,12 @@ Critical invariant: the paper on screen shows the page's OWN look, never the liv
 		textOutput: MeechieStudioTextOutput | null;
 		copyStatus: string;
 		vaultStatus: string;
+		/** The classified failure behind `vaultStatus`, where it is reporting one. */
+		vaultSaveFailure: StorageFailure | null;
+		/** Re-run the save that failed. */
+		onRetrySaveToVault: () => void;
+		/** True while a save is in flight, so the retry cannot be double-fired. */
+		isSaving: boolean;
 		canSaveToVault: boolean;
 		/**
 		 * Whether the paper wears the sparkle overlay.
@@ -220,7 +230,16 @@ Critical invariant: the paper on screen shows the page's OWN look, never the liv
 
 	<!-- One line for both, as before: a copy confirmation and a save confirmation never both
 	     need saying, and the save is the one that comes with somewhere to go. -->
-	<VaultStatusLine status={copyStatus || vaultStatus} testId="home-status" />
+	<!-- The failure travels only when the vault's own status is the one on screen. `copyStatus` wins
+	     the line when a copy just happened, and a "Save it again" button under "Link copied." would
+	     offer to redo an operation the reader is not looking at. -->
+	<VaultStatusLine
+		status={copyStatus || vaultStatus}
+		failure={copyStatus ? null : vaultSaveFailure}
+		onRetry={onRetrySaveToVault}
+		isBusy={isSaving}
+		testId="home-status"
+	/>
 </section>
 
 <style>

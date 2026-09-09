@@ -552,6 +552,40 @@ test('two wigs tried on the same selfie can both be kept and compared', async ({
 	await expect(page.getByTestId('home-try-on-result')).toHaveCount(0);
 });
 
+/**
+ * A damaged store, driven for real rather than mocked.
+ *
+ * `cb_creations_v1` is filled with bytes no parse can survive, then `/vault` is loaded. Before this
+ * change the reader was shown the adapter's own `Failed to parse storage for cb_creations_v1.` —
+ * a sentence naming a key they have never heard of, with no remedy and no way forward. Asserted at
+ * the browser rather than at the classifier because that string reached the screen through four
+ * layers that each looked correct on their own.
+ */
+test('a damaged store is explained to the reader, not reported in the adapter\'s words', async ({
+	page
+}) => {
+	await page.goto('/vault', { waitUntil: 'domcontentloaded' });
+	await page.evaluate(() => {
+		window.localStorage.setItem('cb_creations_v1', '{not json at all');
+	});
+	await gotoHydrated(page, '/vault');
+
+	const notice = page.getByTestId('vault-vault-error');
+	await expect(notice).toBeVisible();
+	// The reader's sentence names the condition and the only remedy there is.
+	await expect(notice).toContainText('Your saved pages could not be read.');
+	await expect(notice).toContainText("Clearing this site's stored data");
+	// And never the adapter's own words, nor the storage key.
+	await expect(notice).not.toContainText('Failed to parse storage');
+	await expect(notice).not.toContainText('cb_creations_v1');
+	// No retry: re-reading the same bytes runs the same parse and fails identically. A button here
+	// would be an invitation to press it forever.
+	await expect(page.getByTestId('vault-vault-error-retry')).toHaveCount(0);
+	// A failed read must not read as an empty vault.
+	await expect(page.getByTestId('vault-vault-unreadable')).toBeVisible();
+	await expect(page.getByTestId('vault-vault-empty')).toHaveCount(0);
+});
+
 test('home quote vault can save, load, pin, and delete creations', async ({
 	page
 }) => {

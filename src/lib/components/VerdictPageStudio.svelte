@@ -170,7 +170,13 @@ Invariants: The quality report is rendered ONLY through `QualityReportPanel`, ne
 				testId="verdict-page-share"
 			/>
 		</div>
-		<VaultStatusLine status={studio.vaultStatus} testId="verdict-page-vault-status" />
+		<VaultStatusLine
+			status={studio.vaultStatus}
+			failure={studio.vaultSaveFailure}
+			onRetry={studio.retrySaveToVault}
+			isBusy={studio.isSaving}
+			testId="verdict-page-vault-status"
+		/>
 	{/if}
 </section>
 

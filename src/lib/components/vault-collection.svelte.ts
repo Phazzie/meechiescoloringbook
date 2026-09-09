@@ -25,6 +25,12 @@ import {
 } from '$lib/core/vault-gallery';
 import { vaultFullRefusal } from '$lib/core/vault-page';
 import { VAULT_MAKE_ROOM_REFUSALS } from '$lib/core/vault-capacity';
+import {
+	authoredStorageRefusal,
+	classifyStorageFailure,
+	type StorageFailure,
+	type StorageOperation
+} from '$lib/core/storage-failure';
 import type { AppOriginSeam } from '$lib/seams/app-origin-seam/contract';
 import { nextUtcDayBoundary, type ClockSeam } from '$lib/seams/clock-seam/contract';
 import type { CreationOwner, CreationRecord } from '$lib/seams/creation-store-seam/contract';
@@ -50,8 +56,31 @@ export class VaultCollection {
 
 	creations = $state<CreationRecord[]>([]);
 	query = $state('');
-	/** Any vault failure, read or write, in the words the seam used. */
-	error = $state('');
+	/**
+	 * Any vault failure, read or write, classified into what the reader is told.
+	 *
+	 * This used to be `error = $state('')` holding `result.error.message` — the seam's own words, put
+	 * on screen unchanged, so a reader with a damaged store was shown `Stored creations are not an
+	 * array.` See `src/lib/core/storage-failure.ts` for why that is the one thing this app does not
+	 * do to a reader any more.
+	 */
+	failure = $state<StorageFailure | null>(null);
+	/**
+	 * Which operation the failure came from, so the notice's button can name what it will redo.
+	 *
+	 * Held beside the failure rather than inside it: the classifier is pure and takes the operation
+	 * as an input, and the alternative — a `StorageFailure` that carries its own operation — would
+	 * let the two disagree at the one call site that forgot to update both.
+	 */
+	failedOperation = $state<StorageOperation>('read');
+	/**
+	 * Re-runs exactly the operation that failed, or `null` where the failure offers no retry.
+	 *
+	 * Captured at the failure site with the same arguments the failed call used, so a retry cannot
+	 * act on a row the reader has since chosen differently. Cleared by every subsequent operation,
+	 * successful or not, so an armed retry can never outlive the failure that armed it.
+	 */
+	retryFailedOperation = $state<(() => Promise<void>) | null>(null);
 	/**
 	 * True only when the last vault *read* failed, so the UI can distinguish "your pages are still
 	 * there, we could not see them" from any other error that happens to leave the list empty.
@@ -133,13 +162,34 @@ export class VaultCollection {
 		this.owner = { kind: 'anonymous', sessionId };
 	}
 
+	/**
+	 * Record a failure in the words the reader gets, with the way back where there is one.
+	 *
+	 * One method for all four sites so a new operation cannot set the failure and forget the
+	 * operation it came from, which is what would put "Read them again" under a failed pin.
+	 */
+	private fail(operation: StorageOperation, error: unknown, retry: () => Promise<void>): void {
+		const failure = classifyStorageFailure(operation, error);
+		this.failure = failure;
+		this.failedOperation = operation;
+		// Armed only where the classifier says a second attempt could land differently. Holding a
+		// thunk the notice will never render is how a stale retry survives to fire later.
+		this.retryFailedOperation = failure.retry.kind === 'now' ? retry : null;
+	}
+
+	/** Clear the last failure. Called by every operation that got as far as succeeding. */
+	private clearFailure(): void {
+		this.failure = null;
+		this.retryFailedOperation = null;
+	}
+
 	async refresh(): Promise<void> {
 		if (!this.owner) return;
 		const result = await creationStoreAdapter.listCreations({ owner: this.owner });
 		if (!result.ok) {
 			// Reads used to fail silently, so a browser with unreadable storage showed an empty
 			// vault and no reason for it. Say what happened and leave the last good list up.
-			this.error = result.error.message;
+			this.fail('read', result.error, () => this.refresh());
 			// Tracked apart from `error` because only a failed *read* means "your pages are still
 			// there, we just could not see them". A failed write — a restore that could not be
 			// saved, say — also sets `error` and can also leave the list empty, and telling that
@@ -147,7 +197,7 @@ export class VaultCollection {
 			this.readFailed = true;
 			return;
 		}
-		this.error = '';
+		this.clearFailure();
 		this.readFailed = false;
 		this.nowMs = this.clock.now();
 		this.creations = sortVaultCreations(result.value);
@@ -161,7 +211,9 @@ export class VaultCollection {
 
 	requestDelete = (id: string): void => {
 		this.pendingDeleteId = id;
-		this.error = '';
+		// Arming a delete clears the previous failure, and with it any retry it armed. A reader who
+		// starts a new operation must not be left holding a button that redoes an older one.
+		this.clearFailure();
 	};
 
 	cancelDelete = (): void => {
@@ -178,10 +230,12 @@ export class VaultCollection {
 		const result = await creationStoreAdapter.deleteCreation({ id });
 		this.pendingDeleteId = null;
 		if (!result.ok) {
-			this.error = result.error.message;
+			// The same id, captured here rather than re-read from the list: a retry must delete the
+			// page the reader asked about, not whatever is under that row by the time they press it.
+			this.fail('delete', result.error, () => this.remove(id));
 			return;
 		}
-		this.error = '';
+		this.clearFailure();
 		// Keep a full copy so Undo can put the exact record back, not a reconstruction of it.
 		this.undoableDeletion = removed ? $state.snapshot(removed) : null;
 		this.status = removed ? `Deleted "${removed.intent.title}".` : 'Deleted.';
@@ -203,7 +257,12 @@ export class VaultCollection {
 		// now counted per owner in `planCreationWrite`, which makes the two exactly agree: this is
 		// the same number the store will apply, not an estimate of it.
 		if (this.creations.length >= VAULT_CAPACITY) {
-			this.error = vaultFullRefusal(record.intent.title);
+			// The sentence stays this branch's to write — it names the page Undo is holding, which is
+			// a fact about undo and not about storage. `authoredStorageRefusal` only wraps it so the
+			// one notice renders it, rather than this branch keeping a second error rendering alive.
+			this.failure = authoredStorageRefusal(vaultFullRefusal(record.intent.title));
+			this.failedOperation = 'restore';
+			this.retryFailedOperation = null;
 			return;
 		}
 		const result = await creationStoreAdapter.saveCreation({ record });
@@ -215,12 +274,18 @@ export class VaultCollection {
 			// the one Undo is holding. The count guard's sentence already carries the warning that
 			// deleting to make room costs you this page, so the same warning is given for the same
 			// trap arriving by the other door.
-			this.error = VAULT_MAKE_ROOM_REFUSALS.includes(result.error.message)
-				? vaultFullRefusal(record.intent.title, 'device')
-				: result.error.message;
+			if (VAULT_MAKE_ROOM_REFUSALS.includes(result.error.message)) {
+				this.failure = authoredStorageRefusal(vaultFullRefusal(record.intent.title, 'device'));
+				this.failedOperation = 'restore';
+				this.retryFailedOperation = null;
+				return;
+			}
+			// The record, not a lookup: it is out of `creations` by definition here, so a retry has
+			// nowhere else to find the page it is putting back.
+			this.fail('restore', result.error, () => this.undoDelete());
 			return;
 		}
-		this.error = '';
+		this.clearFailure();
 		this.undoableDeletion = null;
 		this.status = `Restored "${record.intent.title}".`;
 		await this.refresh();
@@ -235,10 +300,12 @@ export class VaultCollection {
 			record: { ...$state.snapshot(creation), favorite: !creation.favorite }
 		});
 		if (!result.ok) {
-			this.error = result.error.message;
+			// The same record and therefore the same intended direction. Re-deriving the toggle from
+			// the list on retry would flip it back if the write had in fact landed.
+			this.fail('pin', result.error, () => this.toggleFavorite(creation));
 			return;
 		}
-		this.error = '';
+		this.clearFailure();
 		await this.refresh();
 	};
 

@@ -1349,7 +1349,10 @@ describe('StudioState quote vault', () => {
 		await studio.toggleFavorite(studio.creations[0]);
 
 		expect(studio.vaultReadFailed).toBe(true);
-		expect(studio.vaultError).toBe('Storage is unreadable.');
+		// The seam's own words go to `detail`, never to the reader. See `src/lib/core/storage-failure.ts`.
+		expect(studio.vaultFailure?.detail).toBe('Storage is unreadable.');
+		expect(studio.vaultFailure?.message).not.toContain('Storage is unreadable.');
+		expect(studio.vaultFailedOperation).toBe('read');
 	});
 
 	it('does not flag a read failure when a write fails but the read succeeded', async () => {
@@ -1361,7 +1364,9 @@ describe('StudioState quote vault', () => {
 
 		await studio.toggleFavorite(studio.creations[0]);
 
-		expect(studio.vaultError).toBe('Storage is full.');
+		expect(studio.vaultFailure?.detail).toBe('Storage is full.');
+		expect(studio.vaultFailure?.message).not.toContain('Storage is full.');
+		expect(studio.vaultFailedOperation).toBe('pin');
 		expect(studio.vaultReadFailed).toBe(false);
 	});
 
@@ -1378,7 +1383,9 @@ describe('StudioState quote vault', () => {
 		await studio.toggleFavorite(studio.creations[0]);
 
 		expect(studio.vaultReadFailed).toBe(false);
-		expect(studio.vaultError).toBe('');
+		expect(studio.vaultFailure).toBeNull();
+		// The retry armed by the failed read is cleared with it, so it cannot fire later.
+		expect(studio.retryVaultOperation).toBeNull();
 	});
 
 	// The injected seam has to actually reach `vaultEntries`. Capturing the origin in a field
@@ -1516,7 +1523,13 @@ describe('StudioState quote vault', () => {
 
 		const studio = await initVault([makeCreation('unreadable')]);
 
-		expect(studio.vaultError).toBe('Failed to parse storage.');
+		// A store nothing can parse: named as damaged, with the only remedy there is, and with no
+		// retry — re-reading the same bytes runs the same parse.
+		expect(studio.vaultFailure?.cause).toBe('unreadable');
+		expect(studio.vaultFailure?.retry).toEqual({ kind: 'none' });
+		expect(studio.retryVaultOperation).toBeNull();
+		expect(studio.vaultFailure?.detail).toBe('Failed to parse storage.');
+		expect(studio.vaultFailure?.message).not.toContain('Failed to parse storage.');
 	});
 
 	it('surfaces a failed delete instead of pretending the page was removed', async () => {
@@ -1528,9 +1541,34 @@ describe('StudioState quote vault', () => {
 
 		await studio.deleteCreation('stubborn');
 
-		expect(studio.vaultError).toBe('Failed to write storage.');
+		expect(studio.vaultFailure?.cause).toBe('write_failed');
+		expect(studio.vaultFailedOperation).toBe('delete');
+		// A write that missed is the one shape worth pressing again, and pressing it costs nothing.
+		expect(studio.retryVaultOperation).not.toBeNull();
+		expect(studio.vaultFailure?.detail).toBe('Failed to write storage.');
 		expect(studio.creations).toHaveLength(1);
 		expect(studio.undoableDeletion).toBeNull();
+	});
+
+	it('retries exactly the delete that failed, and clears the failure when it lands', async () => {
+		const studio = await initVault([makeCreation('stubborn')]);
+		const deleteSpy = vi
+			.spyOn(creationStoreAdapter, 'deleteCreation')
+			.mockResolvedValue({
+				ok: false,
+				error: { code: 'STORAGE_WRITE_FAILED', message: 'Failed to write storage.' }
+			});
+		await studio.deleteCreation('stubborn');
+		const retry = studio.retryVaultOperation;
+		expect(retry).not.toBeNull();
+
+		deleteSpy.mockRestore();
+		await retry?.();
+
+		// The retry deleted the page the reader asked about, not whatever the list held by then.
+		expect(studio.creations).toHaveLength(0);
+		expect(studio.vaultFailure).toBeNull();
+		expect(studio.retryVaultOperation).toBeNull();
 	});
 
 	it('refuses undo rather than evicting another page when the vault is full', async () => {
@@ -1566,7 +1604,9 @@ describe('StudioState quote vault', () => {
 		expect(studio.creations).toHaveLength(VAULT_CAPACITY);
 		expect(studio.creations.some((creation) => creation.id === 'brand-new')).toBe(true);
 		expect(studio.undoableDeletion?.id).toBe('capacity-0');
-		expect(studio.vaultError).toContain('full');
+		expect(studio.vaultFailure?.message).toContain('full');
+		// An app-authored refusal: no retry, because the vault is no less full a second later.
+		expect(studio.vaultFailure?.retry).toEqual({ kind: 'none' });
 
 		// The refusal tells the reader to download the page before freeing a slot. That has to be
 		// possible: the held record is out of `creations`, so no vault row can offer it, and a
@@ -1606,10 +1646,10 @@ describe('StudioState quote vault', () => {
 		// The held page is still held, and the reader is told to download it before freeing room —
 		// not to delete a page, which would have destroyed it.
 		expect(studio.undoableDeletion?.id).toBe('doomed');
-		expect(studio.vaultError).toContain('Download the page you want to keep');
-		expect(studio.vaultError).not.toContain('Delete a saved page to make room');
+		expect(studio.vaultFailure?.message).toContain('Download the page you want to keep');
+		expect(studio.vaultFailure?.message).not.toContain('Delete a saved page to make room');
 		// And it does not claim a page count it did not hit: this vault holds one page, not fifty.
-		expect(studio.vaultError).not.toContain(String(VAULT_CAPACITY));
+		expect(studio.vaultFailure?.message).not.toContain(String(VAULT_CAPACITY));
 	});
 
 	it('has no undo entry to download when nothing is held', async () => {
@@ -1643,7 +1683,10 @@ describe('StudioState quote vault', () => {
 
 		await studio.toggleFavorite(studio.creations[0]);
 
-		expect(studio.vaultError).toBe('Failed to write storage.');
+		expect(studio.vaultFailure?.cause).toBe('write_failed');
+		expect(studio.vaultFailedOperation).toBe('pin');
+		expect(studio.retryVaultOperation).not.toBeNull();
+		expect(studio.vaultFailure?.detail).toBe('Failed to write storage.');
 	});
 
 	it('keeps a reopened quote page as a quote page when the replacement verdict fails', async () => {
@@ -3227,7 +3270,7 @@ describe('StudioState page style', () => {
 		await expect(studio.syncSpecFromCurrentText('setting')).resolves.toBeUndefined();
 
 		expect(studio.settingsError).toBe('spec rebuild exploded');
-		expect(studio.draftSaveError).toBe('');
+		expect(studio.draftSaveFailure).toBeNull();
 	});
 
 	it('saves the style that produced the page, not the controls at save time', async () => {

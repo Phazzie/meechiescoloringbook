@@ -61,6 +61,10 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 	import { creationStoreAdapter } from '$lib/adapters/creation-store-seam';
 	import { VAULT_SAVED_CONFIRMATION } from '$lib/core/vault-page';
 	import VaultStatusLine from '$lib/components/VaultStatusLine.svelte';
+	import {
+		classifyStorageFailure,
+		type StorageFailure
+	} from '$lib/core/storage-failure';
 	import { sessionAdapter } from '$lib/adapters/session-seam';
 	import {
 		buildToolPageRecipe,
@@ -235,6 +239,10 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 	let dedicatedTo = '';
 	let copyStatus = '';
 	let vaultStatus = '';
+	// The classified failure behind `vaultStatus`, where it is reporting one. This component is
+	// still in legacy (non-runes) mode, so this is a plain `let` reassigned on each save like every
+	// other piece of its state — the same value `PageArtifactState` holds as `$state` elsewhere.
+	let vaultSaveFailure: StorageFailure | null = null;
 	let isSaving = false;
 	let owner: CreationOwner | null = null;
 
@@ -581,6 +589,7 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 			return;
 		}
 		isSaving = true;
+		vaultSaveFailure = null;
 		vaultStatus = 'Saving...';
 		// Same staleness rule as generation: the record below is built synchronously from the
 		// current page, but the write is awaited, so its status must not be painted over a page
@@ -639,13 +648,18 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 				}
 			});
 			if (isStaleSave()) return;
-			vaultStatus = result.ok ? VAULT_SAVED_CONFIRMATION : result.error.message;
+			// The capacity refusals this app wrote come back verbatim, so `vaultLinkFor` still
+			// matches them exactly and still offers "Make room in the vault". Everything else
+			// becomes a sentence, and the seam's own words stop reaching the screen.
+			vaultSaveFailure = result.ok ? null : classifyStorageFailure('save', result.error);
+			vaultStatus = result.ok
+				? VAULT_SAVED_CONFIRMATION
+				: (vaultSaveFailure?.message ?? VAULT_SAVED_CONFIRMATION);
 		} catch (saveError) {
 			if (isStaleSave()) return;
-			vaultStatus =
-				saveError instanceof Error
-					? saveError.message
-					: 'Failed to save to vault.';
+			// Was the caught exception's own message. See `src/lib/core/storage-failure.ts`.
+			vaultSaveFailure = classifyStorageFailure('save', saveError);
+			vaultStatus = vaultSaveFailure.message;
 		} finally {
 			isSaving = false;
 		}
@@ -1086,7 +1100,13 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 						testId="meechie-tool-share"
 					/>
 				</div>
-				<VaultStatusLine status={vaultStatus} testId="meechie-tool-vault-status" />
+				<VaultStatusLine
+					status={vaultStatus}
+					failure={vaultSaveFailure}
+					onRetry={() => void handleSaveToVault()}
+					isBusy={isSaving}
+					testId="meechie-tool-vault-status"
+				/>
 			{/if}
 		</section>
 	{/if}

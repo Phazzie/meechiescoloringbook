@@ -82,6 +82,11 @@ import {
 	restoreCreationImages
 } from '$lib/core/vault-gallery';
 import { VAULT_SAVED_CONFIRMATION, describeVaultCount } from '$lib/core/vault-page';
+import {
+	classifyStorageFailure,
+	type StorageFailure,
+	type StorageOperation
+} from '$lib/core/storage-failure';
 import { GenerateResultSchema } from '../../contracts/generate.contract';
 import type { GenerateResponseValue } from '../../contracts/generate.contract';
 import { WigTryOnResultSchema } from '../../contracts/wig-try-on.contract';
@@ -442,7 +447,28 @@ export class StudioState {
 	 */
 	private lastPageAttempt: 'page' | 'tryOn' | null = null;
 	generationError = $derived(this.pageFailure?.message ?? '');
-	draftSaveError = $state('');
+	/**
+	 * The studio's autosave, when it fails.
+	 *
+	 * Was `draftSaveError: string`, holding either the seam's message or a caught exception's, and
+	 * rendered as `Draft not saved: {that string}`. So a reader whose browser blocks site data was
+	 * told "Draft not saved: Creation store requires a browser environment."
+	 */
+	draftSaveFailure = $state<StorageFailure | null>(null);
+	/**
+	 * Re-run the autosave that failed.
+	 *
+	 * Takes no arguments and re-reads the live spec on purpose, unlike the vault's retries: a draft
+	 * is by definition whatever is on screen now, so retrying with a snapshot of what was on screen
+	 * when the save failed would write a stale draft over the reader's newer work.
+	 *
+	 * No `isBusy` flag accompanies it: `isSavingDraft` is a plain field rather than `$state`, so a
+	 * getter over it would not re-render, and `saveDraft` already coalesces a re-entrant call into
+	 * `isDraftSavePending` — a double press queues one more save rather than racing two.
+	 */
+	retryDraftSave = (): void => {
+		void this.saveDraft();
+	};
 	/**
 	 * A Page Controls change that could not be applied.
 	 *
@@ -715,6 +741,15 @@ export class StudioState {
 	 */
 	pageFileBaseName = $state('');
 	isSaving = $state(false);
+	/**
+	 * The last failed vault save, classified.
+	 *
+	 * Held alongside `vaultStatus` rather than replacing it, because the status line carries the
+	 * *confirmation* too and `vaultLinkFor` decides its link by matching that sentence exactly. This
+	 * field is what lets the line offer a retry, and what holds the seam's own words for System
+	 * Trace instead of putting them on screen.
+	 */
+	vaultSaveFailure = $state<StorageFailure | null>(null);
 
 	// --- Quote Vault state ---
 	/**
@@ -751,11 +786,20 @@ export class StudioState {
 	get vaultQuery(): string {
 		return this.vault.query;
 	}
-	get vaultError(): string {
-		return this.vault.error;
+	/**
+	 * The vault's last failure, in the words the reader gets.
+	 *
+	 * Was `vaultError: string`, forwarding the seam's own message. See
+	 * `src/lib/core/storage-failure.ts`.
+	 */
+	get vaultFailure(): StorageFailure | null {
+		return this.vault.failure;
 	}
-	set vaultError(value: string) {
-		this.vault.error = value;
+	get vaultFailedOperation(): StorageOperation {
+		return this.vault.failedOperation;
+	}
+	get retryVaultOperation(): (() => Promise<void>) | null {
+		return this.vault.retryFailedOperation;
 	}
 	get vaultReadFailed(): boolean {
 		return this.vault.readFailed;
@@ -1523,7 +1567,7 @@ export class StudioState {
 			return;
 		}
 		this.isSavingDraft = true;
-		this.draftSaveError = '';
+		this.draftSaveFailure = null;
 		try {
 			const result = await creationStoreAdapter.saveDraft({
 				draft: {
@@ -1554,13 +1598,12 @@ export class StudioState {
 					styleSelection: this.authoredStyleSelection()
 				}
 			});
-			if (result.ok) {
-				this.draftSaveError = '';
-			} else {
-				this.draftSaveError = result.error.message;
-			}
+			this.draftSaveFailure = result.ok ? null : classifyStorageFailure('draft', result.error);
 		} catch (error) {
-			this.draftSaveError = error instanceof Error ? error.message : 'Draft save failed';
+			// Was `error instanceof Error ? error.message : 'Draft save failed'` — a caught
+			// exception's own words, rendered under the label "Draft not saved:". See
+			// `src/lib/core/storage-failure.ts`.
+			this.draftSaveFailure = classifyStorageFailure('draft', error);
 		} finally {
 			this.isSavingDraft = false;
 			if (this.isDraftSavePending) {
@@ -2700,6 +2743,7 @@ export class StudioState {
 			return;
 		}
 		this.isSaving = true;
+		this.vaultSaveFailure = null;
 		this.vaultStatus = 'Saving...';
 		// The page as it was made, not as the controls now describe it. `this.spec` is rebuilt from
 		// the live Page Controls on every setting change, so any setting moved after the picture came
@@ -2765,10 +2809,21 @@ export class StudioState {
 					owner
 				}
 			});
-			this.vaultStatus = result.ok ? VAULT_SAVED_CONFIRMATION : result.error.message;
+			// The refusal's own words only where this app wrote them for a reader — which is exactly
+			// what `classifyStorageFailure` returns verbatim for the capacity refusals, so
+			// `vaultLinkFor` still matches them character-for-character and still offers "Make room
+			// in the vault". Everything else becomes a sentence, and the seam's message goes to
+			// `vaultSaveFailure.detail` where System Trace can have it.
+			this.vaultSaveFailure = result.ok ? null : classifyStorageFailure('save', result.error);
+			this.vaultStatus = result.ok
+				? VAULT_SAVED_CONFIRMATION
+				: (this.vaultSaveFailure?.message ?? VAULT_SAVED_CONFIRMATION);
 			await this.refreshCreations();
 		} catch (error) {
-			this.vaultStatus = error instanceof Error ? error.message : 'Failed to save to vault.';
+			// This branch used to put a caught exception's own message on screen. It is the precise
+			// thing `generation-failure.ts` forbids for AI calls, and storage was still doing it.
+			this.vaultSaveFailure = classifyStorageFailure('save', error);
+			this.vaultStatus = this.vaultSaveFailure.message;
 		} finally {
 			this.isSaving = false;
 		}

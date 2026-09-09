@@ -27,6 +27,8 @@ import {
 	type FetchStub
 } from './support/page-artifact-harness';
 import { MEECHIE_TOOL_QUOTA_COST } from '../../src/lib/core/ai-quota';
+import { VAULT_RECORD_CAP_REFUSAL } from '../../src/lib/core/vault-capacity';
+import { vaultLinkFor } from '../../src/lib/core/vault-page';
 import { GenerateResultSchema } from '../../contracts/generate.contract';
 import { MeechieToolResultSchema } from '../../contracts/meechie-tool.contract';
 import type {
@@ -985,11 +987,41 @@ describe('saveToVault', () => {
 	it('surfaces a rejected save rather than reporting success', async () => {
 		vi.mocked(creationStoreAdapter.saveCreation).mockResolvedValue({
 			ok: false,
-			error: { code: 'CREATION_QUOTA', message: 'Vault is full.' }
+			error: { code: 'STORAGE_WRITE_FAILED', message: 'Failed to write storage for x.' }
 		});
 		const state = await withPage();
 		await state.saveToVault();
-		expect(state.vaultStatus).toBe('Vault is full.');
+		// Not the seam's own words: a reader is told what happened and offered the retry, and the
+		// diagnostic goes to `detail`. See `src/lib/core/storage-failure.ts`.
+		expect(state.vaultStatus).not.toContain('Failed to write storage');
+		expect(state.vaultStatus).toContain('could not be saved to the vault');
+		expect(state.vaultSaveFailure?.detail).toBe('Failed to write storage for x.');
+		expect(state.vaultSaveFailure?.retry).toEqual({ kind: 'now' });
+	});
+
+	it('passes a refusal this app wrote through to the status line unchanged', async () => {
+		// `vaultLinkFor` matches this sentence exactly to decide whether the line offers "Make room
+		// in the vault", so the classifier must not reword it on the way through.
+		vi.mocked(creationStoreAdapter.saveCreation).mockResolvedValue({
+			ok: false,
+			error: { code: 'VAULT_FULL', message: VAULT_RECORD_CAP_REFUSAL }
+		});
+		const state = await withPage();
+		await state.saveToVault();
+		expect(state.vaultStatus).toBe(VAULT_RECORD_CAP_REFUSAL);
+		expect(vaultLinkFor(state.vaultStatus)).not.toBeNull();
+	});
+
+	it('does not put a thrown error on screen, and offers the free retry instead', async () => {
+		vi.mocked(creationStoreAdapter.saveCreation).mockRejectedValue(
+			new Error('SecurityError: setItem blocked at chunk-9a1.js:44')
+		);
+		const state = await withPage();
+		await state.saveToVault();
+		expect(state.vaultStatus).not.toContain('SecurityError');
+		expect(state.vaultStatus).not.toContain('chunk-9a1.js');
+		expect(state.vaultSaveFailure?.detail).toContain('SecurityError');
+		expect(state.vaultSaveFailure?.retry).toEqual({ kind: 'now' });
 	});
 
 	it('does not paint a status over a page the user has already replaced', async () => {

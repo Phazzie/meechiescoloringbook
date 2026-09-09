@@ -9,6 +9,18 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
 
 ## 2026-09-09
 - Date: 2026-09-09
+- Context: A run fixed the raw-error-string defect for every AI call in the app, wrote a classifier and a notice component for it, and left storage doing the identical thing at twelve call sites — four of them writing a caught exception's own message. The AI module's own header even lists the five call sites it replaced, and none of the storage ones is among them. The follow-up sat unwritten for two runs while a carried-forward list described it as "a defensible next pick".
+- Lesson: **A fix that establishes a rule does not apply it.** The module, the component and the invariant all existed and were good; what was missing was the sweep for every other place the rule holds. The AI sweep found its five sites by looking for *AI calls*, which is the wrong search — the defect was "a raw string reaches a reader", and searching for that instead would have found all seventeen at once.
+- Action: When a change abolishes a pattern, grep for the *pattern* rather than for the feature that motivated it. `error.message` and `result.error.message` written into any field a component renders is a two-command search, and it is the search that says whether the job is finished.
+
+## 2026-09-09
+- Date: 2026-09-09
+- Context: Classifying a seam failure means reading `error.code`. A caught exception can carry a `code` too — Node sets one on system errors, and application code attaches them freely — so a `catch` block feeding the classifier could hand it an `Error` that looks exactly like a seam refusal. The allowlist branch would then match its message and put the exception's own words on screen, which is the single defect the whole module exists to prevent.
+- Lesson: **A structural check that recognises "a value with a `code` and a `message`" also recognises an `Error`.** Every `Error` has a `message`, and a `code` is one assignment away. Duck-typing a refusal apart from an exception needs an explicit `instanceof Error` rejection, not just a field test.
+- Action: Where a classifier accepts `unknown` and branches on shape, close the exception path first and by name. Write the test that throws an `Error` carrying the very code the allowlist branch is keyed on.
+
+## 2026-09-09
+- Date: 2026-09-09
 - Context: Five call sites in the app ended with `error instanceof Error ? error.message : '<fallback>'` written into a field a reader sees. Each one was locally reasonable and each carried a considered fallback string. Together they meant that the app's account of its own failures was whichever text an exception happened to carry — `Failed to fetch` when a connection dropped, and a `postJson: HTTP 502 …` line the app builds for itself when a gateway failed.
 - Lesson: **The fallback in `e instanceof Error ? e.message : '<fallback>'` is backwards.** The author's own sentence — the thoughtful part — runs only in the rare case where something that is not an `Error` was thrown, and the common case shows a string nobody wrote for a reader. Every one of these five sites had a good sentence in it that almost never ran.
 - Action: Treat a caught exception's `message` as diagnostic data, never as display text. Classify the failure into a value, word the sentence from the classification, and carry the original message somewhere a developer looks. Where a codebase has this pattern more than once, expect the sentences to have drifted apart as well.

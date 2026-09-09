@@ -14938,3 +14938,143 @@ Everything in the Run 21 entry and its first close-out above, unchanged, plus:
 - **Run 18 still has no merge close-out entry**, as Runs 19 and 20 both noted. Not reconstructed
   here either, and it has now been carried on this list for four runs — either a run reconstructs it
   from PR #337 or a future entry should stop claiming it as pending.
+
+## Run 22 — 2026-09-09 — What the app says when its own *memory* fails
+
+### The pick
+
+The worst feature is **what the Quote Vault and the studio draft say when they fail**. The vault is
+the only thing in this app that is supposed to still be there tomorrow, and it holds pages a reader
+paid a generation for. Every one of its failure paths answered them with a line addressed to whoever
+wrote the adapter.
+
+What makes it the worst rather than merely the last is the same shape Run 21 found and one degree
+worse: **the app already contains the fix, and the module that established the rule names the very
+sites it did not apply it to.** Run 20 wrote `src/lib/core/generation-failure.ts`, whose header lists
+the five AI call sites it replaced and whose stated invariant is *"a message that reached us from an
+EXCEPTION is never shown to a reader."* Storage was doing exactly that, at twelve call sites, four of
+them in `catch` blocks — and the carried-forward list has described it as "a defensible next pick"
+for two runs.
+
+Measured on `main` at `d62f3af`:
+
+| Site | What was written |
+|------|------------------|
+| `vault-collection.svelte.ts` ×4 | `result.error.message` on a failed read, delete, restore and pin |
+| `page-artifact-state.svelte.ts` | `result.error.message`, and `saveError.message` in its `catch` |
+| `studio-state.svelte.ts` (draft) | `result.error.message`, and `error.message` in its `catch` |
+| `studio-state.svelte.ts` (save) | `result.error.message`, and `error.message` in its `catch` |
+| `MeechieTools.svelte` | `result.error.message`, and `saveError.message` in its `catch` |
+
+So a reader with site data blocked was shown `Creation store requires a browser environment.` A
+reader whose store had been damaged was shown `Stored creations are not an array.` A save that missed
+produced `Failed to write storage for cb_creations_v1.` — a sentence naming a storage key they have
+never heard of. None named a remedy. **None offered a retry**, which is the sharpest loss: unlike
+every AI failure in this app, a storage retry spends no quota, reaches no provider and needs no
+network. The surface with the cheapest possible second attempt was the only one with none.
+
+**The first inventory of this said nine sites and was wrong.** It missed `MeechieTools.svelte` and
+the home studio's own `saveToVault` — two more copies of the same save, which is itself part of the
+case. Corrected in `plan.md` rather than quietly.
+
+### What shipped
+
+- **`src/lib/core/storage-failure.ts`** (new, pure) — `classifyStorageFailure(operation, error)`.
+  Nine adapter codes to seven causes, a sentence per cause *and per operation*, and a retry only
+  where a second press could land differently.
+- **`src/lib/components/StorageFailureNotice.svelte`** (new) — the one rendering, owning its CSS,
+  deliberately the same shape as `GenerationFailureNotice`.
+- All twelve sites classify. `VaultStatusLine` gained an optional retry, wired on all five hosts.
+
+Three decisions worth carrying:
+
+1. **The operation is an input, not a detail.** "Your saved pages could not be read" and "this page
+   could not be saved to the vault" are the same `unavailable` cause with opposite stakes. A
+   classifier knowing only the cause would have to write one sentence vague enough to cover both.
+   The `save`, `restore` and `draft` operations also add "Download it to keep it" — the read and
+   delete ones must not, because nothing the reader is holding is at risk there.
+2. **The three capacity refusals come back verbatim, and that is load-bearing.** `vaultLinkFor`
+   matches them character-for-character to decide whether the line offers "Make room in the vault".
+   Rewording one would silently remove the link on the two failures where the reader needs it most.
+   The test asserts `toBe` against the constants themselves, never a copied literal.
+3. **`rejected` is told apart from `unreadable`.** `CREATION_SCHEMA_MISMATCH` means the app handed
+   the store something it will not take. Nothing stored is damaged. Collapsing it into "unreadable"
+   would tell a reader whose vault is perfectly healthy to clear their site data.
+
+### The bug the run's own adversarial re-reading found
+
+A caught exception can carry a `code` — Node sets one on system errors — so a `catch` feeding the
+classifier could hand it an `Error` that looks exactly like a seam refusal. The allowlist branch
+would then match its `message` and put the exception's own words on screen: the single defect the
+whole module exists to prevent, reintroduced through its own safety branch. Closed with an explicit
+`instanceof Error` rejection in `asSeamError`, and tested by throwing an `Error` carrying the very
+code the allowlist branch is keyed on. **Found by re-reading the diff, not by a tool.**
+
+### Verification, including a real red proof
+
+`check` 0 errors 0 warnings, `lint`, `build`, `npm test` **1,922 passed**, the full `npm run verify`
+chain **exit 0**, and **82 Playwright tests** (81 before, plus this run's).
+
+The end-to-end test damages `cb_creations_v1` with unparseable bytes in a real browser, loads
+`/vault`, and asserts the reader sees the sentence and **never** the adapter's words or the storage
+key. **It was proved red before being trusted**: reverting the rendering to the raw detail produced
+`Expected substring: "Your saved pages could not be read." / Received string: "Failed to parse
+storage for cb_creations_v1."` — the exact defect, caught by the test that claims to catch it. This
+log has recorded four runs' worth of green signals that measured nothing; a test asserting a sentence
+is worth exactly as much as the demonstration that it fails without the fix.
+
+**Container note:** this container's Playwright browser is build 1194 and the project pins 1208, so
+`npx playwright test` reports "Executable doesn't exist" and suggests `npx playwright install`, which
+the environment forbids. The run passed a local config overriding `launchOptions.executablePath` to
+`/opt/pw-browsers/chromium-1194/chrome-linux/chrome`; that config is scratch and was **not
+committed**. Worth an hour to the next run otherwise.
+
+### Seams
+
+**None touched, and this was checked rather than assumed.** `code` is already `NonEmptyStringSchema`
+on `contracts/shared.contract.ts:12` and every code read here is one the adapter already emits. No
+contract field, no probe, no fixture, no adapter behaviour, so no Cipher Gate. `git diff --name-only`
+against `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`, `src/lib/seams/` and
+`src/lib/adapters/` returns nothing.
+
+### Scope, and what was deliberately left alone
+
+- **The packaging failures still render raw strings** — `error: result.error.message` in
+  `studio-state.svelte.ts:2271`, `page-artifact-state.svelte.ts:144` and `MeechieTools.svelte:553`.
+  Same defect, different seam (`OutputPackagingSeam`), and `page-exports.ts` already owns the
+  sentences that surface says. A separate pick, named here so it is not rediscovered.
+- **`skippedIndices` still reaches nothing but `console.warn`.** A record dropped by schema
+  validation is still invisible to the reader and still destroyed by the next write. Unchanged from
+  Run 19's list; it needs contract room to carry the count.
+- **`failure.detail` still has nowhere to render on most surfaces.** This run *creates* more of them
+  — every storage failure now holds one — and routes none of them to a disclosure. Run 20's item,
+  now larger rather than smaller.
+
+### Carried forward for the next run
+
+Re-measure everything below; do not inherit it.
+
+- **The three packaging call sites above.** New this run, precisely located, touches one seam's
+  output type at most. The strongest small pick on this list.
+- **`grep` for the *pattern* a fix abolished, not for the feature that motivated it.** Run 20 found
+  its five sites by searching for AI calls; the defect was "a raw string reaches a reader", and
+  searching for that would have found all seventeen at once. New this run and the cheapest audit
+  here.
+- **Fourteen-plus surfaces hold a `failure.detail` with nowhere to render it**, now including every
+  storage failure. Run 20's item, grown.
+- **A `ConnectionSeam` is still the right home for the `navigator.onLine` read.** Unchanged.
+- **`MeechieTools.svelte` is still in legacy (non-runes) mode**, which this run worked around again
+  by giving it a plain `let vaultSaveFailure` where every other host has `$state`. Third run running.
+- **The try-on's `rejected` branch is still unreachable from the UI.** Run 21's item, untouched.
+- Every item on **Run 19's carried-forward list** still stands, untouched by this run.
+- **Run 18 still has no merge close-out entry.** Carried for five runs now. Either a run reconstructs
+  it from PR #337 or a future entry should stop claiming it as pending.
+- **Sourcery's weekly budget** was recorded as exhausted until roughly 2026-09-10 23:00 UTC. This run
+  falls inside that window; check before reading a skip as a comment on diff size.
+- **SonarCloud still cannot be read from this container** (`sonarcloud.io` refused by the egress
+  proxy). Run 20's technique — enumerate the default profile's rules, grep the diff for each, act
+  only where there is exactly one candidate — before recording another unread finding.
+- **The plan was written to `plan.md` before any code this run**, which is the governance ordering
+  Run 21 recorded a deviation against. It was then *corrected* mid-run when the site count proved
+  wrong. A plan that is edited when the measurement changes is the plan working; a plan written after
+  the fact is not.

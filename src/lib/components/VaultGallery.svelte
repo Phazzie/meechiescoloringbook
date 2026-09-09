@@ -20,6 +20,7 @@ Invariants: Reads and writes exactly one collection. Nothing here holds a copy o
 	import type { VaultEntry } from '$lib/core/vault-gallery';
 	import { VAULT_EMPTY, VAULT_UNREADABLE, vaultNoMatches } from '$lib/core/vault-page';
 	import type { VaultCollection } from './vault-collection.svelte';
+	import StorageFailureNotice from './StorageFailureNotice.svelte';
 
 	let {
 		vault,
@@ -122,9 +123,17 @@ Invariants: Reads and writes exactly one collection. Nothing here holds a copy o
 		</div>
 	{/if}
 
-	{#if vault.error}
-		<p class="error" data-testid={testId('error')}>{vault.error}</p>
-	{/if}
+	<!-- Was `<p class="error">{vault.error}</p>` — the seam's own message, so a reader whose store
+	     could not be parsed was shown "Stored creations are not an array." The notice carries the
+	     sentence and, for the failures where a second attempt could land differently, the button. -->
+	<StorageFailureNotice
+		failure={vault.failure}
+		operation={vault.failedOperation}
+		onRetry={vault.retryFailedOperation
+			? () => void vault.retryFailedOperation?.()
+			: undefined}
+		testId={testId('error')}
+	/>
 
 	{#if vault.readFailed && vault.totalSavedCount === 0}
 		<!-- A failed read leaves `creations` empty, so without this the storage error would sit
@@ -505,11 +514,6 @@ Invariants: Reads and writes exactly one collection. Nothing here holds a copy o
 		border-color: transparent;
 		background: transparent;
 		color: var(--lavender);
-	}
-
-	.error {
-		margin: 0.7rem 0 0;
-		color: #ff8ab3;
 	}
 
 	.empty {

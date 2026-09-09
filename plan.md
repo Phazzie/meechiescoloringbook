@@ -8,6 +8,138 @@ Info flow: User request -> execution specs -> implementation -> review evidence.
 
 Current active plan is listed first. Older dated entries remain below as historical context and are not active unless explicitly reselected.
 
+## Run 22 (2026-09-09) — Worst-feature routine: what the app says when *storage* fails
+
+**Goal:** every failure of the app's own memory — the Quote Vault and the studio draft — tells the
+reader what happened in a sentence written to be read, and offers the retry that storage failures,
+alone among this app's failures, are free to offer. Today every one of those paths shows a
+developer's string or a raw exception message, in a crimson box with no way forward.
+
+### The measurement (taken on `main` at `d62f3af`, not inherited)
+
+**Twelve** call sites write an unwritten string onto a reader's screen. **Four** of them write the
+message of a **caught exception**, which `src/lib/core/generation-failure.ts` already names as the
+thing that must never happen. (The first pass over this counted nine and missed
+`MeechieTools.svelte` and the home studio's own `saveToVault` entirely — both are separate copies of
+the same save, which is itself part of the case for one classifier.)
+
+| Site | Line | What is written |
+|------|------|-----------------|
+| `src/lib/components/vault-collection.svelte.ts` | 142 | `result.error.message` (failed read) |
+| `src/lib/components/vault-collection.svelte.ts` | 181 | `result.error.message` (failed delete) |
+| `src/lib/components/vault-collection.svelte.ts` | 218 | `result.error.message` (failed restore, non-capacity branch) |
+| `src/lib/components/vault-collection.svelte.ts` | 238 | `result.error.message` (failed pin) |
+| `src/lib/components/page-artifact-state.svelte.ts` | 778 | `result.error.message` (failed vault save) |
+| `src/lib/components/page-artifact-state.svelte.ts` | 782 | `saveError.message` — **a caught exception** |
+| `src/routes/studio-state.svelte.ts` | 1560 | `result.error.message` (failed draft save) |
+| `src/routes/studio-state.svelte.ts` | 1563 | `error.message` — **a caught exception** |
+| `src/routes/studio-state.svelte.ts` | 2768 | `result.error.message` (failed vault save, home studio) |
+| `src/routes/studio-state.svelte.ts` | 2771 | `error.message` — **a caught exception** |
+| `src/lib/components/MeechieTools.svelte` | 642 | `result.error.message` (failed vault save, tools hub) |
+| `src/lib/components/MeechieTools.svelte` | 645 | `saveError.message` — **a caught exception** |
+
+The strings those sites can produce are written in
+`src/lib/adapters/creation-store-seam/index.ts` and are addressed to whoever wrote the adapter:
+
+- `Creation store requires a browser environment.` (7 call sites, code `BROWSER_REQUIRED`)
+- `Failed to parse storage for cb_creations_v1.` (code `STORAGE_PARSE_FAILED`)
+- `Failed to write storage for cb_creations_v1.` (code `STORAGE_WRITE_FAILED`)
+- `Stored creations are not an array.` / `Creation record failed schema validation.` /
+  `Stored draft failed schema validation.`
+
+Three of the store's failures already carry sentences the app *did* write for a reader —
+`VAULT_RECORD_CAP_REFUSAL`, `VAULT_DEVICE_FULL_REFUSAL`, `VAULT_ID_COLLISION_REFUSAL` in
+`src/lib/core/vault-capacity.ts`. Those must pass through untouched, both because they are good and
+because `vaultLinkFor` in `src/lib/core/vault-page.ts` matches them **exactly** to decide whether the
+status line carries the "Make room in the vault" link.
+
+**Why this is the worst feature.** The vault is the only thing in the app that is supposed to still
+be there tomorrow, and it holds pages the reader paid a generation for. When it fails it currently
+says `Stored creations are not an array.` — a sentence that names no cause the reader has, no remedy
+they can take, and no way to try again. Run 20 fixed exactly this defect for AI calls and left a
+module, a component and an invariant behind as the template. Storage is the last surface still doing
+the thing that module was written to abolish, and it is the one where retrying is **free** — no
+quota, no provider, no network — so it is the surface where the missing retry costs the least to add
+and the most to omit.
+
+### Seams
+
+**None touched.** `code` is already `NonEmptyStringSchema` on `contracts/shared.contract.ts:12` and
+the adapter already emits the codes above. This change *reads* codes that exist; it adds no contract
+field, no probe, no fixture and no adapter behaviour. No Cipher Gate is required.
+
+### Exact file inventory
+
+- `[NEW] src/lib/core/storage-failure.ts` — the pure classifier. `classifyStorageFailure(operation,
+  error)` -> `StorageFailure { cause, message, retry, detail }`, plus `storageRetryLabel`.
+- `[NEW] src/lib/components/StorageFailureNotice.svelte` — the one rendering, owning its own CSS.
+- `[NEW] tests/unit/storage-failure.test.ts` — every cause, every operation, the allowlist
+  pass-through, and the invariant that no exception message is ever the reader's sentence.
+- `[MODIFY] src/lib/components/vault-collection.svelte.ts` — `error: string` becomes
+  `failure: StorageFailure | null`; each of the four sites classifies and records the thunk that
+  re-runs exactly the operation that failed.
+- `[MODIFY] src/lib/components/VaultGallery.svelte` — renders the notice in place of
+  `<p class="error">{vault.error}</p>`.
+- `[MODIFY] src/lib/components/page-artifact-state.svelte.ts` — `saveToVault` classifies both the
+  refusal branch and the catch branch; `vaultStatus` receives `failure.message`, so the app-authored
+  refusals still match `vaultLinkFor` exactly.
+- `[MODIFY] src/lib/components/VaultStatusLine.svelte` — an optional retry control for a save that
+  can be retried.
+- `[MODIFY] src/routes/studio-state.svelte.ts` — `draftSaveError: string` becomes
+  `draftSaveFailure: StorageFailure | null`; the catch branch stops writing an exception's message.
+- `[MODIFY] src/lib/components/studio/StudioInputPanel.svelte` — renders the notice.
+- `[MODIFY]` the `VaultStatusLine` hosts for the retry prop: `src/routes/+page.svelte`,
+  `src/lib/components/VerdictPageStudio.svelte`, `src/lib/components/DescribePageStudio.svelte`,
+  `src/lib/components/MeechieTools.svelte`, `src/lib/components/studio/StudioPreviewPanel.svelte`.
+  `MeechieTools.svelte` also classifies its own save, which the first inventory missed.
+- `[MODIFY] tests/unit/studio-state.test.ts`, `tests/unit/verdict-page-state.test.ts` where they
+  assert the old raw strings.
+- `[MODIFY] tests/e2e/smoke.spec.ts` — an end-to-end test that damages `cb_creations_v1` in a real
+  browser, loads `/vault`, and asserts the reader sees the sentence and never the adapter's words.
+
+### Strict anti-goals — do not touch
+
+- Do **not** change `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`, `src/lib/seams/` or
+  `src/lib/adapters/`. The adapter's codes and messages stay exactly as they are; this change reads
+  them.
+- Do **not** change the `localStorage` key names, `VAULT_CAPACITY`, or any sentence in
+  `vault-capacity.ts` / `vault-page.ts`. `vaultLinkFor` matches them exactly and a reworded refusal
+  silently removes the "Make room in the vault" link.
+- Do **not** render `failure.detail` anywhere a reader sees it. It exists for System Trace and a bug
+  report, and putting it on screen restores the defect being removed.
+- Do **not** offer a retry for a cause where retrying reproduces the same refusal.
+
+### Self-critique
+
+- **Riskiest assumption:** that replacing `vaultStatus`'s failure strings does not break
+  `vaultLinkFor`, which matches sentences exactly. *Proof:* the classifier returns the app-authored
+  refusal string **unchanged** when the adapter's message is one of them, and
+  `tests/unit/storage-failure.test.ts` asserts the returned message is `===` the constant, with
+  `tests/unit/vault-page.test.ts` still asserting the link. If either drifts, both fail.
+- **What could be wrong:** classifying on `code` assumes the adapter sets one. Every failure branch
+  in `src/lib/adapters/creation-store-seam/index.ts` does, and `code` is a non-empty string on the
+  shared contract — but a *thrown* error carries no code at all, which is why the classifier takes
+  `unknown` and treats an exception as its own cause rather than trying to read a field off it.
+- **What must be proven:** that no reader-facing sentence is ever an exception's message. A unit test
+  throws an `Error` with a recognisable body and asserts that body appears in `detail` and nowhere in
+  `message`.
+- **The thing I expect to get wrong:** the retry thunk in `vault-collection.svelte.ts`. A retry that
+  re-runs a *stale* closure would restore a record the reader has since deleted. The thunks capture
+  the same arguments the failed call used and the failure is cleared by every subsequent successful
+  operation, so an armed retry cannot outlive its own operation — asserted in the state test.
+
+### Commands (each must exit 0)
+
+```sh
+npm run check
+npm run lint
+npm test
+npm run build
+npm run verify
+npx playwright test
+```
+
+
 ## Run 18 (2026-09-08) — Worst-feature routine: the AI budget meter reports the wrong bucket
 
 **Goal:** make the AI budget meter report the bucket the button under it actually spends, on every

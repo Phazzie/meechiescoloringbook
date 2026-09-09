@@ -53,6 +53,7 @@ import { readIsOnline } from './connection.svelte';
 import { GenerateResultSchema } from '../../../contracts/generate.contract';
 import type { GenerateResponseValue } from '../../../contracts/generate.contract';
 import { VAULT_SAVED_CONFIRMATION } from '$lib/core/vault-page';
+import { classifyStorageFailure, type StorageFailure } from '$lib/core/storage-failure';
 import { newCreationId } from '$lib/components/creation-id';
 import type { CreationOwner } from '$lib/seams/creation-store-seam/contract';
 import type { MeechieStudioTextOutput } from '../../../contracts/meechie-studio-text.contract';
@@ -289,6 +290,19 @@ export class PageArtifactState {
 	);
 
 	vaultStatus = $state('');
+	/**
+	 * The last failed vault save, classified.
+	 *
+	 * Beside `vaultStatus` rather than replacing it: that line also carries the confirmation and the
+	 * "Saving..." progress, and `vaultLinkFor` decides its link by matching the confirmation exactly.
+	 * This field is what lets the line offer a retry — free, because the write is local — and what
+	 * holds the seam's own words instead of putting them on screen.
+	 */
+	vaultSaveFailure = $state<StorageFailure | null>(null);
+	/** Re-run the save that failed, with the same page. */
+	retrySaveToVault = (): void => {
+		void this.saveToVault();
+	};
 	isSaving = $state(false);
 
 	protected generatedImages: GeneratedImage[] = [];
@@ -727,6 +741,7 @@ export class PageArtifactState {
 		const revisedPrompt = this.revisedPrompt;
 		const violations = this.violations;
 		this.isSaving = true;
+		this.vaultSaveFailure = null;
 		this.vaultStatus = 'Saving...';
 		const token = this.pageToken;
 		try {
@@ -773,15 +788,20 @@ export class PageArtifactState {
 				}
 			});
 			if (token !== this.pageToken) return;
+			// A refusal this app wrote for a reader comes back from the classifier verbatim, which is
+			// what keeps `vaultLinkFor`'s exact match — and so the "Make room in the vault" link —
+			// working. Every other failure becomes a sentence, and the seam's own words go to
+			// `vaultSaveFailure.detail` rather than onto the screen.
+			this.vaultSaveFailure = result.ok ? null : classifyStorageFailure('save', result.error);
 			this.vaultStatus = result.ok
 				? VAULT_SAVED_CONFIRMATION
-				: result.error.message;
+				: (this.vaultSaveFailure?.message ?? VAULT_SAVED_CONFIRMATION);
 		} catch (saveError) {
 			if (token !== this.pageToken) return;
-			this.vaultStatus =
-				saveError instanceof Error
-					? saveError.message
-					: 'Failed to save to vault.';
+			// This branch put a caught exception's own message on screen — `generation-failure.ts`
+			// forbids exactly that for AI calls, and storage was the last place still doing it.
+			this.vaultSaveFailure = classifyStorageFailure('save', saveError);
+			this.vaultStatus = this.vaultSaveFailure.message;
 		} finally {
 			this.isSaving = false;
 		}
