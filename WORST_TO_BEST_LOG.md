@@ -15318,3 +15318,113 @@ luck about which rule fired, not a property of the method.
 **Carry this instead of the technique's reputation:** run it to *locate* a finding you already have
 reason to believe is local, and to *rule out* findings as pre-existing. Never quote its silence as a
 clean bill of health, and never let a stable count be "fixed" by a guess.
+
+## Run 22 — merge close-out — 2026-09-09 — PR #345 merged as `476dc38`
+
+**Merged:** `476dc38`, squashed from six commits on `claude/great-bell-79i1t1`.
+**Base at merge:** `main` at `d62f3af`. 33 files, +1,898 / -123.
+
+### Gates at merge
+
+Every check run green on the head `7a3309a` — both `verify` jobs, SonarCloud twice, CodeQL twice,
+Rosentic conflict detection, Vercel preview comments — plus both commit statuses (Vercel "Deployment
+has completed", CodeRabbit's skip), with the combined status `success` and `mergeable_state` reading
+`clean`. `Sourcery review` reported `skipped`, which is a budget refusal and not a failure. Locally:
+`check` 0/0, `lint`, **1,927** unit tests, `build`, the full `verify` chain and **82** Playwright
+tests, all exit 0.
+
+**Re-measured at the merged commit rather than carried forward from the head it was written at**,
+which is the correction Run 19 earned and Runs 20 and 21 kept: `git diff --name-only d62f3af
+476dc38` against `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`, `src/lib/seams/` and
+`src/lib/adapters/` returns **nothing**. No Cipher Gate was required and the merge rule's
+contract-change exclusion did not apply.
+
+The open Assumption entries in `DECISIONS.md` were read rather than assumed irrelevant. Those still
+open concern the CSP font sources pending first deploy, the `vercel.json` header rules, the durable
+Upstash-backed rate-limit store, and the live xAI image-edit call. **None of them covers what a
+storage failure says to a reader or whether a retry is offered**, which is the whole of what this
+change decides. So the conditions in `AGENTS.md` were met and it was merged without asking, which is
+the rule.
+
+### The one thing worth carrying out of this run
+
+Codex broke a four-run streak of no line-by-line bot review and immediately found a **P1 that four
+green gates, the full `verify` chain, 1,922 unit tests, 82 Playwright tests and this run's own
+adversarial re-reading all missed** — because the defect was not in whether the code did what it was
+written to do. It did. The defect was that **what it was written to do was harmful**: it told a
+reader whose saved pages were fine to clear their site data and delete them.
+
+Every automated measure this repository runs asks the first question. **None of them asks the
+second.** That is the standing gap, and it is a stronger argument for the owner ruling this log has
+now requested three times than the review-coverage argument was.
+
+### The three self-corrections, recorded because the pattern is the point
+
+This run wrote three things into this log that were wrong and then corrected each one:
+
+1. **"Nine call sites."** It was twelve. Corrected in `plan.md` mid-run when
+   `MeechieTools.svelte` and the home studio's own `saveToVault` turned up.
+2. **"Prediction and measurement agree" on SonarCloud.** The check was green because the *Quality
+   Gate* passed; the gate comment said **1 New issue**. A green Sonar check is not a claim that a
+   diff introduced nothing.
+3. **"The candidate was `storage-failure.test.ts:69`, watch 1 → 0."** It stayed at 1 on all three
+   heads. The candidate was wrong, and three further attempts — S125, all 62 off-rules filtered to
+   added lines, and the API — found nothing. **Stopping was the finding**; the alternative was
+   editing code until a number nobody has read happened to move.
+
+The transferable lesson from the last two: **`eslint-plugin-sonarjs` is a strict subset of
+SonarCloud's analyzer, so a null local result is not evidence of a null remote one.** It can confirm
+a finding and rule one pre-existing. It cannot prove a diff introduced nothing. This log had
+over-sold Run 20's technique twice before this run over-sold it a third time.
+
+### Rosentic stood down on measured grounds, and said so on the pull request
+
+All 17 findings compare against `claude/great-bell-k1i146`, an unrelated open branch. `git diff
+d62f3af HEAD` adds **zero** lines mentioning any of the five cited symbols (`stampOf`,
+`newestFailure`, `makeToolkitVerdict`, `arrangeTryOn`, `routeRefusal`), and every cited call exists
+verbatim on the base — the line numbers moved only because this diff changed those files elsewhere.
+The check run was **green**, so these are advisory.
+
+Unlike Run 21, which posted nothing, **this run commented on the pull request with the measurement**,
+because Rosentic's report says "review 17 findings before merge" and merging past that silently is
+not standing down, it is ignoring. The comment also names the real content of the report: the
+incompatibility is genuine and belongs to whichever of the two branches merges second.
+
+### Carried forward for the next run
+
+Re-measure everything below; do not inherit it.
+
+- **The three packaging call sites still render raw strings** — `studio-state.svelte.ts`,
+  `page-artifact-state.svelte.ts` and `MeechieTools.svelte` all write `result.error.message` from
+  `OutputPackagingSeam` into a field a reader sees. Same defect this run removed for storage, one
+  seam over, and `page-exports.ts` already owns that surface's sentences. **The strongest small pick
+  on this list.**
+- **`readJson` conflates a denied read with a damaged store**, and `writeJson` conflates a denied
+  write with a transient one. This run answered both in the *sentence*, which is correct and honest,
+  but the root fix is for the adapter to emit distinct codes. That is a seam change and needs the
+  full workflow plus a Cipher Gate. New this run, from Codex.
+- **`grep` for the *pattern* a fix abolished, not the feature that motivated it.** Run 20 searched
+  for AI calls; the defect was "a raw string reaches a reader". Still the cheapest audit here.
+- **Fourteen-plus surfaces hold a `failure.detail` with nowhere to render it**, now including every
+  storage failure. Run 20's item, grown by this run rather than shrunk.
+- **A `ConnectionSeam` is still the right home for the `navigator.onLine` read.** Unchanged.
+- **`MeechieTools.svelte` is still in legacy (non-runes) mode**, which this run worked around a
+  third time — a plain `let vaultSaveFailure` and a hand-written `setVaultStatus` where the other two
+  hosts use `$state` and a setter. Third run running.
+- **The try-on's `rejected` branch is still unreachable from the UI.** Run 21's item, untouched.
+- Every item on **Run 19's carried-forward list** still stands, untouched by this run.
+- **Run 18 still has no merge close-out entry.** Carried for five runs. Either a run reconstructs it
+  from PR #337 or a future entry should stop claiming it as pending.
+- **Sourcery's budget window is longer than this log recorded.** Run 20 estimated it reopening about
+  2026-09-10; the refusal on this pull request says **"6 days and 7 hours"**, so roughly
+  **2026-09-16**. Correct the date rather than inheriting Run 20's.
+- **SonarCloud still cannot be read from this container** (`sonarcloud.io`, `CONNECT tunnel failed,
+  response 403`). Its "1 New issue" on this pull request was never identified. The repository has no
+  `sonar-project.properties` and no Sonar workflow step, so it runs automatic analysis with defaults.
+- **Playwright cannot run unmodified in this container.** The project pins build 1208 and
+  `/opt/pw-browsers` has 1194, so `npx playwright test` reports "Executable doesn't exist" and
+  suggests an install the environment forbids. A local config overriding
+  `launchOptions.executablePath` to `/opt/pw-browsers/chromium-1194/chrome-linux/chrome` works; it
+  is scratch and was **not committed**. Worth an hour to the next run otherwise.
+- **Governance, met this run:** the plan was in `plan.md` before any code, which is the ordering Run
+  21 recorded a deviation against.
