@@ -14938,3 +14938,383 @@ Everything in the Run 21 entry and its first close-out above, unchanged, plus:
 - **Run 18 still has no merge close-out entry**, as Runs 19 and 20 both noted. Not reconstructed
   here either, and it has now been carried on this list for four runs — either a run reconstructs it
   from PR #337 or a future entry should stop claiming it as pending.
+
+## Run 22 — 2026-09-09 — What the app says when its own *memory* fails
+
+### The pick
+
+The worst feature is **what the Quote Vault and the studio draft say when they fail**. The vault is
+the only thing in this app that is supposed to still be there tomorrow, and it holds pages a reader
+paid a generation for. Every one of its failure paths answered them with a line addressed to whoever
+wrote the adapter.
+
+What makes it the worst rather than merely the last is the same shape Run 21 found and one degree
+worse: **the app already contains the fix, and the module that established the rule names the very
+sites it did not apply it to.** Run 20 wrote `src/lib/core/generation-failure.ts`, whose header lists
+the five AI call sites it replaced and whose stated invariant is *"a message that reached us from an
+EXCEPTION is never shown to a reader."* Storage was doing exactly that, at twelve call sites, four of
+them in `catch` blocks — and the carried-forward list has described it as "a defensible next pick"
+for two runs.
+
+Measured on `main` at `d62f3af`:
+
+| Site | What was written |
+|------|------------------|
+| `vault-collection.svelte.ts` ×4 | `result.error.message` on a failed read, delete, restore and pin |
+| `page-artifact-state.svelte.ts` | `result.error.message`, and `saveError.message` in its `catch` |
+| `studio-state.svelte.ts` (draft) | `result.error.message`, and `error.message` in its `catch` |
+| `studio-state.svelte.ts` (save) | `result.error.message`, and `error.message` in its `catch` |
+| `MeechieTools.svelte` | `result.error.message`, and `saveError.message` in its `catch` |
+
+So a reader with site data blocked was shown `Creation store requires a browser environment.` A
+reader whose store had been damaged was shown `Stored creations are not an array.` A save that missed
+produced `Failed to write storage for cb_creations_v1.` — a sentence naming a storage key they have
+never heard of. None named a remedy. **None offered a retry**, which is the sharpest loss: unlike
+every AI failure in this app, a storage retry spends no quota, reaches no provider and needs no
+network. The surface with the cheapest possible second attempt was the only one with none.
+
+**The first inventory of this said nine sites and was wrong.** It missed `MeechieTools.svelte` and
+the home studio's own `saveToVault` — two more copies of the same save, which is itself part of the
+case. Corrected in `plan.md` rather than quietly.
+
+### What shipped
+
+- **`src/lib/core/storage-failure.ts`** (new, pure) — `classifyStorageFailure(operation, error)`.
+  Nine adapter codes to seven causes, a sentence per cause *and per operation*, and a retry only
+  where a second press could land differently.
+- **`src/lib/components/StorageFailureNotice.svelte`** (new) — the one rendering, owning its CSS,
+  deliberately the same shape as `GenerationFailureNotice`.
+- All twelve sites classify. `VaultStatusLine` gained an optional retry, wired on all five hosts.
+
+Three decisions worth carrying:
+
+1. **The operation is an input, not a detail.** "Your saved pages could not be read" and "this page
+   could not be saved to the vault" are the same `unavailable` cause with opposite stakes. A
+   classifier knowing only the cause would have to write one sentence vague enough to cover both.
+   The `save`, `restore` and `draft` operations also add "Download it to keep it" — the read and
+   delete ones must not, because nothing the reader is holding is at risk there.
+2. **The three capacity refusals come back verbatim, and that is load-bearing.** `vaultLinkFor`
+   matches them character-for-character to decide whether the line offers "Make room in the vault".
+   Rewording one would silently remove the link on the two failures where the reader needs it most.
+   The test asserts `toBe` against the constants themselves, never a copied literal.
+3. **`rejected` is told apart from `unreadable`.** `CREATION_SCHEMA_MISMATCH` means the app handed
+   the store something it will not take. Nothing stored is damaged. Collapsing it into "unreadable"
+   would tell a reader whose vault is perfectly healthy to clear their site data.
+
+### The bug the run's own adversarial re-reading found
+
+A caught exception can carry a `code` — Node sets one on system errors — so a `catch` feeding the
+classifier could hand it an `Error` that looks exactly like a seam refusal. The allowlist branch
+would then match its `message` and put the exception's own words on screen: the single defect the
+whole module exists to prevent, reintroduced through its own safety branch. Closed with an explicit
+`instanceof Error` rejection in `asSeamError`, and tested by throwing an `Error` carrying the very
+code the allowlist branch is keyed on. **Found by re-reading the diff, not by a tool.**
+
+### Verification, including a real red proof
+
+`check` 0 errors 0 warnings, `lint`, `build`, `npm test` **1,922 passed**, the full `npm run verify`
+chain **exit 0**, and **82 Playwright tests** (81 before, plus this run's).
+
+The end-to-end test damages `cb_creations_v1` with unparseable bytes in a real browser, loads
+`/vault`, and asserts the reader sees the sentence and **never** the adapter's words or the storage
+key. **It was proved red before being trusted**: reverting the rendering to the raw detail produced
+`Expected substring: "Your saved pages could not be read." / Received string: "Failed to parse
+storage for cb_creations_v1."` — the exact defect, caught by the test that claims to catch it. This
+log has recorded four runs' worth of green signals that measured nothing; a test asserting a sentence
+is worth exactly as much as the demonstration that it fails without the fix.
+
+**Container note:** this container's Playwright browser is build 1194 and the project pins 1208, so
+`npx playwright test` reports "Executable doesn't exist" and suggests `npx playwright install`, which
+the environment forbids. The run passed a local config overriding `launchOptions.executablePath` to
+`/opt/pw-browsers/chromium-1194/chrome-linux/chrome`; that config is scratch and was **not
+committed**. Worth an hour to the next run otherwise.
+
+### Seams
+
+**None touched, and this was checked rather than assumed.** `code` is already `NonEmptyStringSchema`
+on `contracts/shared.contract.ts:12` and every code read here is one the adapter already emits. No
+contract field, no probe, no fixture, no adapter behaviour, so no Cipher Gate. `git diff --name-only`
+against `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`, `src/lib/seams/` and
+`src/lib/adapters/` returns nothing.
+
+### Scope, and what was deliberately left alone
+
+- **The packaging failures still render raw strings** — `error: result.error.message` in
+  `studio-state.svelte.ts:2271`, `page-artifact-state.svelte.ts:144` and `MeechieTools.svelte:553`.
+  Same defect, different seam (`OutputPackagingSeam`), and `page-exports.ts` already owns the
+  sentences that surface says. A separate pick, named here so it is not rediscovered.
+- **`skippedIndices` still reaches nothing but `console.warn`.** A record dropped by schema
+  validation is still invisible to the reader and still destroyed by the next write. Unchanged from
+  Run 19's list; it needs contract room to carry the count.
+- **`failure.detail` still has nowhere to render on most surfaces.** This run *creates* more of them
+  — every storage failure now holds one — and routes none of them to a disclosure. Run 20's item,
+  now larger rather than smaller.
+
+### Carried forward for the next run
+
+Re-measure everything below; do not inherit it.
+
+- **The three packaging call sites above.** New this run, precisely located, touches one seam's
+  output type at most. The strongest small pick on this list.
+- **`grep` for the *pattern* a fix abolished, not for the feature that motivated it.** Run 20 found
+  its five sites by searching for AI calls; the defect was "a raw string reaches a reader", and
+  searching for that would have found all seventeen at once. New this run and the cheapest audit
+  here.
+- **Fourteen-plus surfaces hold a `failure.detail` with nowhere to render it**, now including every
+  storage failure. Run 20's item, grown.
+- **A `ConnectionSeam` is still the right home for the `navigator.onLine` read.** Unchanged.
+- **`MeechieTools.svelte` is still in legacy (non-runes) mode**, which this run worked around again
+  by giving it a plain `let vaultSaveFailure` where every other host has `$state`. Third run running.
+- **The try-on's `rejected` branch is still unreachable from the UI.** Run 21's item, untouched.
+- Every item on **Run 19's carried-forward list** still stands, untouched by this run.
+- **Run 18 still has no merge close-out entry.** Carried for five runs now. Either a run reconstructs
+  it from PR #337 or a future entry should stop claiming it as pending.
+- **Sourcery's weekly budget** was recorded as exhausted until roughly 2026-09-10 23:00 UTC. This run
+  falls inside that window; check before reading a skip as a comment on diff size.
+- **SonarCloud still cannot be read from this container** (`sonarcloud.io` refused by the egress
+  proxy). Run 20's technique — enumerate the default profile's rules, grep the diff for each, act
+  only where there is exactly one candidate — before recording another unread finding.
+- **The plan was written to `plan.md` before any code this run**, which is the governance ordering
+  Run 21 recorded a deviation against. It was then *corrected* mid-run when the site count proved
+  wrong. A plan that is edited when the measurement changes is the plan working; a plan written after
+  the fact is not.
+
+## Run 22, first close-out — 2026-09-09 — the SonarCloud round, run before anyone asked, and a fallback that would have lied
+
+### SonarCloud was measured rather than waited for, and the measurement held
+
+Run 20 invented the technique and Run 21 proved it; this run ran it **before the first analysis
+came back**, which is the improvement worth carrying. `eslint-plugin-sonarjs` at its recommended
+profile, over the ten changed source files, produced exactly **one** hit:
+
+```
+src/routes/studio-state.svelte.ts
+  1679:7  error  Extract this nested ternary operation  sonarjs/no-nested-conditional
+```
+
+It is **not this diff's**. The same nested ternary exists verbatim on the base commit `d62f3af`
+(running the rule over `git show d62f3af:src/routes/studio-state.svelte.ts` reproduces it), and
+`git diff d62f3af HEAD -- src/routes/studio-state.svelte.ts` adds no line mentioning either
+`restoredPageLayout` or `derivationChanged`, which are the two identifiers in the expression.
+
+SonarCloud then reported the check run as **success**, and this log's first draft of this paragraph
+said "prediction and measurement agree". **That was wrong, and it is corrected below rather than
+left standing.**
+
+### What the run's own re-reading caught that every green check missed
+
+Every gate was green on `32e658e` — both `verify` jobs, SonarCloud twice, CodeQL twice, Rosentic,
+Vercel. Re-reading the diff anyway found this, at all three save sites:
+
+```ts
+this.vaultStatus = result.ok
+    ? VAULT_SAVED_CONFIRMATION
+    : (this.vaultSaveFailure?.message ?? VAULT_SAVED_CONFIRMATION);
+```
+
+The fallback in the **false** branch is `VAULT_SAVED_CONFIRMATION` — *"Saved to the vault."* — sitting
+on the branch that runs when the save **failed**. It cannot fire today, because the line above sets
+`vaultSaveFailure` to a non-null value on exactly that branch. But it is the worst possible sentence
+to have parked there, it would report a lost page as a saved one, and `vaultLinkFor` would then hand
+that reader the "see all your saved pages" link for a page that is not there.
+
+This is the same defect shape as the lesson Run 20 recorded about
+`e instanceof Error ? e.message : '<fallback>'`: **the fallback nobody expects to run is the one
+nobody checks.** Replaced at all three sites with an explicit `if (result.ok) { … } else { … }`,
+where the failure branch has one thing it can say.
+
+Re-validated after the change: `check` 0/0, `lint`, 1,922 unit tests, `build`, the full `verify`
+chain and **82 Playwright tests**, all exit 0.
+
+### The reviewers
+
+**Sourcery** refused for budget, as Run 21 predicted — but the window is **worse than this log
+recorded**. Run 20 estimated it reopening around 2026-09-10 23:00 UTC; the actual refusal on this
+pull request says **"6 days and 7 hours"**, so roughly **2026-09-16**. A run inside that window
+should expect no line-by-line Sourcery review at all. **Correct the carried-forward date rather than
+inheriting Run 20's.**
+
+**CodeRabbit** skipped for the repository having fewer than ten stars, a standing condition.
+**Codex** was "Running" against `32e658e` at the time of writing. **CodeQL** and **SonarCloud** both
+passed.
+
+That is **four runs in a row** merged with no line-by-line bot review. Run 21 called this a standing
+condition of the repository worth an owner ruling, and the refusal window being six days rather than
+one makes that ruling more urgent, not less.
+
+### Correction: the prediction did not hold, and the second attempt found the reason
+
+The paragraph above originally claimed the local run and SonarCloud agreed. They did not. The check
+run was green because the **Quality Gate passed**, which is a different statement from "no new
+issues" — the gate's comment on the first head reads **"1 New issue"**, with 0 accepted issues, 0
+security hotspots and 0.0% duplication on new code. *A green SonarCloud check is not a claim that a
+diff introduced nothing*, and reading it as one is the same mistake this log has now recorded four
+times in four different costumes.
+
+Finding the issue took three passes, and the two failed ones are the useful part:
+
+1. **Without type information, the local run is not the same analysis.** The first pass used
+   `eslint-plugin-sonarjs` with no `parserOptions.project`, and many of its rules simply do not fire
+   without a TypeScript program. Adding `project: './tsconfig.json'` took the hit count on the
+   changed files from one to seven.
+2. **Turning on every rule is not "being thorough", it is destroying the signal.** The second pass
+   enabled the 62 rules the plugin's `recommended` config sets to `off`. That produced 280-odd hits
+   — `arrow-function-convention`, `no-tab`, `file-header`, `no-undefined-assignment` — none of which
+   is in Sonar's default profile. Those rules are off *because* they are not Sonar way. The widened
+   run answered a question nobody asked.
+3. **The third pass was the right one, and its finding was in the one place a rule difference could
+   hide.** All seven type-aware `recommended` hits proved pre-existing (each cited source line found
+   verbatim in `git show d62f3af:<file>`). But `sonarjs/no-duplicate-string` — **S1192, which is in
+   Sonar way** — is one of the rules the plugin's `recommended` leaves off. Run alone at threshold 3
+   over the changed TypeScript, it found exactly one hit in code this diff **created**:
+   `tests/unit/storage-failure.test.ts:69`, the literal `'Stored creations are not an array.'`
+   written three times.
+
+`tests/e2e/smoke.spec.ts` carries dozens of S1192 hits, all on lines this diff never touched, and
+SonarCloud counted one new issue in total — which is what says its new-code attribution is by
+changed line. That leaves **exactly one candidate**, which is the bar Run 20's technique sets for
+acting rather than recording. Hoisted to a named `seamMessage` const, which the three assertions now
+share so they cannot drift into testing three slightly different strings.
+
+The measurement to watch on the next analysis is **1 New issue → 0**. If it does not move, the
+candidate was wrong and this paragraph is the record of why.
+
+**What to carry, and it is not the technique — it is the two ways the technique lies:**
+`eslint-plugin-sonarjs` without `parserOptions.project` is a weaker analyzer than SonarCloud, and
+its `recommended` profile is **not** Sonar way in either direction — it omits rules Sonar runs
+(S1192) and would add rules Sonar does not. Run it type-aware at `recommended`, **then** run the
+Sonar-way rules it leaves off, and never widen to all 279.
+
+## Run 22, second close-out — 2026-09-09 — the Codex round on `32e658e`, and the remedy that would have deleted a reader's pages
+
+Five findings, **all five real**, all fixed. The first is the most serious thing this routine has
+shipped to a pull request in some time, and it is worth stating plainly: **the feature written to
+stop the app giving readers bad information was itself giving readers destructive advice.**
+
+### P1 — the message told a reader with healthy pages to delete them
+
+`readJson` in `src/lib/adapters/creation-store-seam/index.ts` wraps **both** `localStorage.getItem`
+and `JSON.parse` in one `try/catch` and reports either as `STORAGE_PARSE_FAILED`. A browser blocking
+site data therefore arrives under the same code as a genuinely corrupt store.
+
+This run mapped that code to `unreadable` and wrote it a sentence that sounded certain:
+
+> Something is stored that this app cannot read, and reading it again will not help. Clearing this
+> site's stored data will fix it, and will also remove any pages saved here.
+
+For the blocked-browser half of those readers, **their pages are fine and this instructs them to
+destroy the pages** — following it deletes the vault it is complaining about. The remedy is
+destructive, the diagnosis was a guess, and nothing in the code could tell the two apart.
+
+The sentence now names both causes, harmless check first, and makes the destructive one explicitly
+conditional on the harmless one being ruled out. It also gains a retry, which it previously withheld
+on the reasoning that "re-reading the same bytes runs the same parse" — true of one cause and false
+of the other, which is the whole point.
+
+**The lesson, and it is bigger than this diff: a classifier that cannot distinguish two causes must
+not prescribe a remedy that is safe for only one of them.** This module's stated invariants already
+banned putting a developer's words on screen and banned a retry that cannot work. Neither of them
+banned *confidently telling the reader to do the wrong thing*, which is worse than either.
+
+### P2 ×4, all confirmed against the code
+
+- **A blocked write promised a free retry and nothing else.** `writeJson`'s generic branch reports
+  `STORAGE_WRITE_FAILED`, and *the adapter's own comment says* that branch covers "a `SecurityError`
+  from a browser with site data blocked, where nothing the reader deletes helps". The message now
+  names that remedy alongside the free retry.
+- **A failed unpin said "could not be pinned"** and offered "Try pinning again", under a button that
+  unpins. One `toggleFavorite` serves both directions; `unpin` is now its own operation, captured
+  before the write.
+- **The draft failure said "Download it to keep it"** and there is no draft export anywhere in the
+  app. A remedy the surface cannot perform is the same defect as naming none. It now says what is
+  actually true: nothing is lost while the page stays open, so copy what you cannot retype.
+- **A stale retry survived the status that replaced it.** Reopening a saved page sets
+  `Reopened "..."` and left "Save it again" rendered under it — pressing it saved the page just
+  reopened, not the page whose save had failed. **A bug this run introduced.**
+
+### The stale-retry fix is an invariant, not five patches
+
+There are five assignments to `vaultStatus` in `StudioState` alone, and clearing the failure at each
+would work until the sixth. It is enforced in the **setter** instead, in all three hosts:
+
+```ts
+set vaultStatus(value: string) {
+    if (value !== this.vaultSaveFailure?.message) this.vaultSaveFailure = null;
+    this.vault.status = value;
+}
+```
+
+The save path assigns the failure *before* its message, so the comparison sees them equal and keeps
+it; every other assignment clears it. `PageArtifactState` gained an accessor pair over a `#private`
+field for this, and `MeechieTools` — still legacy, still plain `let`s, third run running — got a
+`setVaultStatus` function doing the same. **Both halves are tested**, because a guard that clears
+too eagerly would silently delete the failure the save path just recorded.
+
+### What this says about the review coverage
+
+Four runs in a row have merged with no line-by-line bot review, and this log has twice called that a
+standing condition worth an owner ruling. **Codex broke the streak and immediately found a P1 that
+four green gates, a full `verify` chain, 1,922 unit tests, 82 Playwright tests and this run's own
+adversarial re-reading all missed.** Every one of those measures the code against what it was
+written to do. None of them asks whether what it was written to do is a good idea for the reader.
+
+Re-validated: `check` 0/0, `lint`, **1,927 unit tests**, `build`, the full `verify` chain and **82
+Playwright tests**, all exit 0.
+
+## Run 22, third close-out — 2026-09-09 — the SonarCloud candidate was wrong, and the count did not move
+
+The second close-out named `tests/unit/storage-failure.test.ts:69` as the single candidate for
+SonarCloud's "1 New issue" and committed to a measurement: **1 New issue → 0 on the next analysis.
+It did not move.** The count is **1 on all three heads** — `32e658e`, `b1fea8b` and `106a6f5` — and
+the duplicate-string hoist changed nothing. **The candidate was wrong**, and this is the record of
+why, as promised rather than quietly dropped.
+
+The hoist stays: naming the seam message once so three assertions share it is a small readability
+win on its own terms. But it fixed nothing, and the earlier entry saying it would is corrected here.
+
+### What was tried after that, and why it also failed
+
+Three further attempts, all negative, all worth writing down so a future run does not repeat them:
+
+1. **`sonarjs/no-commented-code` (S125).** In Sonar way, `off` in the plugin's `recommended` — the
+   same shape of gap that made S1192 look like the answer, and a plausible one given how
+   comment-heavy this run's new files are and that several comments quote code in backticks.
+   **Zero hits.**
+2. **All 62 off-rules, type-aware, intersected with the lines this diff actually added.** This is the
+   measurement the second close-out should have made instead of the unfiltered widened run: hits are
+   filtered to added lines and the pure-style rules the plugin turns off because they are not Sonar
+   way (`arrow-function-convention`, `no-tab`, `file-header`, `no-undefined-assignment`,
+   `cyclomatic-complexity`, …) are excluded by name. **No hits on added lines.**
+3. **The SonarCloud API, again.** `curl https://sonarcloud.io/api/issues/search?...` still returns
+   `CONNECT tunnel failed, response 403` from this container's egress proxy. Unchanged from Runs 19,
+   20 and 21.
+
+### The conclusion, stated as a limit rather than an answer
+
+The repository has **no `sonar-project.properties` and no Sonar step in either workflow** — it runs
+SonarCloud **automatic analysis** with defaults. SonarQube's TypeScript analyzer carries roughly a
+hundred rules that `eslint-plugin-sonarjs` has never implemented, and none of them can be run from
+here. So the most likely explanation is simply that **the issue is from a rule this container cannot
+execute**, and no amount of further local scanning will find it.
+
+**Stopping here is the finding.** The alternative was to keep proposing plausible-looking edits until
+the number happened to move, which is not diagnosis — it is changing code to satisfy a signal nobody
+has read. The Quality Gate **passes**, the check run is **green**, and duplication and hotspots on
+new code are both zero, so this does not block the merge.
+
+### The honest correction to Run 20's technique, which this log has now over-sold twice
+
+Run 20 invented "enumerate the profile's rules, grep the diff, act where there is exactly one
+candidate". Run 21 reported it working. This run reported it working **before the analysis came
+back**, then reported the wrong candidate with confidence, and is now reporting that it cannot find
+the issue at all.
+
+The technique's real limit, which neither earlier entry stated: **`eslint-plugin-sonarjs` is a strict
+subset of SonarCloud's analyzer, so a null local result is not evidence of a null remote one.** It
+can confirm a finding and it can rule a finding pre-existing. It cannot prove a diff introduced
+nothing. Run 21's success was a case where the rule happened to be one of the ported ones; that was
+luck about which rule fired, not a property of the method.
+
+**Carry this instead of the technique's reputation:** run it to *locate* a finding you already have
+reason to believe is local, and to *rule out* findings as pre-existing. Never quote its silence as a
+clean bill of health, and never let a stable count be "fixed" by a guess.

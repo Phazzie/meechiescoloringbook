@@ -13,6 +13,9 @@ Invariants: The link appears only for sentences this app wrote, matched exactly,
      error that says the save failed would be an invitation to go and look at nothing — but the two
      refusals that mean "the vault is full" carry one that says "make room", because for those the
      vault is not somewhere to browse, it is where the remedy is.
+     The retry control is rendered only when the surface supplies a failure whose classification
+     offers one, and never for the confirmation: a save that worked has nothing to redo, and a save
+     refused for room would be refused identically a second later.
 -->
 <script lang="ts">
 	import {
@@ -20,15 +23,31 @@ Invariants: The link appears only for sentences this app wrote, matched exactly,
 		VAULT_SAVED_CONFIRMATION,
 		vaultLinkFor
 	} from '$lib/core/vault-page';
+	import { storageRetryLabel, type StorageFailure } from '$lib/core/storage-failure';
 
 	let {
 		status,
-		testId
+		testId,
+		failure = null,
+		onRetry,
+		isBusy = false
 	}: {
 		/** The surface's status line. Empty renders nothing at all. */
 		status: string;
 		/** This surface's id for the line, so two surfaces are addressable apart. */
 		testId: string;
+		/**
+		 * The classified failure behind this line, where the line is reporting one.
+		 *
+		 * Null on a confirmation, on "Saving...", and on the surfaces that have not been given one.
+		 * The status text still comes from `status`, which is the same sentence — this carries only
+		 * the part `status` cannot express, which is whether pressing again could land differently.
+		 */
+		failure?: StorageFailure | null;
+		/** Re-run the save that failed. Omitted where a surface has nothing to re-run. */
+		onRetry?: () => void;
+		/** True while the surface is already saving, so the retry cannot be double-fired. */
+		isBusy?: boolean;
 	} = $props();
 
 	// The decision is in core, where it is unit-tested against the real failure messages this same
@@ -36,6 +55,7 @@ Invariants: The link appears only for sentences this app wrote, matched exactly,
 	const link = $derived(vaultLinkFor(status));
 	// A refusal is not good news, so it must not be rendered in the confirmation's green.
 	const refused = $derived(!!link && status !== VAULT_SAVED_CONFIRMATION);
+	const retryLabel = $derived(failure ? storageRetryLabel(failure, 'save') : null);
 </script>
 
 {#if status}
@@ -61,6 +81,17 @@ Invariants: The link appears only for sentences this app wrote, matched exactly,
 			>
 		{/if}
 	</p>
+	{#if retryLabel && onRetry}
+		<button
+			type="button"
+			class="status-retry"
+			data-testid="{testId}-retry"
+			onclick={onRetry}
+			disabled={isBusy}
+		>
+			{retryLabel}
+		</button>
+	{/if}
 {/if}
 
 <style>
@@ -88,5 +119,32 @@ Invariants: The link appears only for sentences this app wrote, matched exactly,
 
 	.vault-link:hover {
 		color: var(--cream);
+	}
+
+	/* Matches `StorageFailureNotice`'s control, because it does the same job for the same reason on
+	   a different line. Two shapes for one action would read as two different actions. */
+	.status-retry {
+		margin-top: 0.5rem;
+		padding: 0.5rem 0.9rem;
+		border: 1px solid rgba(201, 162, 39, 0.42);
+		border-radius: 6px;
+		background: rgba(7, 7, 15, 0.62);
+		color: var(--gold-bright, #f0c44a);
+		font-family: var(--font-label, sans-serif);
+		font-weight: 700;
+		font-size: 0.76rem;
+		text-transform: uppercase;
+		letter-spacing: 0.1em;
+		cursor: pointer;
+		transition: background 0.12s;
+	}
+
+	.status-retry:hover:not(:disabled) {
+		background: rgba(201, 162, 39, 0.14);
+	}
+
+	.status-retry:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
 	}
 </style>

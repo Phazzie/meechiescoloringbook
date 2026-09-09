@@ -5,14 +5,14 @@ Info flow: evidence files -> summary -> review.
 -->
 # Proof Tape
 
-Generated at: 2026-09-09T12:45:35.069Z
+Generated at: 2026-09-09T19:21:21.394Z
 Evidence folder: docs/evidence/2026-09-09
 
 Files included (this tape's own outputs, proof-tape.json and proof-tape.md, are written
 after this inventory is taken, so they are not listed):
 
 - assumption-alarm.json (13941 bytes)
-- build.txt (15542 bytes) — PREDATES THIS VERIFY RUN
+- build.txt (15541 bytes) — PREDATES THIS VERIFY RUN
   Commands: meechies-coloringbook@0.1.0 build | vite build | Using @sveltejs/adapter-vercel
 - chamber-lock.json (35315 bytes)
 - check.txt (240 bytes) — PREDATES THIS VERIFY RUN
@@ -27,10 +27,10 @@ after this inventory is taken, so they are not listed):
 - rewind-CreationStoreSeam.txt (539 bytes) — PREDATES THIS VERIFY RUN
 - seam-ledger.json (37511 bytes)
 - seam-ledger.md (2981 bytes)
-- shaolin-lint.json (518 bytes)
+- shaolin-lint.json (519 bytes)
 - test.txt (3333 bytes)
   Commands: meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
-- verify-outer.txt (4169 bytes) — PREDATES THIS VERIFY RUN
+- verify-outer.txt (4196 bytes) — PREDATES THIS VERIFY RUN
   Commands: meechies-coloringbook@0.1.0 verify | npm run audit:gate && node scripts/chamber-lock.mjs && node scripts/verify-runner.mjs && node scripts/shaolin-lint.mjs && node scripts/assumption-alarm.mjs && node scripts/seam-ledger.mjs && node scripts/clan-chain.mjs && node scripts/proof-tape.mjs | meechies-coloringbook@0.1.0 audit:gate | npm audit --audit-level=high | meechies-coloringbook@0.1.0 check | svelte-kit sync && svelte-check --tsconfig ./tsconfig.json | meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
 - verify.txt (3658 bytes)
   Commands: meechies-coloringbook@0.1.0 check | svelte-kit sync && svelte-check --tsconfig ./tsconfig.json | meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1

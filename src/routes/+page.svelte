@@ -97,7 +97,8 @@ Invariants: `SystemTrace` receives `promptWasSent` from the state and must never
 			textFailure={studio.textFailure}
 			onRetryText={() => void studio.retryTextAction()}
 			isTextWorking={studio.isTextWorking}
-			draftSaveError={studio.draftSaveError}
+			draftSaveFailure={studio.draftSaveFailure}
+			onRetryDraftSave={studio.retryDraftSave}
 			canGenerateText={studio.canGenerateText}
 			canRegenerateText={studio.canRegenerateText}
 			canMakePrettier={studio.canMakePrettier}
@@ -119,6 +120,9 @@ Invariants: `SystemTrace` receives `promptWasSent` from the state and must never
 			textOutput={studio.textOutput}
 			copyStatus={studio.copyStatus}
 			vaultStatus={studio.vaultStatus}
+			vaultSaveFailure={studio.vaultSaveFailure}
+			onRetrySaveToVault={() => void studio.saveToVault()}
+			isSaving={studio.isSaving}
 			canSaveToVault={studio.canSaveToVault}
 			glitter={studio.pageGlitter}
 			activeTheme={studio.activeTheme}

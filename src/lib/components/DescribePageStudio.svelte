@@ -250,7 +250,13 @@ Invariants:
 					testId="describe-share"
 				/>
 			</div>
-			<VaultStatusLine status={studio.vaultStatus} testId="describe-vault-status" />
+			<VaultStatusLine
+				status={studio.vaultStatus}
+				failure={studio.vaultSaveFailure}
+				onRetry={studio.retrySaveToVault}
+				isBusy={studio.isSaving}
+				testId="describe-vault-status"
+			/>
 		</section>
 	{/if}
 </div>

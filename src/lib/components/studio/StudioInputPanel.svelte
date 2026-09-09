@@ -7,6 +7,8 @@ Info flow: User edits evidence/dedication → bind propagates up → callbacks t
 	import { getStudioAction, type StudioTextActionId, type StudioMode } from '$lib/core/meechie-studio';
 	import GenerationFailureNotice from '$lib/components/GenerationFailureNotice.svelte';
 	import type { GenerationFailure } from '$lib/core/generation-failure';
+	import StorageFailureNotice from '$lib/components/StorageFailureNotice.svelte';
+	import type { StorageFailure } from '$lib/core/storage-failure';
 
 	let {
 		evidence = $bindable(),
@@ -19,7 +21,8 @@ Info flow: User edits evidence/dedication → bind propagates up → callbacks t
 		textFailure,
 		onRetryText,
 		isTextWorking,
-		draftSaveError,
+		draftSaveFailure,
+		onRetryDraftSave,
 		canGenerateText,
 		canRegenerateText,
 		canMakePrettier,
@@ -50,7 +53,8 @@ Info flow: User edits evidence/dedication → bind propagates up → callbacks t
 		textFailure: GenerationFailure | null;
 		onRetryText: () => void;
 		isTextWorking: boolean;
-		draftSaveError: string;
+		draftSaveFailure: StorageFailure | null;
+		onRetryDraftSave: () => void;
 		canGenerateText: boolean;
 		canRegenerateText: boolean;
 		canMakePrettier: boolean;
@@ -170,11 +174,15 @@ Info flow: User edits evidence/dedication → bind propagates up → callbacks t
 		</button>
 	</div>
 
-	{#if draftSaveError}
-		<p class="error" data-testid="home-draft-save-error">
-			Draft not saved: {draftSaveError}
-		</p>
-	{/if}
+	<!-- Was `Draft not saved: {draftSaveError}` — the seam's message, or a caught exception's, under
+	     a label. The classified sentence already says the draft did not save and what it costs, so
+	     the prefix is gone with the raw string it was introducing. -->
+	<StorageFailureNotice
+		failure={draftSaveFailure}
+		operation="draft"
+		onRetry={onRetryDraftSave}
+		testId="home-draft-save-error"
+	/>
 	<GenerationFailureNotice
 		failure={textFailure}
 		onRetry={onRetryText}
