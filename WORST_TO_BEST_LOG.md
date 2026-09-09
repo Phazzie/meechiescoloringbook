@@ -14079,6 +14079,45 @@ Two more red proofs, each reverted immediately:
 | A cross-owner id collision overwrites the stranger's page | 2 |
 | Legacy numeric quota codes recognised only under `DOMException` | 1 |
 
+### The second review round — Codex, four more
+
+**An undo refused for device room told the reader to do the one thing that would destroy it.** The
+best finding of either round, and a path this run created. `undoDelete` guards on the record count
+and refuses with `vaultFullRefusal`, whose whole purpose is to warn that deleting to make room
+replaces what Undo is holding. But the byte wall is a *different* wall: the count can be under fifty
+while the device is out of room, and that refusal fell through to the adapter's own sentence —
+"Delete a saved page to make room for this one." Following it calls `remove`, which overwrites
+`undoableDeletion` with the page just deleted, destroying the held one permanently. Now intercepted,
+with the same warning given for the same trap arriving by the other door. `vaultFullRefusal` gained
+a `because` argument, because "the vault is full at 50 pages" over a vault holding nine would be a
+plain untruth.
+
+**The mock could not express either refusal, and that was documented rather than fixed.** The first
+push answered this with a passing test that stated the gap. Codex was right that a stated gap is
+still a gap: this mock's own invariant is that a record the adapter would refuse is refused here the
+same way, and a consumer driving fifty-one saves through it got fifty-one successes. The mock now
+keeps the records it has been handed and asks `planCreationWrite` — the same pure function the
+adapter asks, so the two cannot drift into different answers. Every successful *output* still comes
+from the fixture; the store only decides whether a save is one. No contract change: the store is per
+`createCreationStoreMock` call, so nothing leaks between tests, and there is a test for that too.
+
+**`newCreationId` had no business in `src/lib/core`.** Core is declared deterministic and that
+function is not — it reads Web Crypto, and its last-resort branch reads the clock. It now lives at
+`src/lib/components/creation-id.ts`, beside the components that save: browser-side helper code for
+browser-side callers, still one implementation for all fifteen savers, with core left clean. Putting
+it behind a seam of its own, which is what `AGENTS.md` implies for randomness, needs a new contract,
+probe, fixtures, mock and adapter — a contract addition and its own change, carried below. This run
+only reduced three implementations to one; it did not introduce the entropy.
+
+**The fourth repeated Sourcery's ownership finding**, already fixed, with a sharper case: fifty
+records for the incoming owner plus a stranger's record sharing an id both deleted the stranger's
+page *and* left the owner holding fifty-one.
+
+| Mutation | Tests that failed |
+|---|---|
+| Undo relays "delete a saved page" and loses the held page | 1 |
+| The mock replays success for a full vault | 1 |
+
 ### What this run could not prove, stated plainly
 
 **The read-plan-write sequence is not atomic across tabs**, as above. Nothing in this repository can
@@ -14108,6 +14147,13 @@ re-measure.**
   parse cannot be rendered, reopened or downloaded, and preserving it would consume bytes on a store
   whose real limit is bytes, with no way for a reader to remove it. Telling the reader it happened
   is the better fix and needs contract room to carry the count.
+- **Identifier entropy is not behind a seam.** `newCreationId` reads Web Crypto directly, and its
+  fallback reads `performance` and the clock. `AGENTS.md` classifies both randomness and clock/time
+  as seam boundaries, and there is no seam in `docs/seams.md` for either kind of entropy. Raised by
+  a review bot on this run and answered by moving the function out of `src/lib/core` rather than by
+  building the seam, which needs a new contract, probe, fixtures, mock and adapter — a contract
+  addition. It is pre-existing: the same code ran in `page-artifact-state.svelte.ts` before this run
+  and in two weaker copies elsewhere.
 - **The creations array has no version stamp, so two tabs saving at once can lose a page.** Raised by
   a review bot on this run's first push and confirmed rather than waved off; see the review round
   above for why the suggested fix closes nothing. A real fix writes a version alongside the array

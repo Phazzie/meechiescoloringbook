@@ -11,11 +11,14 @@
 // Invariants:
 //   - Never `Math.random()`. Reaching for a pseudorandom source when a cryptographic one sits right
 //     above it is the habit SonarCloud's PRNG rule exists to break.
-//   - This is the one function in `src/lib/core` that is deliberately not deterministic. It reads no
-//     files, opens no sockets and calls no provider — it mints an identifier — so it crosses none of
-//     the boundaries `AGENTS.md` puts behind a seam, and there is no randomness seam in
-//     `docs/seams.md` to put it behind. It lives here rather than in a component so that all three
-//     savers share one answer instead of three.
+//   - This deliberately does NOT live in `src/lib/core`. Core is declared deterministic and this is
+//     not: it reads Web Crypto, and its last-resort branch reads the clock. A review round put the
+//     first draft in core and was right to object. It sits beside the components that save instead —
+//     browser-side helper code for browser-side callers — so the three savers still share one
+//     answer without core acquiring a non-deterministic exception.
+//   - Routing it through a seam of its own, which `AGENTS.md` implies for randomness and clock, would
+//     need a new contract, probe, fixtures, mock and adapter. That is a contract addition and its own
+//     change; this one only reduces three implementations to one. Carried in `WORST_TO_BEST_LOG.md`.
 
 /**
  * Separates saves made within one document, which the clock alone could not do.

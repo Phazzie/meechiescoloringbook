@@ -92,9 +92,19 @@ export const vaultNoMatches = (query: string): string =>
  * deleted to make room for it. Say what is true, and what it costs, instead of scripting a move
  * that destroys the thing the reader is trying to save.
  */
-export const vaultFullRefusal = (title: string): string =>
-	`The vault is full at ${VAULT_CAPACITY} pages, so "${title}" cannot come back without pushing ` +
-	'another page out. It is still held here for now — but Undo only ever holds the most recent ' +
+export const vaultFullRefusal = (
+	title: string,
+	// Which wall was hit. The record cap can be satisfied while the device's bytes are not, so an
+	// undo can be refused for either reason and naming the wrong one would be a plain untruth —
+	// "full at 50 pages" over a vault holding nine.
+	because: 'records' | 'device' = 'records'
+): string =>
+	(because === 'records'
+		? `The vault is full at ${VAULT_CAPACITY} pages, so "${title}" cannot come back without ` +
+			'pushing another page out. '
+		: `This device has no room left, so "${title}" cannot come back without pushing another ` +
+			'page out. ') +
+	'It is still held here for now — but Undo only ever holds the most recent ' +
 	'deletion, so deleting another page to make room would replace it. Download the page you want ' +
 	'to keep before freeing a slot.';
 

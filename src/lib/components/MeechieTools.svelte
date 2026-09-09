@@ -23,7 +23,7 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 	import { MEECHIE_TOOL_QUOTA_COST } from '$lib/core/ai-quota';
 	import AiQuotaLine from './AiQuotaLine.svelte';
 	import { clockSeam } from '$lib/adapters/clock-seam';
-	import { newCreationId } from '$lib/core/creation-id';
+	import { newCreationId } from '$lib/components/creation-id';
 	import { buildQualityReport } from '$lib/core/quality-report';
 	import {
 		describeOriginalImageExport,

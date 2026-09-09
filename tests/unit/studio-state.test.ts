@@ -1563,6 +1563,42 @@ describe('StudioState quote vault', () => {
 		expect(studio.undoableDeletionEntry?.downloadName).toBeTruthy();
 	});
 
+	it('warns before an undo refused for device room, instead of saying "delete a page"', async () => {
+		// Found by a review bot. The record cap and the device's byte limit are different walls, and
+		// an undo can hit the second while well under the first. The device refusal's own sentence is
+		// "Delete a saved page to make room for this one." — and following that from the undo banner
+		// calls `remove`, which overwrites `undoableDeletion` with the page just deleted and destroys
+		// the one Undo is holding. The count guard already carries the right warning for the other
+		// wall; this asserts the same protection on this one.
+		const studio = await initVault([
+			makeCreation('doomed'),
+			makeCreation('bystander')
+		]);
+		await studio.deleteCreation('doomed');
+		expect(studio.undoableDeletion?.id).toBe('doomed');
+
+		const quota = new Error('exceeded');
+		quota.name = 'QuotaExceededError';
+		const setItem = vi
+			.spyOn(globalThis.localStorage, 'setItem')
+			.mockImplementation(() => {
+				throw quota;
+			});
+		try {
+			await studio.undoDelete();
+		} finally {
+			setItem.mockRestore();
+		}
+
+		// The held page is still held, and the reader is told to download it before freeing room —
+		// not to delete a page, which would have destroyed it.
+		expect(studio.undoableDeletion?.id).toBe('doomed');
+		expect(studio.vaultError).toContain('Download the page you want to keep');
+		expect(studio.vaultError).not.toContain('Delete a saved page to make room');
+		// And it does not claim a page count it did not hit: this vault holds one page, not fifty.
+		expect(studio.vaultError).not.toContain(String(VAULT_CAPACITY));
+	});
+
 	it('has no undo entry to download when nothing is held', async () => {
 		const studio = await initVault([makeCreation('kept')]);
 

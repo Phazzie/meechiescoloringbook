@@ -24,6 +24,7 @@ import {
 	sortVaultCreations
 } from '$lib/core/vault-gallery';
 import { vaultFullRefusal } from '$lib/core/vault-page';
+import { VAULT_MAKE_ROOM_REFUSALS } from '$lib/core/vault-capacity';
 import type { AppOriginSeam } from '$lib/seams/app-origin-seam/contract';
 import { nextUtcDayBoundary, type ClockSeam } from '$lib/seams/clock-seam/contract';
 import type { CreationOwner, CreationRecord } from '$lib/seams/creation-store-seam/contract';
@@ -207,7 +208,16 @@ export class VaultCollection {
 		}
 		const result = await creationStoreAdapter.saveCreation({ record });
 		if (!result.ok) {
-			this.error = result.error.message;
+			// A store that is out of ROOM lands here rather than in the count guard above: the record
+			// cap can be satisfied while the device's bytes are not. Its message is "Delete a saved
+			// page to make room for this one." — and following that instruction from here calls
+			// `remove`, which overwrites `undoableDeletion` with the page just deleted and destroys
+			// the one Undo is holding. The count guard's sentence already carries the warning that
+			// deleting to make room costs you this page, so the same warning is given for the same
+			// trap arriving by the other door.
+			this.error = VAULT_MAKE_ROOM_REFUSALS.includes(result.error.message)
+				? vaultFullRefusal(record.intent.title, 'device')
+				: result.error.message;
 			return;
 		}
 		this.error = '';

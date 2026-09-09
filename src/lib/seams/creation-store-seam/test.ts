@@ -5,7 +5,7 @@
  * Invariants: Fault scenario returns BROWSER_REQUIRED across all operations; sample returns valid record shapes.
  */
 import { describe, expect, it } from 'vitest';
-import { CreationRecordSchema, DraftRecordSchema } from './contract';
+import { CreationRecordSchema, DraftRecordSchema, MAX_CREATIONS } from './contract';
 import type { CreationRecord, DraftRecord } from './contract';
 import {
 	creationStoreSampleFixture,
@@ -325,22 +325,60 @@ describe('CreationStoreSeam contract (self-contained)', () => {
 		);
 	});
 
-	it('records that the mock cannot stand in for a full vault, and why', async () => {
-		// The adapter has one refusal the mock cannot reproduce. `VAULT_FULL` depends on how many
-		// records are already stored under the saving owner, and this mock replays a fixture rather
-		// than holding a store — so there is no state for a capacity rule to read. Stated as a test
-		// rather than left as a silent gap: a consumer reading the mock could otherwise conclude that
-		// a schema-valid record in a browser always saves, which is exactly the assumption the
-		// capacity change makes false.
+	it('mock refuses a full vault the same way the adapter does', async () => {
+		// The mock used to replay its fixture's success for every schema-valid record, forever, so a
+		// consumer driving fifty-one saves through it got fifty-one successes and met `VAULT_FULL` for
+		// the first time in a browser. A review round called that out: this mock's own invariant is
+		// that a record the adapter would refuse is refused here the same way, and capacity is a
+		// refusal it could not express while it held nothing.
 		//
-		// The behaviour itself is covered against the REAL store, which is the only thing that has a
-		// capacity, in `tests/unit/creation-store-helpers.test.ts` — and the rule it applies is unit
-		// tested on its own in `tests/unit/vault-capacity.test.ts`.
+		// It now keeps what it has been handed and asks `planCreationWrite` — the same pure function
+		// the production adapter asks, so the two cannot drift into different answers.
 		const mock = createCreationStoreMock('sample');
+		const record = creationStoreSampleFixture.input.saveCreation.record;
 
-		const saved = await mock.saveCreation(creationStoreSampleFixture.input.saveCreation);
+		for (let index = 0; index < MAX_CREATIONS; index += 1) {
+			const saved = await mock.saveCreation({
+				record: { ...record, id: `mock-${index}` }
+			});
+			expect(saved.ok, `save ${index}`).toBe(true);
+		}
 
-		expect(saved.ok).toBe(true);
+		const refused = await mock.saveCreation({
+			record: { ...record, id: 'one-too-many' }
+		});
+
+		expect(refused.ok).toBe(false);
+		if (!refused.ok) expect(refused.error.code).toBe('VAULT_FULL');
+	});
+
+	it('mock still lets a full vault be written in place, as the adapter does', async () => {
+		const mock = createCreationStoreMock('sample');
+		const record = creationStoreSampleFixture.input.saveCreation.record;
+		for (let index = 0; index < MAX_CREATIONS; index += 1) {
+			await mock.saveCreation({ record: { ...record, id: `mock-${index}` } });
+		}
+
+		const replaced = await mock.saveCreation({
+			record: { ...record, id: 'mock-7', favorite: true }
+		});
+
+		expect(replaced.ok).toBe(true);
+	});
+
+	it('mock keeps no store across instances, so one test cannot fill another', async () => {
+		// The store is per-`createCreationStoreMock` call, not module-level. A shared one would make
+		// every consumer's test order-dependent, which is the opposite of what a deterministic mock is
+		// for.
+		const first = createCreationStoreMock('sample');
+		const record = creationStoreSampleFixture.input.saveCreation.record;
+		for (let index = 0; index < MAX_CREATIONS; index += 1) {
+			await first.saveCreation({ record: { ...record, id: `mock-${index}` } });
+		}
+
+		const fresh = createCreationStoreMock('sample');
+
+		expect((await fresh.saveCreation({ record })).ok).toBe(true);
 	});
 
 	it('mock returns fault fixture outputs (BROWSER_REQUIRED)', async () => {

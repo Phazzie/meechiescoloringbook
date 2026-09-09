@@ -47,7 +47,7 @@ import type { PageExport, PageExportAttempt } from '$lib/core/page-exports';
 import { GenerateResultSchema } from '../../../contracts/generate.contract';
 import type { GenerateResponseValue } from '../../../contracts/generate.contract';
 import { VAULT_SAVED_CONFIRMATION } from '$lib/core/vault-page';
-import { newCreationId } from '$lib/core/creation-id';
+import { newCreationId } from '$lib/components/creation-id';
 import type { CreationOwner } from '$lib/seams/creation-store-seam/contract';
 import type { MeechieStudioTextOutput } from '../../../contracts/meechie-studio-text.contract';
 import type { GeneratedImage } from '../../../contracts/image-generation.contract';

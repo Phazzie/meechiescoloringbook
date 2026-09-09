@@ -92,7 +92,7 @@ import type {
 } from '../../contracts/spec-validation.contract';
 import type { AppOriginSeam } from '$lib/seams/app-origin-seam/contract';
 import type { ClockSeam } from '$lib/seams/clock-seam/contract';
-import { newCreationId } from '$lib/core/creation-id';
+import { newCreationId } from '$lib/components/creation-id';
 import type { PageVisibilitySeam } from '$lib/seams/page-visibility-seam/contract';
 import type { Wig } from '$lib/seams/wig-catalog-seam/contract';
 
