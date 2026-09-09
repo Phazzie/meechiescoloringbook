@@ -14500,9 +14500,18 @@ container should try it before recording another unread finding.
 measured 202,329. About 69,000 of that is the log, plan, decisions, changelog and evidence artifacts
 `AGENTS.md` requires on every run, so **this routine's own governance is what put the pull request
 over a reviewer's limit**. Deleting required artifacts to get a bot to look would be the wrong trade
-and was not made. It is structural and will recur: any run whose source diff exceeds roughly 130,000
-characters will lose Sourcery. Run 19's diff was larger by line count (+5,496) and was reviewed, so
-the threshold is characters and evidence churn, not lines.
+and was not made. Run 19's diff was larger by line count (+5,496) and was reviewed, so the threshold
+is characters and evidence churn, not lines.
+
+*There are **two** Sourcery limits, and this run found the second one the hard way.* The close-out
+pull request — 158 added lines of Markdown, nothing else — was refused with a different message:
+"you've used your own review budget of 250,000 diff characters for the last 7 days… you can request
+another review in 1 day and 16 hours". So the per-pull-request limit blocked the feature branch, and
+**that attempt then spent the account's weekly budget**, which is exhausted until roughly
+2026-09-10 23:00 UTC. **The next run or two will lose Sourcery whatever they change**, and should
+plan for that rather than rediscovering it. It reviews again on `@sourcery-ai review` once the
+budget resets. Sourcery did still post a Reviewer's Guide summarising the close-out, so the skip is
+of the line-by-line review, not of everything.
 
 **CodeRabbit skipped** the repository for having fewer than ten stars — a standing condition, not
 this pull request's.
@@ -14541,9 +14550,12 @@ reach.
 
 Everything in the Run 20 entry above, unchanged, plus:
 
-- **The routine's own artifacts now cost a reviewer.** Either the evidence churn shrinks, or the
-  docs move to a second pull request, or Sourcery is lost on every large run. Worth an owner ruling
-  rather than a run deciding it alone.
+- **The routine's own artifacts now cost a reviewer, twice over.** A large run breaches Sourcery's
+  150,000-character per-pull-request limit, and the attempt spends against a 250,000-character
+  weekly account budget that is now exhausted until roughly 2026-09-10 23:00 UTC. Either the
+  evidence churn shrinks, or the docs move to a second pull request, or Sourcery is lost on large
+  runs and on whatever follows them inside the same week. Worth an owner ruling rather than a run
+  deciding it alone. **Check the budget before assuming a skip means the diff was too big.**
 - **Codex reviews can hang.** If one is still "Running" against a superseded commit when the gates
   are green, it is not an unaddressed review comment. Say so and merge; do not wait it out.
 - **Try the SonarCloud technique above before recording another unread finding.**
