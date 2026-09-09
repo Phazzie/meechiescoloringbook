@@ -3793,3 +3793,47 @@ block's structural selector; any localStorage key.
 **Definition of done:** `npm run check`, `npm run lint`, `npm test`, `npm run build`,
 `npm run verify` and `npx playwright test` all exit 0, with evidence in
 `docs/evidence/2026-09-07/`.
+
+## Run 19 plan — 2026-09-09 — the Quote Vault's save path
+
+**Goal:** stop `CreationStoreSeam` deleting a saved page to make room for a new one, and make both
+capacity limits report something a reader can act on.
+
+**Seam (already in `docs/seams.md`):** `CreationStoreSeam` (self-contained layout).
+
+**Files:**
+- `[NEW] src/lib/core/vault-capacity.ts` — `planCreationWrite`, `ownerMatches`,
+  `isStorageFullError`, and the two refusal sentences.
+- `[NEW] src/lib/core/creation-id.ts` — `newCreationId`, moved out of
+  `page-artifact-state.svelte.ts` so all three savers share one.
+- `[NEW] tests/unit/vault-capacity.test.ts`
+- `[MODIFY] src/lib/adapters/creation-store-seam/index.ts` — delete `upsertRecord` and the
+  module-private `ownerMatches`; ask the policy; split `STORAGE_FULL` from `STORAGE_WRITE_FAILED`.
+- `[MODIFY] src/lib/core/vault-gallery.ts` — `VAULT_CAPACITY` re-exports `MAX_CREATIONS`.
+- `[MODIFY] src/lib/core/vault-page.ts` — `showsVaultLink` becomes `vaultLinkFor`.
+- `[MODIFY] src/lib/components/VaultStatusLine.svelte` — render the refusal link and its own colour.
+- `[MODIFY] src/lib/components/vault-collection.svelte.ts` — the "lower bound" caveat is now false.
+- `[MODIFY] src/lib/components/page-artifact-state.svelte.ts`,
+  `src/lib/components/MeechieTools.svelte`, `src/routes/studio-state.svelte.ts` — shared id, no
+  false `fixesApplied`, `ClockSeam` for the timestamp.
+- `[MODIFY] src/lib/seams/creation-store-seam/test.ts`, `tests/unit/creation-store-helpers.test.ts`,
+  `tests/unit/vault-page.test.ts`, `tests/e2e/smoke.spec.ts`, `docs/seams.md`, `DECISIONS.md`,
+  `CHANGELOG.md`, `LESSONS_LEARNED.md`, `WORST_TO_BEST_LOG.md`.
+
+**Anti-goals (do not touch):** `src/lib/seams/creation-store-seam/contract.ts` — no schema, no field,
+no method signature, no stored shape. The `cb_creations_v1` and `cb_session_id_v1` localStorage keys.
+`src/lib/mocks/`, `probes/`, `fixtures/`. `MAX_CREATIONS`'s value.
+
+**Commands:** `npm run check`, `npm run lint`, `npm test`, `npm run build`, `npm run verify`,
+`npx playwright test`.
+
+**Self-critique.** The riskiest assumption is that *refusing* is better than evicting the oldest
+unpinned page. It is defensible — the refused page is still on screen and still downloadable, while
+an evicted one is gone — but the better product reports what it displaced, and that needs contract
+room this change deliberately does not take. Proven by: four red-proof mutations, and an end-to-end
+test asserting that all fifty stored records survive a refused save.
+
+The second risk is that owner-scoping the cap weakens the global bound on localStorage. It does; the
+byte-level refusal is the real bound, and it is now honest. What could still be wrong: the byte path
+is exercised by throwing the real quota signatures from a spied `setItem`, not by genuinely filling
+a browser profile — the shape of the failure rather than the failure.

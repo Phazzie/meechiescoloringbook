@@ -13896,3 +13896,201 @@ Re-measured on this run's base where the item names a line number; **do not inhe
   the same answer — settle it deliberately rather than leaving it as a third thing.
 
 Do not inherit this entry's measurements. Re-measure.
+
+## Run 19 — 2026-09-09 — "Keep" (the vault's save, which deleted a page to make room and said "Saved")
+
+**Branch:** `claude/great-bell-9pdike` · **Base:** `main` at `bd070e2`
+
+### The feature, and the case against it
+
+The vault has been rebuilt twice. **Run 1** made its rows browsable — thumbnails, search, dates.
+**Run 15** gave it an address at `/vault` and put a link to it on every screen. Both runs were about
+the vault as a thing you *read*. Neither looked at the write.
+
+The write is one expression, `upsertRecord` in
+`src/lib/adapters/creation-store-seam/index.ts:132-139` on `bd070e2`:
+
+```ts
+const filtered = records.filter((existing) => existing.id !== record.id);
+const next = [record, ...filtered];
+return next.slice(0, MAX_CREATIONS);
+```
+
+`saveCreation` then returns `{ ok: true }`, and all fifteen page-making surfaces render
+`VAULT_SAVED_CONFIRMATION` — `'Saved to the vault.'` — from it. **So the fifty-first save deleted
+the reader's oldest saved page and reported success.** Not an error the reader could act on, not a
+warning: the same green sentence as every save that cost nothing.
+
+Three things follow from that one line, and each is worse than it looks.
+
+**1. Pinning did not protect a page.** `favorite` is offered on every row of `VaultGallery.svelte`
+and is the reader's one "keep this one" control. It appears nowhere in the expression above. The
+oldest record went whether it was pinned or not, so the app's only answer to "keep this one" was
+read by nothing that decided what to throw away.
+
+**2. Fifty is not a boundary any reader reaches.** Measured, not assumed — a real captured provider
+response lives in the repo:
+
+```
+$ node -e "…JSON.parse(fs.readFileSync('fixtures/image-generation/sample.json'))…"
+key data len 236380
+```
+
+**236,380 base64 characters for one page's picture.** Browsers give localStorage roughly five
+megabytes. Fifty of those cannot fit, and `spec.variations` goes to four, so a four-picture page
+stores four of them. **The reader runs out of bytes somewhere in the single digits and never sees
+the record cap at all.** What they got at that point was `writeJson`'s message:
+
+> Failed to write storage for cb_creations_v1.
+
+An internal storage key, and no remedy.
+
+That inverts the whole picture. The app had built careful machinery around fifty — `VAULT_CAPACITY`,
+`undoDelete`'s guard, the `vaultFullRefusal` sentence, and a test in `vault-gallery.test.ts` that
+drives the real store past it — all defending a boundary that never happens, while the boundary that
+does happen was unhandled. The tests passed because they store a nine-byte stub image
+(`{ b64: 'c3R1Yi1pbWFnZQ==' }`) rather than a page.
+
+**3. The cap counted every owner; the list counted one.** `upsertRecord` sliced the whole stored
+array while `listCreations` filters by owner. Records left under a previous `cb_session_id_v1`
+occupy slots the reader cannot see, cannot delete, and which evicted their visible pages.
+`vault-collection.svelte.ts:196-206` already knew and said so in a comment — "a lower bound, not a
+store-wide guarantee" — and deferred it as needing a contract change.
+
+**Why it stayed broken for eighteen runs.** The measurement that settles it — cap times payload
+against the storage budget — is one multiplication that nobody had a reason to do, because every
+part of the code around it was individually careful. And the failure is silent by construction: the
+save reports success, so no surface, no test and no reader ever sees the loss happen.
+
+### What shipped
+
+**A save never removes a stored page.** `planCreationWrite`
+(`src/lib/core/vault-capacity.ts`, new and pure) either returns the exact array to store or refuses,
+with a sentence naming the remedy. This is the load-bearing decision and it is deliberately the
+*less* clever of the two options: evicting the oldest **unpinned** page and naming it in the
+confirmation is a better vault, and it is what I would have shipped if `saveCreation` could report
+what it displaced. It cannot without a new output field — a contract change, which `AGENTS.md`
+puts behind "do not auto-merge". Refusing is also better on the merits: **the page being refused is
+still on screen, still printable, still downloadable; the pages it would have evicted are not
+recoverable at all.** Refusing loses the cheap thing and keeps the expensive ones.
+
+**The pin defect is fixed by there being no eviction**, which is why `vault-capacity.ts` contains no
+eviction ordering at all. The test states the invariant that actually holds — everything stored is
+still stored — rather than an ordering that could drift.
+
+**The cap is counted per owner.** That fixes the orphan case *and* turns `undoDelete`'s documented
+estimate into the same number the store applies. The write still carries every owner's records, so
+one reader's save can never delete another session's pages — the failure relocated is not the
+failure removed, and there is a test for exactly that.
+
+**The device limit is reported as itself.** `isStorageFullError` checks the three signatures browsers
+actually use (`QuotaExceededError`, Firefox's `NS_ERROR_DOM_QUOTA_REACHED`, and the legacy numeric
+codes 22 and 1014). It is told apart from `STORAGE_WRITE_FAILED` because only one of the two has a
+remedy: a `SecurityError` from a browser with site data blocked is not fixed by deleting a page, so
+handing that reader "delete a saved page" would be the one useless instruction available. No byte
+ceiling is predicted — it depends on the browser and on what is already stored, so picking a number
+would be the same fiction as fifty.
+
+**A refusal carries a link, which required deleting a rule.** `showsVaultLink` was a boolean whose
+documented invariant was that a failure never gets a link — "an invitation to go and look at
+nothing". True for every failure except these two, which fail *because the vault is full* and whose
+remedy is in the vault. It is now `vaultLinkFor`, returning different link text: "Make room in the
+vault", not "See all your saved pages", because a refusal is an errand and not an invitation.
+
+**Replacing a stored record is never a capacity question.** `toggleFavorite` and `undoDelete` both
+reach `saveCreation` with an id already stored. Without this, a reader could no longer pin anything
+the moment the vault filled — the exact state that makes pinning matter.
+
+**`VAULT_CAPACITY` stops being a hand-copied `50`** and re-exports `MAX_CREATIONS` from the contract.
+The comment justifying the copy said the constant was module-private in
+`creation-store.adapter.ts`; that had stopped being true. A duplicate defended by a stale reason.
+
+**Three savers became one on the two things they disagreed about.** `newCreationId` now lives in
+`src/lib/core/creation-id.ts` and all fifteen surfaces use it — the home studio and the tools hub
+fell back to `creation-${Date.now()}`, and a save replaces any record sharing its id, so two saves in
+one millisecond destroyed the first on a browser without `crypto.randomUUID`. Both also stop writing
+`fixesApplied` from recommendations they never applied — the defect `PageArtifactState`'s own comment
+named and could not reach from where it sat — and both now take their timestamp from `ClockSeam`.
+
+**The contract, its schemas, its fixtures and its mock are unchanged.** Only the adapter's behaviour
+within shapes the contract already declared. Confirmed by `git diff --name-only origin/main...HEAD`
+against those paths rather than asserted.
+
+### Red proofs, run because a green test proves nothing on its own
+
+Four mutations, each reverted immediately, each checked for how many tests fail:
+
+| Mutation | Tests that failed |
+|---|---|
+| Evict the oldest page instead of refusing (the original defect, restated) | 3 |
+| Count every owner's records against the saving reader | 2 |
+| Treat a replacement as a new record (a pin on a full vault) | 2 |
+| Report a full device as a generic write failure | 2 |
+
+### The red proof that was wrong, and what it looked like
+
+The pin mutation was first written as `if (!isReplacement)` → `if (isReplacement || true)`, forcing
+the capacity branch to always run. **Every test passed**, which read as "no test covers this".
+
+It was the mutation that was wrong. The count is taken from the array with the replaced record
+already removed, so a replacement on a full vault still measured forty-nine and still fitted.
+Reproducing the defect needed two edits, not one — the branch *and* the array it counts.
+
+*A mutation that does not reproduce the defect proves nothing about the tests, only about the
+mutation.* Taking that first result at face value would have added a test for behaviour that was
+already covered, or worse, concluded the gap was real and rewritten working code to close it.
+
+### What this run could not prove, stated plainly
+
+**No test here fills a real browser's localStorage to its true limit.** The device-full path is
+driven by throwing the three real quota signatures from a spied `setItem`, which is the *shape* of
+the failure rather than the failure itself. The record-cap path is driven against the real adapter
+and real `localStorage` in jsdom, and does not depend on any double.
+
+**The 236,380-character measurement is one captured response, not a distribution.** It is the
+largest real image in the repository and it is a genuine provider capture, not a fixture someone
+wrote — but a different prompt, size or provider setting produces a different number, and the
+argument only needs it to be within an order of magnitude of a quarter-megabyte to hold.
+
+### Carried forward for the next run
+
+Re-measured on this run's base where the item names a line number; **do not inherit these,
+re-measure.**
+
+- **A stored entry that fails schema validation is still destroyed by the next write.**
+  `parseRecords` skips it and every later `saveRecords` persists only the survivors, so one record
+  from an older build is permanently deleted by the reader's next save, delete or pin.
+  `skippedIndices` is computed for exactly this and reaches nothing but `console.warn`. **Measured
+  and deliberately not fixed this run**, with the reasoning in `DECISIONS.md`: an entry nothing can
+  parse cannot be rendered, reopened or downloaded, and preserving it would consume bytes on a store
+  whose real limit is bytes, with no way for a reader to remove it. Telling the reader it happened
+  is the better fix and needs contract room to carry the count.
+- **Evicting the oldest *unpinned* page and naming it beats refusing**, and is blocked only on
+  `saveCreation` having somewhere to report what it displaced. That is one optional field on the
+  seam's output — a contract change, its own pull request, and a merge that must not be automatic.
+  This is the single highest-value follow-up to this run.
+- **The quota reset instant is early on routes that work before charging.** Run 18's item,
+  unchanged. Do not attempt it as a quick win; it needs a server/client clock offset and the full
+  workflow.
+- **`chatInterpretationAdapter` still has no callers**, and **`/api/image-generation` has no client
+  caller either.** Runs 17 and 18's items, unchanged. Settle both deliberately rather than carrying
+  them a fourth time.
+- **The three SonarCloud issues Run 17 identified** — the empty `clearSourceStatus`, the
+  `export…from` re-export in `describe-page.ts`, the useless `init.headers ?? {}` in
+  `page-artifact-harness.ts`. Still open. **Line numbers have moved again**; re-measure.
+- **The app configures a 1024x1024 square it never asks the provider for.** Run 17's item, still
+  blocked on a key.
+- **`placedDpi` has no production consumer.** Unchanged.
+- **The `chat` packaging variant has zero consumers.** Unchanged, Run 14's reasoning.
+- **Mode persistence** — Run 12's pick, blocked on the seam rule for the eighth run running.
+- `MeechieToolOutput.quoteScore` and `modelMetadata`, from Run 11's list.
+- **Evidence transcripts still have no file header**, against `AGENTS.md`'s File Header
+  Requirement — this run's `check.txt`, `lint.txt`, `build.txt` and `verify-outer.txt` included.
+  Carried since Run 16 and left again deliberately: `proof-tape.mjs` parses these transcripts for
+  the `Commands:` lines it prints, so prepending anything is a change to the verify chain's input
+  and belongs in a run that can re-run the chain to prove it, not as a rider on a seam change.
+- **Run 18 has no merge close-out entry in this log.** PR #337 merged as `bd070e2`; the close-out
+  that every run from 8 onwards recorded was never written. Noted rather than invented — this run
+  did not observe that pull request's review rounds and will not reconstruct them.
+
+Do not inherit this entry's measurements. Re-measure.

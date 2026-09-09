@@ -7,6 +7,18 @@ Info flow: Experience -> lesson -> action applied to future changes.
 
 Short, dated entries capturing pitfalls, surprises, and fixes.
 
+## 2026-09-09
+- Date: 2026-09-09
+- Context: The Quote Vault capped itself at fifty saved pages and had built real machinery around that number — a `VAULT_CAPACITY` constant, a guard in `undoDelete`, a `vaultFullRefusal` sentence, and a test that drove the store past it. A single real captured provider image in `fixtures/image-generation/sample.json` is 236,380 base64 characters, so fifty of them cannot fit in a browser's localStorage. Every one of those guards defended a boundary no reader ever reaches, while the boundary they do reach surfaced as `Failed to write storage for cb_creations_v1.`
+- Lesson: **A limit expressed in the wrong unit is worse than no limit, because it attracts the maintenance a real limit would earn.** Nobody had multiplied the cap by the size of the thing being capped. The number was plausible, the code around it was careful and well-reasoned, and the tests that drove it to fifty passed — because they stored a nine-byte stub image rather than a page. A fixture small enough to keep tests fast is also small enough to hide the only question that mattered.
+- Action: When a store has a capacity, measure it in the unit the storage actually charges, using the largest real payload in the repository rather than the test fixture. Where the true ceiling is not knowable from here — it depends on the browser and on what is already stored — let the write fail and report the failure honestly, rather than picking a number that looks like knowledge.
+
+## 2026-09-09
+- Date: 2026-09-09
+- Context: A red proof for "a pin on a full vault must still be allowed" was written by flipping `if (!isReplacement)` to `if (isReplacement || true)`. The mutation ran and every test still passed, so the proof briefly read as "no test covers this."
+- Lesson: **A mutation that does not reproduce the defect proves nothing about the tests, only about the mutation.** Forcing the capacity branch to run was not enough: the count was taken from the array with the replaced record already removed, so a replacement on a full vault still measured forty-nine and still passed. The defect needed two edits, not one.
+- Action: Read a passing mutation as a suspect mutation first. Before concluding a test is missing, check that the mutated code actually produces the wrong *output* for some input — not merely that a different branch was taken.
+
 ## 2026-09-08
 - Date: 2026-09-08
 - Context: `/describe` shows the reader a read-back of the interpreted spec before charging for a picture. Its first draft rendered `footerItem` last, after the list, with its number. `src/lib/adapters/prompt-assembly-seam/index.ts` uses `footerItem.label` as the **unnumbered second line directly under the headline**, and never reads `footerItem.number` at all.
