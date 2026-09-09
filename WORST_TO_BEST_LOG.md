@@ -14758,3 +14758,79 @@ Re-measure everything below; do not inherit it.
   `plan.md` before code changes. The plan for this run was formed before implementation but written
   to `plan.md` during it. The file inventory and self-critique it contains describe the change as
   actually made; the ordering requirement was not met.
+
+## Run 21, first close-out — 2026-09-09 — the SonarCloud round, and a Rosentic stand-down
+
+### The one New issue was found, and it was this run's own duplication
+
+SonarCloud's quality gate **passed** with **1 New issue** — non-blocking, and chased anyway, because
+Run 20 established that the count alone is not a finding. `sonarcloud.io` is still refused by this
+container's egress proxy (`curl` returns nothing), so the issue was located locally instead, using
+the reproduction from the 2026-09-07 lesson: `eslint-plugin-sonarjs` at its recommended profile, with
+`languageOptions.parserOptions.parser` set for `.svelte` files so components are not silently
+skipped.
+
+Five findings across the changed files. Four of them are on lines that exist verbatim on the base
+`069901c` — a nested ternary at `studio-state.svelte.ts` L1623, and three in `smoke.spec.ts` at
+L112, L270 and L744, all far above this run's additions. **Exactly one was new**, and the mechanism
+is worth recording because it is invisible from the diff alone:
+
+> `sonarjs/use-type-alias` (S4323) fires when a union type is written out **three** times.
+> `Pick<Parameters<typeof classifyGenerationFailure>[0], 'thrown' | 'apiError' | 'offContract' |
+> 'rejected'>` appeared **twice** on the base — `classifyPageFailure` and `classifyTextFailure` —
+> which is under the threshold. `classifyTryOnFailure` was the third.
+
+So this run did not add a new *kind* of problem; it pushed an existing pattern over a counting rule's
+edge. *That is a general shape worth watching for: a rule keyed on repetition count means the change
+that trips it is not necessarily the one that should be blamed for it, and the third copy is simply
+the one holding the bag.* The fix is the right one either way — the union is now a named
+`FailureCallSiteInput`, used by all three helpers, and the local reproduction returns only the
+pre-existing nested ternary afterwards.
+
+**The technique is now two-for-two in this container and should be the default**, not the last
+resort: enumerate the analyser's default profile locally, run it over the changed files, and diff
+each hit against the base rather than reading the code for likely candidates. It located this in
+one command and, unlike Run 20's version, did not require the finding to have exactly one plausible
+suspect — it names the line.
+
+### Rosentic: three findings, none of them this branch's
+
+Rosentic reported a possible cross-branch break: `claude/great-bell-k1i146` removes the `page`
+parameter from `makeToolkitVerdict`, and this branch calls it with one argument at
+`smoke.spec.ts` L123, L1256 and L1290.
+
+Measured against the bar in `AGENTS.md` rather than waved off as known noise:
+
+```
+$ git diff 069901c HEAD -- tests/e2e/smoke.spec.ts | grep -c makeToolkitVerdict
+0
+$ git show 069901c:tests/e2e/smoke.spec.ts | grep -n makeToolkitVerdict
+123:  await makeToolkitVerdict(page);
+134: const makeToolkitVerdict = async (page: Page): Promise<void> => {
+1256: await makeToolkitVerdict(page);
+1290: await makeToolkitVerdict(page);
+```
+
+The helper and all three call sites exist verbatim on the base and this diff touches them zero
+times. The incompatibility is entirely between the base and an unrelated open branch. The
+`Rosentic - Conflict Detection` **check run itself is green**, so this is an advisory comment rather
+than a failing check, and `AGENTS.md` names exactly this as pre-existing noise for these routines:
+note it, do not drain the backlog. No pull request comment was posted, because nothing failed.
+
+*A method note: the first attempt to check this measured against the local `main` ref and got the
+wrong answer.* This container's clone had `origin/main` at `bd070e2`, four commits stale, so
+`git diff main...HEAD` attributed four merged runs' work to this branch and appeared to show this
+diff adding `makeToolkitVerdict` itself. **Fetch and name the true base commit before measuring
+whether a finding belongs to your diff.**
+
+### The other reviewers
+
+**Sourcery** refused, as Run 20 predicted to the day: "you've used your own review budget of 250,000
+diff characters for the last 7 days… you can request another review in 1 day and 13 hours". It still
+posted a Reviewer's Guide, which read the change accurately. **CodeRabbit** skipped for the
+repository having fewer than ten stars, a standing condition. **Codex** was still "Running" against
+`ed65728` at the time of writing. **CodeQL** passed both analyses.
+
+So the review coverage on this run is SonarCloud, CodeQL and this run's own adversarial re-reading —
+the same thin coverage Run 20 recorded, for the same reasons, and worth knowing when reading what
+shipped.

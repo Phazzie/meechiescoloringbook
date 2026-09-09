@@ -151,6 +151,19 @@ type StampedFailure = GenerationFailure & {
 	readonly [FAILURE_STAMP]: number;
 };
 
+/**
+ * The half of a classifier input that a call site supplies: what actually went wrong.
+ *
+ * The other half — the subject, the bucket's reset instant, the connection, whether a page survived
+ * — is context this studio holds, and each of the three `classify…Failure` helpers below fills it in
+ * for its own kind of call. Naming the caller's half once is what stops a call site being able to
+ * pass a subject or a quota instant of its own and quietly answer for the wrong bucket.
+ */
+type FailureCallSiteInput = Pick<
+	Parameters<typeof classifyGenerationFailure>[0],
+	'thrown' | 'apiError' | 'offContract' | 'rejected'
+>;
+
 /** A failure's stamp, or `0` for one that never went through `recordFailure`. */
 const stampOf = (failure: GenerationFailure | null): number => {
 	if (failure === null) return 0;
@@ -1997,10 +2010,7 @@ export class StudioState {
 	}
 
 	private classifyPageFailure(
-		input: Pick<
-			Parameters<typeof classifyGenerationFailure>[0],
-			'thrown' | 'apiError' | 'offContract' | 'rejected'
-		>
+		input: FailureCallSiteInput
 	): GenerationFailure {
 		return this.recordFailure({
 			...input,
@@ -2029,10 +2039,7 @@ export class StudioState {
 	 * quota line and the failure's "ready again at" sit in the same column of the same panel.
 	 */
 	private classifyTryOnFailure(
-		input: Pick<
-			Parameters<typeof classifyGenerationFailure>[0],
-			'thrown' | 'apiError' | 'offContract' | 'rejected'
-		>
+		input: FailureCallSiteInput
 	): GenerationFailure {
 		return this.recordFailure({
 			...input,
@@ -2049,10 +2056,7 @@ export class StudioState {
 	}
 
 	private classifyTextFailure(
-		input: Pick<
-			Parameters<typeof classifyGenerationFailure>[0],
-			'thrown' | 'apiError' | 'offContract' | 'rejected'
-		>
+		input: FailureCallSiteInput
 	): GenerationFailure {
 		return this.recordFailure({
 			...input,
