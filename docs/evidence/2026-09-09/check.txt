@@ -1,3 +1,5 @@
+Commands: npm run check
+Date: 2026-09-09
 
 > meechies-coloringbook@0.1.0 check
 > svelte-kit sync && svelte-check --tsconfig ./tsconfig.json

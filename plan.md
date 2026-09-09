@@ -3837,3 +3837,94 @@ The second risk is that owner-scoping the cap weakens the global bound on localS
 byte-level refusal is the real bound, and it is now honest. What could still be wrong: the byte path
 is exercised by throwing the real quota signatures from a spied `setItem`, not by genuinely filling
 a browser profile — the shape of the failure rather than the failure.
+
+---
+
+## Run 20 — 2026-09-09 — What the app says when the AI call fails
+
+### The pick, with evidence
+
+The worst feature is the **failure path of every AI call in the app** — what the reader is told when
+the coloring page, verdict or read-back they waited for does not arrive, and what they can do next.
+It is worst by the routine's own measure: the widest gap between promise and delivery, priced in
+what it costs a reader.
+
+**The app promises recovery in its own words, six times, and provides no way to take it up.**
+`'Network error. Try again.'` (`page-artifact-state.svelte.ts` L571, `verdict-page-state.svelte.ts`
+L199, `describe-page-state.svelte.ts` L222, `MeechieTools.svelte` L511), `'…please try again'`
+(`http-client.ts` L60), `'Too many requests. Try again after the current window resets.'`
+(`rate-limit-guard.ts` L246). There is no retry control anywhere in the app: the only match for one
+is `/offline`'s page reload. The reader's sole option is the same button, which spends quota again.
+
+**What is actually rendered is a developer's string.** Every one of these writes the caught
+exception's own message straight to the reader:
+
+- `page-artifact-state.svelte.ts` L566-571 — all thirteen page-making surfaces
+- `verdict-page-state.svelte.ts` L191-199 — the mode routes' verdicts
+- `describe-page-state.svelte.ts` L217-222 — `/describe`'s read-back
+- `MeechieTools.svelte` L508-511 — the toolkit hub
+- `studio-state.svelte.ts` L1808-1809 and L1924-1925 — the home studio
+
+`postJson` throws `postJson: HTTP 502 Bad Gateway from /api/generate: empty response body`
+(`http-client.ts` L75-92). An offline fetch throws `Failed to fetch`. Both reach the reader verbatim,
+in a crimson box, as the app's account of itself.
+
+**The app knows things that would help and does not say them.** `offlineNotice`
+(`offline-cache.ts` L606-614) is a pure function that already writes the right sentence about being
+offline, and the generation path never calls it. `AiQuotaMeter` already holds the exact instant the
+bucket refills — recorded from `Retry-After` *before* the body is read (`http-client.ts` L68) — and
+renders it under the same button; the rate-limit failure a foot above it says only "the current
+window". `interpretFailureSentence` (`describe-page.ts` L109-132) proves the repo already knows this
+work: it maps failure codes to reader sentences, on one surface, for one of the two ways a call can
+fail.
+
+**The cost.** A reader waits up to 180 seconds (`POST_JSON_TIMEOUTS_MS.generate`) for the app's
+central action, is handed a string they cannot act on, is not told whether waiting helps, and — when
+rate-limited or offline — can only press a button that is guaranteed to fail again and bill them for
+it.
+
+### The rebuild
+
+- **`[NEW] src/lib/core/generation-failure.ts`** — one pure classifier. Turns a thrown exception, or
+  a contract-shaped refusal, or an off-contract response, or an undecodable image into a
+  `GenerationFailure`: the cause, one sentence in the app's voice, whether a retry is worth
+  offering and when, whether the page on screen survived, and the raw diagnostic kept for System
+  Trace but never shown as the reader's sentence.
+- **`[NEW] src/lib/components/GenerationFailureNotice.svelte`** — the only rendering of a failed AI
+  call, replacing four raw `<p class="error">{…}</p>` copies. Sentence, wait, and the retry control
+  when one is warranted.
+- **`[MODIFY]`** `page-artifact-state.svelte.ts`, `verdict-page-state.svelte.ts`,
+  `describe-page-state.svelte.ts`, `studio-state.svelte.ts`, `MeechieTools.svelte`,
+  `VerdictPageStudio.svelte`, `DescribePageStudio.svelte` — classify instead of assigning, and hold
+  the request that failed so a retry re-asks for exactly the same thing.
+- **`[NEW]`** `tests/unit/generation-failure.test.ts`, plus cases in the existing state-class suites.
+
+### Anti-goals
+
+Do not touch `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`, `src/lib/adapters/` or
+`src/lib/seams/`. Do not change any route's wire shape, any error code, or any `RateLimit-*` header.
+Do not change `+layout.svelte`'s offline banner — Run 10's feature, and this change must compose with
+it rather than restate it. Do not add a seam: `navigator.onLine` is read in the component layer,
+exactly where `+layout.svelte` L65 already reads it, and enters the classifier as a value.
+
+### Self-critique
+
+The riskiest assumption is that **the connection read only sharpens the sentence and never decides
+it**. If classification depended on `navigator.onLine`, a captive portal or a dead DNS — both of
+which report online — would be classified as a working connection and the reader told to retry into
+a wall. So the transport branch must classify from the *exception shape* and use the connection read
+only to upgrade "could not reach Meechie" to "you are offline". Proven by a test that classifies a
+network throw with `isOnline` true, false and null and asserts all three offer a usable sentence.
+
+The second risk is **offering a retry that spends quota to reproduce a refusal**. A rate-limited or
+input-rejected failure must not carry a live retry control. Proven by tests asserting the retry
+advice for each cause, and by the notice component rendering no button unless the advice says so.
+
+What could still be wrong: the classifier reads exception *messages* to tell a timeout from a
+network failure, and those strings are ours (`http-client.ts` L59-61) but a browser's `TypeError`
+text is not. The fallback for an unrecognised throw must therefore be a usable sentence, not a
+guess — so `unknown` still offers a retry and still says something true.
+
+### Definition of done
+
+`npm run check && npm run lint && npm test && npm run build && npm run verify`, each exit 0.

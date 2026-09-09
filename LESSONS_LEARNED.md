@@ -9,6 +9,24 @@ Short, dated entries capturing pitfalls, surprises, and fixes.
 
 ## 2026-09-09
 - Date: 2026-09-09
+- Context: Five call sites in the app ended with `error instanceof Error ? error.message : '<fallback>'` written into a field a reader sees. Each one was locally reasonable and each carried a considered fallback string. Together they meant that the app's account of its own failures was whichever text an exception happened to carry — `Failed to fetch` when a connection dropped, and a `postJson: HTTP 502 …` line the app builds for itself when a gateway failed.
+- Lesson: **The fallback in `e instanceof Error ? e.message : '<fallback>'` is backwards.** The author's own sentence — the thoughtful part — runs only in the rare case where something that is not an `Error` was thrown, and the common case shows a string nobody wrote for a reader. Every one of these five sites had a good sentence in it that almost never ran.
+- Action: Treat a caught exception's `message` as diagnostic data, never as display text. Classify the failure into a value, word the sentence from the classification, and carry the original message somewhere a developer looks. Where a codebase has this pattern more than once, expect the sentences to have drifted apart as well.
+
+## 2026-09-09
+- Date: 2026-09-09
+- Context: `navigator.onLine` was an obvious input for classifying a failed request, and the obvious implementation reads it first. It is wrong: a captive portal and a failed DNS lookup both report the device as online while no request can leave it, so a connection-led classifier tells those readers the service is having trouble and invites them to retry into a wall.
+- Lesson: **Classify from the evidence of the event, and let ambient state only sharpen the result.** The exception shape says a request did not complete, which is true regardless of what `onLine` claims. Reading the connection afterwards can upgrade "could not reach the server" to "you are offline", and the worst it can do when it is wrong is leave the sentence one degree less specific.
+- Action: When ambient state (`onLine`, a cached flag, a last-known value) is available alongside direct evidence, order the two so that the ambient reading can never *override* the evidence. Test the same event against every value of the ambient state and require all of them to produce a usable answer.
+
+## 2026-09-09
+- Date: 2026-09-09
+- Context: Adding `$state`/`$derived` to `MeechieTools.svelte` compiled the whole component in runes mode, which broke every `$:` reactive statement already in it. `svelte-check` reported it immediately, but only after the edit had been made in four places.
+- Lesson: **A single rune anywhere in a Svelte component switches the entire file's reactivity model.** There is no partial adoption, so introducing one to a legacy-mode component is a whole-file migration whether or not that was the intent.
+- Action: Check a component's existing mode before adding a rune to it. Where the change is incidental to the actual work, use the file's own idiom instead — a plain `let` and a `$:` declaration achieve the same thing without converting anything.
+
+## 2026-09-09
+- Date: 2026-09-09
 - Context: The Quote Vault capped itself at fifty saved pages and had built real machinery around that number — a `VAULT_CAPACITY` constant, a guard in `undoDelete`, a `vaultFullRefusal` sentence, and a test that drove the store past it. A single real captured provider image in `fixtures/image-generation/sample.json` is 236,380 base64 characters, so fifty of them cannot fit in a browser's localStorage. Every one of those guards defended a boundary no reader ever reaches, while the boundary they do reach surfaced as `Failed to write storage for cb_creations_v1.`
 - Lesson: **A limit expressed in the wrong unit is worse than no limit, because it attracts the maintenance a real limit would earn.** Nobody had multiplied the cap by the size of the thing being capped. The number was plausible, the code around it was careful and well-reasoned, and the tests that drove it to fifty passed — because they stored a nine-byte stub image rather than a page. A fixture small enough to keep tests fast is also small enough to hide the only question that mattered.
 - Action: When a store has a capacity, measure it in the unit the storage actually charges, using the largest real payload in the repository rather than the test fixture. Where the true ceiling is not knowable from here — it depends on the browser and on what is already stored — let the write fail and report the failure honestly, rather than picking a number that looks like knowledge.

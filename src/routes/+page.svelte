@@ -92,7 +92,8 @@ Invariants: `SystemTrace` receives `promptWasSent` from the state and must never
 			revisionBudget={studio.revisionBudget}
 			aiQuotaMessage={studio.aiQuotaMessage}
 			hasVerdict={!!studio.textOutput}
-			textError={studio.textError}
+			textFailure={studio.textFailure}
+			onRetryText={() => void studio.retryTextAction()}
 			isTextWorking={studio.isTextWorking}
 			draftSaveError={studio.draftSaveError}
 			canGenerateText={studio.canGenerateText}
@@ -110,7 +111,8 @@ Invariants: `SystemTrace` receives `promptWasSent` from the state and must never
 			imagePreviews={studio.imagePreviews}
 			pageExports={studio.pageExports}
 			exportError={studio.exportError}
-			generationError={studio.generationError}
+			pageFailure={studio.pageFailure}
+			onRetryPage={() => void studio.retryPage()}
 			isGenerating={studio.isGenerating}
 			textOutput={studio.textOutput}
 			copyStatus={studio.copyStatus}
@@ -175,6 +177,7 @@ Invariants: `SystemTrace` receives `promptWasSent` from the state and must never
 	/>
 
 	<SystemTrace
+		failureDetail={studio.pageFailure?.detail ?? studio.textFailure?.detail ?? null}
 		assembledPrompt={studio.assembledPrompt}
 		revisedPrompt={studio.revisedPrompt}
 		promptWasSent={studio.promptWasSent}

@@ -20,13 +20,16 @@ Critical invariant: the paper on screen shows the page's OWN look, never the liv
 	import PrintPageButton from '../PrintPageButton.svelte';
 	import SharePageButton from '../SharePageButton.svelte';
 	import VaultStatusLine from '../VaultStatusLine.svelte';
+	import GenerationFailureNotice from '$lib/components/GenerationFailureNotice.svelte';
+	import type { GenerationFailure } from '$lib/core/generation-failure';
 
 	let {
 		previewOutput,
 		imagePreviews,
 		pageExports,
 		exportError,
-		generationError,
+		pageFailure,
+		onRetryPage,
 		isGenerating,
 		textOutput,
 		copyStatus,
@@ -47,7 +50,8 @@ Critical invariant: the paper on screen shows the page's OWN look, never the liv
 		pageExports: PageExport[];
 		/** What could not be packaged — never a reason to think the page itself failed. */
 		exportError: string;
-		generationError: string;
+		pageFailure: GenerationFailure | null;
+		onRetryPage: () => void;
 		isGenerating: boolean;
 		textOutput: MeechieStudioTextOutput | null;
 		copyStatus: string;
@@ -140,11 +144,12 @@ Critical invariant: the paper on screen shows the page's OWN look, never the liv
 		{/if}
 	</div>
 
-	{#if generationError}
-		<p class="error" data-testid="home-generation-error">
-			{generationError}
-		</p>
-	{/if}
+	<GenerationFailureNotice
+		failure={pageFailure}
+		onRetry={onRetryPage}
+		isBusy={isGenerating}
+		testId="home-generation-error"
+	/>
 
 	{#if pageCaution}
 		<!-- Above the button, not below it: a caution the reader meets after they have already

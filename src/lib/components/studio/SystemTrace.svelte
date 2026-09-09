@@ -29,7 +29,8 @@ Invariants: A non-empty `assembledPrompt` is NOT evidence that a prompt was sent
 		assembledPrompt,
 		revisedPrompt,
 		promptWasSent,
-		report
+		report,
+		failureDetail = null
 	}: {
 		assembledPrompt: string;
 		revisedPrompt: string;
@@ -43,6 +44,16 @@ Invariants: A non-empty `assembledPrompt` is NOT evidence that a prompt was sent
 		 */
 		promptWasSent: boolean;
 		report: QualityReport;
+		/**
+		 * The raw diagnostic behind the last failed AI call, or `null`.
+		 *
+		 * The reader's own sentence for that failure is worded by `classifyGenerationFailure` and
+		 * shown beside the button that failed; this is the underlying text — `Failed to fetch`, a
+		 * `postJson:` line, a provider code — which used to BE that sentence. It belongs in a panel
+		 * headed "System Trace" and nowhere else, which is what makes moving it out of the crimson
+		 * box a relocation rather than a loss.
+		 */
+		failureDetail?: string | null;
 	} = $props();
 
 	const headline = $derived(describeQualityReport(report));
@@ -90,6 +101,18 @@ Invariants: A non-empty `assembledPrompt` is NOT evidence that a prompt was sent
 				/>
 			{/if}
 		</section>
+
+		{#if failureDetail}
+			<section class="failure-detail" data-testid="system-trace-failure-detail">
+				<p class="eyebrow">What Went Wrong Underneath</p>
+				<textarea
+					rows="2"
+					readonly
+					value={failureDetail}
+					aria-label="Underlying failure detail"
+				></textarea>
+			</section>
+		{/if}
 
 		<section class="prompts">
 			<p class="eyebrow">What Was Sent</p>

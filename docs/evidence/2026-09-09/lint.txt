@@ -1,3 +1,5 @@
+Commands: npm run lint
+Date: 2026-09-09
 
 > meechies-coloringbook@0.1.0 lint
 > eslint .

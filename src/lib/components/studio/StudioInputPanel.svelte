@@ -5,6 +5,8 @@ Info flow: User edits evidence/dedication → bind propagates up → callbacks t
 -->
 <script lang="ts">
 	import { getStudioAction, type StudioTextActionId, type StudioMode } from '$lib/core/meechie-studio';
+	import GenerationFailureNotice from '$lib/components/GenerationFailureNotice.svelte';
+	import type { GenerationFailure } from '$lib/core/generation-failure';
 
 	let {
 		evidence = $bindable(),
@@ -14,7 +16,8 @@ Info flow: User edits evidence/dedication → bind propagates up → callbacks t
 		revisionBudget,
 		aiQuotaMessage,
 		hasVerdict,
-		textError,
+		textFailure,
+		onRetryText,
 		isTextWorking,
 		draftSaveError,
 		canGenerateText,
@@ -44,7 +47,8 @@ Info flow: User edits evidence/dedication → bind propagates up → callbacks t
 		aiQuotaMessage: string;
 		/** Whether a verdict is on the paper, which is what makes a rewrite count something to show. */
 		hasVerdict: boolean;
-		textError: string;
+		textFailure: GenerationFailure | null;
+		onRetryText: () => void;
 		isTextWorking: boolean;
 		draftSaveError: string;
 		canGenerateText: boolean;
@@ -171,7 +175,10 @@ Info flow: User edits evidence/dedication → bind propagates up → callbacks t
 			Draft not saved: {draftSaveError}
 		</p>
 	{/if}
-	{#if textError}
-		<p class="error" data-testid="home-text-error">{textError}</p>
-	{/if}
+	<GenerationFailureNotice
+		failure={textFailure}
+		onRetry={onRetryText}
+		isBusy={isTextWorking}
+		testId="home-text-error"
+	/>
 </div>

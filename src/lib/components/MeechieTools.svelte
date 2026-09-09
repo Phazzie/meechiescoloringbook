@@ -47,6 +47,14 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 	import type { GeneratedImage } from '../../../contracts/image-generation.contract';
 	import type { PackagedFile } from '$lib/seams/output-packaging-seam/contract';
 	import type { CreationOwner } from '$lib/seams/creation-store-seam/contract';
+	import {
+		classifyGenerationFailure,
+		PAGE_SUBJECT,
+		VERDICT_SUBJECT,
+		type GenerationFailure
+	} from '$lib/core/generation-failure';
+	import { readIsOnline } from './connection.svelte';
+	import GenerationFailureNotice from './GenerationFailureNotice.svelte';
 	import { GenerateResultSchema } from '../../../contracts/generate.contract';
 	import type { GenerateResponseValue } from '../../../contracts/generate.contract';
 	import { outputPackagingAdapter } from '$lib/adapters/output-packaging-seam';
@@ -131,7 +139,13 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 
 	let selectedTool: ToolId = tools[0].id;
 	let output: MeechieToolOutput | null = null;
-	let error = '';
+	/**
+	 * The last failed verdict request, classified. See `$lib/core/generation-failure`: this hub had
+	 * its own copy of the three lines that wrote an exception's own text into a crimson box.
+	 */
+	let verdictFailure: GenerationFailure | null = null;
+	/** The input of the last verdict ATTEMPT, so a retry asks the same question. */
+	let lastVerdictInput: MeechieToolInput | null = null;
 	let isWorking = false;
 
 	let apologyInput = "I'm sorry you feel that way.";
@@ -156,7 +170,9 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 
 	// Everything below belongs to the page a verdict becomes, not to the verdict itself.
 	let isGenerating = false;
-	let generateError = '';
+	let pageFailure: GenerationFailure | null = null;
+	/** The verdict of the last page ATTEMPT, so a retry re-asks for the same page. */
+	let lastPageVerdict: MeechieToolOutput | null = null;
 	let imagePreviews: string[] = [];
 	// What each packaging call was asked for and what it produced — the stored record the export row
 	// and its failure sentence are both derived from, exactly as the home studio has done since the
@@ -175,7 +191,7 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 	// The original comes last and is derived rather than stored, so it appears and disappears with
 	// the page it belongs to and can never be left behind by a reset.
 	$: pageExports = originalExport ? [...packagedExports, originalExport] : packagedExports;
-	// A separate value from `generateError`, which is where both used to be written: a page that
+	// A separate value from `pageFailure`, which is where both used to be written: a page that
 	// generated perfectly and then failed to become a square PNG showed the same crimson box, in
 	// the same place, as a page that never generated at all.
 	$: exportError = summarisePageExportFailures(packageAttempts);
@@ -241,13 +257,49 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 	 * `isGenerating` is released with it, so abandoning a slow generation does not wedge the
 	 * button for the next one.
 	 */
+	/**
+	 * Classify one failed call from this hub, with the context only this component holds.
+	 *
+	 * Two helpers rather than one because the two calls spend different buckets and mean different
+	 * things to a reader: a verdict refused for quota refills on the TEXT window, a page on the
+	 * IMAGE one, and naming the wrong instant is the bucket mix-up `AiQuotaLedger` exists to prevent.
+	 */
+	const classifyVerdictFailure = (
+		input: Pick<
+			Parameters<typeof classifyGenerationFailure>[0],
+			'thrown' | 'apiError' | 'offContract' | 'rejected'
+		>
+	): GenerationFailure =>
+		classifyGenerationFailure({
+			...input,
+			subject: VERDICT_SUBJECT,
+			pageKept: false,
+			quotaResetAtMs: quota.text?.resetAtMs ?? null,
+			isOnline: readIsOnline()
+		});
+
+	const classifyPageFailure = (
+		input: Pick<
+			Parameters<typeof classifyGenerationFailure>[0],
+			'thrown' | 'apiError' | 'offContract' | 'undecodable'
+		>
+	): GenerationFailure =>
+		classifyGenerationFailure({
+			...input,
+			subject: PAGE_SUBJECT,
+			pageKept: generatedImages.length > 0,
+			quotaResetAtMs: quota.image?.resetAtMs ?? null,
+			isOnline: readIsOnline()
+		});
+
 	const resetPage = (): void => {
 		pageToken += 1;
 		// Only the page flag is released here. `isWorking` belongs to the verdict request and is
 		// released by `resetVerdict`; releasing it from a page-only action used to abandon a
 		// perfectly good verdict request that the reader had never cancelled.
 		isGenerating = false;
-		generateError = '';
+		pageFailure = null;
+		lastPageVerdict = null;
 		imagePreviews = [];
 		packageAttempts = [];
 		pageOriginalImage = null;
@@ -284,7 +336,8 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 	};
 
 	const resetState = (): void => {
-		error = '';
+		verdictFailure = null;
+		lastVerdictInput = null;
 		output = null;
 		resetVerdict();
 		resetPage();
@@ -336,20 +389,30 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 		});
 	};
 
-	const handleMakePage = async (): Promise<void> => {
+	/**
+	 * Build the page for one verdict.
+	 *
+	 * Takes the verdict rather than reading `output`, so a retry re-asks for the page that failed
+	 * rather than for whichever tool the reader has since switched to. `handleMakePage` passes the
+	 * live one; `handleRetryPage` passes the one that was actually attempted.
+	 */
+	const makePageFor = async (source: MeechieToolOutput | null): Promise<void> => {
 		// `pictureExhausted` is the gate as well as the control: this hub has its own handlers rather
 		// than `PageArtifactState`'s, so the guard there does not reach it.
-		if (!output || isGenerating || quota.pictureExhausted()) return;
+		if (!source || isGenerating || quota.pictureExhausted()) return;
 		// Advance the token without clearing anything. Any earlier in-flight run is stale from here,
 		// but the page already on screen stays: it cost a paid generation, and until a replacement
 		// has actually arrived it is the best thing this component has. Calling `resetPage()` here
 		// meant a timeout, a provider error or an off-contract response deleted a good page and left
 		// the reader with nothing — the same defect as the verdict path, on the page path.
 		pageToken += 1;
-		generateError = '';
+		pageFailure = null;
 		vaultStatus = '';
 		copyStatus = '';
 		isGenerating = true;
+		// Recorded before the request, so a retry re-asks for this page rather than for whatever
+		// verdict is on screen by the time the failure lands.
+		lastPageVerdict = source;
 
 		// Pin the verdict this run belongs to, and take a token for it.
 		//
@@ -358,7 +421,7 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 		// page state beneath a different verdict — showing and saving tool A's image under tool B's
 		// words — and reading `output.toolId` after the await would throw outright once `output`
 		// had been cleared. Everything below reads `verdict` and re-checks the token instead.
-		const verdict = output;
+		const verdict = source;
 		const token = pageToken;
 		const isStale = (): boolean => token !== pageToken;
 		const recipe = buildToolPageRecipe(verdict, { dedication: dedicatedTo });
@@ -377,11 +440,11 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 			if (isStale()) return;
 			const parsed = GenerateResultSchema.safeParse(payload);
 			if (!parsed.success) {
-				generateError = 'Generate response did not match contract.';
+				pageFailure = classifyPageFailure({ offContract: true });
 				return;
 			}
 			if (!parsed.data.ok) {
-				generateError = parsed.data.error.message;
+				pageFailure = classifyPageFailure({ apiError: parsed.data.error });
 				return;
 			}
 
@@ -408,8 +471,7 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 			if (isStale()) return;
 			const usable = decoded.filter((entry) => entry.usable);
 			if (usable.length === 0) {
-				generateError =
-					'The provider returned an image that could not be read. The page on screen was kept.';
+				pageFailure = classifyPageFailure({ undecodable: true });
 			// With no page already on screen there is nothing to protect, so the request's own findings
 			// are the most useful thing the reader can be given — the home studio records its trace
 			// above its no-picture guard for exactly this reason. When a page *is* on screen it keeps
@@ -495,7 +557,7 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 			const share = await packageVariant('square');
 			if (isStale()) return;
 
-			// Recorded as attempts, and not into `generateError`. Packaging runs after the paid
+			// Recorded as attempts, and not into `pageFailure`. Packaging runs after the paid
 			// generation has already succeeded, so a failure here never means the page failed —
 			// and reporting it in the field a failed generation uses, above the button that buys
 			// another one, is an invitation to pay again for a free local render.
@@ -505,10 +567,7 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 			];
 		} catch (requestError) {
 			if (isStale()) return;
-			generateError =
-				requestError instanceof Error
-					? requestError.message
-					: 'Network error. Try again.';
+			pageFailure = classifyPageFailure({ thrown: requestError });
 		} finally {
 			if (!isStale()) isGenerating = false;
 		}
@@ -669,20 +728,34 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 		}
 	};
 
-	const handleGenerate = async (): Promise<void> => {
+	/**
+	 * Ask the selected tool for a verdict.
+	 *
+	 * `retryInput` short-circuits the form read: a retry re-sends the question that was actually
+	 * asked, because the form stays editable while the failure is on screen and reading it live
+	 * would send a different one under a control that says "again".
+	 */
+	const askMeechie = async (
+		retryInput: MeechieToolInput | null = null
+	): Promise<void> => {
 		if (quota.textExhausted(MEECHIE_TOOL_QUOTA_COST)) return;
 		// Only the stale error goes now. The verdict and the page it produced are what the reader is
 		// looking at, and they cost a paid generation: clearing them up front meant an empty required
 		// field, a timeout, a provider error or an off-contract response silently destroyed a page
 		// that was still perfectly good, with nothing to restore it from. Nothing on screen is
 		// replaced until a replacement has actually arrived.
-		error = '';
-		const parsedInput = MeechieToolInputSchema.safeParse(buildInput());
+		verdictFailure = null;
+		const parsedInput = retryInput
+			? ({ success: true, data: retryInput } as const)
+			: MeechieToolInputSchema.safeParse(buildInput());
 		if (!parsedInput.success) {
-			error = 'Please complete the required fields before generating.';
+			verdictFailure = classifyVerdictFailure({
+				rejected: 'Please complete the required fields before generating.'
+			});
 			return;
 		}
 		isWorking = true;
+		lastVerdictInput = parsedInput.data;
 
 		// The verdict fetch needs the same staleness guard as the page generation. `/api/tools` for
 		// tool A can still be in flight when the user switches to tool B: the tab handler clears
@@ -714,7 +787,7 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 			}
 			const parsedResult = MeechieToolResultSchema.safeParse(payload);
 			if (!parsedResult.success) {
-				error = 'Tool response did not match contract.';
+				verdictFailure = classifyVerdictFailure({ offContract: true });
 				return;
 			}
 
@@ -723,23 +796,30 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 				resetState();
 				output = parsedResult.data.value;
 			} else {
-				error = parsedResult.data.error.message;
+				verdictFailure = classifyVerdictFailure({
+					apiError: parsedResult.data.error
+				});
 			}
 		} catch (requestError) {
 			if (isStale()) {
 				abandoned = true;
 				return;
 			}
-			error =
-				requestError instanceof Error
-					? requestError.message
-					: 'Tool request failed.';
+			verdictFailure = classifyVerdictFailure({ thrown: requestError });
 		} finally {
 			// A request the user abandoned must not clear the flag a newer one is holding; the
 			// abandoning reset released it already.
 			if (!abandoned) isWorking = false;
 		}
 	};
+
+	// Bound to the controls. Wrappers rather than the functions themselves, because `on:click` would
+	// otherwise pass the MouseEvent as the first argument — which for `askMeechie` is the input it
+	// would then send instead of the reader's answers.
+	const handleGenerate = (): Promise<void> => askMeechie();
+	const handleRetryVerdict = (): Promise<void> => askMeechie(lastVerdictInput);
+	const handleMakePage = (): Promise<void> => makePageFor(output);
+	const handleRetryPage = (): Promise<void> => makePageFor(lastPageVerdict);
 </script>
 
 <section class="meechie">
@@ -871,9 +951,12 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 		/>
 	</section>
 
-	{#if error}
-		<p class="error" data-testid="meechie-tool-error">{error}</p>
-	{/if}
+	<GenerationFailureNotice
+		failure={verdictFailure}
+		onRetry={() => void handleRetryVerdict()}
+		isBusy={isWorking || isGenerating}
+		testId="meechie-tool-error"
+	/>
 
 	{#if output}
 		<section class="output" data-testid="meechie-tool-output">
@@ -921,11 +1004,12 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 				/>
 			</div>
 
-			{#if generateError}
-				<p class="error" data-testid="meechie-tool-generate-error">
-					{generateError}
-				</p>
-			{/if}
+			<GenerationFailureNotice
+				failure={pageFailure}
+				onRetry={() => void handleRetryPage()}
+				isBusy={isGenerating || isWorking}
+				testId="meechie-tool-generate-error"
+			/>
 
 			<button
 				class="primary"
@@ -1244,15 +1328,6 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 		background: rgba(201, 162, 39, 0.07);
 	}
 
-	.error {
-		color: #ff8ab3;
-		font-weight: 600;
-		background: rgba(232, 0, 106, 0.1);
-		border-radius: 4px;
-		padding: 0.7rem 0.9rem;
-		border: 1px solid rgba(232, 0, 106, 0.3);
-		font-size: 0.9rem;
-	}
 
 	/* Verdict output */
 	.output {

@@ -25,6 +25,7 @@ Invariants:
 	import PrintPageButton from './PrintPageButton.svelte';
 	import SharePageButton from './SharePageButton.svelte';
 	import VaultStatusLine from './VaultStatusLine.svelte';
+	import GenerationFailureNotice from './GenerationFailureNotice.svelte';
 	import {
 		DESCRIBE_EXAMPLES,
 		DESCRIBE_MESSAGE_MAX_LENGTH,
@@ -100,11 +101,14 @@ Invariants:
 			</div>
 		</div>
 
-		{#if studio.interpretError}
-			<p class="error" data-testid="describe-interpret-error">
-				{studio.interpretError}
-			</p>
-		{/if}
+		<!-- The read-back half. Its retry re-asks the words that were sent, not whatever is in the
+		     box now. -->
+		<GenerationFailureNotice
+			failure={studio.interpretFailure}
+			onRetry={() => void studio.retryInterpret()}
+			isBusy={studio.isInterpreting}
+			testId="describe-interpret-error"
+		/>
 
 		<button
 			type="button"
@@ -171,11 +175,12 @@ Invariants:
 				</div>
 			{/if}
 
-			{#if studio.generateError}
-				<p class="error" data-testid="describe-generate-error">
-					{studio.generateError}
-				</p>
-			{/if}
+			<GenerationFailureNotice
+				failure={studio.failure}
+				onRetry={() => void studio.retryPage()}
+				isBusy={studio.isGenerating}
+				testId="describe-generate-error"
+			/>
 
 			<button
 				type="button"
@@ -481,15 +486,6 @@ Invariants:
 		color: var(--lavender, #b8aacf);
 	}
 
-	.error {
-		margin: 0;
-		color: #ff8ab3;
-		font-weight: 700;
-		background: rgba(232, 0, 106, 0.12);
-		border-radius: 0.7rem;
-		padding: 0.65rem 0.85rem;
-		border: 1px solid rgba(232, 0, 106, 0.35);
-	}
 
 	.readback-source {
 		margin: 0.35rem 0 0;

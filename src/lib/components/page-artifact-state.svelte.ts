@@ -44,6 +44,12 @@ import {
 	summarisePageExportFailures
 } from '$lib/core/page-exports';
 import type { PageExport, PageExportAttempt } from '$lib/core/page-exports';
+import {
+	classifyGenerationFailure,
+	PAGE_SUBJECT,
+	type GenerationFailure
+} from '$lib/core/generation-failure';
+import { readIsOnline } from './connection.svelte';
 import { GenerateResultSchema } from '../../../contracts/generate.contract';
 import type { GenerateResponseValue } from '../../../contracts/generate.contract';
 import { VAULT_SAVED_CONFIRMATION } from '$lib/core/vault-page';
@@ -180,7 +186,26 @@ export type PageArtifactStateOptions = {
 export class PageArtifactState {
 	// --- The page a source became ---
 	isGenerating = $state(false);
-	generateError = $state('');
+	/**
+	 * The last failed generation, classified — what the reader is told and what they are offered.
+	 *
+	 * A classified value rather than a string, because the three questions a reader has are "what
+	 * happened", "can I do anything", and "when" — and a string can only answer the first, badly.
+	 * Before this, every one of these was the caught exception's own `message`, so a reader who lost
+	 * their connection was shown `Failed to fetch` and one who hit a bad gateway was shown
+	 * `postJson: HTTP 502 Bad Gateway from /api/generate: empty response body`.
+	 */
+	failure = $state<GenerationFailure | null>(null);
+	/**
+	 * The reader-facing sentence for the last failure, or `''`.
+	 *
+	 * Derived from `failure` rather than assigned, so there is exactly one writer and the sentence
+	 * can never disagree with the retry control rendered beside it. No surface reads this any more —
+	 * `GenerationFailureNotice` takes the whole `failure`, because it needs the retry advice too. It
+	 * is kept as the one-line reading of a failure, which is what the contract tests assert on and
+	 * what any future caller wanting only the sentence should use rather than re-deriving it.
+	 */
+	generateError = $derived(this.failure?.message ?? '');
 	imagePreviews = $state<string[]>([]);
 	/**
 	 * What each packaging call was asked for and what it produced.
@@ -274,12 +299,29 @@ export class PageArtifactState {
 	 * must go on describing the thing it was actually built from until it is replaced too.
 	 */
 	protected pageSource: PageSource | null = null;
+	/**
+	 * The source of the most recent generation ATTEMPT, successful or not.
+	 *
+	 * Distinct from `pageSource`, which describes the page currently on screen and is therefore only
+	 * ever set on success. Retry needs the other thing: the request that failed, so pressing the
+	 * control re-asks for exactly the page that did not arrive rather than for whatever the surface
+	 * happens to hold now. Without it a retry on `/describe` would silently re-send whichever
+	 * interpretation was live at the moment of the press, which after an edit is a different page.
+	 */
+	protected lastAttemptedSource: PageSource | null = null;
 	protected pageToken = 0;
 	/**
 	 * The clock behind a saved page's `createdAtISO`. Injectable for the same reason `StudioState`
 	 * injects one: a test should be able to state the instant rather than observe it.
 	 */
 	clock: ClockSeam = clockSeam;
+	/**
+	 * How this state reads whether the device has a connection. Assignable for the same reason
+	 * `clock` is: a test should be able to state the answer rather than stage a real network.
+	 *
+	 * It only ever sharpens a failure's sentence and never decides one — see `classifyThrown`.
+	 */
+	readConnection: () => boolean | null = readIsOnline;
 	/**
 	 * Every quota reading this surface holds, both buckets.
 	 *
@@ -441,7 +483,7 @@ export class PageArtifactState {
 	resetPage(): void {
 		this.pageToken += 1;
 		this.isGenerating = false;
-		this.generateError = '';
+		this.failure = null;
 		this.imagePreviews = [];
 		this.packageAttempts = [];
 		this.pageOriginalImage = null;
@@ -457,6 +499,9 @@ export class PageArtifactState {
 		this.generatedImages = [];
 		this.lastRecipe = null;
 		this.pageSource = null;
+		// Cleared with everything else: a retry control surviving a reset would re-send a request for
+		// a page the reader has already moved on from, and bill them for it.
+		this.lastAttemptedSource = null;
 	}
 
 	/**
@@ -478,10 +523,13 @@ export class PageArtifactState {
 		// a timeout, a provider error, an off-contract response or an undecodable image deleted a
 		// good page and left the reader with nothing.
 		this.pageToken += 1;
-		this.generateError = '';
+		this.failure = null;
 		this.vaultStatus = '';
 		this.clearSourceStatus();
 		this.isGenerating = true;
+		// Recorded before the request rather than after it fails, so a retry re-asks for this page
+		// even when the failure arrives long after the surface's live values have moved on.
+		this.lastAttemptedSource = source;
 
 		const token = this.pageToken;
 		const isStale = (): boolean => token !== this.pageToken;
@@ -510,11 +558,11 @@ export class PageArtifactState {
 			if (isStale()) return;
 			const parsed = GenerateResultSchema.safeParse(payload);
 			if (!parsed.success) {
-				this.generateError = 'Generate response did not match contract.';
+				this.failure = this.classifyFailure({ offContract: true });
 				return;
 			}
 			if (!parsed.data.ok) {
-				this.generateError = parsed.data.error.message;
+				this.failure = this.classifyFailure({ apiError: parsed.data.error });
 				return;
 			}
 
@@ -522,9 +570,9 @@ export class PageArtifactState {
 			if (isStale()) return;
 			if (usable.length === 0) {
 				// Keep whatever is already on screen. It cost a paid generation, and an unreadable
-				// replacement is not a reason to destroy it.
-				this.generateError =
-					'The provider returned an image that could not be read. The page on screen was kept.';
+				// replacement is not a reason to destroy it. `pageKept` is what puts that fact in the
+				// sentence, so the reader is not left wondering whether the picture below is stale.
+				this.failure = this.classifyFailure({ undecodable: true });
 				// With no page already on screen there is nothing to protect, so the request's own
 				// findings are the most useful thing the reader can be given. When a page *is* on
 				// screen it keeps its own report: attaching this request's findings to a page they do
@@ -565,13 +613,51 @@ export class PageArtifactState {
 			await this.attachDownloads(images, recipe.spec.pageSize, token);
 		} catch (requestError) {
 			if (isStale()) return;
-			this.generateError =
-				requestError instanceof Error
-					? requestError.message
-					: 'Network error. Try again.';
+			this.failure = this.classifyFailure({ thrown: requestError });
 		} finally {
 			if (!isStale()) this.isGenerating = false;
 		}
+	}
+
+	/**
+	 * Classify one failed `/api/generate` call with the context only this state holds.
+	 *
+	 * The three context values are supplied here rather than by each call site so they cannot be
+	 * forgotten at one of them: whether a page survived, when the image bucket refills, and what the
+	 * connection is doing. The quota instant is available because `postJson` hands the response
+	 * headers to the meter before it reads the body, so a refusal's own `Retry-After` is already
+	 * recorded by the time its body has been parsed into an error.
+	 */
+	protected classifyFailure(
+		input: Pick<
+			Parameters<typeof classifyGenerationFailure>[0],
+			'thrown' | 'apiError' | 'offContract' | 'undecodable'
+		>
+	): GenerationFailure {
+		return classifyGenerationFailure({
+			...input,
+			subject: PAGE_SUBJECT,
+			pageKept: this.hasPage,
+			quotaResetAtMs: this.quota.image?.resetAtMs ?? null,
+			isOnline: this.readConnection()
+		});
+	}
+
+	/**
+	 * Ask again for exactly the page that failed.
+	 *
+	 * Re-sends `lastAttemptedSource` — the request that did not arrive — rather than rebuilding one
+	 * from whatever the surface currently holds. On `/describe` those are different things the
+	 * moment the reader edits the box, and re-sending the live value would quietly charge them for a
+	 * page they had not asked for.
+	 *
+	 * Costs one generation and nothing else: no verdict is re-requested and no interpretation is
+	 * re-run, because neither of those failed.
+	 */
+	async retryPage(): Promise<void> {
+		const source = this.lastAttemptedSource;
+		if (!source || this.isGenerating) return;
+		await this.generatePage(source);
 	}
 
 	/**
