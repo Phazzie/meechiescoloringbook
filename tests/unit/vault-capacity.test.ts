@@ -9,6 +9,7 @@ import { describe, expect, it } from 'vitest';
 import {
 	MAX_CREATIONS,
 	VAULT_DEVICE_FULL_REFUSAL,
+	VAULT_ID_COLLISION_REFUSAL,
 	VAULT_RECORD_CAP_REFUSAL,
 	isStorageFullError,
 	ownerMatches,
@@ -139,6 +140,33 @@ describe('planCreationWrite', () => {
 		// Replaced, not added alongside itself.
 		expect(plan.records.filter((entry) => entry.id === pinned.id)).toHaveLength(1);
 	});
+
+	it('refuses an id already held by another session rather than writing over it', () => {
+		// Found by a review bot, and it went through the one door this module left open. Matching on
+		// id alone made this a "replacement": the stranger's record dropped out of the array, the
+		// capacity check was skipped, and the write landed on top of a page this owner can neither
+		// see nor delete — the exact deletion every other rule here prevents.
+		const stored = [record('shared-id', { owner: STRANGER })];
+
+		const plan = planCreationWrite(stored, record('shared-id'));
+
+		expect(plan.ok).toBe(false);
+		if (plan.ok) return;
+		expect(plan.reason).toBe('ID_COLLISION');
+		expect(plan.message).toBe(VAULT_ID_COLLISION_REFUSAL);
+	});
+
+	it('still treats the saving owner’s own id as a replacement', () => {
+		// The collision rule must not cost a reader the ability to pin or restore their own page.
+		const stored = [record('mine', { favorite: false })];
+
+		const plan = planCreationWrite(stored, record('mine', { favorite: true }));
+
+		expect(plan.ok).toBe(true);
+		if (!plan.ok) return;
+		expect(plan.records).toHaveLength(1);
+		expect(plan.records[0]?.favorite).toBe(true);
+	});
 });
 
 describe('ownerMatches', () => {
@@ -172,6 +200,16 @@ describe('isStorageFullError', () => {
 
 		expect(isStorageFullError(named)).toBe(true);
 		expect(isStorageFullError(firefox)).toBe(true);
+	});
+
+	it('recognises a legacy numeric quota code even without a DOMException prototype', () => {
+		// A storage wrapper that catches and rethrows loses the prototype and keeps the code.
+		// Gating the numbers behind `instanceof DOMException` sent that case to the generic write
+		// error, which is the branch with no remedy.
+		expect(isStorageFullError({ code: 22 })).toBe(true);
+		expect(isStorageFullError({ code: 1014 })).toBe(true);
+		expect(isStorageFullError({ code: 11 })).toBe(false);
+		expect(isStorageFullError({ code: '22' })).toBe(false);
 	});
 
 	it('does not mistake any other write failure for a full store', () => {

@@ -679,9 +679,9 @@ export class PageArtifactState {
 					// happen — and a later reader could not tell a drifted page from a corrected
 					// one. `violations` above still carries the full drift evidence, which is the
 					// part that is actually true. The two older call sites
-					// (`studio-state.svelte.ts`, `MeechieTools.svelte`) still write recommendations
-					// here; that is a pre-existing defect in persisted-record semantics and fixing
-					// it belongs in its own change.
+					// (`studio-state.svelte.ts`, `MeechieTools.svelte`) wrote recommendations here
+					// until the change that added this clause; all fifteen savers now omit the
+					// field, so no path in the app records a correction that did not happen.
 					images: images.map((image) => ({ b64: generatedImageBase64(image) })),
 					owner
 				}

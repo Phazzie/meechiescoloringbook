@@ -583,6 +583,35 @@ describe('creation-store adapter', () => {
 			if (orphan.ok) expect(orphan.value).not.toBeNull();
 		});
 
+		it('refuses an id another session already holds rather than writing over it', async () => {
+			// Not reachable through `newCreationId`, which mints a UUID — but records written by older
+			// builds carry ids minted from the clock alone, which collide by construction. Matching on
+			// id alone treated this as a replacement and wrote over a page the saving reader can
+			// neither see nor delete.
+			await creationStoreAdapter.saveCreation({
+				record: {
+					...validRecord,
+					id: 'shared-id',
+					owner: { kind: 'anonymous' as const, sessionId: 'a-cleared-session' },
+					assembledPrompt: 'Theirs, and not for me to overwrite.'
+				}
+			});
+
+			const refused = await creationStoreAdapter.saveCreation({
+				record: { ...validRecord, id: 'shared-id' }
+			});
+
+			expect(refused.ok).toBe(false);
+			if (!refused.ok) expect(refused.error.code).toBe('VAULT_ID_COLLISION');
+			const theirs = await creationStoreAdapter.getCreation({ id: 'shared-id' });
+			expect(theirs.ok).toBe(true);
+			if (theirs.ok) {
+				expect(theirs.value?.assembledPrompt).toBe(
+					'Theirs, and not for me to overwrite.'
+				);
+			}
+		});
+
 		it('tells a reader whose device is out of room what to do about it', async () => {
 			// The limit a reader actually reaches: a real captured provider image is 236,380 base64
 			// characters, so fifty of them never fit. This used to surface as

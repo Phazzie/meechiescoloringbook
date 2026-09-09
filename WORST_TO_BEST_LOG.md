@@ -14040,7 +14040,50 @@ Reproducing the defect needed two edits, not one — the branch *and* the array 
 mutation.* Taking that first result at face value would have added a test for behaviour that was
 already covered, or worse, concluded the gap was real and rewritten working code to close it.
 
+### The review round, and the door this change left open
+
+Sourcery raised four findings on the first push. All four were real; three were fixed and the
+fourth was answered.
+
+**The one that mattered: a cross-owner id collision was an overwrite.** `planCreationWrite` decided
+"is this a replacement?" on `id` alone. A record with that id belonging to a *different* owner was
+therefore dropped from the array, the capacity check was skipped, and the write landed on top of a
+page the saving reader can neither see nor delete. **That is the exact deletion this whole change
+exists to prevent, through the one door left open** — and it contradicted the module's own header
+and a test in this run asserting that one session's save can never delete another's. Now refused as
+`VAULT_ID_COLLISION`, with a message that is self-healing: every saver mints a fresh id per attempt,
+so pressing Save again works. Not reachable through `newCreationId`, which mints a UUID, but records
+written by older builds carry ids minted from the clock alone, which collide by construction.
+
+**A legacy numeric quota code was only recognised on a real `DOMException`.** A storage wrapper that
+catches and rethrows keeps `code` and loses the prototype, and that case was being sent to the
+generic write error — the branch with no remedy. The numbers are now checked on any object carrying
+one, which is safe because the only caller passes what `localStorage.setItem` threw.
+
+**A comment in `page-artifact-state.svelte.ts` still named the two older savers as writing
+`fixesApplied`** — which this run's own diff had just fixed. Corrected.
+
+**The fourth was right about the problem and wrong about the fix.** Reading, planning and writing is
+not atomic across browser tabs: two tabs can read the same array and the second `setItem` lands
+without the first's new record. Real, and it makes "never removes a stored page" a claim about one
+tab rather than about the store. The suggested fix — re-read immediately before committing — closes
+nothing, because **there is no `await` between the load and the `setItem`**, so there is no
+suspension point for a re-read to move past. Closing it needs a version stamp written with the array
+and a compare-and-retry. The window is unchanged by this run: the expression this replaced had the
+same one, and also evicted. Stated in the module's invariants and carried below.
+
+Two more red proofs, each reverted immediately:
+
+| Mutation | Tests that failed |
+|---|---|
+| A cross-owner id collision overwrites the stranger's page | 2 |
+| Legacy numeric quota codes recognised only under `DOMException` | 1 |
+
 ### What this run could not prove, stated plainly
+
+**The read-plan-write sequence is not atomic across tabs**, as above. Nothing in this repository can
+test it: `jsdom` gives one `localStorage` per environment and Playwright cannot interleave two tabs'
+synchronous storage operations to sub-millisecond precision.
 
 **No test here fills a real browser's localStorage to its true limit.** The device-full path is
 driven by throwing the three real quota signatures from a spied `setItem`, which is the *shape* of
@@ -14065,6 +14108,11 @@ re-measure.**
   parse cannot be rendered, reopened or downloaded, and preserving it would consume bytes on a store
   whose real limit is bytes, with no way for a reader to remove it. Telling the reader it happened
   is the better fix and needs contract room to carry the count.
+- **The creations array has no version stamp, so two tabs saving at once can lose a page.** Raised by
+  a review bot on this run's first push and confirmed rather than waved off; see the review round
+  above for why the suggested fix closes nothing. A real fix writes a version alongside the array
+  and retries on a mismatch — new observable behaviour at the seam, so the full workflow. It is a
+  pre-existing window, not one this run opened.
 - **Evicting the oldest *unpinned* page and naming it beats refusing**, and is blocked only on
   `saveCreation` having somewhere to report what it displaced. That is one optional field on the
   seam's output — a contract change, its own pull request, and a merge that must not be automatic.
@@ -14084,6 +14132,12 @@ re-measure.**
 - **The `chat` packaging variant has zero consumers.** Unchanged, Run 14's reasoning.
 - **Mode persistence** — Run 12's pick, blocked on the seam rule for the eighth run running.
 - `MeechieToolOutput.quoteScore` and `modelMetadata`, from Run 11's list.
+- **SonarCloud reported 3 new issues on this run's first push, and they could not be read.** The
+  Quality Gate passed, duplication on new code was 0.0%, and the check run's own output carries only
+  the count. `sonarcloud.io` is blocked by this container's egress proxy (`connect_rejected`), so
+  neither the API nor the dashboard is reachable from a run. A run with network access to
+  SonarCloud, or the owner, should read and settle them; the same blindness applies to every future
+  run in this container.
 - **Evidence transcripts still have no file header**, against `AGENTS.md`'s File Header
   Requirement — this run's `check.txt`, `lint.txt`, `build.txt` and `verify-outer.txt` included.
   Carried since Run 16 and left again deliberately: `proof-tape.mjs` parses these transcripts for

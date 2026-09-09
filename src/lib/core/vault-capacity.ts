@@ -23,6 +23,16 @@
 //     `undoDelete` both reach `saveCreation` with an id that is already stored, and refusing a pin
 //     because the vault is full would break the one control a reader has for organising a full
 //     vault.
+//   - "Never removes a stored page" is a claim about this tab. Reading the store, planning, and
+//     writing it back is one uninterrupted run inside `saveCreation` — there is no `await` between
+//     the load and the `setItem` — so nothing in this tab can interleave. Two TABS still can: both
+//     read the same array, both plan, and the second `setItem` lands without the first's new
+//     record. That window is not closed by re-reading just before the write, because there is no
+//     suspension point between the read and the write for a re-read to move past; closing it needs
+//     a version stamp written with the array and a compare-and-retry, which is new observable
+//     behaviour at the seam and belongs in its own change. Carried in `WORST_TO_BEST_LOG.md`.
+//     The window is unchanged by this module — the expression it replaces had the same one, and
+//     also evicted.
 //   - The record cap is counted against the SAVING OWNER's records, not the whole stored array.
 //     The store is capped globally today while `listCreations` filters by owner, so a reader whose
 //     `cb_session_id_v1` was cleared has records they cannot see, cannot delete, and which counted
@@ -88,6 +98,9 @@ export const VAULT_MAKE_ROOM_REFUSALS: readonly string[] = [
 	VAULT_DEVICE_FULL_REFUSAL
 ];
 
+/** The two names browsers give a full store. */
+const QUOTA_NAMES = ['QuotaExceededError', 'NS_ERROR_DOM_QUOTA_REACHED'];
+
 /**
  * A quota failure, told apart from every other reason a write can throw.
  *
@@ -102,18 +115,44 @@ export const VAULT_MAKE_ROOM_REFUSALS: readonly string[] = [
  * where the global may not exist, and a bare `instanceof` against a missing global throws.
  */
 export const isStorageFullError = (error: unknown): boolean => {
-	const QUOTA_NAMES = ['QuotaExceededError', 'NS_ERROR_DOM_QUOTA_REACHED'];
+	// The legacy numeric codes are checked on ANY object carrying one, not only on a real
+	// `DOMException`. A storage wrapper that catches and rethrows loses the prototype while keeping
+	// the code, and gating the numbers behind `instanceof DOMException` sent exactly that case to
+	// the generic write error — the branch with no remedy. Safe to read broadly because the only
+	// caller passes what `localStorage.setItem` threw: 22 is `QUOTA_EXCEEDED_ERR` and 1014 is
+	// Firefox's, and neither means anything else in that position.
+	if (
+		typeof error === 'object' &&
+		error !== null &&
+		'code' in error &&
+		typeof error.code === 'number' &&
+		(error.code === 22 || error.code === 1014)
+	) {
+		return true;
+	}
 	if (typeof DOMException !== 'undefined' && error instanceof DOMException) {
-		return QUOTA_NAMES.includes(error.name) || error.code === 22 || error.code === 1014;
+		return QUOTA_NAMES.includes(error.name);
 	}
 	// Some engines and test doubles throw a plain `Error` carrying the same name.
 	return error instanceof Error && QUOTA_NAMES.includes(error.name);
 };
 
+/**
+ * A new page whose id is already taken by another session on this device.
+ *
+ * Vanishingly unlikely with `newCreationId`, which mints a UUID — but records written by older
+ * builds carry ids like `creation-1757376000000`, minted from the clock alone, and those collide
+ * by construction. Actionable because it is self-healing: every saver mints a fresh id per attempt,
+ * so pressing Save again produces a different one.
+ */
+export const VAULT_ID_COLLISION_REFUSAL =
+	'This page could not be saved because another session on this device already used its ' +
+	'reference. Nothing was removed. Press Save again to store it under a new one.';
+
 /** What a write should do: the exact array to store, or the reason it must not be attempted. */
 export type VaultWritePlan =
 	| { ok: true; records: CreationRecord[] }
-	| { ok: false; reason: 'RECORD_CAP'; message: string };
+	| { ok: false; reason: 'RECORD_CAP' | 'ID_COLLISION'; message: string };
 
 /**
  * Work out the array a save should store, or refuse it.
@@ -131,8 +170,23 @@ export const planCreationWrite = (
 	stored: readonly CreationRecord[],
 	incoming: CreationRecord
 ): VaultWritePlan => {
+	const collision = stored.find((existing) => existing.id === incoming.id);
+	// An id already in the store belonging to SOMEONE ELSE is refused, not overwritten. Matching on
+	// id alone made such a save a "replacement": it dropped the other session's record from the
+	// array, skipped the capacity check, and wrote over a page this owner can neither see nor
+	// delete — the exact deletion the rest of this module exists to prevent, through the one door
+	// left open. Refusing rather than storing both is what keeps ids unique: `getCreation` returns
+	// the first match and `deleteCreation` removes every match, so two records sharing an id would
+	// make one of them unreachable and the other's deletion destroy it too.
+	if (collision && !ownerMatches(collision, incoming.owner)) {
+		return {
+			ok: false,
+			reason: 'ID_COLLISION',
+			message: VAULT_ID_COLLISION_REFUSAL
+		};
+	}
 	const others = stored.filter((existing) => existing.id !== incoming.id);
-	const isReplacement = others.length !== stored.length;
+	const isReplacement = collision !== undefined;
 	if (!isReplacement) {
 		const ownedCount = others.filter((existing) =>
 			ownerMatches(existing, incoming.owner)

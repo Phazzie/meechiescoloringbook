@@ -1,6 +1,6 @@
 {
   "tool": "cipher-gate",
-  "generatedAt": "2026-09-09T00:46:19.334Z",
+  "generatedAt": "2026-09-09T00:56:35.992Z",
   "cipher": {
     "date": "2026-09-09",
     "seams": "CreationStoreSeam",
@@ -49,6 +49,6 @@
     "summary": "The creation store stopped evicting. A save that does not fit is refused with a remedy instead of silently deleting the reader's oldest saved page and reporting success; the per-owner cap and the device-storage limit are reported as distinct, actionable refusals. The seam's contract, schemas, fixtures and mock are unchanged - only the adapter's behaviour within the shapes the contract already declared, plus a new pure policy module in core that the adapter asks.",
     "risks": "The mock replays fixtures and holds no store, so it cannot express either refusal; a consumer reading only the mock would conclude that a schema-valid record in a browser always saves. That gap is now stated as its own test in `src/lib/seams/creation-store-seam/test.ts` rather than left silent, and the behaviour is covered against the real adapter in `tests/unit/creation-store-helpers.test.ts`. The device-full path is proven against thrown quota signatures rather than against a genuinely full browser profile, which no test here could produce deterministically."
   },
-  "latestChangeMs": 1788913917350.5146,
+  "latestChangeMs": 1788915230898.5725,
   "status": "ok"
 }

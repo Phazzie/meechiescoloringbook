@@ -41,6 +41,12 @@ import type { Result } from '../../../../contracts/shared.contract';
 const CREATIONS_KEY = 'cb_creations_v1';
 const DRAFT_KEY = 'cb_drafts_v1';
 
+/** The failure code each capacity refusal is reported under. */
+const REFUSAL_CODES = {
+	RECORD_CAP: 'VAULT_FULL',
+	ID_COLLISION: 'VAULT_ID_COLLISION'
+} as const;
+
 const browserGuard = <T>(message: string): Result<T> => ({
 	ok: false,
 	error: {
@@ -203,9 +209,12 @@ export const creationStoreAdapter: CreationStoreSeam = {
 		// reported "Saved to the vault." for a save that had destroyed one.
 		const plan = planCreationWrite(existing.value.records, parsedRecord.value);
 		if (!plan.ok) {
+			// Each reason gets its own code rather than being flattened to one: a full vault is
+			// cleared by deleting a page and an id collision by pressing Save again, and a caller
+			// that cannot tell them apart cannot offer either.
 			return {
 				ok: false,
-				error: { code: 'VAULT_FULL', message: plan.message }
+				error: { code: REFUSAL_CODES[plan.reason], message: plan.message }
 			};
 		}
 		const stored = saveRecords(plan.records);
