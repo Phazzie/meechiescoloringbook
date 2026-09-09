@@ -222,9 +222,9 @@ const ALLOW_SITE_DATA = 'Check that your browser allows site data for this site,
  */
 const UNREADABLE_REMEDY =
 	'That is either because this browser is blocking site data for this site, or because what is ' +
-	'stored here cannot be read. Check the site-data setting first and try again. If it is already ' +
-	"allowed, the stored data is damaged, and clearing this site's stored data is the only fix — " +
-	'which also removes any pages saved here.';
+	'stored here is damaged. Check the site-data setting first and try again. If it is already ' +
+	"allowed, clearing this site's stored data is the only fix left — which also removes any pages " +
+	'saved here.';
 
 /**
  * The two things a failed write can mean, for the same reason.

@@ -146,7 +146,9 @@ describe('classifyStorageFailure', () => {
 		expect(failure.cause).toBe('unreadable');
 		// Both causes named...
 		expect(failure.message).toContain('blocking site data');
-		expect(failure.message).toContain('cannot be read');
+		expect(failure.message).toContain('is damaged');
+		// The subject already says "could not be read"; the remedy must not repeat it back.
+		expect(failure.message).not.toContain('or because what is stored here cannot be read');
 		// ...with the harmless check offered before the destructive remedy, and the destructive one
 		// made conditional on it.
 		const checkAt = failure.message.indexOf('Check the site-data setting');
