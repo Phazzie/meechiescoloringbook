@@ -252,12 +252,18 @@ const TIMEOUT_MARKER = 'Request timed out after';
  */
 const POST_JSON_MARKER = 'postJson:';
 
-const messageOf = (thrown: unknown): string =>
-	thrown instanceof Error
-		? thrown.message
-		: typeof thrown === 'string'
-			? thrown
-			: '';
+/**
+ * The text a thrown value carries, or `''` when it carries none.
+ *
+ * A bare string is accepted as well as an `Error` because `fetch` is not the only thing that can
+ * reject on these paths, and a thrown string is a real shape in the wild. Anything else yields `''`,
+ * which the callers read as "no detail" rather than as `[object Object]`.
+ */
+const messageOf = (thrown: unknown): string => {
+	if (thrown instanceof Error) return thrown.message;
+	if (typeof thrown === 'string') return thrown;
+	return '';
+};
 
 /**
  * Classify something that was thrown rather than returned.
