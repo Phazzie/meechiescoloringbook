@@ -14454,3 +14454,108 @@ Re-measure everything below; do not inherit it.
 - **Run 18 still has no merge close-out entry**, as Run 19 noted. Not reconstructed here either.
 - **SonarCloud cannot be read from this container** (`sonarcloud.io` is refused by the egress proxy).
   Unchanged, and it applies to this run's pushes too.
+
+## Run 20 — merge close-out — 2026-09-09 — PR #341 merged as `213b05f`
+
+**Merged:** `213b05f`, squashed from three commits on `claude/great-bell-9r7b6q`.
+**Base at merge:** `main` at `e4e2b48`. 41 files, +2,417 / -357.
+
+### Gates at merge
+
+Every check run green on the head `c5f26ff` — both `verify` jobs, CodeQL twice, SonarCloud twice,
+Rosentic conflict detection, Vercel preview comments — plus both commit statuses (Vercel deployment,
+CodeRabbit), and `mergeable_state: clean`. Locally: `check` 0/0, `lint`, 1,891 unit tests, `build`,
+the full `verify` chain and 79 Playwright tests, all exit 0, evidence in `docs/evidence/2026-09-09/`.
+
+No human reviewer requested changes. **Re-measured at the merged head rather than carried forward
+from the head it was written at** — the correction Run 19 earned: `git diff --name-only e4e2b48
+213b05f` against `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`, `src/lib/seams/` and
+`src/lib/adapters/` returns **nothing**. No Cipher Gate was required and the merge rule's
+contract-change exclusion did not apply. No open Assumption in `DECISIONS.md` covers what a failure
+sentence says or whether a retry is offered. So the conditions in `AGENTS.md` were met and it was
+merged without asking, which is the rule.
+
+### The SonarCloud issue was read, for the first time in this log
+
+Every run since Run 17 has recorded SonarCloud's findings as unreadable and unfixed:
+`sonarcloud.io` is refused by this container's egress proxy, and the check run's output carries only
+a count. Both are still true — `curl` returns `CONNECT tunnel failed, response 403`, and
+`get_check_run` on `SonarCloud Code Analysis` returns a summary of counts and links with an empty
+`output.text`.
+
+It was settled anyway, by **re-reading the new code against SonarCloud's default TypeScript rules
+and finding the only candidate it could be**: `messageOf` was a nested ternary, which S3358 forbids,
+and it was the single nested ternary anywhere in the diff. Unnesting it took the count from **1 New
+issue to 0 New issues** on the next analysis, which is what makes the diagnosis a measurement rather
+than a guess.
+
+*The technique is the transferable part, and it is cheap: enumerate what the analyser's default
+profile flags, grep the diff for each, and act only where there is exactly one candidate.* Where
+there is more than one, this does not work and guessing is still guessing. Future runs in this
+container should try it before recording another unread finding.
+
+### Two reviewers stood down, neither for a reason about the code
+
+**Sourcery refused the diff** — "larger than the review limit of 150,000 diff characters". The diff
+measured 202,329. About 69,000 of that is the log, plan, decisions, changelog and evidence artifacts
+`AGENTS.md` requires on every run, so **this routine's own governance is what put the pull request
+over a reviewer's limit**. Deleting required artifacts to get a bot to look would be the wrong trade
+and was not made. Run 19's diff was larger by line count (+5,496) and was reviewed, so the threshold
+is characters and evidence churn, not lines.
+
+*There are **two** Sourcery limits, and this run found the second one the hard way.* The close-out
+pull request — 158 added lines of Markdown, nothing else — was refused with a different message:
+"you've used your own review budget of 250,000 diff characters for the last 7 days… you can request
+another review in 1 day and 16 hours". So the per-pull-request limit blocked the feature branch, and
+**that attempt then spent the account's weekly budget**, which is exhausted until roughly
+2026-09-10 23:00 UTC. **The next run or two will lose Sourcery whatever they change**, and should
+plan for that rather than rediscovering it. It reviews again on `@sourcery-ai review` once the
+budget resets. Sourcery did still post a Reviewer's Guide summarising the close-out, so the skip is
+of the line-by-line review, not of everything.
+
+**CodeRabbit skipped** the repository for having fewer than ten stars — a standing condition, not
+this pull request's.
+
+**Codex never finished.** Its summary comment read "Running" against `a02830c` from 07:11 and was
+unchanged at merge, eleven minutes later and two pushes stale. It produced no findings. Recorded
+rather than waited on indefinitely: the gates were green, and holding a green pull request for a bot
+that may never report is the failure mode `AGENTS.md`'s merge rule exists to prevent.
+
+So the review coverage on this run was SonarCloud, CodeQL and this run's own adversarial re-reading.
+That is thinner than Run 19's, and worth knowing when reading what shipped.
+
+### A mistake this run made on its own pull request
+
+The first push prepended `Commands:` and `Date:` headers to `check.txt`, `lint.txt` and `build.txt`,
+to satisfy `AGENTS.md`'s File Header Requirement. **Run 19's carried-forward list warned against
+exactly that, in those words**, because `proof-tape.mjs` parses those transcripts for the
+`Commands:` lines it prints. The list was read at the start of this run and the warning was walked
+into anyway a few hours later.
+
+It was caught by re-reading the diff before the second push, reverted, and the tape confirmed
+reading its commands off the npm banner lines again. *A carried-forward warning is only worth
+writing down if it is re-read at the moment the tempting action is taken, not only at the start of
+the run.*
+
+### What went in that was not in the plan
+
+`no_image` as an eleventh cause; the `rejected` input for a request this app declines to send;
+`canRetryAt` taking the connection as well as the clock; `retryLabel` living on the failure rather
+than beside it; `lastPageAttempt` on the home studio so a failed try-on page is not retried as a
+quote page; and System Trace's "What Went Wrong Underneath". The first two came from reading the
+output and disliking it, the rest from wiring the fifteenth surface and finding the design did not
+reach.
+
+### Carried forward for the next run
+
+Everything in the Run 20 entry above, unchanged, plus:
+
+- **The routine's own artifacts now cost a reviewer, twice over.** A large run breaches Sourcery's
+  150,000-character per-pull-request limit, and the attempt spends against a 250,000-character
+  weekly account budget that is now exhausted until roughly 2026-09-10 23:00 UTC. Either the
+  evidence churn shrinks, or the docs move to a second pull request, or Sourcery is lost on large
+  runs and on whatever follows them inside the same week. Worth an owner ruling rather than a run
+  deciding it alone. **Check the budget before assuming a skip means the diff was too big.**
+- **Codex reviews can hang.** If one is still "Running" against a superseded commit when the gates
+  are green, it is not an unaddressed review comment. Say so and merge; do not wait it out.
+- **Try the SonarCloud technique above before recording another unread finding.**
