@@ -14834,3 +14834,107 @@ repository having fewer than ten stars, a standing condition. **Codex** was stil
 So the review coverage on this run is SonarCloud, CodeQL and this run's own adversarial re-reading —
 the same thin coverage Run 20 recorded, for the same reasons, and worth knowing when reading what
 shipped.
+
+## Run 21 — merge close-out — 2026-09-09 — PR #343 merged as `66df1e8`
+
+**Merged:** `66df1e8`, squashed from three commits on `claude/great-bell-ggpgn6`.
+**Base at merge:** `main` at `069901c`. 23 files, +1,054 / -101.
+
+### Gates at merge
+
+Every check run green on the head `ec61bb7` — both `verify` jobs, CodeQL twice, SonarCloud twice,
+Rosentic conflict detection, Vercel preview comments — plus both commit statuses (Vercel deployment
+"Deployment has completed", CodeRabbit's skip), with the combined status `success`. `Sourcery review`
+reported `skipped`, which is a budget refusal and not a failure. Locally: `check` 0/0, `lint`, 1,901
+unit tests, `build`, the full `verify` chain and 81 Playwright tests, all exit 0, evidence in
+`docs/evidence/2026-09-09/`.
+
+No human reviewer requested changes; the only review on the pull request is Sourcery's `COMMENTED`
+budget notice. **Re-measured at the merged head rather than carried forward from the head it was
+written at**, which is the correction Run 19 earned and Run 20 kept: `git diff --name-only 069901c
+66df1e8` against `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`, `src/lib/seams/` and
+`src/lib/adapters/` returns **nothing**. No Cipher Gate was required and the merge rule's
+contract-change exclusion did not apply.
+
+The open Assumption entries in `DECISIONS.md` were read rather than assumed irrelevant. The two that
+are still open both concern live provider calls — an unauthorised billable call, and the deployed
+`/api/meechie-studio-text` full-payload path. Neither covers what a failure sentence says or whether
+a retry is offered, which is the whole of what this change decides. So the conditions in `AGENTS.md`
+were met and it was merged without asking, which is the rule.
+
+### The SonarCloud finding was diagnosed by measurement, and the measurement held
+
+Run 20 settled its one SonarCloud issue by reasoning to a single plausible candidate and watching the
+count drop. This run did better, and the improvement is the transferable part: **the finding was
+located, not guessed**, by running `eslint-plugin-sonarjs` at its recommended profile over the
+changed files and diffing each hit against the base commit. Five hits; four on lines that exist
+verbatim on `069901c`; exactly one new.
+
+The count then went **1 New issue → 0 New issues** on the next analysis, which turns the diagnosis
+into a measurement rather than a story about one.
+
+Two things are worth carrying:
+
+1. **The rule was a counting rule, and the diff that tripped it was not the one at fault.**
+   `use-type-alias` fires at three occurrences of a union type. Two were already on `main`; this run
+   wrote the third. A change can breach a repetition threshold without introducing the repetition,
+   and reading the diff for "what looks wrong here" would never have found it.
+2. **Fetch and name the true base before deciding a finding is not yours.** The first attempt to
+   clear Rosentic measured against this container's local `main`, which was four commits stale, and
+   appeared to show this diff adding a helper it never touched. The right base changed the answer.
+
+### Rosentic stood down on measured grounds, not on a standing exemption
+
+Its three findings concern `makeToolkitVerdict` being called with an argument that an unrelated open
+branch, `claude/great-bell-k1i146`, plans to remove. Measured against the bar in `AGENTS.md`:
+`git diff 069901c HEAD -- tests/e2e/smoke.spec.ts | grep -c makeToolkitVerdict` returns **0**, and
+all three cited lines exist verbatim on the base. The `Rosentic - Conflict Detection` **check run is
+green**, so this is an advisory comment rather than a failing check, and no pull request comment was
+posted — nothing failed, and `AGENTS.md` names exactly this backlog scanning as pre-existing noise
+for these routines.
+
+### The reviewers, and how thin the coverage was
+
+**Sourcery** refused for budget, as Run 20 predicted to within a day: 250,000 diff characters per
+account per seven days, exhausted, "another review in 1 day and 13 hours". It still posted a
+Reviewer's Guide, and that guide read the change correctly — it independently described the stamp as
+studio-local and the retry as resting on the existing staleness guards, which is at least a
+comprehension check on the pull request body.
+
+**CodeRabbit** skipped for the repository having fewer than ten stars — a standing condition.
+
+**Codex never finished**, exactly as Run 20 recorded. Its summary comment read "Running" against
+`ed65728` from 12:47 and was unchanged at merge, two pushes and eight minutes stale. It produced no
+findings. Recorded rather than waited on: Run 20's carried-forward note says a Codex still running
+against a superseded commit on a green pull request is not an unaddressed review comment, and that
+note was written for exactly this situation.
+
+So the review coverage was SonarCloud, CodeQL, Sourcery's summary, and this run's own adversarial
+re-reading — which is what found the two corrections below. **Three runs in a row have now merged
+with no line-by-line bot review.** That is a standing condition of this repository rather than an
+accident of one week, and it is worth an owner ruling: either the routine's evidence artifacts shrink
+so Sourcery's per-pull-request limit stops being reached, or the docs move to a second pull request,
+or these runs accept that self-review is the review.
+
+### What the run's own re-reading caught that no reviewer did
+
+Both corrections were pushed before merge, and neither came from a tool:
+
+- **The `rejected` branch is unreachable from the UI**, because `canTryOn` already requires a wig and
+  a selfie. The changelog and the log had described it as something a reader would see. Both were
+  corrected to say it is a defensive guard worth wording properly, not a reader-facing improvement.
+- **An end-to-end test whose name overstated it** was replaced before it could retire the question it
+  claimed to answer.
+
+*The pattern across this run is one thing said three ways: a green signal is only as good as what it
+actually measured.* A passing test named for something it does not assert, a Playwright summary from
+a partial run, a "1 New issue" nobody reads, and a diff measured against the wrong base are the same
+failure wearing four hats.
+
+### Carried forward
+
+Everything in the Run 21 entry and its first close-out above, unchanged, plus:
+
+- **Run 18 still has no merge close-out entry**, as Runs 19 and 20 both noted. Not reconstructed
+  here either, and it has now been carried on this list for four runs — either a run reconstructs it
+  from PR #337 or a future entry should stop claiming it as pending.
