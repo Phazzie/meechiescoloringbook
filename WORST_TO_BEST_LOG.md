@@ -14234,10 +14234,20 @@ twice, Rosentic conflict detection, Vercel preview comments — plus both commit
 deployment, CodeRabbit). Locally: `check`, `lint`, 1,868 tests, `build`, the full `verify` chain,
 `cipher:gate` and 77 Playwright tests, all exit 0, evidence in `docs/evidence/2026-09-09/`.
 
-No human reviewer requested changes; no contract, schema or data migration in the diff (empty
-`git diff` against the seam's contract, fixtures and mock); the only Assumption in `DECISIONS.md`
-naming `CreationStoreSeam` is closed. So the merge conditions in `AGENTS.md` were met and it was
-merged without asking, which is the rule.
+No human reviewer requested changes; no contract, schema or data migration in the diff. Measured
+rather than asserted — `git diff --name-only bd070e2 ebe6231` against `contracts/`, `probes/`,
+`fixtures/`, `src/lib/mocks/`, `src/lib/seams/` and `src/lib/adapters/` returns exactly three files:
+the adapter, the seam's `mock.ts` and its `test.ts`. **The mock is in that list**, because review
+round two made it stateful; the seam's `contract.ts` and `fixtures.ts` are not, which is the claim
+that matters for the merge rule. The only Assumption in `DECISIONS.md` naming `CreationStoreSeam`
+is closed. So the merge conditions in `AGENTS.md` were met and it was merged without asking, which
+is the rule.
+
+*The pull request body and the merge commit both said the mock was unchanged. That was true when
+the pull request was opened and stopped being true two rounds later, and neither sentence was
+re-checked before the merge.* A review bot caught it here, in this entry. A claim about a diff has
+to be re-measured at the head it is claimed of, not carried forward from the head it was written
+at.
 
 ### Three review rounds, ten findings
 
@@ -14269,9 +14279,10 @@ A test written from the author's own model of the code cannot find the case the 
 
 `VAULT_ID_COLLISION` as a third refusal; `vaultFullRefusal` gaining a `because` argument; the mock
 becoming stateful so it refuses what the adapter refuses; `newCreationId` moving out of
-`src/lib/core` to `src/lib/components`. All five came from review, and all five are behaviour the
-plan's anti-goals did not anticipate — the plan named the contract as untouchable and that held, but
-it did not predict how much of the *within-contract* surface the change would need.
+`src/lib/core` to `src/lib/components`; and the refusal's vault link opening in a new tab. All five
+came from review, and all five are behaviour the plan's anti-goals did not anticipate — the plan
+named the contract as untouchable and that held, but it did not predict how much of the
+*within-contract* surface the change would need.
 
 ### Still open on the merged pull request, deliberately
 
