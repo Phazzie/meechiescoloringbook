@@ -5,24 +5,24 @@ Info flow: evidence files -> summary -> review.
 -->
 # Proof Tape
 
-Generated at: 2026-09-09T07:10:31.487Z
+Generated at: 2026-09-09T07:13:32.556Z
 Evidence folder: docs/evidence/2026-09-09
 
 Files included (this tape's own outputs, proof-tape.json and proof-tape.md, are written
 after this inventory is taken, so they are not listed):
 
 - assumption-alarm.json (13941 bytes)
-- build.txt (15583 bytes)
+- build.txt (15542 bytes)
   Commands: meechies-coloringbook@0.1.0 build | vite build | Using @sveltejs/adapter-vercel
 - chamber-lock.json (35315 bytes)
-- check.txt (281 bytes)
+- check.txt (240 bytes)
   Commands: meechies-coloringbook@0.1.0 check | svelte-kit sync && svelte-check --tsconfig ./tsconfig.json
 - cipher-gate.json (2295 bytes) — PREDATES THIS VERIFY RUN
 - cipher-gate.txt (75 bytes) — PREDATES THIS VERIFY RUN
   Commands: meechies-coloringbook@0.1.0 cipher:gate | node scripts/cipher-gate.mjs
 - clan-chain.json (3181 bytes)
 - clan-chain.md (1956 bytes)
-- lint.txt (88 bytes)
+- lint.txt (48 bytes)
   Commands: meechies-coloringbook@0.1.0 lint | eslint .
 - rewind-CreationStoreSeam.txt (539 bytes) — PREDATES THIS VERIFY RUN
 - seam-ledger.json (37511 bytes)
