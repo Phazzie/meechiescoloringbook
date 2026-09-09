@@ -51,6 +51,13 @@ import {
 import { POST_JSON_TIMEOUTS_MS, postJson } from '$lib/core/http-client';
 import { AiQuotaMeter } from '$lib/components/ai-quota-meter.svelte';
 import { WIG_TRY_ON_QUOTA_COST } from '$lib/core/ai-quota';
+import {
+	classifyGenerationFailure,
+	PAGE_SUBJECT,
+	VERDICT_SUBJECT,
+	type GenerationFailure
+} from '$lib/core/generation-failure';
+import { readIsOnline } from '$lib/components/connection.svelte';
 import { compactColoringPageTitle } from '$lib/core/coloring-page-title';
 import { buildQualityReport } from '$lib/core/quality-report';
 import {
@@ -321,8 +328,44 @@ export class StudioState {
 	get textOutput(): MeechieStudioTextOutput | null {
 		return this.verdictOnScreen;
 	}
-	textError = $state('');
-	generationError = $state('');
+	/**
+	 * The last failed text action, classified.
+	 *
+	 * The home studio's copy of the same three lines: an exception's own message went straight into
+	 * the crimson box, so a reader who lost their connection here read `Failed to fetch` too.
+	 */
+	textFailure = $state<GenerationFailure | null>(null);
+	/**
+	 * The reader-facing sentence for the last text failure. Derived, so there is one writer.
+	 *
+	 * Read by the tests rather than by a surface, as on the other state classes.
+	 */
+	textError = $derived(this.textFailure?.message ?? '');
+	/** The action of the last text ATTEMPT, so a retry re-runs the same one. */
+	private lastTextActionId: StudioTextActionId | null = null;
+	/**
+	 * The last failed page generation on this studio, classified.
+	 *
+	 * The home studio's copy of the same defect: `/api/generate`'s exceptions went into the crimson
+	 * box verbatim. `pageFailure` is the whole story of that call; `generationError` below is the
+	 * sentence derived from it, and the local refusals that never reach a provider classify through
+	 * here too, as `request_rejected`, which is exactly what they are.
+	 */
+	pageFailure = $state<GenerationFailure | null>(null);
+	/**
+	 * Which of the two page generators was last attempted, so a retry runs the same one.
+	 *
+	 * The studio makes pages two ways — from Meechie's words, and from a wig try-on portrait — and
+	 * they are different requests with different costs. A single retry that always ran the verdict
+	 * path would silently swap a reader's try-on page for a quote page, and charge them a generation
+	 * for it.
+	 *
+	 * Unlike the other surfaces there is no attempted *source* pinned beside it: this studio builds
+	 * its page from the live controls, which are all on screen and all visible to the reader, so
+	 * "again" honestly means "with what is showing".
+	 */
+	private lastPageAttempt: 'page' | 'tryOn' | null = null;
+	generationError = $derived(this.pageFailure?.message ?? '');
 	draftSaveError = $state('');
 	/**
 	 * A Page Controls change that could not be applied.
@@ -1501,7 +1544,7 @@ export class StudioState {
 		// place the load token has to advance. Anything still in flight for the previous page
 		// compares its captured token against this and discards itself.
 		this.pageLoadToken += 1;
-		this.generationError = '';
+		this.pageFailure = null;
 		this.assembledPrompt = '';
 		this.revisedPrompt = '';
 		this.violations = [];
@@ -1687,7 +1730,7 @@ export class StudioState {
 	 */
 	private clearPagelessRequestDiagnostics(): void {
 		if (this.images.length > 0) return;
-		this.generationError = '';
+		this.pageFailure = null;
 		this.assembledPrompt = '';
 		this.revisedPrompt = '';
 		this.violations = [];
@@ -1756,7 +1799,7 @@ export class StudioState {
 	handleModeSelect = (modeId: string): void => {
 		const modeChanged = modeId !== this.activeModeId;
 		this.activeModeId = modeId;
-		this.textError = '';
+		this.textFailure = null;
 		if (modeChanged) {
 			this.clearVerdict();
 			this.resetGeneratedPage();
@@ -1790,7 +1833,7 @@ export class StudioState {
 		// re-picking the selected wig is exactly how a reader retries after seeing it. Cleared
 		// before the attempt rather than after it, so the line is empty while the retry runs
 		// instead of showing a stale sentence about a rebuild that is no longer happening.
-		this.generationError = '';
+		this.pageFailure = null;
 		// Not the panel's handler: the wig is the try-on studio's control, and the panel's summary
 		// deliberately does not name it. A rebuild that fails here belongs on the try-on studio's own
 		// error line, not filed under settings the reader did not touch.
@@ -1805,8 +1848,15 @@ export class StudioState {
 			// where the theme sets it.
 			this.readerClaimedStyle = true;
 		} catch (error) {
-			this.generationError =
-				error instanceof Error ? error.message : UNCHECKED_SETTINGS_MESSAGE;
+			// A LOCAL spec rebuild, not a provider call: nothing was sent, so this is the app
+			// declining rather than Meechie refusing. `UNCHECKED_SETTINGS_MESSAGE` covers the case
+			// where the thrown value carries nothing usable.
+			this.pageFailure = this.classifyPageFailure({
+				rejected:
+					error instanceof Error && error.message
+						? error.message
+						: UNCHECKED_SETTINGS_MESSAGE
+			});
 		}
 	};
 
@@ -1821,12 +1871,78 @@ export class StudioState {
 		this.discardTryOnPortraits();
 	};
 
+	/**
+	 * How this studio reads whether the device has a connection. Assignable so a test can state it.
+	 */
+	readConnection: () => boolean | null = readIsOnline;
+
+	/**
+	 * Classify one failed page generation on this studio.
+	 *
+	 * The IMAGE bucket's reset instant, because that is what the page button spends — the text
+	 * helper above uses the other one. Two helpers rather than one shared with a `bucket` argument,
+	 * so a call site cannot pick the wrong bucket at all.
+	 */
+	private classifyPageFailure(
+		input: Pick<
+			Parameters<typeof classifyGenerationFailure>[0],
+			'thrown' | 'apiError' | 'offContract' | 'rejected'
+		>
+	): GenerationFailure {
+		return classifyGenerationFailure({
+			...input,
+			subject: PAGE_SUBJECT,
+			// This studio clears the page before generating a replacement, so there is never one
+			// underneath a failure for the sentence to reassure the reader about.
+			pageKept: false,
+			quotaResetAtMs: this.quota.image?.resetAtMs ?? null,
+			isOnline: this.readConnection()
+		});
+	}
+
+	/**
+	 * Classify one failed text action, with the context only this studio holds.
+	 *
+	 * The TEXT bucket's reset instant: `/api/meechie-studio-text` spends that one, and naming the
+	 * image window's instant here would be the bucket mix-up `AiQuotaLedger` exists to prevent.
+	 */
+	private classifyTextFailure(
+		input: Pick<
+			Parameters<typeof classifyGenerationFailure>[0],
+			'thrown' | 'apiError' | 'offContract' | 'rejected'
+		>
+	): GenerationFailure {
+		return classifyGenerationFailure({
+			...input,
+			subject: VERDICT_SUBJECT,
+			// A text failure never touches the page on the paper: it is about the words, and the
+			// picture below is untouched either way.
+			pageKept: false,
+			quotaResetAtMs: this.quota.text?.resetAtMs ?? null,
+			isOnline: this.readConnection()
+		});
+	}
+
+	/**
+	 * Run the same text action again.
+	 *
+	 * Re-runs the action that was attempted, not whichever one is selected now — the studio's
+	 * controls stay live while the failure is on screen.
+	 */
+	retryTextAction = async (): Promise<void> => {
+		const actionId = this.lastTextActionId;
+		if (actionId === null || this.isTextWorking) return;
+		await this.runTextAction(actionId);
+	};
+
 	runTextAction = async (actionId: StudioTextActionId): Promise<void> => {
 		let action: ReturnType<typeof getStudioTextAction>;
 		try {
 			action = getStudioTextAction(actionId);
 		} catch {
-			this.textError = 'This action is not available. Try Generate Verdict instead.';
+			this.textFailure = this.classifyTextFailure({
+				rejected: 'This action is not available. Try Generate Verdict instead.'
+			});
 			return;
 		}
 		if (
@@ -1838,7 +1954,7 @@ export class StudioState {
 		) {
 			return;
 		}
-		this.textError = '';
+		this.textFailure = null;
 		this.copyStatus = '';
 		this.vaultStatus = '';
 		const trimmedEvidence = this.evidence.trim();
@@ -1847,11 +1963,16 @@ export class StudioState {
 				? trimmedEvidence || 'Random Meechie line request.'
 				: '';
 		if (!safeEvidence) {
-			this.textError = 'Meechie needs a few facts before she can call it.';
+			this.textFailure = this.classifyTextFailure({
+				rejected: 'Meechie needs a few facts before she can call it.'
+			});
 			return;
 		}
 
 		this.isTextWorking = true;
+		// Recorded before the request, so a retry re-runs this action rather than whichever one the
+		// reader has since selected.
+		this.lastTextActionId = actionId;
 		// The instant the quota headers describe, captured before the request rather than after it.
 		// The server charges the bucket and computes `RateLimit-Reset` *before* it calls the
 		// provider, so by the time the response lands that duration has already been running for
@@ -1892,11 +2013,13 @@ export class StudioState {
 			if (roundToken !== this.verdictToken) return;
 			const parsed = MeechieStudioTextResultSchema.safeParse(payload);
 			if (!parsed.success) {
-				this.textError = 'Meechie sent back a line the studio could not read.';
+				this.textFailure = this.classifyTextFailure({ offContract: true });
 				return;
 			}
 			if (!parsed.data.ok) {
-				this.textError = parsed.data.error.message;
+				this.textFailure = this.classifyTextFailure({
+					apiError: parsed.data.error
+				});
 				return;
 			}
 			// A live response: this `qualityState` is Meechie's own, whatever it says.
@@ -1921,8 +2044,7 @@ export class StudioState {
 			// Same rule for a failure: an error about the round the reader walked away from would
 			// otherwise appear under the mode they walked to.
 			if (roundToken !== this.verdictToken) return;
-			this.textError =
-				error instanceof Error ? error.message : 'Meechie could not reach the AI text service.';
+			this.textFailure = this.classifyTextFailure({ thrown: error });
 		} finally {
 			// Cleared unconditionally: only one text request can be in flight at a time, so this one
 			// is the one that owns the flag whether or not its result is still wanted. Leaving it set
@@ -2016,7 +2138,9 @@ export class StudioState {
 
 	handleGeneratePage = async (): Promise<void> => {
 		if (!this.textOutput) {
-			this.generationError = 'Generate Meechie words before creating the page.';
+			this.pageFailure = this.classifyPageFailure({
+				rejected: 'Generate Meechie words before creating the page.'
+			});
 			return;
 		}
 		// The image bucket, not the text one the buttons above this are gated on. The line under the
@@ -2034,11 +2158,14 @@ export class StudioState {
 		// finishes — which is the defect the mode routes already guard against, and this one did not.
 		const pageToken = this.pageLoadToken;
 		this.isGenerating = true;
+		this.lastPageAttempt = 'page';
 		try {
 			await this.applyTextToSpec(this.textOutput);
 			if (pageToken !== this.pageLoadToken) return;
 			if (this.validationIssues.length > 0) {
-				this.generationError = 'Fix the page settings before generating.';
+				this.pageFailure = this.classifyPageFailure({
+					rejected: 'Fix the page settings before generating.'
+				});
 				return;
 			}
 			// `requestedStyle` was read at the top, before the reset. One read, used for both the
@@ -2070,11 +2197,11 @@ export class StudioState {
 			if (pageToken !== this.pageLoadToken) return;
 			const parsed = GenerateResultSchema.safeParse(payload);
 			if (!parsed.success) {
-				this.generationError = 'Generate response did not match contract.';
+				this.pageFailure = this.classifyPageFailure({ offContract: true });
 				return;
 			}
 			if (!parsed.data.ok) {
-				this.generationError = parsed.data.error.message;
+				this.pageFailure = this.classifyPageFailure({ apiError: parsed.data.error });
 				return;
 			}
 			this.assembledPrompt = parsed.data.value.prompt;
@@ -2095,8 +2222,16 @@ export class StudioState {
 			// been entered, in a field the reader has no way to connect to what happened. The trace
 			// above is assigned first so the System Trace still shows what was asked for.
 			if (this.images.length === 0) {
-				this.generationError =
-					'Meechie sent the words back without a picture. Try creating the page again.';
+				// `PROVIDER_EMPTY_IMAGE` is the app's own reading of a schema-valid response with an
+				// empty `images` array — `GenerateResultSchema` has no minimum — rather than a code
+				// the route sent. It is the right code for it: the same one the provider seam emits
+				// for the same condition, and it keeps one sentence for one thing.
+				this.pageFailure = this.classifyPageFailure({
+					apiError: {
+						code: 'PROVIDER_EMPTY_IMAGE',
+						message: 'Meechie sent the words back without a picture.'
+					}
+				});
 				return;
 			}
 
@@ -2116,18 +2251,34 @@ export class StudioState {
 				requestedSpec.pageSize
 			);
 		} catch (error) {
-			this.generationError =
-				error instanceof Error ? error.message : 'Coloring page generation failed.';
+			this.pageFailure = this.classifyPageFailure({ thrown: error });
 		} finally {
 			this.isGenerating = false;
 		}
+	};
+
+	/**
+	 * Make the page again, the same way it was made last time.
+	 *
+	 * Dispatches on which generator was attempted rather than on what is currently selected: a
+	 * try-on page that failed must not be retried as a quote page.
+	 */
+	retryPage = async (): Promise<void> => {
+		if (this.isGenerating) return;
+		if (this.lastPageAttempt === 'tryOn') {
+			await this.handleGenerateTryOnPage();
+			return;
+		}
+		if (this.lastPageAttempt === 'page') await this.handleGeneratePage();
 	};
 
 	handleGenerateTryOnPage = async (): Promise<void> => {
 		// See `canGenerateTryOnPage`. Guarded here too, not only on the button: the race is between
 		// two state transitions, so the state is where it has to be refused.
 		if (this.isTryingOn) {
-			this.generationError = 'Wait for the new look to finish before making the page.';
+			this.pageFailure = this.classifyPageFailure({
+				rejected: 'Wait for the new look to finish before making the page.'
+			});
 			return;
 		}
 		const wig = this.selectedWig;
@@ -2138,7 +2289,9 @@ export class StudioState {
 		// picture under another wig's name.
 		const portraitUrl = this.tryOnPortraitUrl;
 		if (!portraitUrl || !wig) {
-			this.generationError = 'Create a try-on portrait first.';
+			this.pageFailure = this.classifyPageFailure({
+				rejected: 'Create a try-on portrait first.'
+			});
 			return;
 		}
 		this.resetGeneratedPage();
@@ -2146,6 +2299,7 @@ export class StudioState {
 		// a moved token means the reader is no longer looking at the page they asked for.
 		const pageToken = this.pageLoadToken;
 		this.isGenerating = true;
+		this.lastPageAttempt = 'tryOn';
 		try {
 			// Captured before the await, like `wig` above and like the generate path: the spec this
 			// page gets is built from these controls, so reading them again afterwards could record
@@ -2161,8 +2315,10 @@ export class StudioState {
 			if (pageToken !== this.pageLoadToken) return;
 			const portraitImage = this.parseTryOnPortraitImage(portraitUrl);
 			if (!portraitImage) {
-				this.generationError =
-					'Try-on portrait format is not supported for coloring-page export.';
+				this.pageFailure = this.classifyPageFailure({
+					rejected:
+						'Try-on portrait format is not supported for coloring-page export.'
+				});
 				return;
 			}
 			// A try-on page is a portrait, not a list, so it takes the whole title-only shape and not
@@ -2192,7 +2348,9 @@ export class StudioState {
 			// already validated. Checking the issues it left would be checking the previous spec.
 			await this.validateSpec();
 			if (this.validationIssues.length > 0) {
-				this.generationError = 'Fix the page settings before generating.';
+				this.pageFailure = this.classifyPageFailure({
+					rejected: 'Fix the page settings before generating.'
+				});
 				return;
 			}
 			this.images = [portraitImage];
@@ -2209,9 +2367,14 @@ export class StudioState {
 				pageToken,
 				requestedSpec.pageSize
 			);
-		} catch (error) {
-			this.generationError =
-				error instanceof Error ? error.message : 'Try-on coloring page generation failed.';
+		} catch {
+			// The try-on page is assembled locally from a portrait the reader already has; no
+			// provider is called on this path. So a throw here is this app failing, not a request
+			// that did not arrive, and the classifier must not word it as a connection problem.
+			this.pageFailure = this.classifyPageFailure({
+				rejected:
+					'The try-on page could not be assembled. Try creating it again.'
+			});
 		} finally {
 			this.isGenerating = false;
 		}

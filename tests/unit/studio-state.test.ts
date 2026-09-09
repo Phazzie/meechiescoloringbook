@@ -2,6 +2,10 @@
 // Why: Keep extracted studio state behavior aligned with component callback contracts.
 // Info flow: StudioState actions -> spec/images/package calls -> assertions.
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import {
+	classifyGenerationFailure,
+	PAGE_SUBJECT
+} from '../../src/lib/core/generation-failure';
 import { creationStoreAdapter } from '../../src/lib/adapters/creation-store.adapter';
 import { outputPackagingAdapter } from '../../src/lib/adapters/output-packaging.adapter';
 import { sessionAdapter } from '../../src/lib/adapters/session.adapter';
@@ -358,7 +362,11 @@ describe('StudioState', () => {
 		arrangePackagedPage(studio);
 		studio.assembledPrompt = 'stale assembled prompt';
 		studio.revisedPrompt = 'stale revised prompt';
-		studio.generationError = 'stale error';
+		// Written through the failure, which is the only writer now: `generationError` is derived.
+		studio.pageFailure = classifyGenerationFailure({
+			subject: PAGE_SUBJECT,
+			rejected: 'stale error'
+		});
 
 		const creation: CreationRecord = {
 			id: 'creation-1',
@@ -557,7 +565,11 @@ describe('StudioState', () => {
 			{ id: 'image-1', format: 'png', mimeType: 'image/png', data: 'abc', encoding: 'base64' }
 		];
 		arrangePackagedPage(studio);
-		studio.generationError = 'stale error';
+		// Written through the failure, which is the only writer now: `generationError` is derived.
+		studio.pageFailure = classifyGenerationFailure({
+			subject: PAGE_SUBJECT,
+			rejected: 'stale error'
+		});
 		studio.assembledPrompt = 'stale assembled prompt';
 		studio.revisedPrompt = 'stale revised prompt';
 		studio.violations = [{ code: 'stale-violation', message: 'stale', severity: 'warning' }];
@@ -2774,7 +2786,7 @@ describe('StudioState page exports', () => {
 
 		expect(packageSpy).not.toHaveBeenCalled();
 		expect(studio.generationError).toBe(
-			'Meechie sent the words back without a picture. Try creating the page again.'
+			'Meechie sent the words back without a picture. Try creating the coloring page again.'
 		);
 		// The trace still shows what was asked for, so the failure is diagnosable.
 		expect(studio.assembledPrompt).toBe('the assembled prompt');

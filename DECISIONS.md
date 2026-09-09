@@ -7,6 +7,50 @@ Info flow: Decision -> consequences -> future changes.
 
 Short, durable decisions with context and tradeoffs.
 
+## 2026-09-09 — Reading the connection without a seam
+
+- Decision: `classifyGenerationFailure` takes the connection as a plain `boolean | null` value, and
+  the read of `navigator.onLine` lives in `src/lib/components/connection.svelte.ts` rather than
+  behind a new seam.
+- Context: `AGENTS.md` classifies OS/browser integration as a seam boundary, and
+  `PageVisibilitySeam` was built on exactly that reasoning for `document.visibilityState`. By that
+  rule a `ConnectionSeam` is the right long-term home for this read. Building one means a new
+  contract, probe, fixtures, mock and adapter — a contract addition, which under "Merge When The
+  Gates Are Green" must not be merged automatically and belongs in its own pull request.
+- Alternatives: (a) build the seam and hold this change behind it; (b) read `navigator.onLine`
+  inline at each of the five call sites, as `src/routes/+layout.svelte` already does for the offline
+  banner; (c) one module, no seam, value passed into a pure classifier.
+- Chosen: (c). It follows the precedent `+layout.svelte` already set, keeps the core pure, and keeps
+  the read in exactly one place so a seam has one call site to replace rather than five. Every state
+  class exposes the read as an assignable `readConnection` field, which is how a test states the
+  answer today — the same shape `clock` already has.
+- Tradeoff and consequence: this is a known deviation from the seam rule, taken deliberately and
+  recorded here rather than argued away. The mitigation that makes it tolerable is a design
+  property, not a promise: the connection reading can only *sharpen* a failure's sentence and never
+  decide one, so a wrong or absent reading costs a degree of specificity rather than correctness.
+  `tests/unit/generation-failure.test.ts` drives one throw against `true`, `false` and `null` and
+  requires all three to produce a usable answer.
+- Carried forward: a `ConnectionSeam` remains the right destination, alongside the entropy seam
+  Run 19 recorded. Both are contract additions and both need their own pull request.
+
+## 2026-09-09 — A failure is a value, not a string
+
+- Decision: every failed AI call in the app is classified into a `GenerationFailure` — cause,
+  sentence, retry advice, whether a page survived, and the raw diagnostic — and no surface renders a
+  caught exception's `message`.
+- Context: five call sites each ended with `error instanceof Error ? error.message : '<fallback>'`
+  written into a reader-facing field, so `Failed to fetch` and
+  `postJson: HTTP 502 Bad Gateway from /api/generate: empty response body` were the app's account of
+  itself. Six of the app's own messages invited a retry that no control anywhere offered.
+- Tradeoff: the raw text is no longer in front of the reader, which is a real loss of information
+  for anyone diagnosing a problem over someone's shoulder. It is carried on `GenerationFailure.detail`
+  and rendered by System Trace on the home studio. The other surfaces have no diagnostics panel, so
+  on those the detail is held and not shown — an accepted gap, not an oversight.
+- Consequence: adding a route error code without a matching entry in `CAUSE_BY_CODE` now fails
+  `tests/unit/generation-failure.test.ts`, which drives the exported
+  `PUBLIC_PROVIDER_ERROR_MESSAGES` keys against it. A code with no classification would otherwise
+  ship as a generic sentence with a retry answer that may be wrong for it.
+
 ## 2026-09-09 - Refuse a save the Quote Vault cannot fit, instead of deleting a saved page to fit it
 
 - Date: 2026-09-09

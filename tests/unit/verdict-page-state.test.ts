@@ -193,7 +193,10 @@ describe('requestVerdict', () => {
 			situation: 'Try again.'
 		});
 
-		expect(state.error).toBe('Network is down');
+		// The exception's own text is kept as `detail` and never shown: it used to be the sentence.
+		expect(state.error).not.toContain('Network is down');
+		expect(state.error).toContain('could not reach Meechie');
+		expect(state.verdictFailure?.detail).toBe('Network is down');
 		expect(state.verdict).toEqual(STRUCTURED_VERDICT);
 		expect(state.hasPage).toBe(true);
 		expect(state.imagePreviews).toHaveLength(1);
@@ -205,7 +208,11 @@ describe('requestVerdict', () => {
 			jsonResponse({ ok: true, value: { toolId: 'nope' } });
 		await state.requestVerdict({ toolId: 'random_meechie' });
 		expect(state.verdict).toBeNull();
-		expect(state.error).toBe('Tool response did not match contract.');
+		expect(state.verdictFailure?.cause).toBe('unreadable_response');
+		expect(state.error).toContain('could not read');
+		// Worth one more try: an unreadable completion is usually one bad answer, not a standing
+		// condition, so the reader is offered a way back rather than only an explanation.
+		expect(state.verdictFailure?.retry.kind).toBe('now');
 	});
 
 	it('returns the verdict it installed, and null when it did not install one', async () => {
@@ -441,7 +448,7 @@ describe('makePage', () => {
 		await state.makePage();
 
 		expect(state.generateError).toContain('could not be read');
-		expect(state.generateError).toContain('page on screen was kept');
+		expect(state.generateError).toContain('already on screen was kept');
 		expect(state.hasPage).toBe(true);
 		expect(state.imagePreviews).toEqual(previewsBefore);
 	});

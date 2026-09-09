@@ -12,7 +12,15 @@ export type PublicProviderError = {
 	message: string;
 };
 
-const PUBLIC_PROVIDER_ERROR_MESSAGES: Readonly<Record<string, string>> = {
+/**
+ * Exported so `generation-failure.ts`'s classification can be proved total over it.
+ *
+ * Every code here reaches a reader through a route's `ok: false` body, so every one of them needs a
+ * cause and a retry answer. `tests/unit/generation-failure.test.ts` drives these keys against
+ * `CAUSE_BY_CODE` and fails if a code is ever added here without one — which would otherwise ship
+ * as a generic sentence with a retry that may be wrong for it.
+ */
+export const PUBLIC_PROVIDER_ERROR_MESSAGES: Readonly<Record<string, string>> = {
 	PROVIDER_API_KEY_MISSING: 'AI provider is not configured.',
 	PROVIDER_HTTP_ERROR: 'AI provider request failed.',
 	PROVIDER_NETWORK_ERROR: 'AI provider request failed.',

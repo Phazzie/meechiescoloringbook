@@ -30,6 +30,11 @@ import {
 } from '$lib/core/describe-page';
 import { ChatInterpretationResultSchema } from '$lib/seams/chat-interpretation-seam/contract';
 import type { ColoringPageSpec } from '../../../contracts/spec-validation.contract';
+import {
+	classifyGenerationFailure,
+	READBACK_SUBJECT,
+	type GenerationFailure
+} from '$lib/core/generation-failure';
 import { PageArtifactState } from './page-artifact-state.svelte';
 
 /**
@@ -49,7 +54,28 @@ export class DescribePageState extends PageArtifactState {
 	/** What the reader has typed. Stays editable after an interpretation — see the invariants. */
 	message = $state('');
 	isInterpreting = $state(false);
-	interpretError = $state('');
+	/**
+	 * The last failed read-back request, classified.
+	 *
+	 * `interpretFailureSentence` already gave `/describe` reader-facing sentences for the route's own
+	 * failure CODES — the one place in the app that did — but the transport failure a line below it
+	 * still wrote the exception's own text, so a reader who lost their connection got `Failed to
+	 * fetch` under a surface that otherwise spoke to them properly. Both halves classify here now.
+	 */
+	interpretFailure = $state<GenerationFailure | null>(null);
+	/**
+	 * The exact words the last read-back request was sent with, so a retry re-asks them.
+	 *
+	 * `message` is not that: it is a live field the reader edits while the failure is on screen. This
+	 * is the same distinction `interpretedFrom` draws for a read-back that succeeded.
+	 */
+	private lastAskedMessage: string | null = null;
+	/**
+	 * The reader-facing sentence for the last read-back failure. Derived, so there is one writer.
+	 *
+	 * Read by the tests rather than by a surface, as on the other state classes.
+	 */
+	interpretError = $derived(this.interpretFailure?.message ?? '');
 
 	/** The interpretation currently on screen, or `null` before the first one lands. */
 	spec = $state<ColoringPageSpec | null>(null);
@@ -156,7 +182,7 @@ export class DescribePageState extends PageArtifactState {
 	/** Put one of the starter examples in the box, ready to edit. */
 	useExample(example: string): void {
 		this.message = example;
-		this.interpretError = '';
+		this.interpretFailure = null;
 	}
 
 	/**
@@ -167,7 +193,7 @@ export class DescribePageState extends PageArtifactState {
 	 */
 	async interpret(): Promise<void> {
 		if (!this.canInterpret) return;
-		this.interpretError = '';
+		this.interpretFailure = null;
 		this.isInterpreting = true;
 		const requestStartedAtMs = this.clock.now();
 		// Pinned here, before the await, and never re-read afterwards. `message` is a live field the
@@ -175,6 +201,7 @@ export class DescribePageState extends PageArtifactState {
 		// on *arrival* attributes the answer to whatever is in the box a few seconds later — which
 		// is the exact drift `interpretedFrom` exists to stop, reintroduced one line further down.
 		const asked = this.message.trim();
+		this.lastAskedMessage = asked;
 		// Claim a fresh token so an abandoned request cannot install itself. `isInterpreting` alone
 		// stops two overlapping requests but not `reset()`: a reader who clears the surface while a
 		// request is in flight would otherwise watch that answer land on an empty box a moment later.
@@ -201,12 +228,13 @@ export class DescribePageState extends PageArtifactState {
 			if (isStale()) return;
 			const parsed = ChatInterpretationResultSchema.safeParse(payload);
 			if (!parsed.success) {
-				this.interpretError =
-					'Meechie sent back something this page could not read.';
+				this.interpretFailure = this.classifyInterpretFailure({ offContract: true });
 				return;
 			}
 			if (!parsed.data.ok) {
-				this.interpretError = interpretFailureSentence(parsed.data.error);
+				this.interpretFailure = this.classifyInterpretFailure({
+					apiError: parsed.data.error
+				});
 				return;
 			}
 			// Here, and only here, does what is on screen stop belonging to what is on screen: the
@@ -216,10 +244,9 @@ export class DescribePageState extends PageArtifactState {
 			this.interpretedFrom = asked;
 		} catch (requestError) {
 			if (isStale()) return;
-			this.interpretError =
-				requestError instanceof Error
-					? requestError.message
-					: 'Network error. Try again.';
+			this.interpretFailure = this.classifyInterpretFailure({
+				thrown: requestError
+			});
 		} finally {
 			// Released even for an abandoned request: `reset()` does not clear this flag, and the
 			// only request that could clear it is this one — leaving it set would disable the button
@@ -252,10 +279,64 @@ export class DescribePageState extends PageArtifactState {
 		// answer is discarded on arrival instead of landing on a box the reader has just emptied.
 		this.interpretToken += 1;
 		this.message = '';
-		this.interpretError = '';
+		this.interpretFailure = null;
+		this.lastAskedMessage = null;
 		this.spec = null;
 		this.interpretedFrom = '';
 		this.resetPage();
 	}
 
+
+	/**
+	 * Classify one failed read-back, keeping `/describe`'s own per-code wording.
+	 *
+	 * The cause and the retry advice come from the shared classifier; the SENTENCE for a failure the
+	 * route named itself stays `interpretFailureSentence`'s, which Run 17 wrote for exactly these
+	 * codes and which says more than a generic one can — `CHAT_SPEC_INVALID`'s names the field that
+	 * failed. Overriding it here rather than teaching the shared module about `/describe` keeps that
+	 * wording where it is used and leaves the classifier free of one surface's vocabulary.
+	 */
+	private classifyInterpretFailure(
+		input: Pick<
+			Parameters<typeof classifyGenerationFailure>[0],
+			'thrown' | 'apiError' | 'offContract'
+		>
+	): GenerationFailure {
+		const failure = classifyGenerationFailure({
+			...input,
+			subject: READBACK_SUBJECT,
+			// A read-back failure never touches the page below, which belongs to the interpretation
+			// it has not replaced. See this class's invariants.
+			pageKept: false,
+			quotaResetAtMs: this.quota.text?.resetAtMs ?? null,
+			isOnline: this.readConnection()
+		});
+		return input.apiError
+			? {
+					...failure,
+					message: interpretFailureSentence({
+						// `interpretFailureSentence` switches on a required code; the shared input type
+						// makes it optional because not every route names one. An unnamed code falls to
+						// its default, which returns the message unchanged — the same thing the shared
+						// classifier does with an unknown code.
+						code: input.apiError.code ?? '',
+						message: input.apiError.message
+					})
+				}
+			: failure;
+	}
+
+	/**
+	 * Ask for the same read-back again.
+	 *
+	 * Re-sends the words that were actually asked, not `message`. The box stays editable while the
+	 * failure is on screen, so reading it live would send a different sentence under a control that
+	 * says "again" — the same drift `interpretedFrom` exists to stop, one control over.
+	 */
+	async retryInterpret(): Promise<void> {
+		const asked = this.lastAskedMessage;
+		if (asked === null || this.isInterpreting) return;
+		this.message = asked;
+		await this.interpret();
+	}
 }

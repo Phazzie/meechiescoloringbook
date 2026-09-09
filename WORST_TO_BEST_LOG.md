@@ -14296,3 +14296,161 @@ a regenerated session id. All three need contract room; none is a regression thi
 `sonarcloud.io` is refused by the egress proxy (`connect_rejected`), the check run's output carries
 only a count, and the Quality Gate passes regardless. Three issues on the first push, one on the
 last. They were neither read nor fixed, and saying so is the only honest option available from here.
+
+## Run 20 — 2026-09-09 — What the app says when the AI call fails
+
+### The pick
+
+The worst feature is **the failure path of every AI call in the app**: what a reader is told when
+the coloring page, verdict or read-back they waited for does not arrive, and what they can do next.
+
+Nineteen runs have rebuilt the surfaces that work. Nothing had looked at what all of them do when
+they do not. It is worst by the routine's own measure — the widest gap between what a feature
+promises and what it does, priced in what it costs a reader — and the promise is unusually explicit,
+because the app makes it in its own words six times over.
+
+### The evidence, measured at this run's base (`e4e2b48`)
+
+**The app tells the reader to try again, six times, and has no control anywhere for doing it.**
+`'Network error. Try again.'` at `page-artifact-state.svelte.ts` L571, `verdict-page-state.svelte.ts`
+L199, `describe-page-state.svelte.ts` L222 and `MeechieTools.svelte` L511; `'…please try again'` at
+`http-client.ts` L60; `'Too many requests. Try again after the current window resets.'` at
+`rate-limit-guard.ts` L246. A search for a retry control in `src/` returns exactly one match, and it
+is `/offline`'s page reload. The reader's only option was the same button, which spends the
+allowance again.
+
+**What was actually rendered was a developer's string.** Five call sites, each ending the same way:
+
+| File | The line |
+|------|----------|
+| `page-artifact-state.svelte.ts` L566-571 | `this.generateError = requestError instanceof Error ? requestError.message : …` |
+| `verdict-page-state.svelte.ts` L196-199 | `this.error = requestError instanceof Error ? …` |
+| `describe-page-state.svelte.ts` L219-222 | `this.interpretError = requestError instanceof Error ? …` |
+| `studio-state.svelte.ts` L1924-1925, L2120 | `this.textError = …` and `this.generationError = …` |
+| `MeechieTools.svelte` L510, L735 | `? requestError.message` |
+
+An offline `fetch` throws `Failed to fetch`. `postJson` builds and throws
+`postJson: HTTP 502 Bad Gateway from /api/generate: empty response body` (`http-client.ts` L75-92).
+Both reached the reader verbatim, in a crimson box, as the app's account of itself.
+
+*The shape is worth naming: in `e instanceof Error ? e.message : '<fallback>'` the author's own
+sentence runs only when something that is not an `Error` was thrown.* Every one of those five sites
+contained a considered, reader-facing fallback, and in normal operation not one of them ever ran.
+
+**The app held the facts that would have helped and never reached for them.** `offlineNotice`
+(`offline-cache.ts` L606-614) is a pure function that already words the offline case for the banner.
+`AiQuotaMeter` already holds the exact instant the bucket refills — recorded from the refusal's own
+`Retry-After` *before* the body is read (`http-client.ts` L68) — and renders it under the same
+button; the rate-limit failure a few pixels above it said only "the current window".
+
+**And the repo already knew how to do this, once.** `interpretFailureSentence`
+(`describe-page.ts` L109-132) maps failure codes to reader sentences. It existed on one surface, for
+one of the two ways a call can fail — so `/describe` spoke properly about a refusal the server named
+and printed `Failed to fetch` for a dropped connection two lines further down.
+
+**The cost.** A reader waits up to 180 seconds (`POST_JSON_TIMEOUTS_MS.generate`) for the thing the
+app exists to do, is handed a sentence they cannot act on, is not told whether waiting would help,
+and — offline or rate-limited — is left with a button guaranteed to fail again and bill them for it.
+
+### What it is now
+
+**One classifier, `src/lib/core/generation-failure.ts`.** A thrown exception, a contract-shaped
+refusal, an off-contract response or an undecodable image becomes a `GenerationFailure`: the cause,
+one sentence in the app's voice, whether a retry is worth offering and when, whether the page on
+screen survived, and the raw diagnostic — kept, and never shown as the sentence.
+
+**Eleven causes, chosen for what they change about what a reader should do**, not for how they
+arose. `offline` and `unreachable` are separate because one of them can promise the page comes back
+on reconnection. `no_image` is separate from `provider_unavailable` and `unreadable_image` because
+it is the only one of the three that tells the reader the *words* half worked — a sentence the home
+studio already had, which a generic one would have thrown away.
+
+**Retry advice, not a boolean.** `now`, `after` (an instant), `reconnect`, `change_request`, `none`.
+A control is rendered only where pressing it could accomplish something: a rate-limited retry is
+disabled until the window reopens and re-enables itself on a `ClockSeam` timer; an offline one is on
+screen but inert until the connection returns; a refused *request* gets no control at all, because
+pressing one would spend a generation to buy back the identical refusal.
+
+**A retry re-asks for the thing that failed**, never for whatever is live now. Each surface pins the
+attempted request before sending it: `lastAttemptedSource`, `lastVerdictInput`, `lastAskedMessage`,
+`lastPageAttempt`. On `/describe` the box stays editable while the failure is on screen, so this is
+the same drift `interpretedFrom` already exists to stop, one control over. The home studio is the
+deliberate exception and says so: it builds its page from controls that are all visible, so "again"
+there honestly means "with what is showing" — but it still records *which* of its two generators ran,
+so a failed wig try-on page is never retried as a quote page.
+
+**One rendering, `GenerationFailureNotice.svelte`**, replacing four raw `<p class="error">` copies
+across fifteen page-making surfaces, and owning its own CSS. Six now-dead `.error` rules were deleted
+with them.
+
+**The raw diagnostic moved rather than vanished**: System Trace renders it under "What Went Wrong
+Underneath". That panel exists only on the home studio, so on the other surfaces the detail is held
+and not shown — recorded in `DECISIONS.md` as an accepted gap, not claimed as complete.
+
+### Two things this run got wrong first, and what they cost
+
+**The local-refusal sentence, routed through the wrong door.** The first wiring classified "Please
+complete the required fields before asking Meechie" as `CHAT_INPUT_INVALID`, which renders as
+*"Meechie would not make that verdict: Please complete the required fields…"* — blaming her for a
+form the reader can simply finish. It was caught by reading the output rather than the code. The fix
+is a separate `rejected` input for a request this app declined to send, whose sentence is used
+verbatim. *A refusal has an author, and the wording has to name the right one.*
+
+**A better sentence replaced with a worse one.** Routing the empty-`images` case through
+`PROVIDER_EMPTY_IMAGE` mapped it to `provider_unavailable`, and "Meechie sent the words back without
+a picture" — precise, and the only sentence that tells the reader the text half succeeded — became
+"Meechie's art service did not answer". A test caught it. `no_image` exists because of that, and it
+is the run's clearest lesson: *consolidating error handling is an opportunity to lose the one place
+somebody had already got it right.*
+
+### Seams
+
+**None touched.** `git status` against `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`,
+`src/lib/adapters/` and `src/lib/seams/` returns nothing, so no Cipher Gate is required and the
+merge rule's contract-change exclusion does not apply. `public-provider-error.ts` changed by one
+line, to export a constant that was already there.
+
+The one judgement call is recorded in `DECISIONS.md` rather than argued away: `navigator.onLine` is
+read in the component layer, not behind a seam. `PageVisibilitySeam` exists on exactly the reasoning
+that would require a `ConnectionSeam`, and building one is a contract addition and its own pull
+request. What makes the deviation tolerable is a design property rather than a promise — the
+connection reading can only sharpen a sentence and never decide one, and a test drives one throw
+against `true`, `false` and `null` and requires all three to answer usefully.
+
+### Gates
+
+`npm run check` 0 errors 0 warnings. `npm run lint` clean. `npm test` 1,891 passed, 1 skipped, up
+from 1,867. `npm run build` exit 0. 79 Playwright tests passed, up from 77.
+
+*Playwright does not run in this container as configured, and did not fail because of this change.*
+`@playwright/test` wants Chromium build 1208; `/opt/pw-browsers` has 1194, so every browser launch
+dies with `Executable doesn't exist`. It was run with a scratch config pointing `executablePath` at
+`/opt/pw-browsers/chromium-1194/chrome-linux/chrome`; that file is deliberately not committed,
+because pinning a container path would break CI. **A `tail`ed pipeline reports `tail`'s exit code,
+not the command's** — that is how a 77-failure run first read as a pass here, and it is worth the
+next run's attention.
+
+### Carried forward for the next run
+
+Re-measure everything below; do not inherit it.
+
+- **A `ConnectionSeam` is the right home for the `navigator.onLine` read.** New this run, deliberate,
+  reasoned in `DECISIONS.md`. It is a contract addition and needs its own pull request. The read is
+  in one module (`src/lib/components/connection.svelte.ts`) precisely so a seam has one call site to
+  replace rather than five.
+- **`detail` is shown only on the home studio.** Fourteen other surfaces classify a failure, hold its
+  raw diagnostic and have nowhere to render it. A shared diagnostics disclosure — System Trace's
+  block, extracted the way `QualityReportPanel` was — is the obvious follow-up and touches no seam.
+- **`MeechieTools.svelte` is still in legacy (non-runes) mode**, and reads `navigator.onLine`
+  directly rather than through an injectable, unlike every other surface. Both are consequences of
+  not converting the file; a rune anywhere in it flips the whole component.
+- Every item on **Run 19's carried-forward list** is untouched by this run and still stands: the
+  unparseable stored record destroyed by the next write, the unreclaimable earlier-session pages, the
+  entropy seam, the missing version stamp on the creations array, evicting the oldest unpinned page,
+  the early quota reset instant, `chatInterpretationAdapter` and `/api/image-generation` having no
+  callers, the three unread SonarCloud issues, the 1024x1024 square, `placedDpi`, the `chat`
+  packaging variant, mode persistence, `quoteScore` and `modelMetadata`, and the evidence
+  transcripts' missing file headers.
+- **Run 18 still has no merge close-out entry**, as Run 19 noted. Not reconstructed here either.
+- **SonarCloud cannot be read from this container** (`sonarcloud.io` is refused by the egress proxy).
+  Unchanged, and it applies to this run's pushes too.

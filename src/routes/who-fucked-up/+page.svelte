@@ -14,6 +14,7 @@ Info flow: Situation input -> VerdictPageState.requestVerdict (red_flag_or_run) 
 	import AiQuotaLine from '$lib/components/AiQuotaLine.svelte';
 	import { MEECHIE_TOOL_QUOTA_COST } from '$lib/core/ai-quota';
 	import { VerdictPageState } from '$lib/components/verdict-page-state.svelte';
+	import GenerationFailureNotice from '$lib/components/GenerationFailureNotice.svelte';
 
 	const studio = new VerdictPageState({ fileBaseSlug: 'who-fucked-up' });
 	// A quota reading arms a ClockSeam timer that outlives this screen by up to a window, and that
@@ -69,9 +70,12 @@ Info flow: Situation input -> VerdictPageState.requestVerdict (red_flag_or_run) 
 			></textarea>
 			<p class="key-hint">Ctrl + Enter to submit</p>
 
-			{#if studio.error}
-				<p class="error" data-testid="who-error">{studio.error}</p>
-			{/if}
+			<GenerationFailureNotice
+				failure={studio.verdictFailure}
+				onRetry={() => void studio.retryVerdict()}
+				isBusy={studio.isWorking || studio.isGenerating}
+				testId="who-error"
+			/>
 
 			<button
 				type="button"
@@ -140,9 +144,12 @@ Info flow: Situation input -> VerdictPageState.requestVerdict (red_flag_or_run) 
 				id="verdict-budget"
 			/>
 			</div>
-			{#if studio.error}
-				<p class="error" data-testid="who-error">{studio.error}</p>
-			{/if}
+			<GenerationFailureNotice
+				failure={studio.verdictFailure}
+				onRetry={() => void studio.retryVerdict()}
+				isBusy={studio.isWorking || studio.isGenerating}
+				testId="who-error"
+			/>
 		</header>
 
 		<VerdictPageStudio
@@ -360,15 +367,6 @@ Info flow: Situation input -> VerdictPageState.requestVerdict (red_flag_or_run) 
 		cursor: not-allowed;
 	}
 
-	.error {
-		margin: 0;
-		padding: 0.7rem 1rem;
-		border-radius: 0.6rem;
-		background: rgba(232, 0, 106, 0.1);
-		border: 1px solid rgba(232, 0, 106, 0.3);
-		font-size: 0.88rem;
-		color: #ff8fab;
-	}
 
 	@media (max-width: 600px) {
 		.page {

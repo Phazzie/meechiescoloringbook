@@ -20,6 +20,7 @@ Invariants: The quality report is rendered ONLY through `QualityReportPanel`, ne
 	import SharePageButton from './SharePageButton.svelte';
 	import VaultStatusLine from './VaultStatusLine.svelte';
 	import AiQuotaLine from './AiQuotaLine.svelte';
+	import GenerationFailureNotice from './GenerationFailureNotice.svelte';
 
 	let {
 		studio,
@@ -80,11 +81,14 @@ Invariants: The quality report is rendered ONLY through `QualityReportPanel`, ne
 		<span>Glitter preview overlay</span>
 	</label>
 
-	{#if studio.generateError}
-		<p class="error" data-testid="verdict-page-generate-error">
-			{studio.generateError}
-		</p>
-	{/if}
+	<!-- The page half's failure. `onRetry` re-sends the request that failed, so it costs one
+	     generation and does not re-ask for the verdict, which did not fail. -->
+	<GenerationFailureNotice
+		failure={studio.failure}
+		onRetry={() => void studio.retryPage()}
+		isBusy={studio.isGenerating || studio.isWorking}
+		testId="verdict-page-generate-error"
+	/>
 
 	<!-- Disabled while a replacement verdict is loading too, not just while generating: the page
 	     this would produce belongs to the verdict about to be replaced, and would be discarded the
@@ -320,15 +324,6 @@ Invariants: The quality report is rendered ONLY through `QualityReportPanel`, ne
 		color: var(--lavender, #b8aacf);
 	}
 
-	.error {
-		margin: 0;
-		padding: 0.7rem 1rem;
-		border-radius: 0.6rem;
-		background: rgba(232, 0, 106, 0.1);
-		border: 1px solid rgba(232, 0, 106, 0.3);
-		font-size: 0.88rem;
-		color: #ff8fab;
-	}
 
 
 

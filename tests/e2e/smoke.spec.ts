@@ -120,13 +120,23 @@ const gotoHydrated = async (page: Page, path: string): Promise<void> => {
  * SonarCloud's duplication gate at 8.2% on new code.
  */
 const makeToolkitPage = async (page: Page): Promise<void> => {
+	await makeToolkitVerdict(page);
+	await page.getByTestId('meechie-tool-make-page').click();
+	await expectPageOnScreen(page);
+};
+
+/**
+ * The first half of the above: a verdict on screen, ready to be made into a page.
+ *
+ * Split out because the failure tests need to stop here — they stub `/api/generate` to fail, so
+ * they cannot use a helper that asserts a page arrived.
+ */
+const makeToolkitVerdict = async (page: Page): Promise<void> => {
 	await gotoHydrated(page, '/meechie');
 	await page.getByTestId('meechie-tool-generate').click();
 	await expect(page.getByTestId('meechie-tool-output')).toContainText(
 		'Fault: them'
 	);
-	await page.getByTestId('meechie-tool-make-page').click();
-	await expectPageOnScreen(page);
 };
 
 /** The page, its preview and its download are all present. */
@@ -1225,6 +1235,65 @@ test('a failed regeneration does not destroy the page already on screen', async 
 	await expect(page.getByTestId('meechie-tool-generate-error')).toBeVisible();
 	await expectPageOnScreen(page);
 	await expect(page.getByTestId('meechie-tool-make-page')).toBeEnabled();
+});
+
+test('a failed page says what happened in the app\u2019s own words, and offers a way back', async ({
+	page
+}) => {
+	// The whole of Run 20. Before it, this box held whatever string the exception carried — for a
+	// dropped connection, literally `Failed to fetch` — and there was no control anywhere in the app
+	// to try again with.
+	let generateCalls = 0;
+	await page.route('**/api/generate', async (route) => {
+		generateCalls += 1;
+		if (generateCalls === 1) {
+			await route.abort('failed');
+			return;
+		}
+		await route.fulfill({ json: generatedPage });
+	});
+
+	await makeToolkitVerdict(page);
+	await page.getByTestId('meechie-tool-make-page').click();
+
+	const notice = page.getByTestId('meechie-tool-generate-error');
+	await expect(notice).toBeVisible();
+	// Not a developer's string, and specifically not the one a browser raises here.
+	await expect(notice).not.toContainText('Failed to fetch');
+	await expect(notice).toContainText('could not reach Meechie');
+
+	// The way back, which did not exist before, and which re-asks for the same page.
+	const retry = page.getByTestId('meechie-tool-generate-error-retry');
+	await expect(retry).toBeEnabled();
+	await retry.click();
+	await expectPageOnScreen(page);
+});
+
+test('a page the server refused on its merits offers no retry to spend', async ({
+	page
+}) => {
+	// `IMAGE_VALIDATION_ERROR` means the request itself was rejected, so the same request buys the
+	// same refusal. A retry control here would charge the reader a generation for a certainty.
+	await page.route('**/api/generate', async (route) => {
+		await route.fulfill({
+			status: 422,
+			json: {
+				ok: false,
+				error: {
+					code: 'IMAGE_VALIDATION_ERROR',
+					message: 'Image generation request is invalid.'
+				}
+			}
+		});
+	});
+
+	await makeToolkitVerdict(page);
+	await page.getByTestId('meechie-tool-make-page').click();
+
+	await expect(page.getByTestId('meechie-tool-generate-error')).toBeVisible();
+	await expect(
+		page.getByTestId('meechie-tool-generate-error-retry')
+	).toHaveCount(0);
 });
 
 test('making a page does not cancel a verdict request nobody cancelled', async ({

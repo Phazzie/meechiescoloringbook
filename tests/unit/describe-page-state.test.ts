@@ -260,14 +260,56 @@ describe('asking for an interpretation', () => {
 		expect(state.pageExports).toEqual([]);
 	});
 
-	it('reports a network failure without inventing a code', async () => {
+	it('words a network failure itself instead of showing the exception', async () => {
+		// `Connection reset` is addressed to whoever wrote the fetch helper. It used to be the whole
+		// of what a reader was told, and it is now kept where a developer can still find it.
 		const state = newState();
 		routes.interpret = async () => {
 			throw new Error('Connection reset');
 		};
 		state.setMessage(A_MESSAGE);
 		await state.interpret();
-		expect(state.interpretError).toBe('Connection reset');
+		expect(state.interpretError).not.toContain('Connection reset');
+		expect(state.interpretError).toContain('could not reach Meechie');
+		expect(state.interpretFailure?.cause).toBe('unreachable');
+		expect(state.interpretFailure?.detail).toBe('Connection reset');
+	});
+
+	it('says the reader is offline, when it knows they are', async () => {
+		// The same throw, classified one degree more specifically because the connection reading is
+		// available. It sharpens the sentence; it never decides it.
+		const state = newState();
+		state.readConnection = () => false;
+		routes.interpret = async () => {
+			throw new Error('Failed to fetch');
+		};
+		state.setMessage(A_MESSAGE);
+		await state.interpret();
+		expect(state.interpretFailure?.cause).toBe('offline');
+		expect(state.interpretError).toContain('offline');
+		expect(state.interpretError).not.toContain('Failed to fetch');
+	});
+
+	it('re-asks the words that were sent, not whatever is in the box now', async () => {
+		// The box stays editable while the failure is on screen. A retry that read it live would
+		// send a different sentence under a control that says "again".
+		const state = newState();
+		routes.interpret = async () => {
+			throw new Error('Connection reset');
+		};
+		state.setMessage(A_MESSAGE);
+		await state.interpret();
+		state.setMessage('something else entirely');
+		await state.retryInterpret();
+
+		// Read off the `fetch` mock rather than the route stub, which is handed only a URL. Both
+		// requests must carry the sentence that was originally asked.
+		const sent = vi
+			.mocked(globalThis.fetch)
+			.mock.calls.filter(([url]) => url === ENDPOINTS.interpret)
+			.map(([, init]) => JSON.parse(String(init?.body)) as { message: string });
+		expect(sent).toHaveLength(2);
+		expect(sent.map((body) => body.message)).toEqual([A_MESSAGE, A_MESSAGE]);
 	});
 
 	it('says so when the answer does not match the contract at all', async () => {
@@ -484,6 +526,79 @@ describe('turning the interpretation into a page', () => {
 		const body = JSON.parse((generateCall?.[1] as RequestInit).body as string);
 		expect(body.styleHint).toContain('with roses');
 		expect(body.styleHint).not.toContain('something else entirely');
+	});
+
+	it('abandons a failed page\u2019s retry once a new interpretation replaces it', async () => {
+		// A successful read-back calls `resetPage()`, and that has to take the retry with it: the
+		// page that failed belonged to the interpretation this one replaces, so re-sending it would
+		// charge the reader a generation for a page they have already moved on from.
+		const state = await withReadback();
+		routes.generate = async () => {
+			throw new Error('Failed to fetch');
+		};
+		await state.makePage();
+		await flush();
+		expect(state.failure?.cause).toBe('unreachable');
+
+		routes.interpret = okInterpret(OTHER_INTERPRETED);
+		state.setMessage('a completely different page');
+		await state.interpret();
+		await flush();
+		expect(state.failure).toBeNull();
+
+		await state.retryPage();
+		await flush();
+		expect(fetchCalls.filter((url) => url === ENDPOINTS.generate)).toHaveLength(1);
+	});
+
+	it('keeps the retry pointed at the same page when a later read-back fails', async () => {
+		// A failed interpretation changes nothing on screen, so the page that failed is still the
+		// page the reader is waiting for — and the retry must re-send that spec, not rebuild one
+		// from whatever is in the box by then.
+		const state = await withReadback();
+		routes.generate = async () => {
+			throw new Error('Failed to fetch');
+		};
+		await state.makePage();
+		await flush();
+
+		routes.interpret = async () => {
+			throw new Error('Connection reset');
+		};
+		state.setMessage('a completely different page');
+		await state.interpret();
+		await flush();
+
+		await state.retryPage();
+		await flush();
+
+		const sent = vi
+			.mocked(globalThis.fetch)
+			.mock.calls.filter(([url]) => url === ENDPOINTS.generate)
+			.map(([, init]) => JSON.parse(String(init?.body)) as { spec: { title: string } });
+		expect(sent).toHaveLength(2);
+		expect(sent.map((body) => body.spec.title)).toEqual([
+			INTERPRETED.title,
+			INTERPRETED.title
+		]);
+	});
+
+	it('offers no retry for a page the server refused on its merits', async () => {
+		// `IMAGE_VALIDATION_ERROR` means the request itself was rejected. The same request buys the
+		// same refusal, so the notice must not offer a control that spends a generation on it.
+		const state = await withReadback();
+		routes.generate = async () =>
+			jsonResponse(
+				{
+					ok: false,
+					error: { code: 'IMAGE_VALIDATION_ERROR', message: 'Spec is invalid.' }
+				},
+				{ status: 422 }
+			);
+		await state.makePage();
+		await flush();
+		expect(state.failure?.cause).toBe('request_rejected');
+		expect(state.failure?.retry.kind).toBe('change_request');
 	});
 
 	it('will not generate while an interpretation is in flight', async () => {

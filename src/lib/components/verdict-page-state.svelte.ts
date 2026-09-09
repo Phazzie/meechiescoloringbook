@@ -26,6 +26,11 @@ import type {
 	MeechieToolInput,
 	MeechieToolOutput
 } from '../../../contracts/meechie-tool.contract';
+import {
+	classifyGenerationFailure,
+	VERDICT_SUBJECT,
+	type GenerationFailure
+} from '$lib/core/generation-failure';
 import { PageArtifactState } from './page-artifact-state.svelte';
 import type { PageArtifactStateOptions } from './page-artifact-state.svelte';
 
@@ -45,7 +50,26 @@ export type VerdictPageStateOptions = PageArtifactStateOptions;
 export class VerdictPageState extends PageArtifactState {
 	// --- The verdict itself ---
 	verdict = $state<MeechieToolOutput | null>(null);
-	error = $state('');
+	/**
+	 * The last failed verdict request, classified.
+	 *
+	 * The verdict half needs this as much as the page half did, and on the same screen: a mode route
+	 * shows both, so a reader whose connection dropped used to see the app's own worded sentence
+	 * under one button and `Failed to fetch` under the other.
+	 *
+	 * An input that fails validation before anything is sent is classified here too, as a
+	 * `request_rejected`. That is not a stretched fit — it is exactly the cause's meaning, and it
+	 * gets the behaviour it should: a sentence, and no retry control, because pressing one against an
+	 * unchanged input buys the identical refusal.
+	 */
+	verdictFailure = $state<GenerationFailure | null>(null);
+	/**
+	 * The reader-facing sentence for the last verdict failure. Derived, so there is one writer.
+	 *
+	 * Read by the tests rather than by a surface: the notice takes the whole failure, since it needs
+	 * the retry advice as well as the words.
+	 */
+	error = $derived(this.verdictFailure?.message ?? '');
 	isWorking = $state(false);
 
 	// --- Page controls that belong to the verdict, not to the page ---
@@ -53,6 +77,14 @@ export class VerdictPageState extends PageArtifactState {
 	copyStatus = $state('');
 
 	private verdictToken = 0;
+	/**
+	 * The input of the most recent verdict ATTEMPT, so a retry re-asks the same question.
+	 *
+	 * Set only for inputs that actually passed validation and were sent. An input that never left
+	 * the browser has nothing to retry — the reader has to change it, which is what its
+	 * `change_request` advice already says.
+	 */
+	private lastVerdictInput: MeechieToolInput | null = null;
 
 	/**
 	 * Cleared with the page: a "Verdict copied." line under a verdict that is no longer there.
@@ -82,7 +114,8 @@ export class VerdictPageState extends PageArtifactState {
 	reset(): void {
 		this.verdictToken += 1;
 		this.isWorking = false;
-		this.error = '';
+		this.verdictFailure = null;
+		this.lastVerdictInput = null;
 		this.verdict = null;
 		this.dedication = '';
 		this.resetPage();
@@ -143,13 +176,18 @@ export class VerdictPageState extends PageArtifactState {
 		// so; letting the click through would contradict it. Priced at what `/api/tools` charges,
 		// not at the studio's rewrite cost.
 		if (this.verdictQuotaExhausted) return null;
-		this.error = '';
+		this.verdictFailure = null;
 		const parsedInput = MeechieToolInputSchema.safeParse(input);
 		if (!parsedInput.success) {
-			this.error = 'Please complete the required fields before asking Meechie.';
+			this.verdictFailure = this.classifyVerdictFailure({
+				rejected: 'Please complete the required fields before asking Meechie.'
+			});
 			return null;
 		}
 		this.isWorking = true;
+		// Recorded before the request, so a retry re-asks this question rather than whatever is in
+		// the form by the time the failure lands.
+		this.lastVerdictInput = parsedInput.data;
 
 		// Claim a fresh token so any earlier in-flight call is stale from here on.
 		this.verdictToken += 1;
@@ -177,11 +215,13 @@ export class VerdictPageState extends PageArtifactState {
 			}
 			const parsed = MeechieToolResultSchema.safeParse(payload);
 			if (!parsed.success) {
-				this.error = 'Tool response did not match contract.';
+				this.verdictFailure = this.classifyVerdictFailure({ offContract: true });
 				return null;
 			}
 			if (!parsed.data.ok) {
-				this.error = parsed.data.error.message;
+				this.verdictFailure = this.classifyVerdictFailure({
+					apiError: parsed.data.error
+				});
 				return null;
 			}
 			// Here, and only here, does what is on screen stop belonging to what is on screen.
@@ -193,14 +233,49 @@ export class VerdictPageState extends PageArtifactState {
 				abandoned = true;
 				return null;
 			}
-			this.error =
-				requestError instanceof Error
-					? requestError.message
-					: 'Network error. Try again.';
+			this.verdictFailure = this.classifyVerdictFailure({ thrown: requestError });
 			return null;
 		} finally {
 			if (!abandoned) this.isWorking = false;
 		}
+	}
+
+	/**
+	 * Classify one failed verdict request, with the context only this state holds.
+	 *
+	 * The TEXT bucket's reset instant, not the image one the page half uses. A verdict refused for
+	 * quota refills on the text window, and naming the image window's instant beside it would be the
+	 * same bucket mix-up `AiQuotaLedger` was built to make unrepresentable, one control over.
+	 */
+	private classifyVerdictFailure(
+		input: Pick<
+			Parameters<typeof classifyGenerationFailure>[0],
+			'thrown' | 'apiError' | 'offContract' | 'rejected'
+		>
+	): GenerationFailure {
+		return classifyGenerationFailure({
+			...input,
+			subject: VERDICT_SUBJECT,
+			// A verdict failure never keeps a page: it is about the words, not the paper, and the
+			// paper is untouched either way. Saying "the page on screen was kept" here would answer a
+			// question nobody asked about a thing that was never at risk.
+			pageKept: false,
+			quotaResetAtMs: this.quota.text?.resetAtMs ?? null,
+			isOnline: this.readConnection()
+		});
+	}
+
+	/**
+	 * Ask Meechie the same question again.
+	 *
+	 * Re-sends `lastVerdictInput`, so a retry cannot quietly ask a different question than the one
+	 * that failed — the form is editable while the request is in flight and while the failure is on
+	 * screen, which is exactly the window where reading it live would go wrong.
+	 */
+	async retryVerdict(): Promise<MeechieToolOutput | null> {
+		const input = this.lastVerdictInput;
+		if (!input || this.isWorking || this.isGenerating) return null;
+		return await this.requestVerdict(input);
 	}
 
 	/** Build the coloring page this verdict deserves, and package it for download. */

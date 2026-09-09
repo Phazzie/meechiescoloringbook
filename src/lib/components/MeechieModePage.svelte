@@ -17,6 +17,7 @@ Info flow: ModeConfig + reader's answers -> VerdictPageState.requestVerdict -> v
 	import AiQuotaLine from '$lib/components/AiQuotaLine.svelte';
 	import { MEECHIE_TOOL_QUOTA_COST } from '$lib/core/ai-quota';
 	import { VerdictPageState } from '$lib/components/verdict-page-state.svelte';
+	import GenerationFailureNotice from '$lib/components/GenerationFailureNotice.svelte';
 	import {
 		emptyModeFieldValues,
 		isModeInputComplete,
@@ -119,9 +120,12 @@ Info flow: ModeConfig + reader's answers -> VerdictPageState.requestVerdict -> v
 				</p>
 			{/if}
 
-			{#if studio.error}
-				<p class="error" data-testid="mode-error">{studio.error}</p>
-			{/if}
+			<GenerationFailureNotice
+				failure={studio.verdictFailure}
+				onRetry={() => void studio.retryVerdict()}
+				isBusy={studio.isWorking || studio.isGenerating}
+				testId="mode-error"
+			/>
 
 			<button
 				type="button"
@@ -193,9 +197,12 @@ Info flow: ModeConfig + reader's answers -> VerdictPageState.requestVerdict -> v
 				testId="mode-verdict-quota-retry"
 				id="verdict-budget"
 			/>
-			{#if studio.error}
-				<p class="error" data-testid="mode-error">{studio.error}</p>
-			{/if}
+			<GenerationFailureNotice
+				failure={studio.verdictFailure}
+				onRetry={() => void studio.retryVerdict()}
+				isBusy={studio.isWorking || studio.isGenerating}
+				testId="mode-error"
+			/>
 		</header>
 
 		<VerdictPageStudio
@@ -446,15 +453,6 @@ Info flow: ModeConfig + reader's answers -> VerdictPageState.requestVerdict -> v
 		cursor: not-allowed;
 	}
 
-	.error {
-		margin: 0;
-		padding: 0.7rem 1rem;
-		border-radius: 0.6rem;
-		background: rgba(232, 0, 106, 0.1);
-		border: 1px solid rgba(232, 0, 106, 0.3);
-		font-size: 0.88rem;
-		color: #ff8fab;
-	}
 
 	.other-modes {
 		position: relative;
