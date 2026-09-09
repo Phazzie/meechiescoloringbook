@@ -15128,11 +15128,9 @@ chain and **82 Playwright tests**, all exit 0.
 
 ### The reviewers
 
-**Sourcery** refused for budget, as Run 21 predicted — but the window is **worse than this log
-recorded**. Run 20 estimated it reopening around 2026-09-10 23:00 UTC; the actual refusal on this
-pull request says **"6 days and 7 hours"**, so roughly **2026-09-16**. A run inside that window
-should expect no line-by-line Sourcery review at all. **Correct the carried-forward date rather than
-inheriting Run 20's.**
+**Sourcery** refused for budget, as Run 21 predicted. This paragraph originally read the refusal's
+"6 days and 7 hours" as a reopening date of roughly 2026-09-16. **That was wrong, and the fourth
+close-out below has the measurement that disproves it.**
 
 **CodeRabbit** skipped for the repository having fewer than ten stars, a standing condition.
 **Codex** was "Running" against `32e658e` at the time of writing. **CodeQL** and **SonarCloud** both
@@ -15415,9 +15413,14 @@ Re-measure everything below; do not inherit it.
 - Every item on **Run 19's carried-forward list** still stands, untouched by this run.
 - **Run 18 still has no merge close-out entry.** Carried for five runs. Either a run reconstructs it
   from PR #337 or a future entry should stop claiming it as pending.
-- **Sourcery's budget window is longer than this log recorded.** Run 20 estimated it reopening about
-  2026-09-10; the refusal on this pull request says **"6 days and 7 hours"**, so roughly
-  **2026-09-16**. Correct the date rather than inheriting Run 20's.
+- **Sourcery's refusal quotes a wait that depends on the diff, not a date the budget reopens.**
+  Measured this run: the refusal on PR #345 (a 1,898-line diff) said **"6 days and 7 hours"**, and
+  the refusal on PR #346 **forty minutes later** — a docs-only diff of one appended log entry — said
+  **"1 day and 4 hours"**. Same account, same rolling seven-day budget, same evening. The only thing
+  that changed was the size of the diff being asked for. So the number is *"when enough of the
+  window's spend will have rolled off to fit THIS diff"*, not *"when the budget resets"*. **Three
+  runs of this log have now recorded a flat reopening date; there is no such date.** A small pull
+  request may get a Sourcery review days before a large one would.
 - **SonarCloud still cannot be read from this container** (`sonarcloud.io`, `CONNECT tunnel failed,
   response 403`). Its "1 New issue" on this pull request was never identified. The repository has no
   `sonar-project.properties` and no Sonar workflow step, so it runs automatic analysis with defaults.
@@ -15428,3 +15431,37 @@ Re-measure everything below; do not inherit it.
   is scratch and was **not committed**. Worth an hour to the next run otherwise.
 - **Governance, met this run:** the plan was in `plan.md` before any code, which is the ordering Run
   21 recorded a deviation against.
+
+## Run 22, fourth close-out — 2026-09-09 — Sourcery's budget was never a date, and this log said it was three times
+
+Recorded because it was caught by accident and disproves something this log has now asserted in
+three separate entries.
+
+The merge close-out above said Sourcery's budget reopens "roughly 2026-09-16", reading it off the
+refusal on PR #345: *"You can request another review in 6 days and 7 hours."* Forty minutes later,
+the same bot refused **PR #346** — this run's own docs-only close-out, one appended log entry — with
+*"You can request another review in **1 day and 4 hours**."*
+
+| Pull request | Diff | Quoted wait |
+|---|---|---|
+| #345 | 33 files, +1,898 / -123 | 6 days 7 hours |
+| #346 | 1 file, one appended entry | 1 day 4 hours |
+
+Same account, same rolling seven-day budget, forty minutes apart. **The only variable was the size
+of the diff.** So the number Sourcery quotes is *"when enough of the rolling window's spend will have
+expired to fit the diff you just asked about"* — not a reset instant. There is no single date at
+which the budget reopens, and every entry in this log that named one was wrong:
+
+- Run 20 wrote "roughly 2026-09-10 23:00 UTC".
+- Run 21 reported that prediction as holding "to the day".
+- Run 22 corrected it to "roughly 2026-09-16" — also a date, also wrong.
+
+**Three runs, three flat dates, one structure none of them noticed.** Run 21's "prediction held" is
+the most instructive of the three: a wrong model can be confirmed by a matching observation when the
+thing you are predicting is *whether a refusal happens*, which it always does, rather than *when it
+stops*.
+
+What to do with it: **a small pull request may get a real Sourcery review while a large one from the
+same account cannot.** If a run wants line-by-line coverage on a large change, the lever is splitting
+the diff — which is also what this log's standing request for an owner ruling on evidence churn has
+been circling for four runs without naming the mechanism.
