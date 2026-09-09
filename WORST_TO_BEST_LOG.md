@@ -15097,10 +15097,9 @@ It is **not this diff's**. The same nested ternary exists verbatim on the base c
 `git diff d62f3af HEAD -- src/routes/studio-state.svelte.ts` adds no line mentioning either
 `restoredPageLayout` or `derivationChanged`, which are the two identifiers in the expression.
 
-SonarCloud then reported **success** on the first head. Prediction and measurement agree, which is
-what turns Run 21's diagnosis-by-measurement into a repeatable step rather than a story about one.
-**Run the rules before the analysis, not after the count arrives** — the answer is available locally
-and this container cannot read `sonarcloud.io` anyway.
+SonarCloud then reported the check run as **success**, and this log's first draft of this paragraph
+said "prediction and measurement agree". **That was wrong, and it is corrected below rather than
+left standing.**
 
 ### What the run's own re-reading caught that every green check missed
 
@@ -15142,3 +15141,46 @@ passed.
 That is **four runs in a row** merged with no line-by-line bot review. Run 21 called this a standing
 condition of the repository worth an owner ruling, and the refusal window being six days rather than
 one makes that ruling more urgent, not less.
+
+### Correction: the prediction did not hold, and the second attempt found the reason
+
+The paragraph above originally claimed the local run and SonarCloud agreed. They did not. The check
+run was green because the **Quality Gate passed**, which is a different statement from "no new
+issues" — the gate's comment on the first head reads **"1 New issue"**, with 0 accepted issues, 0
+security hotspots and 0.0% duplication on new code. *A green SonarCloud check is not a claim that a
+diff introduced nothing*, and reading it as one is the same mistake this log has now recorded four
+times in four different costumes.
+
+Finding the issue took three passes, and the two failed ones are the useful part:
+
+1. **Without type information, the local run is not the same analysis.** The first pass used
+   `eslint-plugin-sonarjs` with no `parserOptions.project`, and many of its rules simply do not fire
+   without a TypeScript program. Adding `project: './tsconfig.json'` took the hit count on the
+   changed files from one to seven.
+2. **Turning on every rule is not "being thorough", it is destroying the signal.** The second pass
+   enabled the 62 rules the plugin's `recommended` config sets to `off`. That produced 280-odd hits
+   — `arrow-function-convention`, `no-tab`, `file-header`, `no-undefined-assignment` — none of which
+   is in Sonar's default profile. Those rules are off *because* they are not Sonar way. The widened
+   run answered a question nobody asked.
+3. **The third pass was the right one, and its finding was in the one place a rule difference could
+   hide.** All seven type-aware `recommended` hits proved pre-existing (each cited source line found
+   verbatim in `git show d62f3af:<file>`). But `sonarjs/no-duplicate-string` — **S1192, which is in
+   Sonar way** — is one of the rules the plugin's `recommended` leaves off. Run alone at threshold 3
+   over the changed TypeScript, it found exactly one hit in code this diff **created**:
+   `tests/unit/storage-failure.test.ts:69`, the literal `'Stored creations are not an array.'`
+   written three times.
+
+`tests/e2e/smoke.spec.ts` carries dozens of S1192 hits, all on lines this diff never touched, and
+SonarCloud counted one new issue in total — which is what says its new-code attribution is by
+changed line. That leaves **exactly one candidate**, which is the bar Run 20's technique sets for
+acting rather than recording. Hoisted to a named `seamMessage` const, which the three assertions now
+share so they cannot drift into testing three slightly different strings.
+
+The measurement to watch on the next analysis is **1 New issue → 0**. If it does not move, the
+candidate was wrong and this paragraph is the record of why.
+
+**What to carry, and it is not the technique — it is the two ways the technique lies:**
+`eslint-plugin-sonarjs` without `parserOptions.project` is a weaker analyzer than SonarCloud, and
+its `recommended` profile is **not** Sonar way in either direction — it omits rules Sonar runs
+(S1192) and would add rules Sonar does not. Run it type-aware at `recommended`, **then** run the
+Sonar-way rules it leaves off, and never widen to all 279.

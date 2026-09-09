@@ -64,13 +64,16 @@ describe('classifyStorageFailure', () => {
 	});
 
 	it('never lets the seam speak to the reader either', () => {
+		// The adapter's real sentence for a damaged store, named once so the three assertions below
+		// cannot drift into testing three slightly different strings.
+		const seamMessage = 'Stored creations are not an array.';
 		const failure = classifyStorageFailure('read', {
 			code: 'STORAGE_SCHEMA_MISMATCH',
-			message: 'Stored creations are not an array.'
+			message: seamMessage
 		});
 
-		expect(failure.message).not.toContain('Stored creations are not an array.');
-		expect(failure.detail).toBe('Stored creations are not an array.');
+		expect(failure.message).not.toContain(seamMessage);
+		expect(failure.detail).toBe(seamMessage);
 		expect(failure.cause).toBe('unreadable');
 	});
 
