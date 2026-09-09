@@ -15078,3 +15078,67 @@ Re-measure everything below; do not inherit it.
   Run 21 recorded a deviation against. It was then *corrected* mid-run when the site count proved
   wrong. A plan that is edited when the measurement changes is the plan working; a plan written after
   the fact is not.
+
+## Run 22, first close-out — 2026-09-09 — the SonarCloud round, run before anyone asked, and a fallback that would have lied
+
+### SonarCloud was measured rather than waited for, and the measurement held
+
+Run 20 invented the technique and Run 21 proved it; this run ran it **before the first analysis
+came back**, which is the improvement worth carrying. `eslint-plugin-sonarjs` at its recommended
+profile, over the ten changed source files, produced exactly **one** hit:
+
+```
+src/routes/studio-state.svelte.ts
+  1679:7  error  Extract this nested ternary operation  sonarjs/no-nested-conditional
+```
+
+It is **not this diff's**. The same nested ternary exists verbatim on the base commit `d62f3af`
+(running the rule over `git show d62f3af:src/routes/studio-state.svelte.ts` reproduces it), and
+`git diff d62f3af HEAD -- src/routes/studio-state.svelte.ts` adds no line mentioning either
+`restoredPageLayout` or `derivationChanged`, which are the two identifiers in the expression.
+
+SonarCloud then reported **success** on the first head. Prediction and measurement agree, which is
+what turns Run 21's diagnosis-by-measurement into a repeatable step rather than a story about one.
+**Run the rules before the analysis, not after the count arrives** — the answer is available locally
+and this container cannot read `sonarcloud.io` anyway.
+
+### What the run's own re-reading caught that every green check missed
+
+Every gate was green on `32e658e` — both `verify` jobs, SonarCloud twice, CodeQL twice, Rosentic,
+Vercel. Re-reading the diff anyway found this, at all three save sites:
+
+```ts
+this.vaultStatus = result.ok
+    ? VAULT_SAVED_CONFIRMATION
+    : (this.vaultSaveFailure?.message ?? VAULT_SAVED_CONFIRMATION);
+```
+
+The fallback in the **false** branch is `VAULT_SAVED_CONFIRMATION` — *"Saved to the vault."* — sitting
+on the branch that runs when the save **failed**. It cannot fire today, because the line above sets
+`vaultSaveFailure` to a non-null value on exactly that branch. But it is the worst possible sentence
+to have parked there, it would report a lost page as a saved one, and `vaultLinkFor` would then hand
+that reader the "see all your saved pages" link for a page that is not there.
+
+This is the same defect shape as the lesson Run 20 recorded about
+`e instanceof Error ? e.message : '<fallback>'`: **the fallback nobody expects to run is the one
+nobody checks.** Replaced at all three sites with an explicit `if (result.ok) { … } else { … }`,
+where the failure branch has one thing it can say.
+
+Re-validated after the change: `check` 0/0, `lint`, 1,922 unit tests, `build`, the full `verify`
+chain and **82 Playwright tests**, all exit 0.
+
+### The reviewers
+
+**Sourcery** refused for budget, as Run 21 predicted — but the window is **worse than this log
+recorded**. Run 20 estimated it reopening around 2026-09-10 23:00 UTC; the actual refusal on this
+pull request says **"6 days and 7 hours"**, so roughly **2026-09-16**. A run inside that window
+should expect no line-by-line Sourcery review at all. **Correct the carried-forward date rather than
+inheriting Run 20's.**
+
+**CodeRabbit** skipped for the repository having fewer than ten stars, a standing condition.
+**Codex** was "Running" against `32e658e` at the time of writing. **CodeQL** and **SonarCloud** both
+passed.
+
+That is **four runs in a row** merged with no line-by-line bot review. Run 21 called this a standing
+condition of the repository worth an owner ruling, and the refusal window being six days rather than
+one makes that ruling more urgent, not less.

@@ -651,10 +651,14 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 			// The capacity refusals this app wrote come back verbatim, so `vaultLinkFor` still
 			// matches them exactly and still offers "Make room in the vault". Everything else
 			// becomes a sentence, and the seam's own words stop reaching the screen.
-			vaultSaveFailure = result.ok ? null : classifyStorageFailure('save', result.error);
-			vaultStatus = result.ok
-				? VAULT_SAVED_CONFIRMATION
-				: (vaultSaveFailure?.message ?? VAULT_SAVED_CONFIRMATION);
+			if (result.ok) {
+				vaultSaveFailure = null;
+				vaultStatus = VAULT_SAVED_CONFIRMATION;
+			} else {
+				const failure = classifyStorageFailure('save', result.error);
+				vaultSaveFailure = failure;
+				vaultStatus = failure.message;
+			}
 		} catch (saveError) {
 			if (isStaleSave()) return;
 			// Was the caught exception's own message. See `src/lib/core/storage-failure.ts`.

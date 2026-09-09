@@ -2814,10 +2814,14 @@ export class StudioState {
 			// `vaultLinkFor` still matches them character-for-character and still offers "Make room
 			// in the vault". Everything else becomes a sentence, and the seam's message goes to
 			// `vaultSaveFailure.detail` where System Trace can have it.
-			this.vaultSaveFailure = result.ok ? null : classifyStorageFailure('save', result.error);
-			this.vaultStatus = result.ok
-				? VAULT_SAVED_CONFIRMATION
-				: (this.vaultSaveFailure?.message ?? VAULT_SAVED_CONFIRMATION);
+			if (result.ok) {
+				this.vaultSaveFailure = null;
+				this.vaultStatus = VAULT_SAVED_CONFIRMATION;
+			} else {
+				const failure = classifyStorageFailure('save', result.error);
+				this.vaultSaveFailure = failure;
+				this.vaultStatus = failure.message;
+			}
 			await this.refreshCreations();
 		} catch (error) {
 			// This branch used to put a caught exception's own message on screen. It is the precise

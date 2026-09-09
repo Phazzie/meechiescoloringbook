@@ -792,10 +792,14 @@ export class PageArtifactState {
 			// what keeps `vaultLinkFor`'s exact match — and so the "Make room in the vault" link —
 			// working. Every other failure becomes a sentence, and the seam's own words go to
 			// `vaultSaveFailure.detail` rather than onto the screen.
-			this.vaultSaveFailure = result.ok ? null : classifyStorageFailure('save', result.error);
-			this.vaultStatus = result.ok
-				? VAULT_SAVED_CONFIRMATION
-				: (this.vaultSaveFailure?.message ?? VAULT_SAVED_CONFIRMATION);
+			if (result.ok) {
+				this.vaultSaveFailure = null;
+				this.vaultStatus = VAULT_SAVED_CONFIRMATION;
+			} else {
+				const failure = classifyStorageFailure('save', result.error);
+				this.vaultSaveFailure = failure;
+				this.vaultStatus = failure.message;
+			}
 		} catch (saveError) {
 			if (token !== this.pageToken) return;
 			// This branch put a caught exception's own message on screen — `generation-failure.ts`
