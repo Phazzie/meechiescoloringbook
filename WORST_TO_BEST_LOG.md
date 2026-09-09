@@ -15260,3 +15260,61 @@ written to do. None of them asks whether what it was written to do is a good ide
 
 Re-validated: `check` 0/0, `lint`, **1,927 unit tests**, `build`, the full `verify` chain and **82
 Playwright tests**, all exit 0.
+
+## Run 22, third close-out — 2026-09-09 — the SonarCloud candidate was wrong, and the count did not move
+
+The second close-out named `tests/unit/storage-failure.test.ts:69` as the single candidate for
+SonarCloud's "1 New issue" and committed to a measurement: **1 New issue → 0 on the next analysis.
+It did not move.** The count is **1 on all three heads** — `32e658e`, `b1fea8b` and `106a6f5` — and
+the duplicate-string hoist changed nothing. **The candidate was wrong**, and this is the record of
+why, as promised rather than quietly dropped.
+
+The hoist stays: naming the seam message once so three assertions share it is a small readability
+win on its own terms. But it fixed nothing, and the earlier entry saying it would is corrected here.
+
+### What was tried after that, and why it also failed
+
+Three further attempts, all negative, all worth writing down so a future run does not repeat them:
+
+1. **`sonarjs/no-commented-code` (S125).** In Sonar way, `off` in the plugin's `recommended` — the
+   same shape of gap that made S1192 look like the answer, and a plausible one given how
+   comment-heavy this run's new files are and that several comments quote code in backticks.
+   **Zero hits.**
+2. **All 62 off-rules, type-aware, intersected with the lines this diff actually added.** This is the
+   measurement the second close-out should have made instead of the unfiltered widened run: hits are
+   filtered to added lines and the pure-style rules the plugin turns off because they are not Sonar
+   way (`arrow-function-convention`, `no-tab`, `file-header`, `no-undefined-assignment`,
+   `cyclomatic-complexity`, …) are excluded by name. **No hits on added lines.**
+3. **The SonarCloud API, again.** `curl https://sonarcloud.io/api/issues/search?...` still returns
+   `CONNECT tunnel failed, response 403` from this container's egress proxy. Unchanged from Runs 19,
+   20 and 21.
+
+### The conclusion, stated as a limit rather than an answer
+
+The repository has **no `sonar-project.properties` and no Sonar step in either workflow** — it runs
+SonarCloud **automatic analysis** with defaults. SonarQube's TypeScript analyzer carries roughly a
+hundred rules that `eslint-plugin-sonarjs` has never implemented, and none of them can be run from
+here. So the most likely explanation is simply that **the issue is from a rule this container cannot
+execute**, and no amount of further local scanning will find it.
+
+**Stopping here is the finding.** The alternative was to keep proposing plausible-looking edits until
+the number happened to move, which is not diagnosis — it is changing code to satisfy a signal nobody
+has read. The Quality Gate **passes**, the check run is **green**, and duplication and hotspots on
+new code are both zero, so this does not block the merge.
+
+### The honest correction to Run 20's technique, which this log has now over-sold twice
+
+Run 20 invented "enumerate the profile's rules, grep the diff, act where there is exactly one
+candidate". Run 21 reported it working. This run reported it working **before the analysis came
+back**, then reported the wrong candidate with confidence, and is now reporting that it cannot find
+the issue at all.
+
+The technique's real limit, which neither earlier entry stated: **`eslint-plugin-sonarjs` is a strict
+subset of SonarCloud's analyzer, so a null local result is not evidence of a null remote one.** It
+can confirm a finding and it can rule a finding pre-existing. It cannot prove a diff introduced
+nothing. Run 21's success was a case where the rule happened to be one of the ported ones; that was
+luck about which rule fired, not a property of the method.
+
+**Carry this instead of the technique's reputation:** run it to *locate* a finding you already have
+reason to believe is local, and to *rule out* findings as pre-existing. Never quote its silence as a
+clean bill of health, and never let a stable count be "fixed" by a guess.
