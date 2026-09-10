@@ -1,3 +1,14 @@
+# Purpose: Capture the OUTER 'npm run verify' command's own output and exit status.
+# Why: verify.txt holds only the inner verify-runner stage, despite its name. Without this
+#      file the audit:gate result and the chain's exit status are asserted rather than
+#      captured, which is unauditable. Run 23 merged `baf5cb5` with this file absent and a
+#      close-out that claimed the chain was green, which a review caught.
+# Info flow: `npm run verify` -> scratch path -> moved here after the chain returns.
+# Invariant: written AFTER the chain, per docs/evidence/README.md "Capture order", so it is
+#            deliberately absent from that chain's own proof-tape inventory. Captured to a
+#            scratch path first, because a file cannot be inventoried while still being
+#            written. The exit status is read from `$?` immediately after the command, never
+#            from PIPESTATUS after an intervening command, which reports the wrong process.
 
 > meechies-coloringbook@0.1.0 verify
 > npm run audit:gate && node scripts/chamber-lock.mjs && node scripts/verify-runner.mjs && node scripts/shaolin-lint.mjs && node scripts/assumption-alarm.mjs && node scripts/seam-ledger.mjs && node scripts/clan-chain.mjs && node scripts/proof-tape.mjs
@@ -40,8 +51,8 @@ svelte-check found 0 errors and 0 warnings
 
 [2m Test Files [22m [1m[32m112 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (113)[39m
 [2m      Tests [22m [1m[32m1981 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (1982)[39m
-[2m   Start at [22m 03:11:28
-[2m   Duration [22m 97.07s[2m (transform 3.78s, setup 958ms, import 7.72s, tests 8.52s, environment 62.24s)[22m
+[2m   Start at [22m 03:24:33
+[2m   Duration [22m 94.91s[2m (transform 3.88s, setup 910ms, import 7.77s, tests 8.76s, environment 60.26s)[22m
 
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package

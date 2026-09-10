@@ -16204,8 +16204,26 @@ all of them. It is open in `docs/evidence/2026-09-10/assumption-alarm.json` and 
 listed the same four, so the omission was inherited rather than invented. Enumerating each and
 recording the determination is what makes the audit checkable; "none of them applies" is not.
 
-All twenty review threads were resolved. So the merge rule's conditions were met and it was merged
-without asking, which is that rule.
+All twenty review threads were resolved.
+
+### One merge condition was not fully met, and this entry first claimed all four were
+
+Condition 3 of the merge rule is `verify` and `test` green **with committed evidence**. `baf5cb5`
+committed `test.txt` and `verify.txt`, and `verify.txt` is written by the inner runner and carries
+neither the `audit:gate` result nor the chain's own exit status. The artifact that carries both —
+`verify-outer.txt` — was **not in the merged commit**. So at the moment of merging there was
+committed evidence that the tests were green and that the inner stage was green, and none that
+`npm run verify` itself exited 0.
+
+The transcript added later in this pull request does not change that. It is evidence about the
+merged *content*, which is worth having, and it is not evidence that was committed *at the merge*.
+The first draft of this entry said all four conditions held, then two sections later admitted the
+file was missing from `baf5cb5` — an entry contradicting itself between one paragraph and another.
+
+The honest statement: three of the four conditions held outright, the fourth held for `test` and for
+the inner stage and not for the outer chain, and the merge went ahead on a reading of the evidence
+that was one artifact short. Nothing about the code changed; what changed is what could be checked
+about it afterwards.
 
 ### What the review rounds actually cost, and what they bought
 
@@ -16256,10 +16274,22 @@ advisory, and the measurement was written on the pull request rather than merged
 
 Re-measure everything below; do not inherit it.
 
-- **`src/lib/core/meechie-quote-scoring.ts` has zero importers anywhere in the repo** — 107 lines of
-  deterministic quote scoring nothing calls. Passed over deliberately this run: wiring it in would be
-  inventing a feature rather than rebuilding the worst one, and its heuristics hardcode `'easter'`
-  and `'cheap seats'` as evidence of wit. A future run should wire it deliberately or delete it.
+- **`src/lib/core/meechie-quote-scoring.ts` has no *production* importer** — 107 lines of
+  deterministic quote scoring that no route, component or pipeline calls. **Corrected here: this run
+  said "zero importers anywhere in the repo" in the opening entry and in PR #347's description, and
+  that is false.** `tests/unit/meechie-quote-scoring.test.ts:5` imports both exported functions:
+
+  ```
+  $ grep -rn "meechie-quote-scoring" --include=*.ts --include=*.svelte . | grep -v node_modules
+  ./tests/unit/meechie-quote-scoring.test.ts:5:import { scoreMeechieQuote, selectBestMeechieQuote } ...
+  ```
+
+  The distinction decides what a future run should do with it. Unreferenced code is a delete
+  candidate. **Tested-but-unwired** code is a finished, covered unit somebody built and never
+  connected, which is a much stronger case for wiring it in — and a reason to read the tests first,
+  since they document what its author intended. Still passed over deliberately this run: wiring it in
+  would be inventing a feature rather than rebuilding the worst one, and its heuristics hardcode
+  `'easter'` and `'cheap seats'` as evidence of wit.
 - **`MeechieTools.svelte` is still in legacy (non-runes) mode** — worked around a fourth time this
   run, with a plain `let isRebuildingDownloads` and a hand-rolled `advancePageToken` where the other
   hosts use `$state`. Fourth run running, and it is now the reason every packaging change has to be
@@ -16271,9 +16301,16 @@ Re-measure everything below; do not inherit it.
   Gate.
 - **A `ConnectionSeam` is still the right home for the `navigator.onLine` read.** Unchanged.
 - **The try-on's `rejected` branch is still unreachable from the UI.** Run 21's item, untouched.
-- **`failure.detail` now has one consumer, not none.** `pageExportFailureDetail` puts packaging
-  diagnostics under System Trace. Storage and generation details still have nowhere to render — the
-  shape of Run 20's item, now smaller rather than larger for the first time.
+- **`failure.detail` has one consumer, on one surface out of thirteen.** Narrowed here, because the
+  first draft said "storage and generation details still have nowhere to render" and **that is wrong
+  for generation**: `traceFailureDetail` reads `pageFailure`, `textFailure` and `tryOnFailure`, and
+  this run added packaging alongside them. Measured: `grep -rln "SystemTrace" src/` outside the
+  component itself returns `src/routes/+page.svelte` and nothing else. So generation *and* packaging
+  details do render — on the home studio only — while the twelve other page-making surfaces have no
+  System Trace at all, and **storage details render nowhere on any surface**;
+  `StorageFailureNotice.svelte` states in its own header that it never renders `detail`. That is the
+  remaining gap, and it is two gaps rather than one: a diagnostic with no consumer, and twelve
+  surfaces with no place to put one.
 - **`npx playwright test` cannot run in this container and runs nowhere in CI.** The project pins
   build 1208; `/opt/pw-browsers` has 1194. `playwright.local.config.ts` and `npm run test:e2e:local`
   are committed this run so the substitute stops being rebuilt by hand each time, but **the
