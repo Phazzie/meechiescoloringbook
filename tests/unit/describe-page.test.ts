@@ -186,6 +186,29 @@ describe('readBackInterpretedPage', () => {
 		expect(readback.lines.every((line) => !line.isSecondLine)).toBe(true);
 	});
 
+	// `/describe` is the one page-making surface with no override control: the reader says what they
+	// want in words and the interpreter chooses. So this read-back is the *only* place a chosen
+	// `whitespaceScale` is visible before a generation is paid for — and `whitespaceScale` now
+	// reaches the picture, where before it reached nothing at all. It was missing from the first
+	// draft of that change, which is the same defect the change exists to fix.
+	it('names how much of the sheet is left blank, which only this read-back can show', () => {
+		expect(readBackInterpretedPage(spec({ whitespaceScale: 35 })).facts).toContain(
+			'About 35% of the sheet left blank to colour.'
+		);
+		expect(readBackInterpretedPage(spec({ whitespaceScale: 80 })).facts).toContain(
+			'About 80% of the sheet left blank to colour.'
+		);
+	});
+
+	// The interpreter can return any value the contract allows, so the read-back must be able to
+	// name one the reader's controls elsewhere would never produce. Rounding it to a nearby named
+	// step would report the page as something it is not.
+	it('names a value no control offers rather than rounding it to one that does', () => {
+		expect(readBackInterpretedPage(spec({ whitespaceScale: 47.4 })).facts).toContain(
+			'About 47% of the sheet left blank to colour.'
+		);
+	});
+
 	it('shows the footer item where the prompt actually draws it: second, unnumbered', () => {
 		// `prompt-assembly-seam` L55 and L83-85 use `footerItem.label` as the unnumbered second line
 		// directly under the headline, and never use `footerItem.number` at all. Showing it numbered

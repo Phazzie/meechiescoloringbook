@@ -18,6 +18,24 @@ const RUN_MARKER = 'chamber-lock.json';
 const OWN_OUTPUTS = new Set(['proof-tape.json', 'proof-tape.md']);
 
 /**
+ * Evidence this tape cannot honestly inventory, for the same reason as `OWN_OUTPUTS` but from the
+ * other direction: it is still being written while this runs.
+ *
+ * `verify-outer.txt` is the transcript of the outer `npm run verify`, streamed by
+ * `scripts/verify-outer.mjs` — the wrapper *around* the chain this tape is the last step of. Its
+ * final two lines, the ones carrying the chain's exit status, are appended after this process has
+ * already exited. A review of PR #350 measured the consequence exactly: the tape recorded
+ * `sizeBytes: 4294` for a file that ended at 4357 bytes, and the line proving the chain exited 0 was
+ * the part it could not see.
+ *
+ * The circularity is not fixable by ordering — no step inside a chain can inventory the transcript
+ * of that chain — so the file is skipped rather than listed at a size that is always short. The
+ * transcript is committed evidence in its own right; being absent from this list costs nothing, and
+ * being present at a wrong size cost the tape its credibility.
+ */
+const WRITTEN_AROUND_THIS_RUN = new Set(['verify-outer.txt']);
+
+/**
  * @returns {Promise<string | null>}
  */
 const getLatestEvidenceDir = async () => {
@@ -124,7 +142,9 @@ export const renderProofTapeLines = (report, markedFiles) => {
 		`Evidence folder: ${report.evidenceDir}`,
 		'',
 		`Files included (this tape's own outputs, ${[...OWN_OUTPUTS].join(' and ')}, are written`,
-		'after this inventory is taken, so they are not listed):',
+		'after this inventory is taken, so they are not listed; nor is',
+		`${[...WRITTEN_AROUND_THIS_RUN].join(' and ')}, which the wrapper around this chain is still`,
+		'writing while this runs and would therefore always be listed short):',
 		''
 	];
 	for (const file of markedFiles) {
@@ -163,7 +183,7 @@ const run = async () => {
 	/** @type {EvidenceFile[]} */
 	const files = [];
 	for (const entry of entries) {
-		if (OWN_OUTPUTS.has(entry)) {
+		if (OWN_OUTPUTS.has(entry) || WRITTEN_AROUND_THIS_RUN.has(entry)) {
 			continue;
 		}
 		const filePath = path.join(evidenceDir, entry);

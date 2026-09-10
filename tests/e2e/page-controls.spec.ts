@@ -27,7 +27,7 @@ test('the shut panel names what it is set to, and its affordance tracks the pane
 
 	// Was the constant "Page Controls" over the constant "Open".
 	await expect(panel.locator('summary strong')).toHaveText(
-		'Crown Energy · Receipts Out · Mild · sometimes in third person · US Letter · decorative border'
+		'Crown Energy · Receipts Out · Mild · sometimes in third person · US Letter · decorative border · small lettering · balanced'
 	);
 	await expect(affordance).toHaveText('Open');
 
@@ -50,7 +50,7 @@ test('the selected theme is announced, not only tinted', async ({ page }) => {
 	await expect(panel.getByRole('button', { pressed: true })).toHaveCount(1);
 	await expect(panel.getByRole('button', { pressed: true }).first()).toContainText('Pretty & Petty');
 	await expect(panel.locator('summary strong')).toHaveText(
-		'Pretty & Petty · Receipts Out · Mild · sometimes in third person · US Letter · decorative border'
+		'Pretty & Petty · Receipts Out · Mild · sometimes in third person · US Letter · decorative border · small lettering · balanced'
 	);
 });
 
@@ -99,8 +99,11 @@ test('the closed panel says so when a page carries no style of its own', async (
 						alignment: 'left',
 						numberAlignment: 'strict',
 						listGutter: 'normal',
-						whitespaceScale: 50,
-						textSize: 'small',
+						// Deliberately neither of the studio's own defaults (small at 50), so the
+						// summary below proves these came off the record rather than coincidentally
+						// matching what the controls already showed.
+						whitespaceScale: 35,
+						textSize: 'large',
 						fontStyle: 'rounded',
 						textStrokeWidth: 6,
 						colorMode: 'black_and_white_only',
@@ -125,7 +128,7 @@ test('the closed panel says so when a page carries no style of its own', async (
 	const panel = page.locator('.settings-panel');
 	// Before reopening it, the panel describes the reader's own controls, as it should.
 	await expect(panel.locator('summary strong')).toHaveText(
-		'Crown Energy · Receipts Out · Mild · sometimes in third person · US Letter · decorative border'
+		'Crown Energy · Receipts Out · Mild · sometimes in third person · US Letter · decorative border · small lettering · balanced'
 	);
 
 	await page.getByRole('button', { name: /A PAGE FROM BEFORE/ }).first().click();
@@ -133,11 +136,22 @@ test('the closed panel says so when a page carries no style of its own', async (
 	// Now the page on the paper is one whose style nobody recorded, and the shut panel says so
 	// rather than presenting the reader's settings as that page's.
 	// The paper half survives: page size and border are spec fields, so they *are* on file, and
-	// the substitute sentence replaces only the half that is not.
+	// the substitute sentence replaces only the half that is not. Lettering and room to colour are
+	// spec fields too and survive for exactly the same reason — and they come back as the *record's*
+	// values, large at 35, not as the controls' small at 50.
 	await expect(panel.locator('summary strong')).toHaveText(
-		"This page's style is not on file · US Letter · decorative border"
+		"This page's style is not on file · US Letter · decorative border · large lettering · 35% blank"
 	);
 	await panel.locator('summary').click();
+
+	// The control itself, not only the summary. 35 is not one of the three steps the control offers,
+	// and a `<select>` set to a value no `<option>` carries renders **blank** — so the reader
+	// reopened a page and the control describing it showed nothing at all. This assertion is the one
+	// the first version of this test was missing: it checked the summary text and never looked at
+	// the select, so it passed while the control was empty. Caught in review of PR #350.
+	await expect(panel.locator('#home-page-look-room')).toHaveValue('35');
+	await expect(panel.locator('#home-page-look-room')).toContainText("35% blank — this page's own");
+	await expect(panel.locator('#home-page-look-lettering')).toHaveValue('large');
 	// The notice's own wording matters, not just its presence: it used to end "changing any of them
 	// will restyle the page", which the artifact snapshot later made false and which contradicted the
 	// lede directly beneath it.
@@ -153,6 +167,10 @@ test('every control the panel holds reaches the shut summary', async ({ page }) 
 	// Size or Border and then shut the panel watched the one line the panel shows stay exactly as
 	// it was — the "reports nothing" the whole rebuild is against, in the control it is easiest to
 	// miss.
+	//
+	// Lettering and Room to colour are here for the same reason and not as an afterthought: the
+	// panel holds nine controls now, and this test is the one that fails when a tenth is added
+	// without being reported.
 	const panel = await openPanel(page);
 	const summary = panel.locator('summary strong');
 
@@ -165,8 +183,40 @@ test('every control the panel holds reaches the shut summary', async ({ page }) 
 	await panel.locator('#border').selectOption('none');
 	await expect(summary).toContainText('no border');
 
+	await panel.locator('#home-page-look-lettering').selectOption('large');
+	await expect(summary).toContainText('large lettering');
+
+	await panel.locator('#home-page-look-room').selectOption('75');
+	await expect(summary).toContainText('roomy');
+
 	await expect(summary).toHaveText(
-		'Crown Energy · Receipts Out · Mild · never in third person · A4 · no border'
+		'Crown Energy · Receipts Out · Mild · never in third person · A4 · no border · large lettering · roomy'
+	);
+});
+
+test('the two controls that decide how much is left to colour reach the page', async ({ page }) => {
+	// `textSize` and `whitespaceScale` are `ColoringPageSpec` fields that reached no prompt at all
+	// and that no surface in the app let a reader set. This is the browser-level cover for both
+	// halves of that: the controls exist, they say what they do, and what they say follows what is
+	// actually in effect.
+	const panel = await openPanel(page);
+
+	// The help line describes the value in effect, starting from the studio's own default.
+	await expect(panel.locator('#home-page-look-lettering-help')).toContainText(
+		'Leaves most of the sheet free to colour'
+	);
+	await expect(panel.locator('#home-page-look-room-help')).toContainText(
+		'About half the sheet left blank'
+	);
+
+	await panel.locator('#home-page-look-lettering').selectOption('large');
+	await expect(panel.locator('#home-page-look-lettering-help')).toContainText(
+		'The words are most of the page'
+	);
+
+	await panel.locator('#home-page-look-room').selectOption('25');
+	await expect(panel.locator('#home-page-look-room-help')).toContainText(
+		'About a quarter of the sheet left blank'
 	);
 });
 

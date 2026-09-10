@@ -15,6 +15,7 @@ import {
 	TitleSchema
 } from '../seams/spec-validation-seam/contract';
 import { compactColoringPageTitle } from './coloring-page-title';
+import { applyPageLook, DEFAULT_PAGE_LOOK, type PageLookSelection } from './page-style';
 import { MeechieStudioTextOutputSchema } from '../../../contracts/meechie-studio-text.contract';
 import type { MeechieStudioTextOutput } from '../../../contracts/meechie-studio-text.contract';
 
@@ -27,6 +28,15 @@ export type ToolPageRecipe = {
 export type ToolPageRecipeOptions = {
 	/** Optional "dedicated to" line the user typed. Sanitized and dropped if it survives empty. */
 	dedication?: string;
+	/**
+	 * The reader's choice of lettering size and room to colour, `null` per field for the page's own.
+	 *
+	 * An override rather than a value, because the recipe's own answer depends on the page it is
+	 * building: a quote page and a list page do not want the same amount of blank space, and the
+	 * house look is `large` lettering rather than the studio's `small`. Passing a concrete value
+	 * here would have thrown that away for every reader who never touched a control.
+	 */
+	look?: PageLookSelection;
 };
 
 /**
@@ -522,13 +532,24 @@ const BASE_SPEC = {
 
 /**
  * A quote page puts the words in the middle of the sheet and lets the decoration ring them.
- * More whitespace than a list page, because there is only one block of text to place.
+ *
+ * **The comment here used to read "More whitespace than a list page", above a `whitespaceScale` of
+ * 35 sitting beside the list page's 45.** Higher means more blank space, so the comment and the
+ * numbers disagreed. Nothing noticed for the application's whole life because nothing read the
+ * field: it reached no prompt until `whitespaceLine` was written, so 35 and 45 produced the same
+ * picture and the contradiction cost nothing.
+ *
+ * The numbers are left exactly as they shipped and the comment is corrected to match them. Changing
+ * them would change what every tool page asks for, on the same run that makes the field effective
+ * for the first time, and no one could then tell which of the two changes did what. Which ordering
+ * the author wanted is an open question for the owner; the reader's own control now answers it for
+ * any page they care about.
  */
 const QUOTE_PAGE_STYLE = { whitespaceScale: 35, listGutter: 'normal' } as const;
 
 /**
  * A list page needs the lines to breathe and leaves the bottom of the sheet open, which is the
- * Type B layout the app's reference pages use.
+ * Type B layout the app's reference pages use — so it carries more blank space than a quote page.
  */
 const LIST_PAGE_STYLE = { whitespaceScale: 45, listGutter: 'loose' } as const;
 
@@ -633,7 +654,13 @@ export const buildToolPageRecipe = (
 		...(dedication ? { dedication } : {})
 	} satisfies ColoringPageSpec;
 
-	return { spec, styleHint: presentation.styleHint };
+	// Last, and only over the two fields it names. The reader's choice beats the house look and the
+	// per-tool override alike, and an untouched control changes nothing at all — `DEFAULT_PAGE_LOOK`
+	// is null on both fields, so this is the identity for every caller that passes no `look`.
+	return {
+		spec: applyPageLook(spec, options.look ?? DEFAULT_PAGE_LOOK),
+		styleHint: presentation.styleHint
+	};
 };
 
 /** The two-item floor `MeechieStudioTextOutputSchema` puts on `pageItems`. */

@@ -34,6 +34,8 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 	import type { PageExportAttempt } from '$lib/core/page-exports';
 	import { packagePageVariant } from './page-packaging';
 	import PageExportRow from './PageExportRow.svelte';
+	import PageLookControls from './PageLookControls.svelte';
+	import { DEFAULT_PAGE_LOOK, type PageLookSelection } from '$lib/core/page-style';
 	import SharePageButton from './SharePageButton.svelte';
 	import QualityReportPanel from './QualityReportPanel.svelte';
 	import PrintPageButton from './PrintPageButton.svelte';
@@ -246,6 +248,20 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 	// button beneath them charges `image`. The hub reported neither until now.
 	const quota = new AiQuotaMeter();
 	let dedicatedTo = '';
+	// The reader's choice of lettering size and room to colour, `null` per field for the page's own.
+	// A plain `let` rather than `$state` because this component is still in legacy (non-runes) mode,
+	// like `vaultSaveFailure` below — the fourth run to work around that, and still a carried-forward
+	// item rather than this one's.
+	let pageLook: PageLookSelection = { ...DEFAULT_PAGE_LOOK };
+	// What the two fields will actually be on the page the current verdict makes, read off the
+	// recipe so this hub and `makePage` cannot disagree. Null with no verdict: no page, nothing to
+	// describe. `dedicatedTo` is deliberately not in this call — it changes the page but not these
+	// two fields, and including it would rebuild the recipe on every keystroke in that box.
+	$: effectivePageLook = output
+		? (({ textSize, whitespaceScale }) => ({ textSize, whitespaceScale }))(
+				buildToolPageRecipe(output, { look: pageLook }).spec
+			)
+		: null;
 	let copyStatus = '';
 	let vaultStatus = '';
 	// The classified failure behind `vaultStatus`, where it is reporting one. This component is
@@ -551,7 +567,7 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 		const verdict = source;
 		const token = pageToken;
 		const isStale = (): boolean => token !== pageToken;
-		const recipe = buildToolPageRecipe(verdict, { dedication: dedicatedTo });
+		const recipe = buildToolPageRecipe(verdict, { dedication: dedicatedTo, look: pageLook });
 		const generateRequestedAtMs = clockSeam.now();
 		try {
 			const payload = await postJson(
@@ -1111,6 +1127,25 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 				/>
 			</div>
 
+			<!-- Above the paid button, because these change the page it makes and a control found
+			     after the money is spent is not a control. The eleven-tool hub is the fourteenth
+			     page-making surface, and until now not one of them let a reader say how much of the
+			     sheet they wanted left to colour. -->
+			{#if effectivePageLook}
+				<fieldset class="page-look-field" data-testid="meechie-tool-page-look">
+					<legend>Room to colour</legend>
+					<p class="field-help">
+						How much of the sheet is words, and how much is yours.
+					</p>
+					<PageLookControls
+						look={pageLook}
+						effective={effectivePageLook}
+						idPrefix="meechie-tool-look"
+						onChange={(next) => (pageLook = next)}
+					/>
+				</fieldset>
+			{/if}
+
 			<GenerationFailureNotice
 				failure={pageFailure}
 				onRetry={() => void handleRetryPage()}
@@ -1212,6 +1247,31 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 </section>
 
 <style>
+	/* The controls themselves are styled by `PageLookControls`, which owns them on every host.
+	   Only the frame around them belongs here. */
+	.page-look-field {
+		margin: 0;
+		padding: 0;
+		border: 0;
+	}
+
+	.page-look-field legend {
+		padding: 0;
+		font-family: var(--font-label, 'Barlow Condensed', sans-serif);
+		font-size: 0.78rem;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.1em;
+		color: var(--gold-bright, #f0c44a);
+	}
+
+	.page-look-field .field-help {
+		margin: 0.35rem 0 0.75rem;
+		font-size: 0.85rem;
+		line-height: 1.45;
+		color: var(--lavender, #b8aacf);
+	}
+
 	.meechie {
 		position: relative;
 		display: flex;

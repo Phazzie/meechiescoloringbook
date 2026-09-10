@@ -8,6 +8,10 @@ import {
 	pageSizeLine,
 	fontStyleLine,
 	textStrokeLine,
+	letteringLine,
+	whitespaceLine,
+	MAX_PROMPTABLE_WHITESPACE,
+	MIN_PROMPTABLE_WHITESPACE,
 	decorationLine,
 	illustrationLine,
 	shadingLine,
@@ -253,6 +257,89 @@ describe('prompt-template helpers', () => {
 			expect(lines).toContain('no gradients');
 			expect(lines).toContain('no filled shapes');
 			expect(lines).toContain('no extra words');
+		});
+	});
+
+	describe('letteringLine', () => {
+		it('says something different for every text size', () => {
+			const lines = (['small', 'medium', 'large'] as const).map(letteringLine);
+			expect(new Set(lines).size).toBe(3);
+		});
+
+		it('names the size the spec asked for', () => {
+			expect(letteringLine('small')).toContain('small');
+			expect(letteringLine('medium')).toContain('medium');
+			expect(letteringLine('large')).toContain('large');
+		});
+
+		// How much of the sheet is covered is `whitespaceScale`'s answer. Two lines in one prompt
+		// each claiming to set page occupancy force the model to pick one and ignore the other.
+		it('makes no claim about how much of the sheet is covered', () => {
+			for (const size of ['small', 'medium', 'large'] as const) {
+				const line = letteringLine(size).toLowerCase();
+				for (const claim of ['sheet', 'page', 'room to colour', 'blank', 'filling', '%']) {
+					expect(line).not.toContain(claim);
+				}
+			}
+		});
+
+		// `PROMPT_FORBIDDEN_TOKENS` contains `size:`, and the drift check reports any line carrying
+		// one. A line called "Text size:" would have made every page in the app report a forbidden
+		// token, which is why this one is called "Lettering".
+		it('carries no forbidden token', () => {
+			for (const size of ['small', 'medium', 'large'] as const) {
+				const lowered = letteringLine(size).toLowerCase();
+				for (const token of PROMPT_FORBIDDEN_TOKENS) {
+					expect(lowered).not.toContain(token);
+				}
+			}
+		});
+	});
+
+	describe('whitespaceLine', () => {
+		it('states the scale the spec asked for', () => {
+			expect(whitespaceLine(35)).toContain('35%');
+			expect(whitespaceLine(50)).toContain('50%');
+		});
+
+		// Every page in this app draws an exact headline, so "leave 100% of the sheet blank" and
+		// "leave 0% blank" each contradict the TEXT block in the same prompt. Contradictory
+		// instructions do not fail — they make the model pick one and ignore the other, on a
+		// generation the reader has paid for. The encoder saturates instead.
+		it('clamps the ends the contract allows but a page cannot carry', () => {
+			expect(whitespaceLine(100)).toContain(`${MAX_PROMPTABLE_WHITESPACE}%`);
+			expect(whitespaceLine(100)).not.toContain('100%');
+			expect(whitespaceLine(0)).toContain(`${MIN_PROMPTABLE_WHITESPACE}%`);
+			expect(whitespaceLine(0)).not.toContain(' 0%');
+			// Saturating means two different extreme specs ask for the same thing, deliberately.
+			expect(whitespaceLine(95)).toBe(whitespaceLine(100));
+		});
+
+		it('leaves every value inside the band alone', () => {
+			for (let value = MIN_PROMPTABLE_WHITESPACE; value <= MAX_PROMPTABLE_WHITESPACE; value += 1) {
+				expect(whitespaceLine(value)).toContain(`${value}%`);
+			}
+		});
+
+		// The contract admits any number in range, and a prompt reading "about 47.5%" invites an
+		// image model to draw the figure onto a sheet somebody colours in.
+		it('rounds a fractional scale to a whole percentage', () => {
+			expect(whitespaceLine(47.5)).toContain('48%');
+			expect(whitespaceLine(47.4)).toContain('47%');
+			// The sentence ends on a full stop, so "contains no dot" is the wrong assertion. What
+			// must not appear is a decimal fraction before the percent sign.
+			expect(whitespaceLine(47.5)).not.toMatch(/\d\.\d/);
+		});
+
+		it('says something different for different scales', () => {
+			expect(whitespaceLine(35)).not.toBe(whitespaceLine(45));
+		});
+
+		it('carries no forbidden token', () => {
+			const lowered = whitespaceLine(50).toLowerCase();
+			for (const token of PROMPT_FORBIDDEN_TOKENS) {
+				expect(lowered).not.toContain(token);
+			}
 		});
 	});
 

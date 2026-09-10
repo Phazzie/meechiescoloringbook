@@ -35,8 +35,11 @@ Critical invariants — this panel describes a page, so it must never describe o
 		THIRD_PERSON_OPTIONS,
 		summarizePageControls,
 		summarizeStyleSelection,
+		applyPageLook,
+		type PageLookSelection,
 		type StyleSelection
 	} from '$lib/core/page-style';
+	import PageLookControls from '$lib/components/PageLookControls.svelte';
 	import type { ColoringPageSpec } from '../../../../contracts/spec-validation.contract';
 
 	type PageSize = ColoringPageSpec['pageSize'];
@@ -50,6 +53,8 @@ Critical invariants — this panel describes a page, so it must never describe o
 		pageSize = $bindable(),
 		border = $bindable(),
 		glitter = $bindable(),
+		pageLook = $bindable(),
+		pageLookBaseline,
 		styleSelectionUnknown = false,
 		settingsError = '',
 		settingsIssues = [],
@@ -62,6 +67,16 @@ Critical invariants — this panel describes a page, so it must never describe o
 		pageSize: PageSize;
 		border: BorderChoice;
 		glitter: boolean;
+		/** The reader's override of lettering size and room to colour. `null` per field for neither. */
+		pageLook: PageLookSelection;
+		/**
+		 * What the studio would build these two fields as with no override — so the panel can name
+		 * the value in effect rather than going blank until a control is touched.
+		 *
+		 * Passed in rather than assumed, because it is the *studio's* default and this panel does not
+		 * build specs. See `PageLookControls`' second invariant.
+		 */
+		pageLookBaseline: Pick<ColoringPageSpec, 'textSize' | 'whitespaceScale'>;
 		/** The page on screen was saved before styles were stored with pages. */
 		styleSelectionUnknown?: boolean;
 		/** A change whose check could not be run at all, reported beside the controls. */
@@ -109,7 +124,14 @@ Critical invariants — this panel describes a page, so it must never describe o
 					glitter
 				})
 	);
-	const summary = $derived(summarizePageControls(styleSummary, { pageSize, border }));
+	// What the next page will actually carry for the two look fields, which is the baseline with the
+	// reader's override laid over it. Both the summary and the controls read this, so the collapsed
+	// line and the open panel cannot disagree about what the page is set to.
+	const effectiveLook = $derived(applyPageLook(pageLookBaseline, pageLook));
+
+	const summary = $derived(
+		summarizePageControls(styleSummary, { pageSize, border }, effectiveLook)
+	);
 </script>
 
 <details class="settings-panel" bind:open>
@@ -216,6 +238,25 @@ Critical invariants — this panel describes a page, so it must never describe o
 				{/each}
 			</select>
 			<p class="value-help" id="third-person-help">{THIRD_PERSON_HELP[thirdPerson]}</p>
+		</fieldset>
+
+		<!-- The two controls this panel never had. `textSize` and `whitespaceScale` are the fields
+		     that decide how much of a printed sheet is words and how much is left for the reader,
+		     and until `letteringLine` and `whitespaceLine` existed they reached no prompt at all —
+		     so this panel could not have offered them honestly even if it had wanted to. They sit
+		     ahead of Paper because they describe the drawing; Paper describes the sheet. -->
+		<fieldset>
+			<legend>Room to colour</legend>
+			<p class="field-help">How much of the sheet is words, and how much is yours.</p>
+			<PageLookControls
+				look={pageLook}
+				effective={effectiveLook}
+				idPrefix="home-page-look"
+				onChange={async (next) => {
+					pageLook = next;
+					await onSettingChange('setting');
+				}}
+			/>
 		</fieldset>
 
 		<fieldset>

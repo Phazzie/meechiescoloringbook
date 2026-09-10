@@ -884,3 +884,60 @@ describe('closers nest', () => {
 		]);
 	});
 });
+
+describe("the reader's look override", () => {
+	// The whole feature is behaviour-preserving until a control moves, and this is what says so:
+	// every tool, both page shapes, no override, byte-identical spec.
+	it('changes nothing at all when neither field is set', () => {
+		for (const toolId of MeechieToolIdSchema.options) {
+			const quote = output(toolId, 'He had time to answer and chose not to.');
+			const list = output(toolId, 'Fault: he lied.\nConsequence: no access.\nMove: change the locks.');
+			for (const verdict of [quote, list]) {
+				expect(
+					buildToolPageRecipe(verdict, { look: { textSize: null, whitespaceScale: null } })
+				).toEqual(buildToolPageRecipe(verdict));
+			}
+		}
+	});
+
+	it('overrides the house look when the reader has chosen', () => {
+		const verdict = output('wwmd', 'He had time to answer and chose not to.');
+		const housed = buildToolPageRecipe(verdict).spec;
+		const chosen = buildToolPageRecipe(verdict, {
+			look: { textSize: 'small', whitespaceScale: 75 }
+		}).spec;
+
+		expect(housed.textSize).toBe('large');
+		expect(chosen.textSize).toBe('small');
+		expect(chosen.whitespaceScale).toBe(75);
+	});
+
+	it('overrides one field without disturbing the other', () => {
+		const verdict = output('wwmd', 'He had time to answer and chose not to.');
+		const housed = buildToolPageRecipe(verdict).spec;
+		const chosen = buildToolPageRecipe(verdict, {
+			look: { textSize: null, whitespaceScale: 25 }
+		}).spec;
+
+		expect(chosen.textSize).toBe(housed.textSize);
+		expect(chosen.whitespaceScale).toBe(25);
+	});
+
+	// An override must not be able to reach any other field, and must not be able to build a spec
+	// the generate contract would reject at the API boundary with the generation already paid for.
+	it('touches nothing but the two fields, and still passes the spec contract', () => {
+		const verdict = output(
+			'rate_excuse',
+			'Fault: he lied.\nConsequence: no access.\nMove: change the locks.'
+		);
+		const housed = buildToolPageRecipe(verdict).spec;
+		const chosen = buildToolPageRecipe(verdict, {
+			look: { textSize: 'medium', whitespaceScale: 25 }
+		}).spec;
+
+		expect(ColoringPageSpecSchema.safeParse(chosen).success).toBe(true);
+		expect({ ...chosen, textSize: housed.textSize, whitespaceScale: housed.whitespaceScale }).toEqual(
+			housed
+		);
+	});
+});

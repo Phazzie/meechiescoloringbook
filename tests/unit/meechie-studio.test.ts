@@ -6,6 +6,7 @@ import {
 	DEFAULT_REVISION_BUDGET,
 	DEFAULT_STUDIO_TEXT_OUTPUT,
 	buildColoringPageSpecFromMeechieText,
+	STUDIO_DEFAULT_PAGE_LOOK,
 	buildStudioTextFromCreationRecord,
 	buildStudioTextFromDraftRecord,
 	canRunStudioAction,
@@ -368,7 +369,12 @@ describe('decoration density follows the caller, not the builder', () => {
 			pageSize: 'US_Letter',
 			border: 'plain',
 			styleHint: 'receipt ledger lines',
-			presentation: { alignment: 'center', whitespaceScale: 35 }
+			presentation: { alignment: 'center' },
+			// `whitespaceScale` moved out of `presentation` when it became a reader control, so it
+			// is passed the way `pageSize` and `border` are. Carried here to keep this test's
+			// original assertion — that the rest of the page survives the decoration decision —
+			// pointing at a real field rather than being quietly dropped.
+			whitespaceScale: 35
 		});
 		expect(derived.decorations).toBe('dense');
 		// The rest of the presentation is carried forward either way.
@@ -393,5 +399,58 @@ describe('decoration density follows the caller, not the builder', () => {
 		});
 		expect(dropped.decorations).toBe('minimal');
 		expect(dropped.alignment).toBe('center');
+	});
+});
+
+describe('lettering and blank space are the reader’s, not the reopened page’s', () => {
+	// They used to live in `presentation`, which is the reopened page's look carried forward. A
+	// field carried forward cannot also be settable: whatever the Page Controls panel offered would
+	// have been overwritten by the restored page on the next rebuild. They are passed the way
+	// `pageSize` and `border` are, and this is what pins that.
+	const base = {
+		output: DEFAULT_STUDIO_TEXT_OUTPUT,
+		pageSize: 'US_Letter',
+		border: 'plain',
+		styleHint: 'gold crown ornaments'
+	} as const;
+
+	it('uses the studio defaults when the reader has chosen neither', () => {
+		const spec = buildColoringPageSpecFromMeechieText(base);
+		expect(spec.textSize).toBe(STUDIO_DEFAULT_PAGE_LOOK.textSize);
+		expect(spec.whitespaceScale).toBe(STUDIO_DEFAULT_PAGE_LOOK.whitespaceScale);
+	});
+
+	it("beats the reopened page's own presentation", () => {
+		const spec = buildColoringPageSpecFromMeechieText({
+			...base,
+			presentation: { alignment: 'center', textStrokeWidth: 9 },
+			textSize: 'large',
+			whitespaceScale: 25
+		});
+		expect(spec.textSize).toBe('large');
+		expect(spec.whitespaceScale).toBe(25);
+		// And the rest of the reopened page's look is still carried forward, which is what
+		// `presentation` is for.
+		expect(spec.alignment).toBe('center');
+		expect(spec.textStrokeWidth).toBe(9);
+	});
+
+	it('takes each field on its own', () => {
+		expect(buildColoringPageSpecFromMeechieText({ ...base, textSize: 'medium' })).toMatchObject({
+			textSize: 'medium',
+			whitespaceScale: STUDIO_DEFAULT_PAGE_LOOK.whitespaceScale
+		});
+		expect(buildColoringPageSpecFromMeechieText({ ...base, whitespaceScale: 75 })).toMatchObject({
+			textSize: STUDIO_DEFAULT_PAGE_LOOK.textSize,
+			whitespaceScale: 75
+		});
+	});
+
+	// "Leave none of it blank" is a choice the contract allows, and `??` is what keeps it from
+	// reading as absence the way `||` would.
+	it('treats a zero scale as a choice, not as no choice', () => {
+		expect(
+			buildColoringPageSpecFromMeechieText({ ...base, whitespaceScale: 0 }).whitespaceScale
+		).toBe(0);
 	});
 });

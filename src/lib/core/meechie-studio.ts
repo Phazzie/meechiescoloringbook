@@ -619,6 +619,22 @@ export const buildStudioTextFromCreationRecord = (
 export const derivesDenseDecorations = (styleHint: string): boolean =>
 	styleHint.includes('receipt');
 
+/**
+ * What the home studio builds for the two look fields when the reader has chosen neither.
+ *
+ * The values it has always used, named once so the Page Controls panel can say what is in effect
+ * without restating them. It can be a constant here — and the panel can trust it — only because
+ * these two fields left `presentation`: while they were carried forward from a reopened page, "what
+ * would this build with no override?" had no fixed answer.
+ */
+export const STUDIO_DEFAULT_PAGE_LOOK: Pick<
+	ColoringPageSpec,
+	'textSize' | 'whitespaceScale'
+> = {
+	textSize: 'small',
+	whitespaceScale: 50
+};
+
 export const buildColoringPageSpecFromMeechieText = (input: {
 	output: Pick<
 		MeechieStudioTextOutput,
@@ -626,6 +642,21 @@ export const buildColoringPageSpecFromMeechieText = (input: {
 	>;
 	pageSize: ColoringPageSpec['pageSize'];
 	border: ColoringPageSpec['border'];
+	/**
+	 * How big the lettering is and how much of the sheet is left blank — the reader's, when they
+	 * have said, and the studio's defaults when they have not.
+	 *
+	 * Top-level rather than inside `presentation`, and deliberately so: these are now the reader's
+	 * live choices, in exactly the way `pageSize` and `border` already are. `presentation` is the
+	 * *reopened page's* look being carried forward, and a value that sits there cannot be
+	 * overridden by a control — which is why these two are no longer in it. See
+	 * `STUDIO_DEFAULT_PAGE_LOOK`.
+	 *
+	 * Optional because omitting either yields precisely what the studio built before this existed,
+	 * so no caller is obliged to change and none silently changes behaviour by not changing.
+	 */
+	textSize?: ColoringPageSpec['textSize'];
+	whitespaceScale?: ColoringPageSpec['whitespaceScale'];
 	styleHint: string;
 	dedication?: string;
 	/**
@@ -663,8 +694,10 @@ export const buildColoringPageSpecFromMeechieText = (input: {
 			| 'alignment'
 			| 'numberAlignment'
 			| 'listGutter'
-			| 'whitespaceScale'
-			| 'textSize'
+			// `whitespaceScale` and `textSize` used to be carried here. They moved to the top level
+			// when they became reader controls: a field carried forward from a reopened page cannot
+			// also be settable, and of the two answers "the reader just chose this" is the one that
+			// has to win. Same treatment `pageSize` and `border` have always had.
 			| 'fontStyle'
 			| 'textStrokeWidth'
 			| 'colorMode'
@@ -700,8 +733,8 @@ export const buildColoringPageSpecFromMeechieText = (input: {
 	alignment: input.presentation?.alignment ?? 'left',
 	numberAlignment: input.presentation?.numberAlignment ?? 'strict',
 	listGutter: input.presentation?.listGutter ?? 'normal',
-	whitespaceScale: input.presentation?.whitespaceScale ?? 50,
-	textSize: input.presentation?.textSize ?? 'small',
+	whitespaceScale: input.whitespaceScale ?? STUDIO_DEFAULT_PAGE_LOOK.whitespaceScale,
+	textSize: input.textSize ?? STUDIO_DEFAULT_PAGE_LOOK.textSize,
 	fontStyle: input.presentation?.fontStyle ?? 'rounded',
 	textStrokeWidth: input.presentation?.textStrokeWidth ?? 6,
 	colorMode: input.presentation?.colorMode ?? 'black_and_white_only',

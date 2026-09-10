@@ -1,18 +1,7 @@
-# Purpose: Capture the OUTER 'npm run verify' command's own output and exit status.
-# Why: verify.txt holds only the inner verify-runner stage, despite its name. Without this
-#      file the audit:gate result and the chain's exit status are asserted rather than
-#      captured, which is unauditable. Run 23 merged `baf5cb5` with this file absent and a
-#      close-out that claimed the chain was green, which a review caught.
-# Info flow: `npm run verify` -> scratch path -> moved here after the chain returns.
-# Invariant: written AFTER the chain, per docs/evidence/README.md "Capture order", so it is
-#            deliberately absent from that chain's own proof-tape inventory. Captured to a
-#            scratch path first, because a file cannot be inventoried while still being
-#            written. The exit status is read from `$?` immediately after the command, never
-#            from PIPESTATUS after an intervening command, which reports the wrong process.
+$ npm run verify
+# started 2026-09-10T07:33:18.177Z
 
-> meechies-coloringbook@0.1.0 verify
-> npm run audit:gate && node scripts/chamber-lock.mjs && node scripts/verify-runner.mjs && node scripts/shaolin-lint.mjs && node scripts/assumption-alarm.mjs && node scripts/seam-ledger.mjs && node scripts/clan-chain.mjs && node scripts/proof-tape.mjs
-
+$ npm run audit:gate
 
 > meechies-coloringbook@0.1.0 audit:gate
 > npm audit --audit-level=high
@@ -34,6 +23,10 @@ node_modules/@vitest/mocker
 To address all issues, run:
   npm audit fix
 
+$ /opt/node22/bin/node scripts/chamber-lock.mjs
+
+$ /opt/node22/bin/node scripts/verify-runner.mjs
+
 > meechies-coloringbook@0.1.0 check
 > svelte-kit sync && svelte-check --tsconfig ./tsconfig.json
 
@@ -50,9 +43,9 @@ svelte-check found 0 errors and 0 warnings
 
 
 [2m Test Files [22m [1m[32m112 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (113)[39m
-[2m      Tests [22m [1m[32m1981 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (1982)[39m
-[2m   Start at [22m 04:47:21
-[2m   Duration [22m 95.90s[2m (transform 3.77s, setup 932ms, import 7.59s, tests 8.57s, environment 61.46s)[22m
+[2m      Tests [22m [1m[32m2016 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (2017)[39m
+[2m   Start at [22m 07:33:30
+[2m   Duration [22m 89.64s[2m (transform 3.57s, setup 868ms, import 7.20s, tests 8.37s, environment 56.48s)[22m
 
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
@@ -81,4 +74,15 @@ Not implemented: HTMLCanvasElement's getContext() method: without installing the
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 
-Outer chain exit status: 0
+$ /opt/node22/bin/node scripts/shaolin-lint.mjs
+
+$ /opt/node22/bin/node scripts/assumption-alarm.mjs
+
+$ /opt/node22/bin/node scripts/seam-ledger.mjs
+
+$ /opt/node22/bin/node scripts/clan-chain.mjs
+
+$ /opt/node22/bin/node scripts/proof-tape.mjs
+
+# npm run verify exited 0
+# finished 2026-09-10T07:35:00.181Z

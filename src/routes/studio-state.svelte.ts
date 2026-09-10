@@ -116,8 +116,10 @@ import type { Wig } from '$lib/seams/wig-catalog-seam/contract';
 
 import {
 	buildStyleHint,
+	DEFAULT_PAGE_LOOK,
 	DEFAULT_STYLE_SELECTION,
 	themeForSelection,
+	type PageLookSelection,
 	type StyleSelection,
 	type StyleWig
 } from '$lib/core/page-style';
@@ -339,6 +341,16 @@ export class StudioState {
 	pageSize = $state<PageSize>('US_Letter');
 	border = $state<BorderChoice>('decorative');
 	glitter = $state(DEFAULT_STYLE_SELECTION.glitter);
+	/**
+	 * The reader's choice of lettering size and room to colour, `null` per field for the studio's
+	 * own default.
+	 *
+	 * A `ColoringPageSpec` control in the same sense as `pageSize` and `border`: it is a field of the
+	 * page, it is stored with the page, and it comes back when the page is reopened — see
+	 * `loadCreation`. It was neither settable nor even *effective* before this: both fields reached
+	 * no prompt at all, so a page built at `large` and one built at `small` were the same picture.
+	 */
+	pageLook = $state<PageLookSelection>({ ...DEFAULT_PAGE_LOOK });
 	/**
 	 * Rewrites left for the verdict currently on screen. Refilled whenever a new verdict arrives —
 	 * see `startRewriteRound`. Never the app's spend control; that is `aiQuota`.
@@ -1691,6 +1703,11 @@ export class StudioState {
 		const derivesDense = derivesDenseDecorations(styleHint);
 		const derivationChanged = source === 'theme' || derivesDense !== this.lastDerivesDense;
 		this.lastDerivesDense = derivesDense;
+		// The reopened page's presentation, minus the two fields that are now reader controls. They
+		// are passed separately below off `pageLook`, and leaving them in here as well would make the
+		// carried-forward copy win over the control the reader had just moved.
+		const { textSize: _restoredTextSize, whitespaceScale: _restoredWhitespace, ...restoredPresentation } =
+			this.spec;
 		this.spec = buildColoringPageSpecFromMeechieText({
 			output,
 			pageSize: this.pageSize,
@@ -1721,9 +1738,17 @@ export class StudioState {
 			// comparison of the style hint to decide this.
 			presentation: this.restoredPageLayout
 				? derivationChanged
-					? { ...this.spec, decorations: undefined }
-					: this.spec
-				: undefined
+					? { ...restoredPresentation, decorations: undefined }
+					: restoredPresentation
+				: undefined,
+			// Not in `presentation`, and not conditional on `restoredPageLayout`: these two are
+			// reader controls now, exactly like `pageSize` and `border` two lines up. Carrying them
+			// forward from the reopened page instead would make the Page Controls panel unable to
+			// change them, which is the state they were already in for the app's whole life.
+			// `?? undefined` because `null` here means "no override", and the builder's own default
+			// is what answers that.
+			textSize: this.pageLook.textSize ?? undefined,
+			whitespaceScale: this.pageLook.whitespaceScale ?? undefined
 		});
 		// A rebuild describes the verdict, and a try-on page has no verdict on it. Without this the
 		// portrait would keep its place on the paper while the spec around it became a numbered list
@@ -3038,6 +3063,15 @@ export class StudioState {
 		this.dedication = creation.intent.dedication ?? '';
 		this.pageSize = creation.intent.pageSize;
 		this.border = creation.intent.border;
+		// The reopened page's own lettering and blank space become the reader's current choice, for
+		// the same reason page size and border above do: they are stored spec fields, they came back
+		// with the record, and the controls that show them have to show the page that is on screen.
+		// Left at `null` instead, the panel would report the studio's defaults over a page built at
+		// `large` and 35 — the false provenance the panel's second invariant exists to stop.
+		this.pageLook = {
+			textSize: creation.intent.textSize,
+			whitespaceScale: creation.intent.whitespaceScale
+		};
 		this.restoreVerdict(restoredText, creation.studioText);
 		// A reopened page is a verdict the reader has not reworked in this session, and its rewrite
 		// buttons light up the moment `textOutput` is set above. Handing it whatever was left of
@@ -3193,6 +3227,11 @@ export class StudioState {
 			this.dedication = draft.value.intent.dedication ?? '';
 			this.pageSize = draft.value.intent.pageSize;
 			this.border = draft.value.intent.border;
+			// As in `loadCreation`: stored spec fields the controls have to show.
+			this.pageLook = {
+				textSize: draft.value.intent.textSize,
+				whitespaceScale: draft.value.intent.whitespaceScale
+			};
 			// Two separate reasons a restored draft carries no verdict, and each is answered where
 			// it is actually knowable.
 			//

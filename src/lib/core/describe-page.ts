@@ -193,6 +193,22 @@ const ILLUSTRATION_FACTS: Record<ColoringPageSpec['illustrations'], string> = {
 	scene: 'A full drawn scene around the words.'
 };
 
+/**
+ * How much of the sheet the interpreted spec leaves blank.
+ *
+ * `/describe` is the one surface with no override control — the reader says what they want in words
+ * and the interpreter chooses — so this read-back is the *only* place the choice is visible before a
+ * generation is paid for. It was missing from the first draft of this feature, which is the same
+ * defect that feature exists to fix: `whitespaceScale` had just been made to affect the picture, and
+ * the sentence the reader checks before paying still did not mention it. Caught in review of PR #350.
+ *
+ * Named as a percentage rather than as one of the control's three words, because the interpreter can
+ * return any value in range and rounding it to the nearest named step would report the page as
+ * something it is not.
+ */
+const whitespaceFact = (whitespaceScale: ColoringPageSpec['whitespaceScale']): string =>
+	`About ${Math.round(whitespaceScale)}% of the sheet left blank to colour.`;
+
 const DECORATION_FACTS: Record<ColoringPageSpec['decorations'], string> = {
 	none: '',
 	minimal: 'A few decorations.',
@@ -221,6 +237,7 @@ export const readBackInterpretedPage = (
 		`${PAPER_NAMES[spec.pageSize]} paper.`,
 		BORDER_FACTS[spec.border],
 		TEXT_SIZE_FACTS[spec.textSize],
+		whitespaceFact(spec.whitespaceScale),
 		ILLUSTRATION_FACTS[spec.illustrations],
 		DECORATION_FACTS[spec.decorations]
 	].filter((fact) => fact.length > 0);

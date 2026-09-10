@@ -16413,3 +16413,457 @@ Re-measure everything below; do not inherit it.
   Now enumerated: fifteen rows, including `plan.md` itself and the `verify-outer.txt` that no chain
   writes. The mandate exists so a diff can be checked against a plan mechanically; until this
   close-out that check would have returned four discrepancies on a run reporting none.
+
+## Run 24 — 2026-09-10 — How much room there is to colour
+
+**Picked:** the two `ColoringPageSpec` fields that decide whether a coloring page is colourable —
+`textSize` and `whitespaceScale`. Both were required, validated, persisted, restored, described to
+the reader before they paid, and read by **nothing**.
+
+### Why this one, measured on `main` at `498d6c0` rather than inherited
+
+`ColoringPageSpec` carries 21 fields. The prompt is assembled in exactly one place. Every spec field
+it reads, directly or through a `prompt-template.ts` helper:
+
+```
+$ grep -o "spec\.[a-zA-Z]*" src/lib/adapters/prompt-assembly-seam/index.ts | sort -u
+spec.alignment spec.border spec.borderThickness spec.colorMode spec.decorations
+spec.dedication spec.fontStyle spec.footerItem spec.illustrations spec.pageSize
+spec.shading spec.textStrokeWidth spec.title
+$ grep -o "spec\.[a-zA-Z]*" src/lib/core/prompt-template.ts src/lib/utils/alignment-line.ts \
+    | sed 's/.*://' | sort -u
+spec.alignment spec.colorMode spec.items spec.listGutter spec.listMode
+spec.numberAlignment spec.shading
+```
+
+`variations` is the provider's `n` (`image-generation-pipeline.ts:154`) and `outputFormat` belongs
+to packaging, so neither is a prompt field and neither is missing. That leaves **two** fields that
+reached nothing anywhere — not the prompt, not the drift check, not packaging, not image generation:
+
+| Field | Range | Set by | Read by |
+|---|---|---|---|
+| `textSize` | small / medium / large | `meechie-studio.ts:704` (`small`), `tool-page-recipe.ts:509` (`large`) | nothing |
+| `whitespaceScale` | 0-100 | `meechie-studio.ts:703` (50), `tool-page-recipe.ts:527` (35), `:533` (45) | nothing |
+
+In their place the prompt stated two constants: `Bold bubble letters; thick outlines.` regardless of
+`textSize`, and `Keep generous whitespace; treat blank space intentional.` regardless of
+`whitespaceScale`. So a spec asking for small lettering and one asking for large produced
+**byte-identical prompts**, and a page whose spec wanted almost no blank space asked the model for a
+generous amount of it.
+
+**What it cost the reader, in the app's own words.** `/describe` shows a read-back the reader checks
+*before* the paid generation, and `describe-page.ts:184-188` builds one of its sentences from
+`spec.textSize`:
+
+```
+small: 'Small lettering, which leaves the most room to colour.'
+large: 'Large lettering, which fills more of the sheet.'
+```
+
+The app told the reader how much room they would have to colour, and then made the same picture
+either way. The interpreter is instructed to choose both fields (`constants.ts:16,20`) and is billed
+for producing them on every `/describe` call.
+
+**And no reader could set either one, anywhere.**
+`src/lib/components/studio/StudioSettingsPanel.svelte:3` says of itself: *"This is the app's only say
+over what a coloring page looks like."* It offered theme, three voice settings, page size, border and
+glitter — two of the thirteen spec fields that decide what the drawing looks like. The other
+thirteen page-making surfaces offered none. `ADVANCED_SPEC_FIELDS`
+(`spec-validation-seam/contract.ts:166`) enumerates 14 field names for a disclosure UI and is
+imported by nothing — the same abandonment, one layer up.
+
+That is the widest promise-to-delivery gap in the app measured in what it costs the reader: not a
+feature that is ugly, a feature that is **announced to the reader, charged for, and inert**.
+
+### What shipped
+
+**Part 1 — the fields reach the drawing.** `letteringLine` and `whitespaceLine` join the other line
+builders in `prompt-template.ts`; `PromptAssemblySeam` emits both, `templateVersion` v4 -> v5. Called
+"Lettering", not "Text size", because `size:` is in `PROMPT_FORBIDDEN_TOKENS` and a line carrying it
+would be reported on every page — pinned by a test rather than left as a comment.
+
+**The fix defends itself.** `DriftDetectionSeam` adds both lines to `expectedOptionLines`, so
+dropping either again is a `MISSING_OPTION_LINE` on the reader's own quality report. **The absence of
+these two fields from that list is why the defect survived the app's entire life**: the drift seam
+only ever reported the fields it was told to look for.
+
+**Part 2 — the reader can set both, on every surface that builds a spec.** One
+`PageLookControls.svelte`, owning its own CSS, hosted by the home studio's Page Controls, by the
+shared `VerdictPageStudio` (twelve surfaces: the three standalone mode routes and all eight
+`/m/<slug>` pages) and by the eleven-tool hub.
+
+**Nothing changes until a control moves.** Each field is independently nullable and every surface
+starts at null, so every page the app made before this it still makes. That is not a claim, it is
+`tool-page-recipe.test.ts`: for every tool, both page shapes, an empty override produces a spec equal
+to the one built with no override at all. It is nullable because the surfaces genuinely disagree on a
+default — the studio builds `small` at 50, a tools-hub quote page `large` at 35, a list page `large`
+at 45 — and a concrete default would have had to pick one and silently retype the others on the same
+run that makes the field matter for the first time.
+
+**The control names the value in effect, not the override.** A control that displayed only what the
+reader had chosen would say nothing at all until touched, which is the "reports nothing" failure this
+panel was rebuilt against in Run 8. On the verdict surfaces the effective value is read *off the
+recipe* rather than recomputed, so the control and `makePage` cannot disagree.
+
+**`/describe` deliberately gets no control**, and this is a decision rather than an omission. There
+the reader says what they want in words and the interpreter chooses; the read-back *is* the control.
+A live override would contradict the read-back the reader had just checked, which is the exact
+mismatch that read-back exists to expose. Part 1 makes it truthful, which is the whole fix that
+surface needed.
+
+**On the home studio the two fields moved out of `presentation`** — the reopened page's look carried
+forward — and up to the top level beside `pageSize` and `border`. A field carried forward from a
+restored page cannot also be settable, and of the two answers "the reader just chose this" is the one
+that has to win. They restore from `creation.intent` and from the draft exactly as page size and
+border already did.
+
+### Two carried-forward items from Run 23, closed
+
+1. **`npx playwright test` ran nowhere.** The routine mandates it for user-facing changes. The
+   project pins Chromium build 1208; this container has 1194, and `npx playwright install` is
+   refused outright by the network policy:
+
+   ```
+   Error: Download failed: server returned code 403 body 'request blocked: no rule or allowlist
+   entry allows host "cdn.playwright.dev"'
+   ```
+
+   Downloading here is therefore impossible, which leaves Run 23's second option: put the gate where
+   a browser *can* be installed. `.github/workflows/verify.yml` gains an `e2e` job that installs the
+   **pinned** build and runs `npx playwright test` — deliberately not `playwright.local.config.ts`,
+   whose whole purpose is to run against whatever Chromium a sandbox happens to have; substituting it
+   in CI would make CI agree with the sandbox instead of holding the line it exists to hold. It is a
+   separate job so a browser install does not delay the unit gate and a red e2e run names itself.
+
+2. **`verify-outer.txt` was captured by hand and Run 23 forgot it**, merging a commit with no
+   committed proof that `npm run verify` exited 0. `npm run verify` is now
+   `node scripts/verify-outer.mjs`, which runs the same chain, tees it to the console unchanged, and
+   writes the transcript with the exit status as a greppable line. It writes on a **failing** run
+   too: a red chain is exactly the one whose transcript is worth having.
+
+### An open question this run did not answer, and deliberately did not paper over
+
+`tool-page-recipe.ts:527` assigns `whitespaceScale: 35` to a quote page under a comment reading
+"More whitespace than a list page", beside the list page's `45` at `:533`. Under the semantics this
+run states — higher means more blank space — those disagree, and **one of them is wrong**. Nothing
+noticed for the app's whole life because nothing read the field.
+
+The numbers are left exactly as they shipped and the comment is corrected to match them. Changing a
+number changes what every tool page asks for on the same run that makes the field effective for the
+first time, and no one could then tell which change did what. Recorded in `DECISIONS.md` as an open
+question for the owner. The reader's own control now answers it for any page they care about.
+
+### Gates
+
+| Command | Result |
+|---|---|
+| `npm run check` | 0 errors, 0 warnings — `docs/evidence/2026-09-10/check.txt` |
+| `npm run lint` | exit 0 — `docs/evidence/2026-09-10/lint.txt` |
+| `npm test` | **2,011** passed, 1 skipped (from **1,981**, +30) — `docs/evidence/2026-09-10/test.txt` |
+| `npm run build` | exit 0 — `docs/evidence/2026-09-10/build.txt` |
+| `npm run verify` | exit 0 — `docs/evidence/2026-09-10/verify-outer.txt`, now written by the chain |
+| `npm run cipher:gate` | exit 0 — `docs/evidence/2026-09-10/cipher-gate.json` |
+| `npx playwright test` | **NOT MET in this container** — pinned build 1208 absent, download 403. Added to CI this run; the PR's own `e2e` job is where it runs |
+| `npm run test:e2e:local` | **86** passed against build 1194 (from 83, +3) — `docs/evidence/2026-09-10/e2e.txt` |
+
+The red proof came first and is worth recording: adding the two lines failed **6 contract tests
+across 3 files** before a single fixture was touched, which is what proves the prompt genuinely
+changed rather than the tests being written to agree with it afterwards.
+
+### Where the plan was wrong
+
+`plan.md` carries the measured inventory beside the planned one, enumerated one row per file with no
+glob for the evidence folder. Four discrepancies, recorded there rather than argued away: two
+fixture files planned that needed no change (the TypeScript fixture modules only `parse` the JSON),
+two fault fixtures planned that carry no assembled prompt, the whole browser-gate work taken without
+being declared in advance, and the browser tests forgotten by a plan that listed only unit and
+contract suites.
+
+### Carried forward for the next run
+
+Re-measure everything below; do not inherit it.
+
+- **Eleven presentation fields are still unreachable by a reader.** `alignment`, `numberAlignment`,
+  `listGutter`, `fontStyle`, `textStrokeWidth`, `colorMode`, `decorations`, `illustrations`,
+  `shading`, `borderThickness`, `variations`. All eleven *work* — they reach the prompt — which is
+  why they were not this run's pick, and `PageLookControls` is the shape a next run would extend.
+  `textStrokeWidth` is the strongest single candidate: it is how thick the outlines are, which is
+  the difference between a page a child can colour inside and one they cannot.
+- **`ADVANCED_SPEC_FIELDS` has no importer.** Fourteen field names enumerated for a disclosure UI
+  that was never built. Either wire it to whatever control set comes next, or delete it.
+- **`variations` is honoured but unsettable.** `describe-page.ts:244` already writes the caution
+  "This makes N pictures, and costs N generations rather than one" for a value only the interpreter
+  can produce. The prose exists; the control does not.
+- **`page size` and `border` are reader-owned on the home studio only.** The other thirteen surfaces
+  build `US_Letter` and a fixed border with no say. Deliberately out of scope here.
+- **`src/lib/core/meechie-quote-scoring.ts` has no production importer.** Run 23's item, untouched.
+  107 lines, tested but unwired, and its heuristics hardcode `'easter'` and `'cheap seats'` as
+  evidence of wit.
+- **`MeechieTools.svelte` is still in legacy (non-runes) mode** — worked around a **fifth** time this
+  run, with a plain `let pageLook` and a `$:` block where the other hosts use `$state`/`$derived`.
+  Run 23's finding stands unchanged: three independent `runPackaging` implementations, and the legacy
+  mode explains only why the third cannot share the other two.
+- **`readJson` conflates a denied read with a damaged store.** Run 22's item, untouched.
+- **A `ConnectionSeam` is still the right home for the `navigator.onLine` read.** Unchanged.
+- **The try-on's `rejected` branch is still unreachable from the UI.** Run 21's item, untouched.
+- **`failure.detail` has one consumer, on one surface out of fourteen.** Run 23's item, untouched.
+- **SonarCloud still cannot be read from this container** (`sonarcloud.io`, CONNECT tunnel 403).
+- **Run 18 still has no merge close-out entry.** Carried for seven runs now.
+
+## Run 24, first close-out — 2026-09-10 — the SonarCloud round, and the gate that only existed because of it
+
+`a0ef632` and the commit after it. Two review rounds on PR #350, plus two findings this run caught
+by re-reading its own diff before either round landed.
+
+### SonarCloud finally said what was wrong, and every finding was in the CI job this run added
+
+Seven runs of this log record that `sonarcloud.io` cannot be read from this container
+(`CONNECT tunnel failed, response 403`) and that its findings were therefore never identified. That
+is still true — `curl` to its API is refused, and so is the dashboard. **What changed is that the
+findings arrived as GitHub review comments instead**, through `github-advanced-security[bot]`, which
+carries them into the PR without needing SonarCloud to be reachable. Five findings, plus one from
+CodeQL, and **all six were on `.github/workflows/verify.yml` — the e2e job this run added**:
+
+| Source | Finding | Line |
+|---|---|---|
+| CodeQL | Workflow does not limit `GITHUB_TOKEN` permissions | workflow |
+| SonarCloud | Dependencies should be locked to verified versions (`npm install`) | install step |
+| SonarCloud | Package manager scripts should not run during installation (no `--ignore-scripts`) | install step |
+| SonarCloud | `npx` can install packages on-demand and run their lifecycle scripts | browser install |
+| SonarCloud | Define exact package version to avoid unverified releases | browser install |
+| SonarCloud | Both of the above again | test step |
+
+**Quality Gate: C Security Rating on New Code, required ≥ A.** Not a style complaint — a failing
+gate, on the one job in the repository that downloads a browser.
+
+All six are fixed rather than waived:
+
+- `permissions: contents: read` at workflow level. Neither job does anything but read the checkout
+  and run npm; without the key both ran at whatever the repository's default token scope is.
+- `npm ci --ignore-scripts` in place of `npm install`. The lockfile resolves the versions, and no
+  lifecycle script runs during installation. `--ignore-scripts` skips `prepare` (`svelte-kit sync`),
+  which this job does not need — the Playwright web server runs `npm run dev` and the SvelteKit Vite
+  plugin syncs there — and skips Playwright's own postinstall browser download, which the next step
+  then does explicitly and pinned. **Reproduced locally before pushing**: `npm ci --ignore-scripts`
+  exits 0, leaves `node_modules/.bin/playwright` at 1.58.2, and all four gates plus 86 browser tests
+  still pass against that tree.
+- `npx` is gone. Both steps run the binary `npm ci` installed, through package scripts: a new
+  `playwright:install` script, and the `test:e2e` script that already existed.
+
+**The mandated command is now spelled `npm run test:e2e` in CI, not `npx playwright test`.** Same
+binary, same `playwright.config.ts`, same pinned browser build — `npx` is the part that was refused,
+and it is refused for a real reason on a job that installs software. Recorded here rather than left
+for a reader to notice the routine's wording and the workflow's disagree.
+
+### The first fix was itself a security finding
+
+`scripts/verify-outer.mjs` — this run's answer to Run 23's "the verify chain should write its own
+transcript" — passed the whole chain to `spawn` as one `&&`-joined string with `shell: true`. That is
+a plausible candidate for the C rating and was fixed on the same push, before the finding list
+arrived: each step is now an argv array with no shell at all.
+
+The string was a hardcoded constant with no interpolation, so it was **not** exploitable. It is fixed
+anyway, and the reason is worth stating: a script that spawns a shell is a shape that becomes
+exploitable the first time somebody interpolates anything into it, and refusing the shape costs less
+than reviewing every future edit of that file. Dropping the shell also turned out to be strictly
+better — the transcript now names which step ran and which one failed, which `&&` cannot.
+
+**Both paths proven, not asserted.** The chain exits 0 and writes `# npm run verify exited 0`; with
+`scripts/proof-tape.mjs` temporarily moved aside it stops, exits 1, and writes
+`# npm run verify exited 1`.
+
+### Two findings this run made against itself
+
+Both from re-reading the diff adversarially before pushing, which is worth recording because neither
+would have failed a gate:
+
+1. **The controls' first option said "As this page has it".** It now says "Page default". The old
+   wording claims provenance the option cannot always carry: on the verdict surfaces the picture has
+   not been drawn yet, and on the home studio the null case is the *studio's* default for the next
+   page, not the look of a page that was reopened. **Naming a page's own values while describing a
+   default is precisely the false provenance the Page Controls panel exists to prevent** — this run
+   shipped the defect that panel was rebuilt against, into the panel itself.
+2. **`ROOM_TO_COLOUR_LABELS` and `ROOM_TO_COLOUR_HELP` were typed `Record<number, string>`.** That
+   tells the compiler every number has a label, so the `??` fallbacks read as dead code while being
+   the live path for 35, 40 and 45 — values this app really builds. Now `string | undefined`, so a
+   future edit cannot "simplify" the fallback away and render `undefined` at a reader.
+
+### Rosentic: 7 findings, all against an unrelated branch, measured rather than inherited
+
+The check run was **green** (`conclusion: success`), so these are advisory. All seven compare against
+`claude/great-bell-k1i146` (PR #317), which changes the signatures of `makeToolkitVerdict`, `stampOf`
+and `newestFailure`. Runs 22 and 23 stood down on the same branch pair; this run re-measured rather
+than quoting them:
+
+```
+$ git show origin/main:tests/e2e/smoke.spec.ts | grep -n "const makeToolkitVerdict"
+134:const makeToolkitVerdict = async (page: Page): Promise<void> => {
+$ grep -n "const makeToolkitVerdict" tests/e2e/smoke.spec.ts
+134:const makeToolkitVerdict = async (page: Page): Promise<void> => {
+$ git diff origin/main...HEAD -- tests/e2e/smoke.spec.ts src/routes/studio-state.svelte.ts \
+    | grep -n "^[+-].*makeToolkitVerdict\|^[+-].*stampOf\|^[+-].*newestFailure"
+150:+	await makeToolkitVerdict(page);
+```
+
+All three signatures are **identical on `origin/main` and on this branch**, and this diff adds
+exactly **one** line touching any of them — a call in the new tools-hub test, matching main's
+signature. Six of the seven findings point at lines this diff does not touch at all. The
+incompatibility is real and belongs to whichever of the two branches merges second; it is not this
+one's to pre-emptively break itself for. Written on the pull request rather than merged past in
+silence.
+
+### The result worth carrying
+
+**`npx playwright test` ran green in CI for the first time.** Run 23 left it as the first item a next
+run should resolve. The `e2e` job passed on its first CI run at `674992a`, which means the routine's
+mandated browser gate now exists somewhere other than a sandbox that cannot satisfy it.
+
+## Run 24, second close-out — 2026-09-10 — the Codex round on `674992a`, and the defect this run reinvented
+
+Five findings, four of them correct and fixed, one declined with a measurement. Two of the four were
+**user-visible bugs in this run's own feature**, and one of those two is the *same defect this run
+exists to fix*, committed inside the fix.
+
+### 1. The read-back did not mention the field this run had just made real (P1, correct)
+
+`/describe` is the one page-making surface this run deliberately gave **no** control, on the stated
+grounds that "the read-back *is* the control" there. `readBackInterpretedPage` lists paper, border,
+lettering, illustrations and decorations — **and never whitespace**. So after this run,
+`ChatInterpretationSeam` could return any `whitespaceScale`, that value now changed the picture, and
+the reader approved "What She Understood" and paid without it being mentioned anywhere.
+
+**That is precisely the defect this whole run is about.** The opening entry's case against
+`textSize` is that `/describe` told the reader "Small lettering, which leaves the most room to
+colour" and then made the same picture either way. This run fixed that for `textSize` and created
+the mirror image of it for `whitespaceScale` — a value that reaches the picture and reaches no
+sentence — in the same commit, and then wrote a paragraph justifying why that surface needed no
+control.
+
+The justification was not wrong; it was incomplete. "The read-back is the control" is only true of
+fields the read-back reads. `whitespaceFact` is now one of its facts.
+
+**The rule this earns:** when a change makes a field effective, the list of places that describe the
+page is part of the change, not a follow-up. The run checked one such place — the one its own
+argument was built on — and did not enumerate the rest.
+
+### 2. Two prompt lines each claiming to set page occupancy (P1, correct)
+
+`letteringLine` read "large, filling most of the sheet" and "small, leaving the most room to
+colour". How much of the sheet is covered is **`whitespaceScale`'s** answer, and the same prompt now
+carried both. Large + Roomy asks for lettering that fills most of the sheet *and* 75% of the sheet
+left blank.
+
+Contradictory instructions do not fail. They make the model satisfy one and quietly drop the other,
+on a generation the reader has paid for — which is the same class of harm as a field reaching
+nothing, arrived at from the opposite direction. `letteringLine` now describes **letterforms** and
+says nothing about coverage; a test asserts it contains none of "sheet", "page", "blank", "filling"
+or "%". The reader-facing help in `page-style.ts` still talks about room to colour, because a reader
+choosing between the two controls needs to see how they relate; the prompt may not, because the
+model is following both at once.
+
+The same finding named the other end: `whitespaceScale: 100` produced "leave about 100% of the sheet
+blank" beside a TEXT block demanding an exact headline. Both ends of the contract's range are
+uncarryable. `whitespaceLine` now clamps to `MIN_PROMPTABLE_WHITESPACE` (5) and
+`MAX_PROMPTABLE_WHITESPACE` (85) and saturates: a spec asking 95 and one asking 100 request the
+same thing. **A documented, deliberate loss confined to the encoder** — the contract, the stored
+spec and the reader's control all keep the real number.
+
+### 3. A restored page rendered the control blank (P1, correct — and the test that missed it)
+
+After `loadCreation` or a draft restore, `pageLook.whitespaceScale` is the stored concrete value.
+The app really builds **35** (quote pages) and **45** (list pages), and neither is one of the
+control's three steps — so the `<select>` was set to a value no `<option>` carried, which browsers
+render as **blank**. The reader reopened a page and the control describing it showed nothing.
+
+**The browser test that seeded 35 did not catch this**, and the reason is worth recording: it
+asserted the *panel's summary text* and never looked at the select. The summary is computed from the
+same state and was correct; the control was empty beside it. A test that checks a derived string
+instead of the widget is a test that agrees with the state rather than with the reader.
+
+Fixed by rendering the reader's own value as a selectable option when it is not one of the steps
+(`{describeRoomToColour(value)} — this page's own`). "Page default" stays beside it and still means
+the surface's default, because that is what a default is.
+
+**Red proof taken, not assumed:** with the new `<option>` removed, the assertion fails with
+`Received: ""` — the blank render, reproduced.
+
+### 4. The CI failure artifact was never generated (P2, correct)
+
+The `e2e` job's `if: failure()` step uploaded `playwright-report/`, and `playwright.config.ts`
+declares no reporter — Playwright's default is `list` locally and `dot` on CI, neither of which
+writes that directory. **The job would have uploaded nothing on exactly the run where a diagnostic
+matters.** The config now declares `[['list'], ['html', { open: 'never' }]]`, and the step uploads
+`test-results/` alongside it, with `if-no-files-found: ignore`.
+
+### 5. "Route the verify wrapper's I/O through approved seams" (P1, declined, measured)
+
+The claim: `scripts/verify-outer.mjs` imports `node:child_process` and `node:fs` directly, which
+`AGENTS.md:L116` forbids — "All filesystem/network/process I/O must flow through approved seam
+adapters only".
+
+**Measured before answering:**
+
+```
+$ for f in scripts/*.mjs; do echo "$(grep -c "node:fs\|node:child_process" $f)  $f"; done
+1  scripts/assumption-alarm.mjs      1  scripts/proof-tape.mjs
+1  scripts/chamber-lock.mjs          2  scripts/rewind.mjs
+1  scripts/cipher-gate.mjs           1  scripts/run-probe.mjs
+1  scripts/clan-chain.mjs            1  scripts/seam-ledger.mjs
+1  scripts/evidence-reporting.mjs    1  scripts/shaolin-lint.mjs
+2  scripts/install-githooks.mjs      2  scripts/verify-outer.mjs
+                                     2  scripts/verify-runner.mjs
+```
+
+**All thirteen** automation scripts do this, including `verify-runner.mjs`, which the verify chain
+has always called and which `AGENTS.md` itself names in its Automation Tools list. The mandate sits
+under "Non-Negotiable Mandates" beside "Adapters must not import `fs`" and "No `process.cwd()` in
+core logic" — it governs the application, whose I/O the seams exist to make testable. The build
+automation is the thing that *runs* those tests.
+
+Making it seam-backed would invert the dependency: `npm run verify` would import the application's
+adapters in order to verify the application, so a broken adapter would take the verifier down with
+it and the gate would report nothing rather than a failure. That is a worse property than the one
+the finding objects to.
+
+Declined and answered on the thread rather than silently. If an owner rules the mandate covers
+`scripts/`, it is a thirteen-file change and its own run, not a rider on this one.
+
+### 6. proof-tape inventoried a file it could not read (correct, and the numbers matched)
+
+Codex measured it exactly: the tape recorded `sizeBytes: 3930` for a transcript that ended at 3993
+bytes. Re-measured here on this run's own artifacts — `4294` recorded against `4357` actual, short by
+the 63 bytes of the two trailing lines, **which are the lines carrying the chain's exit status**. So
+the one artifact that exists to prove `npm run verify` exited 0 was being inventoried by a step that
+could not see the proof.
+
+The circularity is not fixable by ordering: no step inside a chain can inventory the transcript of
+that chain. `proof-tape.mjs` already had the mechanism — `OWN_OUTPUTS`, the files it writes after
+taking its inventory — so the transcript joins it under a second, separately named set with the
+reason stated. Being absent from that list costs nothing; being present at a size that is always
+short cost the tape its credibility.
+
+### Gates after the round
+
+| Command | Result |
+|---|---|
+| `npm run check` | 0 errors, 0 warnings |
+| `npm run lint` | exit 0 |
+| `npm test` | **2,016** passed, 1 skipped (from 2,011) |
+| `npm run build` | exit 0 |
+| `npm run verify` | exit 0 |
+| `npm run cipher:gate` | exit 0 |
+| `npm run test:e2e:local` | **86** passed |
+
+### The fix-to-defect ratio, stated plainly
+
+Of the five Codex findings, four were correct. **Two were user-visible bugs in the feature this run
+shipped**, not in code it inherited: a control that rendered blank on a reopened page, and a paid
+surface that described everything about the page except the field the run had just made matter. Both
+were in the parts of the diff this run's own entry was most confident about — the read-back argument
+and the restored-page handling — and neither would have failed a gate.
+
+Three of this run's own review-round fixes were also against its own corrections: the "As this page
+has it" wording (a false-provenance defect shipped into the panel built against false provenance),
+the `Record<number, string>` typing, and the shell spawn in the file written to close a
+carried-forward item. The honest reading is that this run was at its least reliable exactly where it
+was fixing something.

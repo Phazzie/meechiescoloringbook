@@ -2116,3 +2116,67 @@ test('a download that could not be built says so in words, and can be built agai
 	// The picture on screen is the same one, never re-generated.
 	await expect(page.getByTestId('home-generated-image')).toBeVisible();
 });
+
+/*
+ * "How much room there is to colour" on the surfaces that are not the home studio.
+ *
+ * `textSize` and `whitespaceScale` are `ColoringPageSpec` fields that reached no prompt at all, and
+ * that no surface in the application let a reader set. The home studio's half is covered in
+ * `page-controls.spec.ts`; these two cover the other thirteen — twelve through the one shared
+ * `VerdictPageStudio`, and the eleven-tool hub, which renders its own copy.
+ */
+test('a mode route lets the reader say how much of the sheet is left to colour', async ({
+	page
+}) => {
+	await gotoHydrated(page, '/rate-his-excuse');
+	await page.getByTestId('rate-excuse-input').fill('He forgot again.');
+	await page.getByTestId('rate-submit').click();
+	await expect(page.getByTestId('rate-result')).toContainText('Fault: them');
+
+	const controls = page.getByTestId('verdict-page-look');
+	await expect(controls).toBeVisible();
+
+	// The house look for a tool page is large lettering, and the control says so before it is
+	// touched — the "Page default" option names the value actually in effect rather than standing
+	// empty until the reader moves something.
+	await expect(controls.locator('#verdict-page-look-lettering')).toContainText(
+		'Page default — Large'
+	);
+	await expect(controls.locator('#verdict-page-look-lettering-help')).toContainText(
+		'The words are most of the page'
+	);
+
+	await controls.locator('#verdict-page-look-lettering').selectOption('small');
+	await expect(controls.locator('#verdict-page-look-lettering-help')).toContainText(
+		'Leaves most of the sheet free to colour'
+	);
+
+	await controls.locator('#verdict-page-look-room').selectOption('75');
+	await expect(controls.locator('#verdict-page-look-room-help')).toContainText(
+		'About three quarters of the sheet left blank'
+	);
+
+	// And the page still generates with the choice applied.
+	await page.getByTestId('verdict-page-generate').click();
+	await expect(page.locator('.preview-grid img')).toBeVisible();
+});
+
+test('the tools hub lets the reader say how much of the sheet is left to colour', async ({
+	page
+}) => {
+	await makeToolkitVerdict(page);
+
+	const controls = page.getByTestId('meechie-tool-page-look');
+	await expect(controls).toBeVisible();
+	await expect(controls.locator('#meechie-tool-look-lettering')).toContainText(
+		'Page default — Large'
+	);
+
+	await controls.locator('#meechie-tool-look-room').selectOption('25');
+	await expect(controls.locator('#meechie-tool-look-room-help')).toContainText(
+		'About a quarter of the sheet left blank'
+	);
+
+	await page.getByTestId('meechie-tool-make-page').click();
+	await expectPageOnScreen(page);
+});

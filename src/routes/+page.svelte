@@ -22,6 +22,7 @@ Invariants: `SystemTrace` receives `promptWasSent` from the state and must never
 	import VerdictRow from '$lib/components/studio/VerdictRow.svelte';
 	import SystemTrace from '$lib/components/studio/SystemTrace.svelte';
 	import { VAULT_REOPEN_PARAM } from '$lib/core/vault-page';
+	import { STUDIO_DEFAULT_PAGE_LOOK } from '$lib/core/meechie-studio';
 
 	let { data } = $props();
 
@@ -144,6 +145,8 @@ Invariants: `SystemTrace` receives `promptWasSent` from the state and must never
 			bind:pageSize={studio.pageSize}
 			bind:border={studio.border}
 			bind:glitter={studio.glitter}
+			bind:pageLook={studio.pageLook}
+			pageLookBaseline={STUDIO_DEFAULT_PAGE_LOOK}
 			styleSelectionUnknown={studio.styleSelectionUnknown}
 			settingsError={studio.settingsError}
 			settingsIssues={studio.settingsIssues}
