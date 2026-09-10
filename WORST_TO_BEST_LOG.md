@@ -17421,3 +17421,126 @@ change had spelled out at six declarations across four files. Fixed by naming it
 **Confirmed empirically:** SonarCloud's next run reported **0 New issues**. That is the eighth run's
 worth of "unidentifiable" closed by a method a future run can repeat, and it belongs in the
 carried-forward list as a technique rather than as a one-off.
+
+## Run 25 — merge close-out — 2026-09-10 — PR #352 merged as `94902eb`
+
+**Merged:** `94902eb`, squashed from three commits on `claude/great-bell-0eifph`.
+**Base at merge:** `main` at `5ab1e01`. 51 files, +1,871 / -307.
+
+### Re-measured at the merged commit, and the base measured too
+
+`git rev-parse` reports the same tree — `ad915a4b` — for `94902eb` and for the PR head `21576bb`, so
+a re-run measures the merged content rather than a near-copy of it. The base figure is measured in a
+detached worktree at `5ab1e01` rather than quoted from Run 24's close-out.
+
+| Command | Result at `94902eb` |
+|---|---|
+| `npm run check` | 0 errors, 0 warnings |
+| `npm run lint` | exit 0 |
+| `npm test` | **2,036** passed, 1 skipped (from **2,016** measured at `5ab1e01` — 20 net) |
+| `npm run build` | exit 0 |
+| `npm run verify` | exit 0 |
+| `npm run cipher:gate` | exit 0 |
+| `npm run test:e2e:local` | **87** passed (from 86 — 1 net) |
+
+### All four merge conditions held, and the hold condition this run had to answer
+
+`AGENTS.md:L127-159`. Each was checked against the current head and written on the pull request
+before merging rather than asserted afterwards.
+
+Conditions 1-4 were straightforward: every check run and both commit statuses green on `21576bb`
+(the Vercel *deployment* reports as a status, which is the surface that rule exists to catch), seven
+review threads resolved, verify and test green with committed evidence, `mergeable_state: clean` and
+nothing unpushed.
+
+**The hold condition that applied is the interesting one: "an open Assumption in `DECISIONS.md`
+covers the behaviour being shipped."** It did — because *this run added it*, at Codex's correct
+insistence. The rule allows resolving it first **or stating why the change is safe without it**, and
+resolving was genuinely impossible: `api.x.ai` is unreachable under this container's network policy,
+so the probe is blocked rather than merely undone.
+
+The stated reason, recorded on the PR and in the entry's own Status field: `textStrokeWidth` reached
+the prompt before this change too, and reached it **under a constant that contradicted it**. This
+change strictly *narrows* what the provider is told, from two conflicting instructions to one. The
+failure mode if the Assumption later fails validation is that the picture does not follow the
+control — and the control would still be honest, because it changes the stored spec and every
+sentence the app says about the page. That is strictly better than the state being merged away from.
+
+The other four open Assumptions were read individually and none covers this change: CSP font sources
+(head policy), `vercel.json` header rules (no route added), the durable rate-limit store (request
+throttling), and the live image-**edit** call for `WigTryOnSeam` (the try-on path).
+
+### Scope and the Cipher Gate
+
+`git diff --name-only 5ab1e01 94902eb` against all seven governed paths returns **8 files**: six
+golden fixtures, one seam adapter, and one seam contract test. A Cipher Gate was required, is
+recorded in `DECISIONS.md`, and `npm run cipher:gate` exits 0 against it.
+
+**No `contracts/` file and no seam `contract.ts` changed.** `textStrokeWidth` was already
+`z.number().int().min(4).max(12).default(6)`; no field was added, removed or retyped; `templateVersion`
+v5 → v6 is a value, not a schema; and no stored record becomes unreadable.
+
+### The PR description was rewritten before merging, and that is worth recording
+
+The original described a design two of the four findings removed — a pixel figure referenced to a
+1024px sheet, and a test binding it to `DEFAULT_IMAGE_SIZE`. Merging with that text would have put a
+confident, wrong explanation into the permanent record of the change, next to code that does
+something else. It now describes what shipped, with a note saying it was rewritten and why.
+
+**A pull request description is not a historical artifact of what you first tried.** It is the
+explanation the squashed commit carries. This log records it because nothing in `AGENTS.md` says so
+and it was nearly missed.
+
+### What the review rounds cost, and what they bought
+
+**Five findings across two reviewers plus one static-analysis issue. All six correct; all six fixed.
+Three cross-branch findings measured and declined.**
+
+- **Four from Codex**, on the first head. Two were user-visible defects — one of them, the
+  self-renaming "Page default" option, **had been live since Run 24 and this run touched that exact
+  option without noticing**. The other two were about this run's own *claims*: a prompt sentence
+  asserting a measurement, and a plan asserting an inventory.
+- **One from SonarCloud**, `sonarjs/use-type-alias`, which this change created by making a
+  three-member `Pick` and spelling it out six times.
+- **Nineteen advisory findings from Rosentic**, all against `claude/great-bell-k1i146` (PR #317), all
+  re-measured on this branch pair rather than inherited from Runs 22-24, and all declined with the
+  measurement written on the pull request. Its check run was green throughout.
+
+Not one of the six was code failing to do what it was written to do. Every one was a claim that did
+not survive being checked — which is the same shape as the defect this run existed to fix.
+
+### The honest count of this run's own defects
+
+Two found before any reviewer saw them (a help table claiming surface-specific provenance; a summary
+rendering "7px lines lines"), four found by reviewers, and **three test assertions that were wrong
+before they were right** — including one that went green while matching nothing at all.
+
+Set against that: the feature it shipped removed a contradiction that had been in every prompt the
+application ever sent, and fixed a control defect that predated it.
+
+### Carried forward for the next run
+
+Re-measure everything below; do not inherit it.
+
+- **Ten presentation fields are still unreachable by a reader.** `fontStyle` is the strongest
+  candidate, and now for a measured reason rather than a guess: `'Bold bubble letters.'` in the
+  TYPOGRAPHY constant contradicts `Font: block.` and `Font: hand.` in the same section, which is the
+  same defect class this run just removed for line weight. It is commented at the line.
+- **`'Glitter outline only (no shading).'` is emitted unconditionally** and contradicts
+  `Shading: hatch.` / `Shading: stippling.` — and the NEGATIVE PROMPT says "no shading" as well, so a
+  spec asking for shading is refused three times and granted once. Commented at the line.
+- **The blocked-probe Assumption on the image prompt's content is open** and names its own
+  validation: generate one spec at `textStrokeWidth` 4 and at 12 and compare the linework. A run with
+  provider access should close it.
+- **SonarCloud findings are identifiable from this container**, by the method recorded in the first
+  close-out. Do not record one as unknowable again without trying it.
+- **`ADVANCED_SPEC_FIELDS` has no importer.** Unchanged.
+- **`variations` is honoured and charged but unsettable outside `/describe`.** Verified this run.
+- **`src/lib/core/meechie-quote-scoring.ts` has no production importer** and should probably be
+  deleted rather than wired — see the opening entry for why.
+- **`MeechieTools.svelte` is still in legacy (non-runes) mode** — worked around a sixth time.
+- **`readJson` conflates a denied read with a damaged store.** Run 22's item, untouched.
+- **A `ConnectionSeam` is still the right home for the `navigator.onLine` read.** Unchanged.
+- **The try-on's `rejected` branch is still unreachable from the UI.** Run 21's item, untouched.
+- **`failure.detail` has one consumer, on one surface out of fourteen.** Run 23's item, untouched.
+- **Run 18 still has no merge close-out entry.** Carried for eight runs now.
