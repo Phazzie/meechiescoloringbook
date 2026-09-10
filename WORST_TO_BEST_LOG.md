@@ -16229,8 +16229,14 @@ full above.
 ### What the review rounds actually cost, and what they bought
 
 Six review rounds, **fourteen** findings — **twelve in code, two in process** — and every one of the
-fourteen landed on a pull request whose gates were already green. Not one of them could have gone
-red, because none of them was code failing to do what it was written to do.
+fourteen landed on a pull request whose **automated checks** were already green. Not one of them
+could have gone red, because none of them was code failing to do what it was written to do.
+
+"Automated checks", not "gates". Two of this run's gates were never green: the mandatory
+`npx playwright test`, which is the subject of one of the fourteen findings, and merge condition 3.
+Writing "gates were already green" here would have restated in the summary exactly the claim the
+section above spent four rounds retiring — the same defect one more time, in the paragraph that
+congratulates the reviews for catching it.
 
 The count is stated from the entries above rather than from memory, because two earlier attempts at
 it were short. The sixth close-out records **eleven correct findings across five review rounds**, all
@@ -16302,16 +16308,28 @@ Re-measure everything below; do not inherit it.
   Gate.
 - **A `ConnectionSeam` is still the right home for the `navigator.onLine` read.** Unchanged.
 - **The try-on's `rejected` branch is still unreachable from the UI.** Run 21's item, untouched.
-- **`failure.detail` has one consumer, on one surface out of thirteen.** Narrowed here, because the
-  first draft said "storage and generation details still have nowhere to render" and **that is wrong
-  for generation**: `traceFailureDetail` reads `pageFailure`, `textFailure` and `tryOnFailure`, and
-  this run added packaging alongside them. Measured: `grep -rln "SystemTrace" src/` outside the
-  component itself returns `src/routes/+page.svelte` and nothing else. So generation *and* packaging
-  details do render — on the home studio only — while the twelve other page-making surfaces have no
-  System Trace at all, and **storage details render nowhere on any surface**;
-  `StorageFailureNotice.svelte` states in its own header that it never renders `detail`. That is the
-  remaining gap, and it is two gaps rather than one: a diagnostic with no consumer, and twelve
-  surfaces with no place to put one.
+- **`failure.detail` has one consumer, on one surface out of fourteen.** Narrowed twice. The first
+  draft said "storage and generation details still have nowhere to render", which is **wrong for
+  generation**: `traceFailureDetail` reads `pageFailure`, `textFailure` and `tryOnFailure`, and this
+  run added packaging alongside them. The second draft then said *thirteen* surfaces, which is the
+  count this log has carried since Run 14 and **`/describe` post-dates it**. Measured now:
+
+  ```
+  $ grep -rln "SystemTrace" src/ | grep -v SystemTrace.svelte
+  src/routes/+page.svelte
+  ```
+
+  Fourteen page-making surfaces — the home studio, the three standalone mode routes, the eight
+  `/m/<slug>` pages, the eleven-tool hub and `/describe`, which reaches `PageExportRow` through
+  `DescribePageStudio` and imports no `SystemTrace`. So generation *and* packaging details do render,
+  on the home studio only; **thirteen** surfaces have no System Trace at all; and **storage details
+  render nowhere on any of the fourteen**, which `StorageFailureNotice.svelte` states in its own
+  header. Two gaps rather than one: a diagnostic with no consumer, and thirteen surfaces with no
+  place to put one.
+
+  The count is worth stating carefully because a denominator carried forward from before a surface
+  existed is exactly how `/describe` got missed for its whole life — a seam that shipped complete
+  and had **zero callers** until Run 20 built it one.
 - **`npx playwright test` cannot run in this container and runs nowhere in CI.** The project pins
   build 1208; `/opt/pw-browsers` has 1194. `playwright.local.config.ts` and `npm run test:e2e:local`
   are committed this run so the substitute stops being rebuilt by hand each time, but **the
