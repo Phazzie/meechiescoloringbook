@@ -10,6 +10,8 @@ import {
 	textStrokeLine,
 	letteringLine,
 	whitespaceLine,
+	MAX_PROMPTABLE_WHITESPACE,
+	MIN_PROMPTABLE_WHITESPACE,
 	decorationLine,
 	illustrationLine,
 	shadingLine,
@@ -270,6 +272,17 @@ describe('prompt-template helpers', () => {
 			expect(letteringLine('large')).toContain('large');
 		});
 
+		// How much of the sheet is covered is `whitespaceScale`'s answer. Two lines in one prompt
+		// each claiming to set page occupancy force the model to pick one and ignore the other.
+		it('makes no claim about how much of the sheet is covered', () => {
+			for (const size of ['small', 'medium', 'large'] as const) {
+				const line = letteringLine(size).toLowerCase();
+				for (const claim of ['sheet', 'page', 'room to colour', 'blank', 'filling', '%']) {
+					expect(line).not.toContain(claim);
+				}
+			}
+		});
+
 		// `PROMPT_FORBIDDEN_TOKENS` contains `size:`, and the drift check reports any line carrying
 		// one. A line called "Text size:" would have made every page in the app report a forbidden
 		// token, which is why this one is called "Lettering".
@@ -287,8 +300,25 @@ describe('prompt-template helpers', () => {
 		it('states the scale the spec asked for', () => {
 			expect(whitespaceLine(35)).toContain('35%');
 			expect(whitespaceLine(50)).toContain('50%');
-			expect(whitespaceLine(0)).toContain('0%');
-			expect(whitespaceLine(100)).toContain('100%');
+		});
+
+		// Every page in this app draws an exact headline, so "leave 100% of the sheet blank" and
+		// "leave 0% blank" each contradict the TEXT block in the same prompt. Contradictory
+		// instructions do not fail — they make the model pick one and ignore the other, on a
+		// generation the reader has paid for. The encoder saturates instead.
+		it('clamps the ends the contract allows but a page cannot carry', () => {
+			expect(whitespaceLine(100)).toContain(`${MAX_PROMPTABLE_WHITESPACE}%`);
+			expect(whitespaceLine(100)).not.toContain('100%');
+			expect(whitespaceLine(0)).toContain(`${MIN_PROMPTABLE_WHITESPACE}%`);
+			expect(whitespaceLine(0)).not.toContain(' 0%');
+			// Saturating means two different extreme specs ask for the same thing, deliberately.
+			expect(whitespaceLine(95)).toBe(whitespaceLine(100));
+		});
+
+		it('leaves every value inside the band alone', () => {
+			for (let value = MIN_PROMPTABLE_WHITESPACE; value <= MAX_PROMPTABLE_WHITESPACE; value += 1) {
+				expect(whitespaceLine(value)).toContain(`${value}%`);
+			}
 		});
 
 		// The contract admits any number in range, and a prompt reading "about 47.5%" invites an

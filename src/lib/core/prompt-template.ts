@@ -69,15 +69,24 @@ export const textStrokeLine = (strokeWidth: ColoringPageSpec['textStrokeWidth'])
  * check reports every line that carries it. The TYPOGRAPHY section previously stated only the
  * constant 'Bold bubble letters; thick outlines.', so a spec asking for `small` and a spec asking
  * for `large` produced byte-identical prompts.
+ *
+ * Describes the **letterforms** and deliberately says nothing about how much of the sheet they
+ * cover. The first draft read "large, filling most of the sheet" and "small, leaving the most room
+ * to colour", which a review of PR #350 correctly called a contradiction: how much of the sheet is
+ * covered is `whitespaceScale`'s answer, and two lines in one prompt each claiming to set page
+ * occupancy force the model to pick one and ignore the other — on a request the reader has paid
+ * for. One field, one instruction. The reader-facing help in `page-style.ts` may still talk about
+ * room to colour, because a reader is choosing between the two together; the prompt may not,
+ * because the model is following both at once.
  */
 export const letteringLine = (textSize: ColoringPageSpec['textSize']): string => {
 	switch (textSize) {
 		case 'medium':
-			return 'Lettering: medium, filling about half the sheet height.';
+			return 'Lettering: medium letterforms.';
 		case 'large':
-			return 'Lettering: large, filling most of the sheet.';
+			return 'Lettering: large, bold letterforms.';
 		default:
-			return 'Lettering: small, leaving the most room to colour.';
+			return 'Lettering: small, compact letterforms.';
 	}
 };
 
@@ -96,11 +105,30 @@ export const letteringLine = (textSize: ColoringPageSpec['textSize']): string =>
  *
  * The value is rounded because the contract admits any number in range and a prompt reading
  * "about 47.5%" invites the model to draw the figure.
+ *
+ * It is also **clamped**, which is the part worth explaining. The contract admits 0 to 100, and both
+ * ends are instructions no page can carry: every page in this app draws an exact headline, so "leave
+ * 100% of the sheet blank" and "leave 0% blank" each contradict the TEXT block in the same prompt. A
+ * review of PR #350 caught the 100 case. Contradictory instructions do not fail — they make the
+ * model pick one and silently ignore the other, on a generation the reader has paid for.
+ *
+ * So the encoder saturates rather than repeating an impossible number: a spec asking for 95 and one
+ * asking for 100 both ask for `MAX`. That is a deliberate, documented loss, and it is confined to
+ * this one function — the contract, the stored spec and the reader's control all keep the real
+ * value.
  */
+export const MIN_PROMPTABLE_WHITESPACE = 5;
+export const MAX_PROMPTABLE_WHITESPACE = 85;
+
 export const whitespaceLine = (
 	whitespaceScale: ColoringPageSpec['whitespaceScale']
-): string =>
-	`Whitespace: leave about ${Math.round(whitespaceScale)}% of the sheet blank; treat blank space as intentional.`;
+): string => {
+	const promptable = Math.min(
+		MAX_PROMPTABLE_WHITESPACE,
+		Math.max(MIN_PROMPTABLE_WHITESPACE, Math.round(whitespaceScale))
+	);
+	return `Whitespace: leave about ${promptable}% of the sheet blank around the drawn content; treat blank space as intentional.`;
+};
 
 export const decorationLine = (decorations: ColoringPageSpec['decorations']): string => {
 	switch (decorations) {

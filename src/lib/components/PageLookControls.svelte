@@ -75,6 +75,28 @@ Invariants:
 	const textSizeValue = $derived(look.textSize ?? AS_BUILT);
 	const roomValue = $derived(look.whitespaceScale === null ? AS_BUILT : String(look.whitespaceScale));
 
+	/**
+	 * The reader's own blank-space value, when it is one this control does not otherwise offer.
+	 *
+	 * A page restored from the vault or from the draft carries its stored `whitespaceScale`, and the
+	 * app really builds 35 and 45 — neither of which is one of the three steps. Without this the
+	 * `<select>` was set to a value no `<option>` had, which browsers render as **blank**: the reader
+	 * reopened a page and the control that describes it showed nothing at all. Caught in review of
+	 * PR #350; the browser test that seeded 35 asserted the panel's summary text and never looked at
+	 * the select, so it passed while the control was empty.
+	 *
+	 * Offering the value keeps it selectable, so the reader can also leave it alone. "Page default"
+	 * remains a separate option and still means the surface's own default, which on the home studio
+	 * is 50 — that is what a default is, and it is why this option has to exist beside it rather
+	 * than instead of it.
+	 */
+	const restoredRoomOption = $derived(
+		look.whitespaceScale !== null &&
+			!ROOM_TO_COLOUR_OPTIONS.includes(look.whitespaceScale as (typeof ROOM_TO_COLOUR_OPTIONS)[number])
+			? look.whitespaceScale
+			: null
+	);
+
 	const textSizeHelp = $derived(TEXT_SIZE_HELP[effective.textSize]);
 	const roomHelp = $derived(
 		ROOM_TO_COLOUR_HELP[effective.whitespaceScale] ??
@@ -119,6 +141,11 @@ Invariants:
 		<option value={AS_BUILT}>
 			Page default — {describeRoomToColour(effective.whitespaceScale)}
 		</option>
+		{#if restoredRoomOption !== null}
+			<option value={String(restoredRoomOption)}>
+				{describeRoomToColour(restoredRoomOption)} — this page's own
+			</option>
+		{/if}
 		{#each ROOM_TO_COLOUR_OPTIONS as value}
 			<option value={String(value)}>{ROOM_TO_COLOUR_LABELS[value]}</option>
 		{/each}

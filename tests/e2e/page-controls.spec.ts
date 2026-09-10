@@ -143,6 +143,15 @@ test('the closed panel says so when a page carries no style of its own', async (
 		"This page's style is not on file · US Letter · decorative border · large lettering · 35% blank"
 	);
 	await panel.locator('summary').click();
+
+	// The control itself, not only the summary. 35 is not one of the three steps the control offers,
+	// and a `<select>` set to a value no `<option>` carries renders **blank** — so the reader
+	// reopened a page and the control describing it showed nothing at all. This assertion is the one
+	// the first version of this test was missing: it checked the summary text and never looked at
+	// the select, so it passed while the control was empty. Caught in review of PR #350.
+	await expect(panel.locator('#home-page-look-room')).toHaveValue('35');
+	await expect(panel.locator('#home-page-look-room')).toContainText("35% blank — this page's own");
+	await expect(panel.locator('#home-page-look-lettering')).toHaveValue('large');
 	// The notice's own wording matters, not just its presence: it used to end "changing any of them
 	// will restyle the page", which the artifact snapshot later made false and which contradicted the
 	// lede directly beneath it.

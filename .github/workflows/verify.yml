@@ -67,9 +67,16 @@ jobs:
         run: npm run playwright:install
       - name: End-to-end
         run: npm run test:e2e
+      # Both directories, because they carry different things and only one of them used to exist.
+      # `playwright-report/` is written by the HTML reporter that `playwright.config.ts` now declares
+      # — before it did, this step uploaded a directory nothing created. `test-results/` is where
+      # Playwright puts a failed test's own error context, and it is written whatever the reporter is.
       - if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report
-          path: playwright-report/
+          path: |
+            playwright-report/
+            test-results/
           retention-days: 7
+          if-no-files-found: ignore

@@ -16717,3 +16717,153 @@ silence.
 **`npx playwright test` ran green in CI for the first time.** Run 23 left it as the first item a next
 run should resolve. The `e2e` job passed on its first CI run at `674992a`, which means the routine's
 mandated browser gate now exists somewhere other than a sandbox that cannot satisfy it.
+
+## Run 24, second close-out — 2026-09-10 — the Codex round on `674992a`, and the defect this run reinvented
+
+Five findings, four of them correct and fixed, one declined with a measurement. Two of the four were
+**user-visible bugs in this run's own feature**, and one of those two is the *same defect this run
+exists to fix*, committed inside the fix.
+
+### 1. The read-back did not mention the field this run had just made real (P1, correct)
+
+`/describe` is the one page-making surface this run deliberately gave **no** control, on the stated
+grounds that "the read-back *is* the control" there. `readBackInterpretedPage` lists paper, border,
+lettering, illustrations and decorations — **and never whitespace**. So after this run,
+`ChatInterpretationSeam` could return any `whitespaceScale`, that value now changed the picture, and
+the reader approved "What She Understood" and paid without it being mentioned anywhere.
+
+**That is precisely the defect this whole run is about.** The opening entry's case against
+`textSize` is that `/describe` told the reader "Small lettering, which leaves the most room to
+colour" and then made the same picture either way. This run fixed that for `textSize` and created
+the mirror image of it for `whitespaceScale` — a value that reaches the picture and reaches no
+sentence — in the same commit, and then wrote a paragraph justifying why that surface needed no
+control.
+
+The justification was not wrong; it was incomplete. "The read-back is the control" is only true of
+fields the read-back reads. `whitespaceFact` is now one of its facts.
+
+**The rule this earns:** when a change makes a field effective, the list of places that describe the
+page is part of the change, not a follow-up. The run checked one such place — the one its own
+argument was built on — and did not enumerate the rest.
+
+### 2. Two prompt lines each claiming to set page occupancy (P1, correct)
+
+`letteringLine` read "large, filling most of the sheet" and "small, leaving the most room to
+colour". How much of the sheet is covered is **`whitespaceScale`'s** answer, and the same prompt now
+carried both. Large + Roomy asks for lettering that fills most of the sheet *and* 75% of the sheet
+left blank.
+
+Contradictory instructions do not fail. They make the model satisfy one and quietly drop the other,
+on a generation the reader has paid for — which is the same class of harm as a field reaching
+nothing, arrived at from the opposite direction. `letteringLine` now describes **letterforms** and
+says nothing about coverage; a test asserts it contains none of "sheet", "page", "blank", "filling"
+or "%". The reader-facing help in `page-style.ts` still talks about room to colour, because a reader
+choosing between the two controls needs to see how they relate; the prompt may not, because the
+model is following both at once.
+
+The same finding named the other end: `whitespaceScale: 100` produced "leave about 100% of the sheet
+blank" beside a TEXT block demanding an exact headline. Both ends of the contract's range are
+uncarryable. `whitespaceLine` now clamps to `MIN_PROMPTABLE_WHITESPACE` (5) and
+`MAX_PROMPTABLE_WHITESPACE` (85) and saturates: a spec asking 95 and one asking 100 request the
+same thing. **A documented, deliberate loss confined to the encoder** — the contract, the stored
+spec and the reader's control all keep the real number.
+
+### 3. A restored page rendered the control blank (P1, correct — and the test that missed it)
+
+After `loadCreation` or a draft restore, `pageLook.whitespaceScale` is the stored concrete value.
+The app really builds **35** (quote pages) and **45** (list pages), and neither is one of the
+control's three steps — so the `<select>` was set to a value no `<option>` carried, which browsers
+render as **blank**. The reader reopened a page and the control describing it showed nothing.
+
+**The browser test that seeded 35 did not catch this**, and the reason is worth recording: it
+asserted the *panel's summary text* and never looked at the select. The summary is computed from the
+same state and was correct; the control was empty beside it. A test that checks a derived string
+instead of the widget is a test that agrees with the state rather than with the reader.
+
+Fixed by rendering the reader's own value as a selectable option when it is not one of the steps
+(`{describeRoomToColour(value)} — this page's own`). "Page default" stays beside it and still means
+the surface's default, because that is what a default is.
+
+**Red proof taken, not assumed:** with the new `<option>` removed, the assertion fails with
+`Received: ""` — the blank render, reproduced.
+
+### 4. The CI failure artifact was never generated (P2, correct)
+
+The `e2e` job's `if: failure()` step uploaded `playwright-report/`, and `playwright.config.ts`
+declares no reporter — Playwright's default is `list` locally and `dot` on CI, neither of which
+writes that directory. **The job would have uploaded nothing on exactly the run where a diagnostic
+matters.** The config now declares `[['list'], ['html', { open: 'never' }]]`, and the step uploads
+`test-results/` alongside it, with `if-no-files-found: ignore`.
+
+### 5. "Route the verify wrapper's I/O through approved seams" (P1, declined, measured)
+
+The claim: `scripts/verify-outer.mjs` imports `node:child_process` and `node:fs` directly, which
+`AGENTS.md:L116` forbids — "All filesystem/network/process I/O must flow through approved seam
+adapters only".
+
+**Measured before answering:**
+
+```
+$ for f in scripts/*.mjs; do echo "$(grep -c "node:fs\|node:child_process" $f)  $f"; done
+1  scripts/assumption-alarm.mjs      1  scripts/proof-tape.mjs
+1  scripts/chamber-lock.mjs          2  scripts/rewind.mjs
+1  scripts/cipher-gate.mjs           1  scripts/run-probe.mjs
+1  scripts/clan-chain.mjs            1  scripts/seam-ledger.mjs
+1  scripts/evidence-reporting.mjs    1  scripts/shaolin-lint.mjs
+2  scripts/install-githooks.mjs      2  scripts/verify-outer.mjs
+                                     2  scripts/verify-runner.mjs
+```
+
+**All thirteen** automation scripts do this, including `verify-runner.mjs`, which the verify chain
+has always called and which `AGENTS.md` itself names in its Automation Tools list. The mandate sits
+under "Non-Negotiable Mandates" beside "Adapters must not import `fs`" and "No `process.cwd()` in
+core logic" — it governs the application, whose I/O the seams exist to make testable. The build
+automation is the thing that *runs* those tests.
+
+Making it seam-backed would invert the dependency: `npm run verify` would import the application's
+adapters in order to verify the application, so a broken adapter would take the verifier down with
+it and the gate would report nothing rather than a failure. That is a worse property than the one
+the finding objects to.
+
+Declined and answered on the thread rather than silently. If an owner rules the mandate covers
+`scripts/`, it is a thirteen-file change and its own run, not a rider on this one.
+
+### 6. proof-tape inventoried a file it could not read (correct, and the numbers matched)
+
+Codex measured it exactly: the tape recorded `sizeBytes: 3930` for a transcript that ended at 3993
+bytes. Re-measured here on this run's own artifacts — `4294` recorded against `4357` actual, short by
+the 63 bytes of the two trailing lines, **which are the lines carrying the chain's exit status**. So
+the one artifact that exists to prove `npm run verify` exited 0 was being inventoried by a step that
+could not see the proof.
+
+The circularity is not fixable by ordering: no step inside a chain can inventory the transcript of
+that chain. `proof-tape.mjs` already had the mechanism — `OWN_OUTPUTS`, the files it writes after
+taking its inventory — so the transcript joins it under a second, separately named set with the
+reason stated. Being absent from that list costs nothing; being present at a size that is always
+short cost the tape its credibility.
+
+### Gates after the round
+
+| Command | Result |
+|---|---|
+| `npm run check` | 0 errors, 0 warnings |
+| `npm run lint` | exit 0 |
+| `npm test` | **2,016** passed, 1 skipped (from 2,011) |
+| `npm run build` | exit 0 |
+| `npm run verify` | exit 0 |
+| `npm run cipher:gate` | exit 0 |
+| `npm run test:e2e:local` | **86** passed |
+
+### The fix-to-defect ratio, stated plainly
+
+Of the five Codex findings, four were correct. **Two were user-visible bugs in the feature this run
+shipped**, not in code it inherited: a control that rendered blank on a reopened page, and a paid
+surface that described everything about the page except the field the run had just made matter. Both
+were in the parts of the diff this run's own entry was most confident about — the read-back argument
+and the restored-page handling — and neither would have failed a gate.
+
+Three of this run's own review-round fixes were also against its own corrections: the "As this page
+has it" wording (a false-provenance defect shipped into the panel built against false provenance),
+the `Record<number, string>` typing, and the shell spawn in the file written to close a
+carried-forward item. The honest reading is that this run was at its least reliable exactly where it
+was fixing something.

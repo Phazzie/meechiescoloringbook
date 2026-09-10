@@ -46,8 +46,11 @@ describe('DriftDetectionSeam contract', () => {
 	// The line is removed from a prompt the fixture proves is otherwise clean, so a failure here can
 	// only be about the removed line.
 	it.each([
-		['lettering', 'Lettering: small, leaving the most room to colour.'],
-		['whitespace', 'Whitespace: leave about 50% of the sheet blank; treat blank space as intentional.']
+		['lettering', 'Lettering: small, compact letterforms.'],
+		[
+			'whitespace',
+			'Whitespace: leave about 50% of the sheet blank around the drawn content; treat blank space as intentional.'
+		]
 	])('adapter reports a prompt with no %s line', async (_name, line) => {
 		const clean = driftDetectionSampleFixture.input;
 		expect(clean.promptSent).toContain(line);
