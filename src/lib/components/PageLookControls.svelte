@@ -50,6 +50,7 @@ Invariants:
 		TEXT_SIZE_OPTIONS,
 		describeLineWeight,
 		describeRoomToColour,
+		type EffectivePageLook,
 		type PageLookSelection
 	} from '$lib/core/page-style';
 	import type { ColoringPageSpec } from '../../../contracts/spec-validation.contract';
@@ -63,7 +64,7 @@ Invariants:
 		/** The reader's override. `null` on a field means "leave the page's own". */
 		look: PageLookSelection;
 		/** What the next page will actually be made with, once `look` is applied to it. */
-		effective: Pick<ColoringPageSpec, 'textSize' | 'whitespaceScale' | 'textStrokeWidth'>;
+		effective: EffectivePageLook;
 		/**
 		 * Namespaces this instance's element ids.
 		 *

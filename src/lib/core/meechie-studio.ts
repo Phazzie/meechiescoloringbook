@@ -9,6 +9,10 @@ import {
 import type { CreationRecord, DraftRecord } from '$lib/seams/creation-store-seam/contract';
 import type { MeechieStudioTextAction, MeechieStudioTextOutput } from '$lib/seams/meechie-studio-text-seam/contract';
 import type { MeechieToolInput } from '../../../contracts/meechie-tool.contract';
+// `import type` deliberately: `page-style.ts` imports `studioThemes` from this file, so a value
+// import here would close a runtime cycle. A type-only import is erased entirely at build, which is
+// what lets the two files share the one name for the shape they both describe.
+import type { EffectivePageLook } from './page-style';
 
 /**
  * How many times the reader may rework one verdict before Meechie asks them for new facts instead.
@@ -633,10 +637,7 @@ export const derivesDenseDecorations = (styleHint: string): boolean =>
  * page's own" entry for a page the app itself made. `tests/unit/page-style.test.ts` asserts the two
  * agree, so moving either one alone fails rather than drifts.
  */
-export const STUDIO_DEFAULT_PAGE_LOOK: Pick<
-	ColoringPageSpec,
-	'textSize' | 'whitespaceScale' | 'textStrokeWidth'
-> = {
+export const STUDIO_DEFAULT_PAGE_LOOK: EffectivePageLook = {
 	textSize: 'small',
 	whitespaceScale: 50,
 	textStrokeWidth: 6

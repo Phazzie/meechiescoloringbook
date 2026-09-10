@@ -36,6 +36,7 @@ Critical invariants — this panel describes a page, so it must never describe o
 		summarizePageControls,
 		summarizeStyleSelection,
 		applyPageLook,
+		type EffectivePageLook,
 		type PageLookSelection,
 		type StyleSelection
 	} from '$lib/core/page-style';
@@ -76,10 +77,7 @@ Critical invariants — this panel describes a page, so it must never describe o
 		 * Passed in rather than assumed, because it is the *studio's* default and this panel does not
 		 * build specs. See `PageLookControls`' second invariant.
 		 */
-		pageLookBaseline: Pick<
-			ColoringPageSpec,
-			'textSize' | 'whitespaceScale' | 'textStrokeWidth'
-		>;
+		pageLookBaseline: EffectivePageLook;
 		/** The page on screen was saved before styles were stored with pages. */
 		styleSelectionUnknown?: boolean;
 		/** A change whose check could not be run at all, reported beside the controls. */

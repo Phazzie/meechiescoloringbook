@@ -357,15 +357,32 @@ export const describeLineWeight = (strokeWidth: number): string =>
 	LINE_WEIGHT_LABELS[strokeWidth] ?? `${Math.round(strokeWidth)}px`;
 
 /**
+ * The three look fields as a page will actually be made with them — concrete values, never `null`.
+ *
+ * The counterpart to `PageLookSelection`, and the distinction is the whole design: a selection is
+ * what the reader *overrode* and is nullable per field; this is what the page *gets* once that
+ * selection has been applied to whatever the surface builds. Every control, summary and baseline in
+ * the app is typed against one or the other, and mixing them up is how a panel comes to report an
+ * override instead of an effect — the "reports nothing" failure `PageLookControls`' second invariant
+ * exists to prevent.
+ *
+ * Named because the same `Pick` was spelled out at six declarations across four files once
+ * `textStrokeWidth` joined it, and a repeated structural type is one edit away from six that
+ * disagree. Adding a fourth look field is now one line here.
+ */
+export type EffectivePageLook = Pick<
+	ColoringPageSpec,
+	'textSize' | 'whitespaceScale' | 'textStrokeWidth'
+>;
+
+/**
  * Apply a reader's override to a spec, leaving every unset field exactly as the page built it.
  *
- * The one place the override is applied. Pure, and total over the two fields: nothing else in a spec
- * is touched, so a caller cannot accidentally hand a page a different title or a different border by
- * routing it through here.
+ * The one place the override is applied. Pure, and total over the three fields: nothing else in a
+ * spec is touched, so a caller cannot accidentally hand a page a different title or a different
+ * border by routing it through here.
  */
-export const applyPageLook = <
-	T extends Pick<ColoringPageSpec, 'textSize' | 'whitespaceScale' | 'textStrokeWidth'>
->(
+export const applyPageLook = <T extends EffectivePageLook>(
 	spec: T,
 	look: PageLookSelection
 ): T => ({
@@ -383,7 +400,7 @@ export const applyPageLook = <
  * the "reports nothing" failure this whole panel was rebuilt to stop.
  */
 export const summarizePageLook = (
-	look: Pick<ColoringPageSpec, 'textSize' | 'whitespaceScale' | 'textStrokeWidth'>
+	look: EffectivePageLook
 ): string =>
 	`${TEXT_SIZE_LABELS[look.textSize].toLowerCase()} lettering · ${describeRoomToColour(
 		look.whitespaceScale
@@ -459,5 +476,5 @@ export const summarizePaperSelection = (paper: PaperSelection): string =>
 export const summarizePageControls = (
 	styleSummary: string,
 	paper: PaperSelection,
-	look: Pick<ColoringPageSpec, 'textSize' | 'whitespaceScale' | 'textStrokeWidth'>
+	look: EffectivePageLook
 ): string => `${styleSummary} · ${summarizePaperSelection(paper)} · ${summarizePageLook(look)}`;
