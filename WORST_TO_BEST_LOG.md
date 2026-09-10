@@ -16267,17 +16267,25 @@ work** that did not survive being checked: a plan whose file inventory used a bl
 six evidence tables that named `npm run test:e2e:local` where the routine mandates `npx playwright
 test`. A gate cannot catch either.
 
-### Two regressions this run introduced and then caught
+### Three regressions this run introduced and then caught
 
 Recorded because the fix-to-defect ratio is the honest measure of a review round, and this run's was
-not 1:0.
+not 1:0. **Three, not two** — the count said two until a review round pointed at a third that the
+entries above already described.
 
 1. Token-scoping the `finally` in round three opened the generation-supersedes-rebuild strand that
    round four filed.
 2. Grouping remedies by text in `0a0067d` — this run's own fix for the duplicated forty words —
    discarded the variant association, which round five filed.
+3. **The stamp.** `packagingFailureStamp` exists because of the ordering fix in the sixth close-out;
+   the seventh then found it re-dating a failure that had not changed. The escalating chain that
+   close-out describes — wrong as a fallback, then wrong in its ordering, then wrong in what it
+   stamps — is by its own account a sequence in which **each finding is against the previous fix**,
+   so the third belongs on this list and the entry left it off.
 
-Both were found by review, not by a gate, and both were fixes rather than original code.
+All three were found by review, not by a gate, and all three were fixes rather than original code.
+That is the more useful ratio: of the twelve code findings, a quarter were against this run's own
+corrections.
 
 ### Rosentic stood down on measured grounds, as in Run 22
 
@@ -16390,5 +16398,18 @@ Re-measure everything below; do not inherit it.
   Run 22 corrected.
 - **Run 18 still has no merge close-out entry.** Carried for six runs now.
 - Every item on **Run 19's carried-forward list** still stands, untouched by this run.
-- **Governance, met this run:** the plan was in `plan.md` before any code, and its file inventory was
-  corrected mid-run to name every path rather than describe a set.
+- **Governance:** the plan was in `plan.md` before any code. **Its file inventory did not name every
+  path until this close-out, and the line above claiming otherwise was false when written.** Measured
+  against `git diff --name-only a87af7a baf5cb5`, the Run 23 inventory omitted
+  `src/routes/+page.svelte` and `tests/unit/page-exports.test.ts` — a fourth suite where it said
+  "the three suites" — and carried `docs/evidence/2026-09-10/**`, a glob covering eleven files.
+
+  A glob **is** a blanket statement. So the table written to answer an unlisted-files finding shipped
+  with a blanket row in it, called itself an enumeration in its own preamble, and this entry then
+  reported the mandate as met. Three layers, each asserting the layer under it was fixed. Runs 17 and
+  18 enumerate their evidence files one per row, five hundred lines further down the same file, so
+  the standard was never in doubt.
+
+  Now enumerated: fifteen rows, including `plan.md` itself and the `verify-outer.txt` that no chain
+  writes. The mandate exists so a diff can be checked against a plan mechanically; until this
+  close-out that check would have returned four discrepancies on a run reporting none.

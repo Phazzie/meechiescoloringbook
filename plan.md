@@ -109,7 +109,29 @@ it. Raised by review on PR #347.
 | `playwright.local.config.ts` | `[NEW]` | The pinned browser build is absent here; two prior runs rebuilt this override by hand and discarded it. |
 | `package.json` | `[MODIFY]` | The `test:e2e:local` script that runs the config above. |
 | `DECISIONS.md` | `[MODIFY]` | A review finding argued this needed the full seam workflow. Declining it is a tradeoff, and `AGENTS.md` requires tradeoffs to be recorded. |
-| `docs/evidence/2026-09-10/**` | `[NEW]` | Written by `npm run verify`, which the routine requires. Not hand-edited. |
+| `src/routes/+page.svelte` | `[MODIFY]` | The home studio passes `attempts`, `onRebuild` and `isRebuildingDownloads` to `StudioPreviewPanel`. Named nowhere above: the inventory listed the four `PageExportRow` hosts and this is the route that feeds one of them. |
+| `tests/unit/page-exports.test.ts` | `[MODIFY]` | A fourth suite asserting on `attempt.error`. The inventory said "the three suites"; there were four. |
+| `plan.md` | `[MODIFY]` | This file. A plan that edits itself mid-run is still a touched path. |
+| `docs/evidence/2026-09-10/assumption-alarm.json` | `[MODIFY]` | rewritten wholesale by `npm run assumption:alarm` inside the chain |
+| `docs/evidence/2026-09-10/chamber-lock.json` | `[MODIFY]` | rewritten wholesale by `npm run chamber:lock` |
+| `docs/evidence/2026-09-10/clan-chain.json` | `[MODIFY]` | rewritten wholesale by `npm run clan:chain` |
+| `docs/evidence/2026-09-10/clan-chain.md` | `[MODIFY]` | same, in prose |
+| `docs/evidence/2026-09-10/proof-tape.json` | `[MODIFY]` | rewritten wholesale by `npm run proof:tape` |
+| `docs/evidence/2026-09-10/proof-tape.md` | `[MODIFY]` | same, in prose |
+| `docs/evidence/2026-09-10/seam-ledger.json` | `[MODIFY]` | rewritten wholesale by `npm run seam:ledger` |
+| `docs/evidence/2026-09-10/seam-ledger.md` | `[MODIFY]` | same, in prose |
+| `docs/evidence/2026-09-10/shaolin-lint.json` | `[MODIFY]` | rewritten wholesale by `npm run shaolin:lint` |
+| `docs/evidence/2026-09-10/test.txt` | `[MODIFY]` | rewritten wholesale by `npm run verify:runner` |
+| `docs/evidence/2026-09-10/verify.txt` | `[MODIFY]` | rewritten wholesale by `npm run verify:runner` |
+| `docs/evidence/2026-09-10/verify-outer.txt` | `[NEW]` | the outer chain transcript, captured by hand after the chain returns per `docs/evidence/README.md`. Absent from `baf5cb5` entirely; added by the close-out. |
+
+**The evidence rows were `docs/evidence/2026-09-10/**` until a second review round.** A glob is a
+blanket statement, which is the exact thing the mandate bans and the exact thing the round that
+produced this table was filing. So the fix for an unlisted-files finding shipped with a blanket row
+still in it, and the table's own preamble called the result an enumeration. Runs 17 and 18 enumerate
+their evidence files individually — the standard was already in this file, five hundred lines down.
+The eleven generated files are listed above; `verify-outer.txt` is twelfth and is the one a chain
+does not write.
 
 **The lesson, which is the point of the mandate:** a plan that says "the existing tests that do X"
 cannot be checked against a diff, so nothing can tell a planned change from scope drift. Two of the
