@@ -173,6 +173,128 @@ export const INTENSITY_OPTIONS = Object.keys(INTENSITY_LABELS) as readonly Inten
 export const RAWNESS_OPTIONS = Object.keys(RAWNESS_LABELS) as readonly Rawness[];
 export const THIRD_PERSON_OPTIONS = Object.keys(THIRD_PERSON_LABELS) as readonly ThirdPerson[];
 
+/* ------------------------------------------------------------------------------------------------
+ * How much room there is to colour.
+ *
+ * `textSize` and `whitespaceScale` are `ColoringPageSpec` fields that reached no prompt at all until
+ * `letteringLine` and `whitespaceLine` were written. Making them real is only half the fix: the
+ * reader still could not set either one anywhere in the application, on any of the fourteen
+ * page-making surfaces. This is the other half.
+ *
+ * Deliberately only these two. Eleven further spec fields decide what the drawing looks like and are
+ * equally unreachable by a reader; extending the panel to all of them is a separate change and is
+ * recorded as one rather than folded in here.
+ * ---------------------------------------------------------------------------------------------- */
+
+type TextSize = ColoringPageSpec['textSize'];
+
+/**
+ * The reader's override of the two look fields, or `null` per field for "leave the page's own".
+ *
+ * Nullable per field rather than a single concrete value, because the surfaces do not agree on a
+ * default and never did: the home studio builds `small` at scale 50, a tools-hub quote page builds
+ * `large` at 35, and a tools-hub list page builds `large` at 45. A concrete default here would have
+ * had to pick one of those and silently retype the others, changing what every tool page asks for on
+ * a run whose job is to make the fields work rather than to redesign the pages.
+ *
+ * `null` means the page keeps exactly what it builds today. That makes the whole of this feature
+ * behaviour-preserving until a reader actually moves a control, which is also why no "has the reader
+ * touched this?" flag is needed anywhere: the absence of a choice *is* the null.
+ */
+export type PageLookSelection = {
+	textSize: TextSize | null;
+	whitespaceScale: ColoringPageSpec['whitespaceScale'] | null;
+};
+
+/** No override. Every surface starts here, so every surface starts unchanged. */
+export const DEFAULT_PAGE_LOOK: PageLookSelection = {
+	textSize: null,
+	whitespaceScale: null
+};
+
+/**
+ * What each lettering size does to a coloring page, in the reader's terms.
+ *
+ * A total `Record` over the contract enum, so a value added to `TextSizeSchema` fails compilation
+ * here rather than rendering a blank line under a dropdown — the same rule the voice tables follow.
+ */
+export const TEXT_SIZE_LABELS: Record<TextSize, string> = {
+	small: 'Small',
+	medium: 'Medium',
+	large: 'Large'
+};
+
+export const TEXT_SIZE_HELP: Record<TextSize, string> = {
+	small: 'Small lettering. Leaves most of the sheet free to colour.',
+	medium: 'Medium lettering. About half words, half space.',
+	large: 'Large lettering. The words are most of the page — easiest to read, least to colour.'
+};
+
+export const TEXT_SIZE_OPTIONS = Object.keys(TEXT_SIZE_LABELS) as readonly TextSize[];
+
+/**
+ * The blank-space settings the control offers, as whole percentages of the sheet.
+ *
+ * Three named steps rather than a 0-100 slider. The field admits any number in range and pages built
+ * elsewhere in the app legitimately carry 35, 40 and 45; those keep working and are shown as the
+ * page's own value. What a reader needs is not a hundred positions, it is three answers to "how much
+ * of this sheet do I get to colour?"
+ */
+export const ROOM_TO_COLOUR_OPTIONS = [25, 50, 75] as const;
+
+export const ROOM_TO_COLOUR_LABELS: Record<number, string> = {
+	25: 'Packed',
+	50: 'Balanced',
+	75: 'Roomy'
+};
+
+export const ROOM_TO_COLOUR_HELP: Record<number, string> = {
+	25: 'About a quarter of the sheet left blank. A full page with a little room around it.',
+	50: 'About half the sheet left blank.',
+	75: 'About three quarters of the sheet left blank. Lots of room to colour.'
+};
+
+/**
+ * Name a whitespace value the control did not offer.
+ *
+ * A page built by the tools hub carries 35 or 45 and a reopened page can carry anything the
+ * interpreter chose, so the panel has to be able to describe a value that is not one of its three
+ * steps. Naming the percentage is the honest answer; rounding it to the nearest step would report a
+ * page as something it is not.
+ */
+export const describeRoomToColour = (whitespaceScale: number): string =>
+	ROOM_TO_COLOUR_LABELS[whitespaceScale] ?? `${Math.round(whitespaceScale)}% blank`;
+
+/**
+ * Apply a reader's override to a spec, leaving every unset field exactly as the page built it.
+ *
+ * The one place the override is applied. Pure, and total over the two fields: nothing else in a spec
+ * is touched, so a caller cannot accidentally hand a page a different title or a different border by
+ * routing it through here.
+ */
+export const applyPageLook = <T extends Pick<ColoringPageSpec, 'textSize' | 'whitespaceScale'>>(
+	spec: T,
+	look: PageLookSelection
+): T => ({
+	...spec,
+	textSize: look.textSize ?? spec.textSize,
+	whitespaceScale: look.whitespaceScale ?? spec.whitespaceScale
+});
+
+/**
+ * The look half of the collapsed summary, read off the *effective* values.
+ *
+ * Takes what the page will actually be made with rather than the override, because a summary that
+ * read the override would say nothing at all until the reader moved a control — which is precisely
+ * the "reports nothing" failure this whole panel was rebuilt to stop.
+ */
+export const summarizePageLook = (
+	look: Pick<ColoringPageSpec, 'textSize' | 'whitespaceScale'>
+): string =>
+	`${TEXT_SIZE_LABELS[look.textSize].toLowerCase()} lettering · ${describeRoomToColour(
+		look.whitespaceScale
+	).toLowerCase()}`;
+
 /**
  * The phrasings the collapsed summary uses, where a bare label would not survive being read out of
  * its control.
@@ -240,5 +362,8 @@ export const summarizePaperSelection = (paper: PaperSelection): string =>
  * style — and the paper still has to be reported in that case, since page size and border are
  * `ColoringPageSpec` fields and always came back with the page.
  */
-export const summarizePageControls = (styleSummary: string, paper: PaperSelection): string =>
-	`${styleSummary} · ${summarizePaperSelection(paper)}`;
+export const summarizePageControls = (
+	styleSummary: string,
+	paper: PaperSelection,
+	look: Pick<ColoringPageSpec, 'textSize' | 'whitespaceScale'>
+): string => `${styleSummary} · ${summarizePaperSelection(paper)} · ${summarizePageLook(look)}`;

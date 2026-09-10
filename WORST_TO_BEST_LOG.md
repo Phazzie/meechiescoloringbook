@@ -16413,3 +16413,199 @@ Re-measure everything below; do not inherit it.
   Now enumerated: fifteen rows, including `plan.md` itself and the `verify-outer.txt` that no chain
   writes. The mandate exists so a diff can be checked against a plan mechanically; until this
   close-out that check would have returned four discrepancies on a run reporting none.
+
+## Run 24 — 2026-09-10 — How much room there is to colour
+
+**Picked:** the two `ColoringPageSpec` fields that decide whether a coloring page is colourable —
+`textSize` and `whitespaceScale`. Both were required, validated, persisted, restored, described to
+the reader before they paid, and read by **nothing**.
+
+### Why this one, measured on `main` at `498d6c0` rather than inherited
+
+`ColoringPageSpec` carries 21 fields. The prompt is assembled in exactly one place. Every spec field
+it reads, directly or through a `prompt-template.ts` helper:
+
+```
+$ grep -o "spec\.[a-zA-Z]*" src/lib/adapters/prompt-assembly-seam/index.ts | sort -u
+spec.alignment spec.border spec.borderThickness spec.colorMode spec.decorations
+spec.dedication spec.fontStyle spec.footerItem spec.illustrations spec.pageSize
+spec.shading spec.textStrokeWidth spec.title
+$ grep -o "spec\.[a-zA-Z]*" src/lib/core/prompt-template.ts src/lib/utils/alignment-line.ts \
+    | sed 's/.*://' | sort -u
+spec.alignment spec.colorMode spec.items spec.listGutter spec.listMode
+spec.numberAlignment spec.shading
+```
+
+`variations` is the provider's `n` (`image-generation-pipeline.ts:154`) and `outputFormat` belongs
+to packaging, so neither is a prompt field and neither is missing. That leaves **two** fields that
+reached nothing anywhere — not the prompt, not the drift check, not packaging, not image generation:
+
+| Field | Range | Set by | Read by |
+|---|---|---|---|
+| `textSize` | small / medium / large | `meechie-studio.ts:704` (`small`), `tool-page-recipe.ts:509` (`large`) | nothing |
+| `whitespaceScale` | 0-100 | `meechie-studio.ts:703` (50), `tool-page-recipe.ts:527` (35), `:533` (45) | nothing |
+
+In their place the prompt stated two constants: `Bold bubble letters; thick outlines.` regardless of
+`textSize`, and `Keep generous whitespace; treat blank space intentional.` regardless of
+`whitespaceScale`. So a spec asking for small lettering and one asking for large produced
+**byte-identical prompts**, and a page whose spec wanted almost no blank space asked the model for a
+generous amount of it.
+
+**What it cost the reader, in the app's own words.** `/describe` shows a read-back the reader checks
+*before* the paid generation, and `describe-page.ts:184-188` builds one of its sentences from
+`spec.textSize`:
+
+```
+small: 'Small lettering, which leaves the most room to colour.'
+large: 'Large lettering, which fills more of the sheet.'
+```
+
+The app told the reader how much room they would have to colour, and then made the same picture
+either way. The interpreter is instructed to choose both fields (`constants.ts:16,20`) and is billed
+for producing them on every `/describe` call.
+
+**And no reader could set either one, anywhere.**
+`src/lib/components/studio/StudioSettingsPanel.svelte:3` says of itself: *"This is the app's only say
+over what a coloring page looks like."* It offered theme, three voice settings, page size, border and
+glitter — two of the thirteen spec fields that decide what the drawing looks like. The other
+thirteen page-making surfaces offered none. `ADVANCED_SPEC_FIELDS`
+(`spec-validation-seam/contract.ts:166`) enumerates 14 field names for a disclosure UI and is
+imported by nothing — the same abandonment, one layer up.
+
+That is the widest promise-to-delivery gap in the app measured in what it costs the reader: not a
+feature that is ugly, a feature that is **announced to the reader, charged for, and inert**.
+
+### What shipped
+
+**Part 1 — the fields reach the drawing.** `letteringLine` and `whitespaceLine` join the other line
+builders in `prompt-template.ts`; `PromptAssemblySeam` emits both, `templateVersion` v4 -> v5. Called
+"Lettering", not "Text size", because `size:` is in `PROMPT_FORBIDDEN_TOKENS` and a line carrying it
+would be reported on every page — pinned by a test rather than left as a comment.
+
+**The fix defends itself.** `DriftDetectionSeam` adds both lines to `expectedOptionLines`, so
+dropping either again is a `MISSING_OPTION_LINE` on the reader's own quality report. **The absence of
+these two fields from that list is why the defect survived the app's entire life**: the drift seam
+only ever reported the fields it was told to look for.
+
+**Part 2 — the reader can set both, on every surface that builds a spec.** One
+`PageLookControls.svelte`, owning its own CSS, hosted by the home studio's Page Controls, by the
+shared `VerdictPageStudio` (twelve surfaces: the three standalone mode routes and all eight
+`/m/<slug>` pages) and by the eleven-tool hub.
+
+**Nothing changes until a control moves.** Each field is independently nullable and every surface
+starts at null, so every page the app made before this it still makes. That is not a claim, it is
+`tool-page-recipe.test.ts`: for every tool, both page shapes, an empty override produces a spec equal
+to the one built with no override at all. It is nullable because the surfaces genuinely disagree on a
+default — the studio builds `small` at 50, a tools-hub quote page `large` at 35, a list page `large`
+at 45 — and a concrete default would have had to pick one and silently retype the others on the same
+run that makes the field matter for the first time.
+
+**The control names the value in effect, not the override.** A control that displayed only what the
+reader had chosen would say nothing at all until touched, which is the "reports nothing" failure this
+panel was rebuilt against in Run 8. On the verdict surfaces the effective value is read *off the
+recipe* rather than recomputed, so the control and `makePage` cannot disagree.
+
+**`/describe` deliberately gets no control**, and this is a decision rather than an omission. There
+the reader says what they want in words and the interpreter chooses; the read-back *is* the control.
+A live override would contradict the read-back the reader had just checked, which is the exact
+mismatch that read-back exists to expose. Part 1 makes it truthful, which is the whole fix that
+surface needed.
+
+**On the home studio the two fields moved out of `presentation`** — the reopened page's look carried
+forward — and up to the top level beside `pageSize` and `border`. A field carried forward from a
+restored page cannot also be settable, and of the two answers "the reader just chose this" is the one
+that has to win. They restore from `creation.intent` and from the draft exactly as page size and
+border already did.
+
+### Two carried-forward items from Run 23, closed
+
+1. **`npx playwright test` ran nowhere.** The routine mandates it for user-facing changes. The
+   project pins Chromium build 1208; this container has 1194, and `npx playwright install` is
+   refused outright by the network policy:
+
+   ```
+   Error: Download failed: server returned code 403 body 'request blocked: no rule or allowlist
+   entry allows host "cdn.playwright.dev"'
+   ```
+
+   Downloading here is therefore impossible, which leaves Run 23's second option: put the gate where
+   a browser *can* be installed. `.github/workflows/verify.yml` gains an `e2e` job that installs the
+   **pinned** build and runs `npx playwright test` — deliberately not `playwright.local.config.ts`,
+   whose whole purpose is to run against whatever Chromium a sandbox happens to have; substituting it
+   in CI would make CI agree with the sandbox instead of holding the line it exists to hold. It is a
+   separate job so a browser install does not delay the unit gate and a red e2e run names itself.
+
+2. **`verify-outer.txt` was captured by hand and Run 23 forgot it**, merging a commit with no
+   committed proof that `npm run verify` exited 0. `npm run verify` is now
+   `node scripts/verify-outer.mjs`, which runs the same chain, tees it to the console unchanged, and
+   writes the transcript with the exit status as a greppable line. It writes on a **failing** run
+   too: a red chain is exactly the one whose transcript is worth having.
+
+### An open question this run did not answer, and deliberately did not paper over
+
+`tool-page-recipe.ts:527` assigns `whitespaceScale: 35` to a quote page under a comment reading
+"More whitespace than a list page", beside the list page's `45` at `:533`. Under the semantics this
+run states — higher means more blank space — those disagree, and **one of them is wrong**. Nothing
+noticed for the app's whole life because nothing read the field.
+
+The numbers are left exactly as they shipped and the comment is corrected to match them. Changing a
+number changes what every tool page asks for on the same run that makes the field effective for the
+first time, and no one could then tell which change did what. Recorded in `DECISIONS.md` as an open
+question for the owner. The reader's own control now answers it for any page they care about.
+
+### Gates
+
+| Command | Result |
+|---|---|
+| `npm run check` | 0 errors, 0 warnings — `docs/evidence/2026-09-10/check.txt` |
+| `npm run lint` | exit 0 — `docs/evidence/2026-09-10/lint.txt` |
+| `npm test` | **2,011** passed, 1 skipped (from **1,981**, +30) — `docs/evidence/2026-09-10/test.txt` |
+| `npm run build` | exit 0 — `docs/evidence/2026-09-10/build.txt` |
+| `npm run verify` | exit 0 — `docs/evidence/2026-09-10/verify-outer.txt`, now written by the chain |
+| `npm run cipher:gate` | exit 0 — `docs/evidence/2026-09-10/cipher-gate.json` |
+| `npx playwright test` | **NOT MET in this container** — pinned build 1208 absent, download 403. Added to CI this run; the PR's own `e2e` job is where it runs |
+| `npm run test:e2e:local` | **86** passed against build 1194 (from 83, +3) — `docs/evidence/2026-09-10/e2e.txt` |
+
+The red proof came first and is worth recording: adding the two lines failed **6 contract tests
+across 3 files** before a single fixture was touched, which is what proves the prompt genuinely
+changed rather than the tests being written to agree with it afterwards.
+
+### Where the plan was wrong
+
+`plan.md` carries the measured inventory beside the planned one, enumerated one row per file with no
+glob for the evidence folder. Four discrepancies, recorded there rather than argued away: two
+fixture files planned that needed no change (the TypeScript fixture modules only `parse` the JSON),
+two fault fixtures planned that carry no assembled prompt, the whole browser-gate work taken without
+being declared in advance, and the browser tests forgotten by a plan that listed only unit and
+contract suites.
+
+### Carried forward for the next run
+
+Re-measure everything below; do not inherit it.
+
+- **Eleven presentation fields are still unreachable by a reader.** `alignment`, `numberAlignment`,
+  `listGutter`, `fontStyle`, `textStrokeWidth`, `colorMode`, `decorations`, `illustrations`,
+  `shading`, `borderThickness`, `variations`. All eleven *work* — they reach the prompt — which is
+  why they were not this run's pick, and `PageLookControls` is the shape a next run would extend.
+  `textStrokeWidth` is the strongest single candidate: it is how thick the outlines are, which is
+  the difference between a page a child can colour inside and one they cannot.
+- **`ADVANCED_SPEC_FIELDS` has no importer.** Fourteen field names enumerated for a disclosure UI
+  that was never built. Either wire it to whatever control set comes next, or delete it.
+- **`variations` is honoured but unsettable.** `describe-page.ts:244` already writes the caution
+  "This makes N pictures, and costs N generations rather than one" for a value only the interpreter
+  can produce. The prose exists; the control does not.
+- **`page size` and `border` are reader-owned on the home studio only.** The other thirteen surfaces
+  build `US_Letter` and a fixed border with no say. Deliberately out of scope here.
+- **`src/lib/core/meechie-quote-scoring.ts` has no production importer.** Run 23's item, untouched.
+  107 lines, tested but unwired, and its heuristics hardcode `'easter'` and `'cheap seats'` as
+  evidence of wit.
+- **`MeechieTools.svelte` is still in legacy (non-runes) mode** — worked around a **fifth** time this
+  run, with a plain `let pageLook` and a `$:` block where the other hosts use `$state`/`$derived`.
+  Run 23's finding stands unchanged: three independent `runPackaging` implementations, and the legacy
+  mode explains only why the third cannot share the other two.
+- **`readJson` conflates a denied read with a damaged store.** Run 22's item, untouched.
+- **A `ConnectionSeam` is still the right home for the `navigator.onLine` read.** Unchanged.
+- **The try-on's `rejected` branch is still unreachable from the UI.** Run 21's item, untouched.
+- **`failure.detail` has one consumer, on one surface out of fourteen.** Run 23's item, untouched.
+- **SonarCloud still cannot be read from this container** (`sonarcloud.io`, CONNECT tunnel 403).
+- **Run 18 still has no merge close-out entry.** Carried for seven runs now.

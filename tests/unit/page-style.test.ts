@@ -28,6 +28,16 @@ import {
 	THIRD_PERSON_HELP,
 	THIRD_PERSON_LABELS,
 	THIRD_PERSON_OPTIONS,
+	ROOM_TO_COLOUR_HELP,
+	ROOM_TO_COLOUR_LABELS,
+	ROOM_TO_COLOUR_OPTIONS,
+	TEXT_SIZE_HELP,
+	TEXT_SIZE_LABELS,
+	TEXT_SIZE_OPTIONS,
+	DEFAULT_PAGE_LOOK,
+	applyPageLook,
+	describeRoomToColour,
+	summarizePageLook,
 	buildStyleHint,
 	isSameStyleSelection,
 	summarizePageControls,
@@ -39,7 +49,39 @@ import {
 } from '$lib/core/page-style';
 import { derivesDenseDecorations, studioThemes } from '$lib/core/meechie-studio';
 import { MeechieStudioVoiceSettingsSchema } from '$lib/seams/meechie-studio-text-seam/contract';
-import { BorderStyleSchema, PageSizeSchema } from '$lib/seams/spec-validation-seam/contract';
+import {
+	BorderStyleSchema,
+	ColoringPageSpecSchema,
+	PageSizeSchema,
+	TextSizeSchema
+} from '$lib/seams/spec-validation-seam/contract';
+
+/**
+ * A spec the contract accepts, so the look tests can prove a control's values build a real page and
+ * that applying one touches nothing else. Written out here rather than imported from a fixture: the
+ * point is to be a whole valid spec, and a fixture that changed shape would quietly weaken that.
+ */
+const VALID_SPEC = {
+	title: 'Dream Big',
+	items: [{ number: 1, label: 'Shine' }],
+	listMode: 'list',
+	alignment: 'left',
+	numberAlignment: 'strict',
+	listGutter: 'normal',
+	whitespaceScale: 50,
+	textSize: 'small',
+	fontStyle: 'rounded',
+	textStrokeWidth: 6,
+	colorMode: 'black_and_white_only',
+	decorations: 'none',
+	illustrations: 'none',
+	shading: 'none',
+	border: 'plain',
+	borderThickness: 8,
+	variations: 1,
+	outputFormat: 'pdf',
+	pageSize: 'US_Letter'
+} as const;
 
 const selection = (overrides: Partial<StyleSelection> = {}): StyleSelection => ({
 	...DEFAULT_STYLE_SELECTION,
@@ -208,16 +250,29 @@ describe('summarizeStyleSelection', () => {
 	// changed Third Person and shut the panel watched the line they had just changed stay put.
 	it('moves when any one control moves', () => {
 		const paper: PaperSelection = { pageSize: 'US_Letter', border: 'decorative' };
-		const base = summarizePageControls(summarizeStyleSelection(selection()), paper);
+		const look = { textSize: 'small', whitespaceScale: 50 } as const;
+		const base = summarizePageControls(summarizeStyleSelection(selection()), paper, look);
 		const moved = [
 			summarizePageControls(
 				summarizeStyleSelection(
 					selection({ voice: { ...DEFAULT_STYLE_SELECTION.voice, thirdPerson: 'always' } })
 				),
-				paper
+				paper,
+				look
 			),
-			summarizePageControls(summarizeStyleSelection(selection()), { ...paper, pageSize: 'A4' }),
-			summarizePageControls(summarizeStyleSelection(selection()), { ...paper, border: 'none' })
+			summarizePageControls(summarizeStyleSelection(selection()), { ...paper, pageSize: 'A4' }, look),
+			summarizePageControls(summarizeStyleSelection(selection()), { ...paper, border: 'none' }, look),
+			// The two controls the panel gained. Added to this test rather than tested apart,
+			// because the defect it pins is a summary that does not follow a control the panel
+			// holds, and it holds these now.
+			summarizePageControls(summarizeStyleSelection(selection()), paper, {
+				...look,
+				textSize: 'large'
+			}),
+			summarizePageControls(summarizeStyleSelection(selection()), paper, {
+				...look,
+				whitespaceScale: 75
+			})
 		];
 		for (const summary of moved) {
 			expect(summary).not.toBe(base);
@@ -261,25 +316,125 @@ describe('summarizePageControls', () => {
 		}
 	});
 
-	it('reads as one line: the style, then the paper', () => {
+	it('reads as one line: the style, then the paper, then the look', () => {
 		expect(
-			summarizePageControls(summarizeStyleSelection(selection()), {
-				pageSize: 'US_Letter',
-				border: 'decorative'
-			})
+			summarizePageControls(
+				summarizeStyleSelection(selection()),
+				{ pageSize: 'US_Letter', border: 'decorative' },
+				{ textSize: 'small', whitespaceScale: 50 }
+			)
 		).toBe(
-			'Crown Energy · Receipts Out · Mild · sometimes in third person · US Letter · decorative border'
+			'Crown Energy · Receipts Out · Mild · sometimes in third person · US Letter · decorative border · small lettering · balanced'
 		);
 	});
 
 	// A reopened page written before styles were stored has no style to name, and its paper is the
 	// half that *is* on file — so the substitute sentence must not take the paper down with it.
-	it('still names the paper when the style is not on file', () => {
+	it('still names the paper and the look when the style is not on file', () => {
 		expect(
-			summarizePageControls("This page's style is not on file", {
-				pageSize: 'A4',
-				border: 'none'
-			})
-		).toBe("This page's style is not on file · A4 · no border");
+			summarizePageControls(
+				"This page's style is not on file",
+				{ pageSize: 'A4', border: 'none' },
+				{ textSize: 'large', whitespaceScale: 35 }
+			)
+		).toBe("This page's style is not on file · A4 · no border · large lettering · 35% blank");
+	});
+});
+
+/*
+ * The two controls that decide how much of a printed sheet is left to colour.
+ *
+ * Option coverage is driven off `TextSizeSchema` for the same reason the voice tables are driven off
+ * their schema: a value added to the contract must arrive here as a failure about missing prose,
+ * never as a silence that renders a blank line under a dropdown.
+ */
+describe('the room-to-colour controls', () => {
+	it('has a label and a help line for every text size the contract allows', () => {
+		for (const value of TextSizeSchema.options) {
+			expect(TEXT_SIZE_LABELS[value]?.trim().length).toBeGreaterThan(0);
+			expect(TEXT_SIZE_HELP[value]?.trim().length).toBeGreaterThan(0);
+		}
+		expect([...TEXT_SIZE_OPTIONS].sort()).toEqual([...TextSizeSchema.options].sort());
+	});
+
+	it('has a label and a help line for every blank-space step it offers', () => {
+		for (const value of ROOM_TO_COLOUR_OPTIONS) {
+			expect(ROOM_TO_COLOUR_LABELS[value]?.trim().length).toBeGreaterThan(0);
+			expect(ROOM_TO_COLOUR_HELP[value]?.trim().length).toBeGreaterThan(0);
+		}
+	});
+
+	// Every step must be a value the spec contract accepts, or the control offers a page that
+	// cannot be built and the failure lands at the API boundary.
+	it('offers only blank-space values the spec contract accepts', () => {
+		for (const value of ROOM_TO_COLOUR_OPTIONS) {
+			expect(
+				ColoringPageSpecSchema.safeParse({
+					...VALID_SPEC,
+					whitespaceScale: value
+				}).success
+			).toBe(true);
+		}
+	});
+
+	// A page built by the tools hub carries 35 or 45 and a reopened page can carry anything the
+	// interpreter chose. Rounding those to the nearest step would report a page as something it is
+	// not, so the percentage is named instead.
+	it('names a blank-space value it does not offer rather than rounding it to one it does', () => {
+		expect(describeRoomToColour(50)).toBe('Balanced');
+		expect(describeRoomToColour(35)).toBe('35% blank');
+		expect(describeRoomToColour(45)).toBe('45% blank');
+		expect(describeRoomToColour(47.4)).toBe('47% blank');
+	});
+
+	describe('applyPageLook', () => {
+		const spec = { textSize: 'large', whitespaceScale: 35 } as const;
+
+		it('is the identity when neither field is chosen', () => {
+			expect(applyPageLook(spec, DEFAULT_PAGE_LOOK)).toEqual(spec);
+		});
+
+		it('applies each field independently', () => {
+			expect(applyPageLook(spec, { textSize: 'small', whitespaceScale: null })).toEqual({
+				textSize: 'small',
+				whitespaceScale: 35
+			});
+			expect(applyPageLook(spec, { textSize: null, whitespaceScale: 75 })).toEqual({
+				textSize: 'large',
+				whitespaceScale: 75
+			});
+		});
+
+		// A zero is a real choice — "leave none of it blank" — and `??` is what keeps it from being
+		// read as absence the way `||` would.
+		it('treats a zero scale as a choice, not as no choice', () => {
+			expect(applyPageLook(spec, { textSize: null, whitespaceScale: 0 }).whitespaceScale).toBe(0);
+		});
+
+		it('touches no other field of the spec it is given', () => {
+			const whole = { ...VALID_SPEC };
+			const applied = applyPageLook(whole, { textSize: 'medium', whitespaceScale: 25 });
+			expect({
+				...applied,
+				textSize: whole.textSize,
+				whitespaceScale: whole.whitespaceScale
+			}).toEqual(whole);
+		});
+	});
+
+	describe('summarizePageLook', () => {
+		it('names both controls for every text size', () => {
+			for (const textSize of TextSizeSchema.options) {
+				const summary = summarizePageLook({ textSize, whitespaceScale: 50 });
+				expect(summary.split(' · ')).toHaveLength(2);
+				expect(summary).not.toContain('undefined');
+			}
+		});
+
+		it('reads the effective value, so it says something before a control is ever touched', () => {
+			expect(summarizePageLook({ textSize: 'large', whitespaceScale: 35 })).toBe(
+				'large lettering · 35% blank'
+			);
+		});
 	});
 });

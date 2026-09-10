@@ -7,6 +7,56 @@ Info flow: Decision -> consequences -> future changes.
 
 Short, durable decisions with context and tradeoffs.
 
+## 2026-09-10 — Carry `textSize` and `whitespaceScale` into the prompt, and give the reader the two controls
+
+- Decision: `PromptAssemblySeam` emits a lettering line and a whitespace line built from the spec's
+  own `textSize` and `whitespaceScale`; `DriftDetectionSeam` adds both to the option lines it
+  requires; `templateVersion` goes `v4` -> `v5`. The reader can then set both, on every surface that
+  builds its own spec, through one shared `PageLookControls` component.
+- Context: measured on `main` at `498d6c0`. `ColoringPageSpec` carries 21 fields. Of them, exactly
+  two reached **nothing** — not the prompt, not the drift check, not packaging, not image
+  generation. `variations` is the provider's `n` and `outputFormat` belongs to packaging, so neither
+  is a prompt field; every other field was already read by the assembler or by a
+  `prompt-template.ts` helper. Both dead fields are nonetheless required, validated on every
+  request, stored with every saved page, restored on reopen, listed in the interpreter's schema in
+  `constants.ts`, and — for `textSize` — read back to the reader by `/describe` *before* they pay,
+  as "Small lettering, which leaves the most room to colour." The app said how much room the reader
+  would have and then made the identical picture either way. In their place the prompt stated two
+  constants: `Bold bubble letters; thick outlines.` and `Keep generous whitespace; treat blank space
+  intentional.` — the second of which asked for generous whitespace on a page whose spec wanted
+  almost none.
+- Alternatives: (a) **Delete the two fields from the contract.** Rejected: they are stored on every
+  saved page, so removing them is a data migration, and the fields are not the defect — the missing
+  four lines of encoder are. (b) **Emit the lines but leave the fields unsettable.** Rejected as
+  half the fix: `StudioSettingsPanel.svelte` calls itself "the app's only say over what a coloring
+  page looks like" and offered neither, and the other thirteen page-making surfaces offered no
+  control at all. (c) **Expose all thirteen unreachable presentation fields.** Rejected as a
+  different change: the two shipped here are the two this run makes *effective*, and the rest are
+  recorded as a follow-up rather than folded in. (d) **Make the reader's choice a concrete value
+  rather than a nullable override.** Rejected because the surfaces disagree on a default and always
+  did — the home studio builds `small` at 50, a tools-hub quote page `large` at 35, a list page
+  `large` at 45 — so a concrete default would have had to pick one and silently retype the others,
+  changing every tool page on the same run that makes the field matter for the first time.
+- Consequences: **every page the app generates now gets a different prompt**, which is the point and
+  is also the risk — see the Cipher Gate below. Higher `whitespaceScale` means more blank space;
+  nothing in the repository established that before, because nothing read the field, and the prompt
+  line now states the meaning in words so it is checkable against a generated page rather than
+  inferred from a variable name.
+- **Open question for the owner, not resolved here.** `tool-page-recipe.ts` assigns
+  `whitespaceScale: 35` to a quote page under a comment reading "More whitespace than a list page",
+  beside the list page's `45`. Under the stated semantics those disagree. The numbers are left
+  exactly as they shipped and the comment is corrected to match them, because changing a number
+  changes what every tool page asks for on the same run that makes the field effective, and nobody
+  could then tell which change did what. Whichever ordering was intended, the reader's own control
+  now answers it for any page they care about.
+
+- Cipher Gate:
+  - Date: 2026-09-10
+  - Seams: PromptAssemblySeam, DriftDetectionSeam
+  - Evidence: docs/evidence/2026-09-10/verify-outer.txt; docs/evidence/2026-09-10/check.txt; docs/evidence/2026-09-10/lint.txt; docs/evidence/2026-09-10/test.txt; docs/evidence/2026-09-10/build.txt; docs/evidence/2026-09-10/e2e.txt; src/lib/seams/prompt-assembly-seam/test.ts; src/lib/seams/drift-detection-seam/test.ts; tests/unit/prompt-template.test.ts; docs/seams.md
+  - Summary: Two required `ColoringPageSpec` fields that reached no consumer anywhere now reach the assembled prompt, and the drift check requires both. No contract schema, no probe and no seam type changes: the input shapes are identical and the new lines are built from fields the input already carried. What changed is the adapters' output text, and the golden prompt fixtures for `prompt-assembly`, `drift-detection` and `image-generation` regenerated to match.
+  - Risks: The prompt changes for **every** page the app makes, so any provider behaviour tuned to the old text changes with it — this cannot be proven here, because `ProviderAdapterSeam`'s live path is the subject of an open Assumption and no live image call was made. The 12% of the prompt that is now spec-derived was previously constant, so a spec carrying an extreme value (0 or 100 blank) reaches the model as an instruction it was never sent before. Mitigated by the drift seam now reporting either line's absence as `MISSING_OPTION_LINE` rather than passing it silently, which is the check that would have caught the original defect and did not exist.
+
 ## 2026-09-10 — Classify `OutputPackagingSeam` failures in core, without changing the seam
 
 - Decision: `src/lib/core/export-failure.ts` maps the packaging seam's `error.code` to reader-facing

@@ -1,6 +1,13 @@
 # Purpose: Enforce Seam-Driven Development gates in CI.
 # Why: Prevent unverified changes from landing in main.
-# Info flow: push/PR -> npm run verify -> pass/fail.
+# Info flow: push/PR -> npm run verify + npx playwright test -> pass/fail.
+#
+# The `e2e` job exists because `AGENTS.md`'s worst-feature routine requires `npx playwright test`
+# for any user-facing change, and that command ran **nowhere**: the sandboxed containers those
+# scheduled runs execute in have Chromium build 1194 while `@playwright/test` pins 1208, and
+# `npx playwright install` is refused by the network policy there. Every run since the requirement
+# was written has recorded the gate as unmet and carried it forward. A runner can install the pinned
+# build, so this is where the gate can actually exist.
 name: verify
 
 on:
@@ -20,3 +27,29 @@ jobs:
         run: npm install
       - name: Verify
         run: npm run verify
+
+  # Separate from `verify` on purpose: a browser install is slow and this must not delay the
+  # unit/contract gate, and a red e2e run should name itself rather than arriving as "verify failed".
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+      - name: Install dependencies
+        run: npm install
+      # The pinned build, from `playwright.config.ts` — not `playwright.local.config.ts`, whose
+      # whole purpose is to run against whatever Chromium a sandbox happens to have. Substituting
+      # that here would make CI agree with the sandbox instead of holding the line it exists to hold.
+      - name: Install the pinned browser
+        run: npx playwright install --with-deps chromium
+      - name: End-to-end
+        run: npx playwright test
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7

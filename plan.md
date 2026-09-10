@@ -132,6 +132,86 @@ Every path is named. No globs, no "and the tests".
 Any file this inventory does not name and the diff does contain is a defect in the plan and is
 recorded as one in the log rather than argued away.
 
+### Inventory as measured against the diff, and where the plan above was wrong
+
+The table above is what was planned. This is `git diff --name-status origin/main`, enumerated one
+row per file — **no glob, including for the evidence folder**, which is the row a plan is most
+tempted to collapse and the one a previous run was caught collapsing.
+
+| 1 | `.github/workflows/verify.yml` | MODIFY |
+| 2 | `CHANGELOG.md` | MODIFY |
+| 3 | `DECISIONS.md` | MODIFY |
+| 4 | `docs/evidence/2026-09-10/assumption-alarm.json` | MODIFY |
+| 5 | `docs/evidence/2026-09-10/build.txt` | NEW |
+| 6 | `docs/evidence/2026-09-10/chamber-lock.json` | MODIFY |
+| 7 | `docs/evidence/2026-09-10/check.txt` | NEW |
+| 8 | `docs/evidence/2026-09-10/cipher-gate.json` | NEW |
+| 9 | `docs/evidence/2026-09-10/clan-chain.json` | MODIFY |
+| 10 | `docs/evidence/2026-09-10/clan-chain.md` | MODIFY |
+| 11 | `docs/evidence/2026-09-10/e2e.txt` | NEW |
+| 12 | `docs/evidence/2026-09-10/lint.txt` | NEW |
+| 13 | `docs/evidence/2026-09-10/proof-tape.json` | MODIFY |
+| 14 | `docs/evidence/2026-09-10/proof-tape.md` | MODIFY |
+| 15 | `docs/evidence/2026-09-10/seam-ledger.json` | MODIFY |
+| 16 | `docs/evidence/2026-09-10/seam-ledger.md` | MODIFY |
+| 17 | `docs/evidence/2026-09-10/shaolin-lint.json` | MODIFY |
+| 18 | `docs/evidence/2026-09-10/test.txt` | MODIFY |
+| 19 | `docs/evidence/2026-09-10/verify-outer.txt` | MODIFY |
+| 20 | `docs/evidence/2026-09-10/verify.txt` | MODIFY |
+| 21 | `docs/evidence/README.md` | MODIFY |
+| 22 | `docs/seams.md` | MODIFY |
+| 23 | `fixtures/drift-detection/fault.json` | MODIFY |
+| 24 | `fixtures/drift-detection/sample.json` | MODIFY |
+| 25 | `fixtures/drift-detection/title-only.json` | MODIFY |
+| 26 | `fixtures/image-generation/dense-scene.json` | MODIFY |
+| 27 | `fixtures/image-generation/sample.json` | MODIFY |
+| 28 | `fixtures/prompt-assembly/sample.json` | MODIFY |
+| 29 | `fixtures/prompt-assembly/title-only-marker-fault.json` | MODIFY |
+| 30 | `fixtures/prompt-assembly/title-only.json` | MODIFY |
+| 31 | `package.json` | MODIFY |
+| 32 | `plan.md` | MODIFY |
+| 33 | `scripts/verify-outer.mjs` | NEW |
+| 34 | `src/lib/adapters/drift-detection-seam/index.ts` | MODIFY |
+| 35 | `src/lib/adapters/prompt-assembly-seam/index.ts` | MODIFY |
+| 36 | `src/lib/components/MeechieTools.svelte` | MODIFY |
+| 37 | `src/lib/components/PageLookControls.svelte` | NEW |
+| 38 | `src/lib/components/VerdictPageStudio.svelte` | MODIFY |
+| 39 | `src/lib/components/studio/StudioSettingsPanel.svelte` | MODIFY |
+| 40 | `src/lib/components/verdict-page-state.svelte.ts` | MODIFY |
+| 41 | `src/lib/core/meechie-studio.ts` | MODIFY |
+| 42 | `src/lib/core/page-style.ts` | MODIFY |
+| 43 | `src/lib/core/prompt-template.ts` | MODIFY |
+| 44 | `src/lib/core/tool-page-recipe.ts` | MODIFY |
+| 45 | `src/lib/seams/drift-detection-seam/test.ts` | MODIFY |
+| 46 | `src/lib/seams/prompt-assembly-seam/test.ts` | MODIFY |
+| 47 | `src/routes/+page.svelte` | MODIFY |
+| 48 | `src/routes/studio-state.svelte.ts` | MODIFY |
+| 49 | `tests/e2e/page-controls.spec.ts` | MODIFY |
+| 50 | `tests/e2e/smoke.spec.ts` | MODIFY |
+| 51 | `tests/unit/meechie-studio.test.ts` | MODIFY |
+| 52 | `tests/unit/page-style.test.ts` | MODIFY |
+| 53 | `tests/unit/prompt-template.test.ts` | MODIFY |
+| 54 | `tests/unit/tool-page-recipe.test.ts` | MODIFY |
+
+**Four discrepancies between the plan and the diff, recorded rather than argued away:**
+
+1. **Planned and not touched:** `src/lib/seams/prompt-assembly-seam/fixtures.ts` and
+   `src/lib/seams/drift-detection-seam/fixtures.ts`. Both modules only `parse` the JSON fixtures;
+   the golden prompts live in the JSON alone, so editing the JSON was the whole change. The plan
+   assumed the TypeScript modules embedded the prompts without checking.
+2. **Planned and not touched:** `fixtures/prompt-assembly/fault.json` and
+   `fixtures/image-generation/fault.json`. Both are *input*-fault fixtures and carry no assembled
+   prompt to regenerate.
+3. **Touched and not planned — the browser gate.** `.github/workflows/verify.yml`,
+   `scripts/verify-outer.mjs`, `package.json`, `docs/evidence/README.md`. These are Run 23's first
+   two carried-forward items, taken because the routine's own mandated verification
+   (`npx playwright test`) could not otherwise run at all and the plan's Definition of Done named
+   it. They are real scope this plan did not declare in advance.
+4. **Touched and not planned — the browser tests.** `tests/e2e/page-controls.spec.ts` (four
+   assertions that the panel's summary names every control it holds; it holds two more now) and
+   `tests/e2e/smoke.spec.ts` (cover for the controls on a mode route and on the tools hub). The plan
+   listed unit and contract suites and forgot that a user-facing change has browser cover too.
+
 ### Strict anti-goals — do not touch
 
 - Do **not** change the numeric values `35`, `45` or `50` that the recipe builders assign to

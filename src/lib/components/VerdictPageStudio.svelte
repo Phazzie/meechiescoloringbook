@@ -21,6 +21,7 @@ Invariants: The quality report is rendered ONLY through `QualityReportPanel`, ne
 	import VaultStatusLine from './VaultStatusLine.svelte';
 	import AiQuotaLine from './AiQuotaLine.svelte';
 	import GenerationFailureNotice from './GenerationFailureNotice.svelte';
+	import PageLookControls from './PageLookControls.svelte';
 
 	let {
 		studio,
@@ -80,6 +81,27 @@ Invariants: The quality report is rendered ONLY through `QualityReportPanel`, ne
 		<input type="checkbox" bind:checked={glitter} />
 		<span>Glitter preview overlay</span>
 	</label>
+
+	<!-- The two controls that decide how much of the sheet is left to colour. Above the paid button
+	     rather than below it, because they change the page that button makes and a control found
+	     after the money is spent is not a control.
+
+	     Twelve of the app's fourteen page-making surfaces render this one component — the three
+	     standalone mode routes and every `/m/<slug>` page — so this is what puts these controls on
+	     all of them at once, the same way `AiQuotaLine` below puts one truthful allowance on all of
+	     them. Before it, no surface in the application offered either field. -->
+	{#if studio.effectivePageLook}
+		<fieldset class="page-look-field" data-testid="verdict-page-look">
+			<legend>Room to colour</legend>
+			<p class="field-help">How much of the sheet is words, and how much is yours.</p>
+			<PageLookControls
+				look={studio.pageLook}
+				effective={studio.effectivePageLook}
+				idPrefix="verdict-page-look"
+				onChange={(next) => studio.setPageLook(next)}
+			/>
+		</fieldset>
+	{/if}
 
 	<!-- The page half's failure. `onRetry` re-sends the request that failed, so it costs one
 	     generation and does not re-ask for the verdict, which did not fail. -->
@@ -244,6 +266,31 @@ Invariants: The quality report is rendered ONLY through `QualityReportPanel`, ne
 		text-transform: uppercase;
 		letter-spacing: 0.1em;
 		color: var(--gold, #c9a227);
+	}
+
+	/* The controls themselves are styled by `PageLookControls`, which owns them on every host. Only
+	   the frame around them belongs here. */
+	.page-look-field {
+		margin: 0;
+		padding: 0;
+		border: 0;
+	}
+
+	.page-look-field legend {
+		padding: 0;
+		font-family: var(--font-label, 'Barlow Condensed', sans-serif);
+		font-size: 0.78rem;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.1em;
+		color: var(--gold-bright, #f0c44a);
+	}
+
+	.page-look-field .field-help {
+		margin: 0.35rem 0 0.75rem;
+		font-size: 0.85rem;
+		line-height: 1.45;
+		color: var(--lavender, #b8aacf);
 	}
 
 	input[type='text'] {

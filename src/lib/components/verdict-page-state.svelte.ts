@@ -31,6 +31,7 @@ import {
 	VERDICT_SUBJECT,
 	type GenerationFailure
 } from '$lib/core/generation-failure';
+import { DEFAULT_PAGE_LOOK, type PageLookSelection } from '$lib/core/page-style';
 import { PageArtifactState } from './page-artifact-state.svelte';
 import type { PageArtifactStateOptions } from './page-artifact-state.svelte';
 
@@ -75,6 +76,44 @@ export class VerdictPageState extends PageArtifactState {
 	// --- Page controls that belong to the verdict, not to the page ---
 	dedication = $state('');
 	copyStatus = $state('');
+
+	/**
+	 * The reader's choice of lettering size and room to colour, `null` per field for the page's own.
+	 *
+	 * Deliberately survives a new verdict. A reader who has said they want large lettering has said
+	 * it about their eyes, not about one particular ruling, and re-asking a question is not a reason
+	 * to put it back. `dedication` is cleared with the verdict for the opposite reason: it names a
+	 * person for *this* page.
+	 */
+	pageLook = $state<PageLookSelection>({ ...DEFAULT_PAGE_LOOK });
+
+	/**
+	 * What the two look fields will actually be on the page this verdict makes, or `null` when there
+	 * is no verdict to make a page from.
+	 *
+	 * Read off the recipe rather than recomputed, so the control cannot state one thing while
+	 * `makePage` builds another — the recipe's own answer differs per tool and between a quote page
+	 * and a list page, and a second implementation here would be the copy that drifts. `dedication`
+	 * is left out of this call on purpose: it changes the page but not these two fields, and
+	 * including it would rebuild the recipe on every keystroke in that box.
+	 *
+	 * `null` rather than a fallback pair of values: with no verdict there is no page, and inventing
+	 * numbers to describe one is exactly the false provenance this control has to avoid. Every host
+	 * renders the studio only once a verdict exists, so the null branch is unreachable from the
+	 * shipped routes and is here to keep this total.
+	 */
+	effectivePageLook = $derived.by(() => {
+		if (!this.verdict) return null;
+		const { textSize, whitespaceScale } = buildToolPageRecipe(this.verdict, {
+			look: this.pageLook
+		}).spec;
+		return { textSize, whitespaceScale };
+	});
+
+	/** Record the reader's look choice. The next page built takes it; the one on screen keeps its own. */
+	setPageLook(next: PageLookSelection): void {
+		this.pageLook = next;
+	}
 
 	private verdictToken = 0;
 	/**
@@ -288,7 +327,8 @@ export class VerdictPageState extends PageArtifactState {
 
 		const verdict = this.verdict;
 		const recipe = buildToolPageRecipe(verdict, {
-			dedication: this.dedication
+			dedication: this.dedication,
+			look: this.pageLook
 		});
 		await this.generatePage({
 			recipe,

@@ -13,7 +13,12 @@ Store command outputs and probe metadata tied to seam changes.
   - `verify.txt` (output of `node scripts/verify-runner.mjs` — the chain's **inner** check/test
     stage only, despite the name; it is written by the runner, not by the outer command)
   - `verify-outer.txt` (transcript of the outer `npm run verify`, including the `audit:gate`
-    result and the chain's own exit status — the only artifact that carries either)
+    result and the chain's own exit status — the only artifact that carries either).
+    **Written by the chain itself**, by `scripts/verify-outer.mjs`, which `npm run verify` now
+    is. It used to be captured by hand with a shell redirect, by whoever remembered; a run on
+    2026-09-10 forgot and merged a commit carrying no proof that the chain exited 0. It is
+    written on a failing run too — a red chain is exactly the one whose transcript is worth
+    having.
   - `test.txt` (output of `npm test`)
   - `probe-<seam>.txt` (output of probe runs)
   - `chamber-lock.json` (artifact gate report)
