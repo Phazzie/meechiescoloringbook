@@ -2064,7 +2064,22 @@ describe('StudioState quote vault', () => {
 		studio.handleModeSelect(nextMode!.id);
 		await studio.syncSpecFromCurrentText();
 		expect(studio.spec.alignment).toBe('left');
-		expect(studio.spec.textStrokeWidth).toBe(6);
+
+		// `textStrokeWidth` deliberately does NOT revert with `alignment`, and this line asserted
+		// that it did until it became a reader control.
+		//
+		// `loadCreation` seeds `pageLook` from the reopened page, so the Line weight control is
+		// showing Bold — and a control showing Bold over a page built at 6 is precisely the false
+		// provenance the Page Controls panel exists to prevent. The same is already true of the two
+		// fields beside it: `textSize` and `whitespaceScale` also survive a mode change, for the
+		// same reason and since the same run. `alignment` reverts because it is still carried
+		// `presentation`, which no control displays.
+		expect(studio.spec.textStrokeWidth).toBe(9);
+		expect(studio.pageLook.lineWeight).toBe(9);
+		// The other two, asserted here rather than assumed, because this test is the one that pins
+		// which fields a mode change resets and which it does not.
+		expect(studio.spec.textSize).toBe('large');
+		expect(studio.spec.whitespaceScale).toBe(35);
 	});
 
 	it('keeps a restored page dense until the reader actually picks a theme', async () => {

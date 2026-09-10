@@ -104,10 +104,10 @@ export class VerdictPageState extends PageArtifactState {
 	 */
 	effectivePageLook = $derived.by(() => {
 		if (!this.verdict) return null;
-		const { textSize, whitespaceScale } = buildToolPageRecipe(this.verdict, {
+		const { textSize, whitespaceScale, textStrokeWidth } = buildToolPageRecipe(this.verdict, {
 			look: this.pageLook
 		}).spec;
-		return { textSize, whitespaceScale };
+		return { textSize, whitespaceScale, textStrokeWidth };
 	});
 
 	/** Record the reader's look choice. The next page built takes it; the one on screen keeps its own. */

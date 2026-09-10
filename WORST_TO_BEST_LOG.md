@@ -17032,3 +17032,247 @@ Re-measure everything below; do not inherit it.
 - **The try-on's `rejected` branch is still unreachable from the UI.** Run 21's item, untouched.
 - **`failure.detail` has one consumer, on one surface out of fourteen.** Run 23's item, untouched.
 - **Run 18 still has no merge close-out entry.** Carried for seven runs now.
+
+## Run 25 — 2026-09-10 — How thick the lines are
+
+The feature: **line weight**. On a coloring book app it is the property that decides whether the
+artifact does its job — whether a person can stay inside the lines with whatever they are holding.
+The app has carried it as a required spec field on every page it has ever made.
+
+Run 24 left a carried-forward list naming `textStrokeWidth` as "the strongest single candidate". That
+recommendation is why this run looked here first, but it is not why it was taken: the list said the
+field *works* and only lacks a control. Re-measured on `main` at `5ab1e01`, that is not the state.
+The field does not work.
+
+### The case, measured on `main` at `5ab1e01`
+
+**1. The prompt gives two contradictory instructions about line weight, four lines apart.**
+
+```
+$ grep -n "thick outlines\|textStrokeLine(spec" src/lib/adapters/prompt-assembly-seam/index.ts
+118:		'Bold bubble letters; thick outlines.',
+125:		`${fontStyleLine(spec.fontStyle)} ${textStrokeLine(spec.textStrokeWidth)} ${letteringLine(spec.textSize)}`,
+```
+
+Which renders, in `fixtures/prompt-assembly/sample.json`:
+
+```
+TYPOGRAPHY:
+Bold bubble letters; thick outlines.
+Glitter outline only (no shading).
+Font: rounded. Stroke: 6px. Lettering: small, compact letterforms.
+```
+
+A spec asking for `textStrokeWidth: 4` — the thinnest `ColoringPageSpecSchema` allows — produces a
+prompt that demands **thick outlines** and then asks for `Stroke: 4px.`
+
+**This is the same defect a review of PR #350 named for `whitespaceScale`, one section over, in the
+run immediately before this one.** That review's own words: two instructions in one prompt each
+claiming to set the same property force the model to satisfy one and quietly drop the other, on a
+generation the reader has paid for. Run 24 removed the contradiction from the line it was reported
+on — `letteringLine` — and left it standing in the constant four lines above, on the neighbouring
+field, in the section its own fix was editing.
+
+**2. The number it emits has no referent.** `textStrokeLine` was `` `Stroke: ${strokeWidth}px.` ``
+(`prompt-template.ts:62`), emitted against a `1024x1024` generation
+(`image-generation-pipeline.ts:20`) that is then letterboxed onto US Letter at 300dpi. Nothing in
+the prompt said what those pixels were measured against. Every other line in TYPOGRAPHY, DECORATIONS
+and LAYOUT describes the thing it wants — "Bold bubble letters", "Decorations: minimal outline
+icons.", "leave about 50% of the sheet blank". `Stroke:` was the only bare number in the prompt, on
+the one field where the number's scale *is* the instruction.
+
+**3. No reader could set it, anywhere.**
+
+```
+$ grep -rn "textStrokeWidth" src/lib/components src/routes | wc -l
+0
+$ grep -rn "textStrokeWidth" src/lib/core/tool-page-recipe.ts src/lib/core/meechie-studio.ts
+src/lib/core/tool-page-recipe.ts:521:	textStrokeWidth: 9,
+src/lib/core/meechie-studio.ts:739:	textStrokeWidth: input.presentation?.textStrokeWidth ?? 6,
+```
+
+Fourteen page-making surfaces. The home studio hardcoded 6; the thirteen others hardcoded 9.
+
+**4. The app never said which it had built.** Not in `summarizePageLook`, not in
+`summarizePageControls`, and not in `readBackInterpretedPage` — the read-back on `/describe` that a
+reader approves *before* paying, which lists paper, border, lettering, whitespace, illustrations and
+decorations and said nothing about how thick the lines would be. `ChatInterpretationSeam` can return
+any weight from 4 to 12 from a description that never raised the subject.
+
+### Why this rather than the ten other unreachable fields
+
+Every one of the eleven presentation fields Run 24 listed was re-measured against
+`prompt-template.ts` and `prompt-assembly-seam/index.ts` rather than inherited. The list's premise —
+"all eleven *work*, which is why they were not this run's pick" — holds for ten of them and not for
+this one. Two of the eleven reach no `prompt-template.ts` helper at all, and the reason differs:
+`numberAlignment` is carried by `src/lib/utils/alignment-line.ts` (so it does work), and `variations`
+is the provider's `n` in `image-generation-pipeline.ts:154` and is charged as such, which is not a
+prompt field at all. Neither is a gap.
+
+`textStrokeWidth` is the only one of the eleven whose instruction the prompt actively countermands.
+
+### What shipped
+
+**One voice in the prompt.** `textStrokeLine` now states the weight in words *and* names what its
+pixel figure is measured against:
+
+```
+Stroke: fine outlines, about 4px wide on a 1024px sheet.
+Stroke: medium-weight outlines, about 6px wide on a 1024px sheet.
+Stroke: bold outlines, about 9px wide on a 1024px sheet.
+Stroke: very thick outlines, about 12px wide on a 1024px sheet.
+```
+
+`LINE_WEIGHT_REFERENCE_PX` is driven against `DEFAULT_IMAGE_SIZE` by a test, so changing the
+generation size fails rather than leaving a false measurement in every prompt the app sends. The
+`thick outlines` clause is gone from the TYPOGRAPHY constant. `TEMPLATE_VERSION` v5 → v6.
+
+**No clamp, deliberately.** `whitespaceLine` clamps because its contract admits 0–100 and both ends
+are uncarryable. `ColoringPageSpecSchema` already declares this field `int().min(4).max(12)`, so a
+clamp here would be unreachable code pretending to be a guard — the `Record<number, string>` mistake
+Run 24 was corrected on, in a different costume.
+
+**A control on all fourteen surfaces.** `lineWeight` is the third field of `PageLookSelection`,
+nullable like the other two, so an untouched control changes nothing. `LINE_WEIGHT_OPTIONS` is
+`[4, 6, 9, 12]` — four steps, not three, and **not** an even spread: 6 and 9 are the two values this
+application actually builds, so "Page default" always names a step and no reader is ever shown a
+phantom "this page's own" option for a page the app itself made. A test binds the list to
+`STUDIO_DEFAULT_PAGE_LOOK.textStrokeWidth` and the new `TOOL_PAGE_STROKE_WIDTH` so the three cannot
+drift.
+
+**The read-back, written with the control rather than after a reviewer found it missing.** This is
+Run 24's own recorded lesson — *when a change makes a field effective, the list of places that
+describe the page is part of the change, not a follow-up* — applied first this time. `/describe` now
+names the weight as a fact, and a weight of 4 or 5 raises a **caution**: "The outlines will be thin
+(4px). Good for fineliners, hard to stay inside with a crayon." A caution and never a refusal, which
+is that read-back's standing contract.
+
+**The group legend was renamed.** The fieldset holding these controls was called "Room to colour",
+which is also the name of one of the controls inside it. Confusing with two; unworkable with three.
+It is "How it colours" on all three hosts.
+
+### The deliberate behaviour change, stated rather than absorbed
+
+With `thick outlines` gone, a page built at the studio's default 6 asks for medium-weight outlines
+where it previously asked for thick ones regardless of the field. **Studio pages will have somewhat
+thinner lines than before.** That is the field becoming real, and the reader now has a control that
+says Bold or Chunky. The alternative — keeping the constant and letting it overrule the control —
+ships a control that does not work, which is the thing this run exists to stop. Recorded in
+`DECISIONS.md` with its alternatives rather than left for a reader to discover.
+
+### Two defects this run found in its own work, before any reviewer
+
+1. **The help table claimed surface-specific provenance.** The first draft read "The studio default"
+   under 6 and "What every Meechie tool page is built with" under 9. One component renders these on
+   all fourteen surfaces, so on a mode route the reader would have been told the value in front of
+   them was the *studio's* default. **That is the false provenance the "Page default" option was
+   renamed to avoid in Run 24, reintroduced one line below it.** Both clauses removed; what each
+   surface builds is already shown, correctly and per surface, by that option.
+2. **`describeLineWeight` returned "7px lines" while `summarizePageLook` appended "lines"** —
+   "7px lines lines" in the shut panel for any weight the control has no word for. Caught by writing
+   the fallback test rather than the step test.
+
+### The assertion that was wrong twice before it was right
+
+The test that pins the actual defect — *the prompt makes exactly one claim about how thick the
+linework is* — took three attempts, and both failures are worth recording because both looked
+plausible:
+
+- Matching the word **"outlines"** counted two legitimate lines: `outputLine`'s "Black outlines on
+  white" (a colour claim) and `illustrationLine`'s "Illustrations: simple outlines" (a content
+  claim). Neither tells the model anything about weight.
+- Matching bare thickness adjectives as substrings counted **`nothing else`** (`thin` inside `nothing`) out of the TEXT
+  block, twice. This repository already pins that exact trap for forbidden tokens in
+  `drift-detection-helpers.test.ts`, and it was re-derived from scratch anyway.
+- Then it went **green while proving nothing**: with word boundaries the list matched zero lines,
+  because the encoder's own words for 6 and 9 are "medium-weight" and "bold", neither of which was
+  in it. A green run is not evidence.
+
+The assertion that works matches the *pairing* — a weight word applied to `outlines` — which is
+precisely what the removed constant did and what neither legitimate line does.
+
+**Red proof taken, not assumed.** Restoring `'Bold bubble letters; thick outlines.'` fails both new
+seam tests and both golden fixtures; the fix was then put back and all four go green.
+
+### Left alone on purpose, and named so a future run does not have to find them
+
+Two further constants in the same prompt contradict spec fields. Both are real, both were found
+while measuring this one, and neither is line weight's:
+
+- **`'Bold bubble letters.'` contradicts `Font: block.` and `Font: hand.`** — `fontStyle`'s rebuild.
+  Note the word "Bold" was deliberately kept: `letteringLine('large')` already returns
+  "large, bold letterforms.", so this codebase draws the letterform/stroke distinction already and
+  "bold" there is a letterform claim, not a stroke one.
+- **`'Glitter outline only (no shading).'` is emitted unconditionally** and contradicts
+  `Shading: hatch.` and `Shading: stippling.` whenever a spec asks for either — and the NEGATIVE
+  PROMPT says "no shading" as well, so a spec asking for shading is refused three times and granted
+  once.
+
+Both are commented at the line rather than only recorded here.
+
+### Gates
+
+| Command | Result |
+|---|---|
+| `npm run check` | 0 errors, 0 warnings |
+| `npm run lint` | exit 0 |
+| `npm test` | **2,036** passed, 1 skipped (from **2,016** measured on `5ab1e01` — 20 net) |
+| `npm run build` | exit 0 |
+| `npm run verify` | exit 0 |
+| `npm run cipher:gate` | exit 0 |
+| `npm run test:e2e:local` | **86** passed |
+
+Evidence under `docs/evidence/2026-09-10/`. `check.txt`, `lint.txt`, `build.txt` and `e2e.txt` were
+**rewritten by this run** rather than left as Run 24's: they carry the same date, the Cipher Gate
+entry cites them, and citing a prior run's artifacts as evidence for this one is the failure the
+evidence folder exists to prevent.
+
+**One honest qualification on the browser gate.** `npm run test:e2e:local` needs
+`PLAYWRIGHT_CHROMIUM_PATH` pointing at `/opt/pw-browsers/chromium-1194/chrome-linux/chrome`; without
+it the run fails instantly with "Executable doesn't exist" for a `chromium_headless_shell-1208` this
+container does not have. `playwright.local.config.ts` documents the variable and defaults to the
+pinned config without it, which is correct — but nothing in the repository names the path, so this
+run rediscovered it. **A future run should not have to.** `npm run test:e2e` (the pinned config CI
+uses) still cannot run here at all, for the reason Run 24 recorded: `cdn.playwright.dev` is refused
+by the network policy. CI runs it.
+
+### Scope and the Cipher Gate
+
+`PromptAssemblySeam` and `DriftDetectionSeam` are touched, so the full workflow applies and a Cipher
+Gate entry is recorded in `DECISIONS.md`; `npm run cipher:gate` exits 0 against it. **No `contracts/`
+file and no seam `contract.ts` changed** — `textStrokeWidth` was already
+`z.number().int().min(4).max(12).default(6)`, every input shape is identical, no field was added,
+removed or retyped, and no migration is implied. Six golden fixtures were patched by string
+substitution rather than by regenerating the files, because regenerating rewrote their indentation
+wholesale and buried a 9-line semantic change in a 144-line diff; the adapters were then run against
+the patched files, which is the proof that matters.
+
+### Carried forward for the next run
+
+Re-measure everything below; do not inherit it.
+
+- **Ten presentation fields are still unreachable by a reader** — `alignment`, `numberAlignment`,
+  `listGutter`, `fontStyle`, `colorMode`, `decorations`, `illustrations`, `shading`,
+  `borderThickness`, `variations`. All ten reach the prompt or the provider and do what they say;
+  `PageLookControls` is the shape a next run would extend. **`fontStyle` is now the strongest
+  candidate**, because it is the one with a live contradiction against it (above), which is what made
+  line weight this run's pick over the other ten.
+- **`ADVANCED_SPEC_FIELDS` has no importer.** Fourteen field names enumerated for a disclosure UI
+  nobody built. Unchanged from Run 24.
+- **`variations` is honoured and charged but unsettable outside `/describe`.** Verified this run:
+  it is the provider's `n`, `consumeQuota` charges it, all N images are previewed and packaged, and
+  `pageOriginalImage = images[0]` means only the first is offered as raw bytes.
+- **Page size and border are reader-owned on the home studio only.** Unchanged.
+- **The quote/list whitespace ordering is an open owner question.** Unchanged.
+- **Whether `AGENTS.md:L116` covers `scripts/`** is the other open owner question. Unchanged.
+- **`src/lib/core/meechie-quote-scoring.ts` has no production importer.** Read in full this run. It
+  is a keyword-matching scorer with hardcoded word lists (`landlord`, `easter`, `cheap seats`) and a
+  `Reject` band. **A future run should consider deleting it rather than wiring it**: putting a
+  keyword gate in front of a paid generation would reject good quotes for not containing a noun from
+  a list of eight, which is worse than the absence.
+- **`MeechieTools.svelte` is still in legacy (non-runes) mode** — worked around a **sixth** time.
+- **`readJson` conflates a denied read with a damaged store.** Run 22's item, untouched.
+- **A `ConnectionSeam` is still the right home for the `navigator.onLine` read.** Unchanged.
+- **The try-on's `rejected` branch is still unreachable from the UI.** Run 21's item, untouched.
+- **`failure.detail` has one consumer, on one surface out of fourteen.** Run 23's item, untouched.
+- **Run 18 still has no merge close-out entry.** Carried for eight runs now.

@@ -92,8 +92,13 @@ Invariants: The quality report is rendered ONLY through `QualityReportPanel`, ne
 	     them. Before it, no surface in the application offered either field. -->
 	{#if studio.effectivePageLook}
 		<fieldset class="page-look-field" data-testid="verdict-page-look">
-			<legend>Room to colour</legend>
-			<p class="field-help">How much of the sheet is words, and how much is yours.</p>
+			<!-- Named for the group, not for one of its own controls. It read "Room to colour" while
+			     it held two controls, one of which is *also* called Room to colour; the third makes
+			     that unworkable rather than merely confusing. -->
+			<legend>How it colours</legend>
+			<p class="field-help">
+				How much of the sheet is words, how much is yours, and how thick the lines are.
+			</p>
 			<PageLookControls
 				look={studio.pageLook}
 				effective={studio.effectivePageLook}

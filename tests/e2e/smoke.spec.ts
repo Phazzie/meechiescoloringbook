@@ -2125,7 +2125,7 @@ test('a download that could not be built says so in words, and can be built agai
  * `page-controls.spec.ts`; these two cover the other thirteen — twelve through the one shared
  * `VerdictPageStudio`, and the eleven-tool hub, which renders its own copy.
  */
-test('a mode route lets the reader say how much of the sheet is left to colour', async ({
+test('a mode route lets the reader say how the page is drawn', async ({
 	page
 }) => {
 	await gotoHydrated(page, '/rate-his-excuse');
@@ -2156,12 +2156,34 @@ test('a mode route lets the reader say how much of the sheet is left to colour',
 		'About three quarters of the sheet left blank'
 	);
 
+	/*
+	 * Line weight, on one of the thirteen surfaces that hardcoded stroke 9 and offered no say.
+	 *
+	 * The tool recipes' 9 is one of the four steps the control offers, so "Page default" names it by
+	 * word and no "this page's own" option appears beside it. That is the whole reason
+	 * `LINE_WEIGHT_OPTIONS` contains 6 and 9 rather than an even spread across the contract's range.
+	 */
+	await expect(controls.locator('#verdict-page-look-line-weight')).toContainText(
+		'Page default — Bold'
+	);
+	await expect(controls.locator('#verdict-page-look-line-weight')).not.toContainText(
+		"this page's own"
+	);
+	await expect(controls.locator('#verdict-page-look-line-weight-help')).toContainText(
+		'Easy to colour inside'
+	);
+
+	await controls.locator('#verdict-page-look-line-weight').selectOption('4');
+	await expect(controls.locator('#verdict-page-look-line-weight-help')).toContainText(
+		'hard to stay inside with a crayon'
+	);
+
 	// And the page still generates with the choice applied.
 	await page.getByTestId('verdict-page-generate').click();
 	await expect(page.locator('.preview-grid img')).toBeVisible();
 });
 
-test('the tools hub lets the reader say how much of the sheet is left to colour', async ({
+test('the tools hub lets the reader say how the page is drawn', async ({
 	page
 }) => {
 	await makeToolkitVerdict(page);
@@ -2175,6 +2197,15 @@ test('the tools hub lets the reader say how much of the sheet is left to colour'
 	await controls.locator('#meechie-tool-look-room').selectOption('25');
 	await expect(controls.locator('#meechie-tool-look-room-help')).toContainText(
 		'About a quarter of the sheet left blank'
+	);
+
+	// The fourteenth page-making surface, and the last one to get a say over how thick its lines are.
+	await expect(controls.locator('#meechie-tool-look-line-weight')).toContainText(
+		'Page default — Bold'
+	);
+	await controls.locator('#meechie-tool-look-line-weight').selectOption('12');
+	await expect(controls.locator('#meechie-tool-look-line-weight-help')).toContainText(
+		'the finest detail is lost'
 	);
 
 	await page.getByTestId('meechie-tool-make-page').click();

@@ -418,21 +418,24 @@ describe('lettering and blank space are the reader’s, not the reopened page’
 		const spec = buildColoringPageSpecFromMeechieText(base);
 		expect(spec.textSize).toBe(STUDIO_DEFAULT_PAGE_LOOK.textSize);
 		expect(spec.whitespaceScale).toBe(STUDIO_DEFAULT_PAGE_LOOK.whitespaceScale);
+		expect(spec.textStrokeWidth).toBe(STUDIO_DEFAULT_PAGE_LOOK.textStrokeWidth);
 	});
 
 	it("beats the reopened page's own presentation", () => {
 		const spec = buildColoringPageSpecFromMeechieText({
 			...base,
-			presentation: { alignment: 'center', textStrokeWidth: 9 },
+			presentation: { alignment: 'center', fontStyle: 'block' },
 			textSize: 'large',
-			whitespaceScale: 25
+			whitespaceScale: 25,
+			textStrokeWidth: 12
 		});
 		expect(spec.textSize).toBe('large');
 		expect(spec.whitespaceScale).toBe(25);
+		expect(spec.textStrokeWidth).toBe(12);
 		// And the rest of the reopened page's look is still carried forward, which is what
 		// `presentation` is for.
 		expect(spec.alignment).toBe('center');
-		expect(spec.textStrokeWidth).toBe(9);
+		expect(spec.fontStyle).toBe('block');
 	});
 
 	it('takes each field on its own', () => {

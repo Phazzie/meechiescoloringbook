@@ -59,8 +59,54 @@ export const pageSizeLine = (pageSize: ColoringPageSpec['pageSize']): string =>
 export const fontStyleLine = (fontStyle: ColoringPageSpec['fontStyle']): string =>
 	`Font: ${fontStyle}.`;
 
+/**
+ * How thick the drawn outlines are — the one property that decides whether a printed page can be
+ * coloured inside at all.
+ *
+ * This used to be `Stroke: ${strokeWidth}px.` and nothing else: the only bare number in the whole
+ * prompt, emitted against a 1024x1024 generation that is then letterboxed onto US Letter at 300dpi,
+ * with nothing anywhere saying what those pixels were measured against. Every other line in
+ * TYPOGRAPHY, DECORATIONS and LAYOUT describes the thing it is asking for. This one asked the model
+ * to infer a scale it was never given, on the field where the scale *is* the instruction.
+ *
+ * Two changes, and the second is the one that mattered:
+ *
+ * 1. The number now states its own reference — `on a 1024px sheet` — which is
+ *    `DEFAULT_IMAGE_SIZE` in `image-generation-pipeline.ts`. If that constant ever changes, this
+ *    sentence becomes false, which is why `tests/unit/drift-detection-helpers.test.ts` asserts the
+ *    two agree rather than leaving them to drift.
+ * 2. It says the weight in words, because the words are what the model can actually follow. The
+ *    number stays because the drift check matches this line exactly and because a stored spec's
+ *    real value is the thing being reported.
+ *
+ * **The TYPOGRAPHY section used to contradict this line four lines above it.** It opened with the
+ * constant `'Bold bubble letters; thick outlines.'`, so a spec asking for `textStrokeWidth: 4` —
+ * the thinnest the contract allows — produced a prompt demanding *thick outlines* and then
+ * `Stroke: 4px.` That is the same defect a review of PR #350 named for `whitespaceScale`: two
+ * instructions in one prompt each claiming to set the same property. Contradictory instructions do
+ * not fail. They make the model satisfy one and quietly drop the other, on a generation the reader
+ * has paid for. The `thick outlines` clause is gone; this line is the only voice on line weight.
+ *
+ * Deliberately says nothing about letterform *shape* or *size* — those are `fontStyleLine` and
+ * `letteringLine`, sharing the same physical line. One field, one instruction, which is the rule
+ * that whole review round earned.
+ *
+ * No rounding and no clamp, unlike `whitespaceLine`: `ColoringPageSpecSchema` declares this field
+ * `z.number().int().min(4).max(12)`, so every value that reaches here is already a whole number
+ * inside a range the model can carry. A clamp here would be unreachable code pretending to be a
+ * guard.
+ */
+export const LINE_WEIGHT_REFERENCE_PX = 1024;
+
+const strokeWeightWord = (strokeWidth: number): string => {
+	if (strokeWidth <= 5) return 'fine';
+	if (strokeWidth <= 7) return 'medium-weight';
+	if (strokeWidth <= 10) return 'bold';
+	return 'very thick';
+};
+
 export const textStrokeLine = (strokeWidth: ColoringPageSpec['textStrokeWidth']): string =>
-	`Stroke: ${strokeWidth}px.`;
+	`Stroke: ${strokeWeightWord(strokeWidth)} outlines, about ${strokeWidth}px wide on a ${LINE_WEIGHT_REFERENCE_PX}px sheet.`;
 
 /**
  * How big the drawn lettering is.

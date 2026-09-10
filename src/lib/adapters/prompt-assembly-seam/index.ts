@@ -35,7 +35,16 @@ import { formatAlignmentLine } from '$lib/utils/alignment-line';
 // v5 adds the two lines that carry `textSize` and `whitespaceScale`. The version is what a stored
 // page records the prompt shape under, so a page made before this exists is identifiable as one
 // whose lettering and whitespace fields were decorative.
-const TEMPLATE_VERSION = 'v5';
+//
+// v6 gives `textStrokeWidth` a single voice: `textStrokeLine` now states the weight in words with
+// the pixel figure's own reference, and the `thick outlines` clause that contradicted it from the
+// constant above is gone. A page recorded under v5 or earlier had its line weight asked for twice,
+// in two different terms, so it is identifiable as one whose stroke field the model could
+// legitimately have ignored.
+//
+// A value, not a schema. No field is added, removed or retyped anywhere, so no stored record
+// becomes unreadable and no migration is implied.
+const TEMPLATE_VERSION = 'v6';
 const MAX_PROMPT_LENGTH = 8000;
 
 const includesReservedHeading = (styleHint: string): boolean => {
@@ -115,7 +124,22 @@ const buildPrompt = (input: PromptAssemblyInput): PromptAssemblyOutput => {
 		styleLine,
 		...textLines,
 		'TYPOGRAPHY:',
-		'Bold bubble letters; thick outlines.',
+		// Was 'Bold bubble letters; thick outlines.' The `thick outlines` half is
+		// `textStrokeWidth`'s answer, and it was stated here as a constant four lines above
+		// `textStrokeLine` — so a spec asking for the thinnest stroke the contract allows produced
+		// a prompt demanding thick outlines and then `Stroke: 4px.` Two instructions about one
+		// property; the model keeps one and drops the other, on a paid generation. Exactly the
+		// defect a review of PR #350 named for `whitespaceScale`, left live for line weight in the
+		// section that fix edited.
+		//
+		// `Bold bubble letters` is deliberately kept: letterform shape belongs to `fontStyleLine`,
+		// which this constant also contradicts (`Font: block.`, `Font: hand.`). That contradiction
+		// predates this change, is not line weight's, and is recorded as a carried-forward finding
+		// rather than ridden along on a run about line thickness.
+		'Bold bubble letters.',
+		// Emitted unconditionally, and it contradicts `Shading: hatch.` and `Shading: stippling.`
+		// in the DECORATIONS section below whenever a spec asks for either. Same class of defect as
+		// the one removed above, and the same treatment: recorded, not fixed here.
 		'Glitter outline only (no shading).',
 		// `letteringLine` joins the other two typography lines on one physical line, which is how
 		// `fontStyleLine` and `textStrokeLine` have always been emitted: the drift check tests each

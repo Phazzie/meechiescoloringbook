@@ -64,7 +64,8 @@ describe('PromptAssemblySeam contract', () => {
 	// present would have passed against the constant sentences these replaced.
 	it.each([
 		['textSize', 'small', 'large'],
-		['whitespaceScale', 20, 80]
+		['whitespaceScale', 20, 80],
+		['textStrokeWidth', 4, 12]
 	] as const)('carries %s into the prompt', async (field, low, high) => {
 		const assemble = async (value: string | number) => {
 			const result = await promptAssemblyAdapter.assemble({
@@ -88,6 +89,78 @@ describe('PromptAssemblySeam contract', () => {
 		if (!result.ok) throw new Error(result.error.message);
 		expect(result.value.prompt).not.toContain('generous whitespace');
 		expect(result.value.prompt).toContain('leave about 10% of the sheet blank');
+	});
+
+	/*
+	 * The prompt used to give two contradictory instructions about line weight, four lines apart.
+	 *
+	 * TYPOGRAPHY opened with the constant 'Bold bubble letters; thick outlines.' and then emitted
+	 * `Stroke: 4px.` for a spec asking for the thinnest linework the contract allows. Contradictory
+	 * instructions do not fail: the model satisfies one and quietly drops the other, on a generation
+	 * the reader has paid for. Same defect a review of PR #350 named for `whitespaceScale`, left
+	 * live for line weight in the section that fix edited.
+	 *
+	 * The assertion is deliberately about the *whole* prompt rather than about the stroke line, so
+	 * restoring the constant — or adding another one anywhere else — fails here.
+	 */
+	it('asks for thick outlines only when the spec asked for thick outlines', async () => {
+		const promptFor = async (textStrokeWidth: number) => {
+			const result = await promptAssemblyAdapter.assemble({
+				...promptAssemblySampleFixture.input,
+				spec: { ...promptAssemblySampleFixture.input.spec, textStrokeWidth }
+			});
+			if (!result.ok) throw new Error(result.error.message);
+			return result.value.prompt.toLowerCase();
+		};
+
+		expect(await promptFor(4)).not.toContain('thick outlines');
+		expect(await promptFor(4)).toContain('fine outlines');
+		expect(await promptFor(12)).toContain('very thick outlines');
+	});
+
+	/*
+	 * One field, one instruction. Counted across the whole prompt rather than asserted on the stroke
+	 * line, because the defect being pinned is a *second* place making the same claim.
+	 *
+	 * The words are thickness words specifically. "outlines" alone is the wrong test and was the
+	 * first draft of this one: `outputLine` says "Black outlines on white" (a colour claim) and
+	 * `illustrationLine` says "Illustrations: simple outlines" (a content claim), and neither tells
+	 * the model how heavy the linework is.
+	 *
+	 * "bold" is deliberately absent from the list. It appears in the TYPOGRAPHY constant
+	 * ('Bold bubble letters.') and in `letteringLine('large')` ('large, bold letterforms.'), and in
+	 * both it describes the letterform rather than the stroke around it — a distinction this
+	 * codebase already draws, since `letteringLine` is the size line. That the constant still
+	 * contradicts `Font: block.` and `Font: hand.` is a live defect, and it is `fontStyle`'s, not
+	 * this one's.
+	 */
+	it('makes exactly one claim about how thick the linework is', async () => {
+		/*
+		 * A weight word *applied to outlines* — which is precisely what the removed constant did,
+		 * and what the other two lines mentioning outlines do not do. `outputLine` says "Black
+		 * outlines on white" (colour) and `illustrationLine` says "Illustrations: simple outlines"
+		 * (content); neither carries a weight word, so neither is counted.
+		 *
+		 * Two earlier drafts of this assertion were wrong in opposite directions and are worth
+		 * recording. Matching "outlines" alone counted those two legitimate lines. Matching bare
+		 * thickness adjectives as substrings counted 'no**thin**g else' out of the TEXT block —
+		 * the same trap `drift-detection-helpers.test.ts` already pins for forbidden tokens.
+		 */
+		const WEIGHT_CLAIM = /\b(very thick|thick|thin|fine|medium-weight|bold|heavy)\b[^.]*\boutlines\b/;
+		for (let textStrokeWidth = 4; textStrokeWidth <= 12; textStrokeWidth += 1) {
+			const result = await promptAssemblyAdapter.assemble({
+				...promptAssemblySampleFixture.input,
+				spec: { ...promptAssemblySampleFixture.input.spec, textStrokeWidth }
+			});
+			if (!result.ok) throw new Error(result.error.message);
+			const claims = result.value.prompt
+				.toLowerCase()
+				.split('\n')
+				.filter((line) => WEIGHT_CLAIM.test(line));
+			expect(claims).toHaveLength(1);
+			expect(claims[0]).toContain('stroke:');
+			expect(claims[0]).toContain(`${textStrokeWidth}px`);
+		}
 	});
 
 	it('emits each list item on its own line with no separator punctuation', async () => {

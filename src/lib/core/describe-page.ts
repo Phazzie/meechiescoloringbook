@@ -27,6 +27,9 @@ import {
 	describeAiQuota,
 	type AiQuotaSnapshot
 } from './ai-quota';
+// One naming of a line weight for the whole application: the read-back a reader approves on
+// `/describe` and the option labels on the other thirteen surfaces are the same function.
+import { describeLineWeight } from './page-style';
 
 /** The one path this surface lives at. Imported by the nav so a rename cannot leave a dead link. */
 export const DESCRIBE_PATH = '/describe';
@@ -209,6 +212,42 @@ const ILLUSTRATION_FACTS: Record<ColoringPageSpec['illustrations'], string> = {
 const whitespaceFact = (whitespaceScale: ColoringPageSpec['whitespaceScale']): string =>
 	`About ${Math.round(whitespaceScale)}% of the sheet left blank to colour.`;
 
+/**
+ * How thick the outlines on the interpreted page will be.
+ *
+ * Here for exactly the reason `whitespaceFact` is, and written at the same time as the control
+ * rather than after a reviewer found it missing. Run 24's own recorded lesson: *when a change makes
+ * a field effective, the list of places that describe the page is part of the change, not a
+ * follow-up.* `/describe` has no line-weight control by design — its control is this read-back — so
+ * this sentence is the only thing standing between an interpreter that picked 4px and a reader
+ * paying for a page whose lines a child cannot stay inside.
+ *
+ * Reads `describeLineWeight` rather than restating the words, so the sentence a reader approves on
+ * `/describe` and the label they see on every other surface cannot drift apart — and so a value the
+ * control has no word for is named by its number here too rather than rounded to the nearest one it
+ * would fit.
+ *
+ * Terse on purpose, like `TEXT_SIZE_FACTS` and `DECORATION_FACTS` beside it: a fact says what the
+ * page will be. The one weight that is genuinely a problem to colour gets a `caution` instead, which
+ * is where this read-back already puts everything it thinks the reader should reconsider before
+ * paying.
+ */
+const lineWeightFact = (strokeWidth: ColoringPageSpec['textStrokeWidth']): string =>
+	`${describeLineWeight(strokeWidth)} outlines.`;
+
+/**
+ * The thinnest outline this read-back will let past without saying something.
+ *
+ * `ColoringPageSpecSchema` allows 4, and 4px of line on a 1024px generation letterboxed onto US
+ * Letter is roughly a third of a millimetre on paper — a pencil line, not a coloring book outline.
+ * The interpreter can choose it from a description that never mentioned line weight at all, so the
+ * reader would be paying for a page they cannot colour without ever having asked for one.
+ *
+ * A caution and never a refusal: a reader who wants fine linework for fineliners is asking for
+ * something real, and this read-back's whole contract is that it warns and does not block.
+ */
+export const THIN_LINE_CAUTION_MAX = 5;
+
 const DECORATION_FACTS: Record<ColoringPageSpec['decorations'], string> = {
 	none: '',
 	minimal: 'A few decorations.',
@@ -238,6 +277,7 @@ export const readBackInterpretedPage = (
 		BORDER_FACTS[spec.border],
 		TEXT_SIZE_FACTS[spec.textSize],
 		whitespaceFact(spec.whitespaceScale),
+		lineWeightFact(spec.textStrokeWidth),
 		ILLUSTRATION_FACTS[spec.illustrations],
 		DECORATION_FACTS[spec.decorations]
 	].filter((fact) => fact.length > 0);
@@ -256,6 +296,11 @@ export const readBackInterpretedPage = (
 	if (spec.colorMode !== 'black_and_white_only') {
 		cautions.push(
 			'This asks for a page that is already coloured in, not plain outlines. Say "black and white outlines" if you meant a page to colour.'
+		);
+	}
+	if (spec.textStrokeWidth <= THIN_LINE_CAUTION_MAX) {
+		cautions.push(
+			`The outlines will be thin (${spec.textStrokeWidth}px). Good for fineliners, hard to stay inside with a crayon. Say "thick outlines" if this is for a child.`
 		);
 	}
 	if (spec.variations > 1) {

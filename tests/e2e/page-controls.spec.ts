@@ -27,7 +27,7 @@ test('the shut panel names what it is set to, and its affordance tracks the pane
 
 	// Was the constant "Page Controls" over the constant "Open".
 	await expect(panel.locator('summary strong')).toHaveText(
-		'Crown Energy · Receipts Out · Mild · sometimes in third person · US Letter · decorative border · small lettering · balanced'
+		'Crown Energy · Receipts Out · Mild · sometimes in third person · US Letter · decorative border · small lettering · balanced · standard lines'
 	);
 	await expect(affordance).toHaveText('Open');
 
@@ -50,7 +50,7 @@ test('the selected theme is announced, not only tinted', async ({ page }) => {
 	await expect(panel.getByRole('button', { pressed: true })).toHaveCount(1);
 	await expect(panel.getByRole('button', { pressed: true }).first()).toContainText('Pretty & Petty');
 	await expect(panel.locator('summary strong')).toHaveText(
-		'Pretty & Petty · Receipts Out · Mild · sometimes in third person · US Letter · decorative border · small lettering · balanced'
+		'Pretty & Petty · Receipts Out · Mild · sometimes in third person · US Letter · decorative border · small lettering · balanced · standard lines'
 	);
 });
 
@@ -105,7 +105,11 @@ test('the closed panel says so when a page carries no style of its own', async (
 						whitespaceScale: 35,
 						textSize: 'large',
 						fontStyle: 'rounded',
-						textStrokeWidth: 6,
+						// 7 is deliberately not one of the four steps the Line weight control
+						// offers, for the same reason 35 is not one of the three blank-space steps:
+						// it is the case where a `<select>` is set to a value no `<option>` carries
+						// and browsers render it blank. `ChatInterpretationSeam` can return it.
+						textStrokeWidth: 7,
 						colorMode: 'black_and_white_only',
 						decorations: 'minimal',
 						illustrations: 'none',
@@ -128,7 +132,7 @@ test('the closed panel says so when a page carries no style of its own', async (
 	const panel = page.locator('.settings-panel');
 	// Before reopening it, the panel describes the reader's own controls, as it should.
 	await expect(panel.locator('summary strong')).toHaveText(
-		'Crown Energy · Receipts Out · Mild · sometimes in third person · US Letter · decorative border · small lettering · balanced'
+		'Crown Energy · Receipts Out · Mild · sometimes in third person · US Letter · decorative border · small lettering · balanced · standard lines'
 	);
 
 	await page.getByRole('button', { name: /A PAGE FROM BEFORE/ }).first().click();
@@ -140,7 +144,7 @@ test('the closed panel says so when a page carries no style of its own', async (
 	// spec fields too and survive for exactly the same reason — and they come back as the *record's*
 	// values, large at 35, not as the controls' small at 50.
 	await expect(panel.locator('summary strong')).toHaveText(
-		"This page's style is not on file · US Letter · decorative border · large lettering · 35% blank"
+		"This page's style is not on file · US Letter · decorative border · large lettering · 35% blank · 7px lines"
 	);
 	await panel.locator('summary').click();
 
@@ -152,6 +156,13 @@ test('the closed panel says so when a page carries no style of its own', async (
 	await expect(panel.locator('#home-page-look-room')).toHaveValue('35');
 	await expect(panel.locator('#home-page-look-room')).toContainText("35% blank — this page's own");
 	await expect(panel.locator('#home-page-look-lettering')).toHaveValue('large');
+	// And the same, for the control this run added. `LINE_WEIGHT_OPTIONS` deliberately contains both
+	// weights this app itself builds, so the off-step case is rarer here than for blank space — which
+	// is exactly why it needs pinning rather than trusting.
+	await expect(panel.locator('#home-page-look-line-weight')).toHaveValue('7');
+	await expect(panel.locator('#home-page-look-line-weight')).toContainText(
+		"7px — this page's own"
+	);
 	// The notice's own wording matters, not just its presence: it used to end "changing any of them
 	// will restyle the page", which the artifact snapshot later made false and which contradicted the
 	// lede directly beneath it.
@@ -168,9 +179,9 @@ test('every control the panel holds reaches the shut summary', async ({ page }) 
 	// it was — the "reports nothing" the whole rebuild is against, in the control it is easiest to
 	// miss.
 	//
-	// Lettering and Room to colour are here for the same reason and not as an afterthought: the
-	// panel holds nine controls now, and this test is the one that fails when a tenth is added
-	// without being reported.
+	// Lettering, Room to colour and Line weight are here for the same reason and not as an
+	// afterthought: the panel holds ten controls now, and this test is the one that fails when an
+	// eleventh is added without being reported.
 	const panel = await openPanel(page);
 	const summary = panel.locator('summary strong');
 
@@ -189,16 +200,22 @@ test('every control the panel holds reaches the shut summary', async ({ page }) 
 	await panel.locator('#home-page-look-room').selectOption('75');
 	await expect(summary).toContainText('roomy');
 
+	await panel.locator('#home-page-look-line-weight').selectOption('12');
+	await expect(summary).toContainText('chunky lines');
+
 	await expect(summary).toHaveText(
-		'Crown Energy · Receipts Out · Mild · never in third person · A4 · no border · large lettering · roomy'
+		'Crown Energy · Receipts Out · Mild · never in third person · A4 · no border · large lettering · roomy · chunky lines'
 	);
 });
 
-test('the two controls that decide how much is left to colour reach the page', async ({ page }) => {
+test('the three controls that decide whether a page can be coloured reach the page', async ({
+	page
+}) => {
 	// `textSize` and `whitespaceScale` are `ColoringPageSpec` fields that reached no prompt at all
-	// and that no surface in the app let a reader set. This is the browser-level cover for both
-	// halves of that: the controls exist, they say what they do, and what they say follows what is
-	// actually in effect.
+	// and that no surface in the app let a reader set. `textStrokeWidth` reached one — as a bare
+	// number under a constant that demanded thick outlines whatever it said. This is the
+	// browser-level cover for all of that: the controls exist, they say what they do, and what they
+	// say follows what is actually in effect.
 	const panel = await openPanel(page);
 
 	// The help line describes the value in effect, starting from the studio's own default.
@@ -217,6 +234,29 @@ test('the two controls that decide how much is left to colour reach the page', a
 	await panel.locator('#home-page-look-room').selectOption('25');
 	await expect(panel.locator('#home-page-look-room-help')).toContainText(
 		'About a quarter of the sheet left blank'
+	);
+
+	// Line weight starts at the studio's own 6, which is a step the control offers — so "Page
+	// default" and the named step agree and no phantom option appears.
+	await expect(panel.locator('#home-page-look-line-weight-help')).toContainText(
+		'Medium outlines'
+	);
+	await expect(panel.locator('#home-page-look-line-weight')).toHaveValue('');
+	await expect(panel.locator('#home-page-look-line-weight')).toContainText(
+		'Page default — Standard'
+	);
+	await expect(panel.locator('#home-page-look-line-weight')).not.toContainText("this page's own");
+
+	// Each end of the range the contract allows, and each names its trade rather than only its
+	// virtue — a help line that only sold the thickest option would be no help at all.
+	await panel.locator('#home-page-look-line-weight').selectOption('4');
+	await expect(panel.locator('#home-page-look-line-weight-help')).toContainText(
+		'hard to stay inside with a crayon'
+	);
+
+	await panel.locator('#home-page-look-line-weight').selectOption('12');
+	await expect(panel.locator('#home-page-look-line-weight-help')).toContainText(
+		'the finest detail is lost'
 	);
 });
 

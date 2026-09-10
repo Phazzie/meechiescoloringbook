@@ -22,6 +22,19 @@ import { defineConfig, devices } from '@playwright/test';
  * `/opt/pw-browsers/chromium-1194/chrome-linux/chrome`, which the environment also advertises
  * through `PLAYWRIGHT_BROWSERS_PATH`. Read from the environment rather than hardcoded: a path
  * baked into the repository is a path that is wrong on every other machine.
+ *
+ * **Run it like this:**
+ *
+ * ```sh
+ * PLAYWRIGHT_CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npm run test:e2e:local
+ * ```
+ *
+ * Without the variable this config is the pinned one by design, so it fails instantly with
+ * "Executable doesn't exist at .../chromium_headless_shell-1208/..." and suggests
+ * `npx playwright install`, which the network policy refuses (`cdn.playwright.dev` is not
+ * allowlisted). That failure looks like a broken suite and is not one — every test dies in 2ms.
+ * The command above is written out because two scheduled runs have now rediscovered it from that
+ * error message. Check the directory first: the build number moves.
  */
 const executablePath = process.env.PLAYWRIGHT_CHROMIUM_PATH;
 

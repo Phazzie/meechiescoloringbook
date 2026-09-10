@@ -7,6 +7,48 @@ Info flow: Decision -> consequences -> future changes.
 
 Short, durable decisions with context and tradeoffs.
 
+## 2026-09-10 — Give line weight one voice in the prompt, and give the reader the control
+
+- Decision: `textStrokeLine` states the outline weight in words and names what its pixel figure is
+  measured against; the `thick outlines` clause is removed from the TYPOGRAPHY constant in
+  `PromptAssemblySeam`; `textStrokeWidth` becomes the third field of `PageLookSelection` and a
+  control on all fourteen page-making surfaces; and `/describe`'s read-back names it. Template
+  version v5 -> v6.
+- Context: the TYPOGRAPHY section opened with the constant `'Bold bubble letters; thick outlines.'`
+  and then, four lines down, emitted `Stroke: 4px.` for a spec asking for the thinnest linework the
+  contract allows. Two instructions about one property in one prompt. That is exactly the defect a
+  review of PR #350 named for `whitespaceScale`, still live for line weight in the section that fix
+  edited. Separately, `Stroke: 6px.` was the only bare number in the prompt: emitted against a
+  1024x1024 generation letterboxed onto US Letter at 300dpi, with nothing stating what those pixels
+  were measured against. And no reader could set it anywhere — the home studio hardcoded 6, the
+  thirteen other surfaces hardcoded 9, and nothing reported which.
+- **The deliberate behaviour change, stated rather than absorbed.** With `thick outlines` gone, a
+  page built at the studio's default 6 asks for medium-weight outlines where it previously asked for
+  thick ones regardless of the field. Studio pages will have somewhat thinner lines than before.
+  That is the field becoming real, and the reader now has a control that says Bold or Chunky. The
+  alternative — keeping the constant and letting the control be overruled by it — would have shipped
+  a control that does not work, which is the thing this run exists to stop.
+- Alternatives: (a) **Remove `Bold bubble letters` as well**, since "bold" is a weight word.
+  Rejected as out of scope: `letteringLine('large')` already uses "bold letterforms" for letterform
+  size, so this codebase draws the letterform/stroke distinction already, and the constant's real
+  problem is that it contradicts `Font: block.` and `Font: hand.` — `fontStyle`'s rebuild, recorded
+  as a carried-forward finding rather than ridden along on. (b) **Clamp the prompt's stroke range**
+  the way `whitespaceLine` clamps whitespace. Not needed: `ColoringPageSpecSchema` already declares
+  the field `int().min(4).max(12)`, so a clamp here would be unreachable code pretending to be a
+  guard. (c) **Add a line-weight control to `/describe`.** Not taken: that surface's control is its
+  read-back, and the read-back is the half of it this change fixes.
+- Consequences: `LINE_WEIGHT_OPTIONS` is `[4, 6, 9, 12]` rather than an even spread, because 6 and 9
+  are the two values this application itself builds and a control whose default is not one of its own
+  options shows the reader a phantom "this page's own" entry for a page the app just made. A test
+  binds the list to `STUDIO_DEFAULT_PAGE_LOOK.textStrokeWidth` and `TOOL_PAGE_STROKE_WIDTH` so the
+  three cannot drift.
+- Cipher Gate:
+  - Date: 2026-09-10
+  - Seams: PromptAssemblySeam, DriftDetectionSeam
+  - Evidence: docs/evidence/2026-09-10/verify-outer.txt; docs/evidence/2026-09-10/check.txt; docs/evidence/2026-09-10/lint.txt; docs/evidence/2026-09-10/test.txt; docs/evidence/2026-09-10/build.txt; docs/evidence/2026-09-10/e2e.txt; src/lib/seams/prompt-assembly-seam/test.ts; tests/unit/prompt-template.test.ts; tests/unit/page-style.test.ts; tests/unit/describe-page.test.ts; docs/seams.md
+  - Summary: One `ColoringPageSpec` field that reached the prompt as an unreferenced number under a constant that contradicted it now reaches it as a single instruction, and becomes a reader control on every page-making surface. No contract schema, no probe and no seam type changes: `textStrokeWidth` was already `int().min(4).max(12)` and every input shape is identical. What changed is the adapters' output text, with the golden `prompt-assembly` and `drift-detection` fixtures patched to match and re-proved against the adapters.
+  - Risks: The prompt changes for **every** page the app makes, and pages built at the studio default will ask for thinner linework than the removed constant forced. This cannot be proven against a live provider here: no live image call can be made from this container, and no open Assumption speaks to the image prompt's content either way. What backs the change instead is the drift seam still matching `textStrokeLine` exactly, plus two new seam tests — one asserting that no weight word is applied to outlines anywhere in the prompt except on the stroke line, taken with a red proof by restoring the old constant and watching both fail.
+
 ## 2026-09-10 — `AGENTS.md`'s I/O mandate governs the application, not `scripts/`
 
 - Decision: `scripts/verify-outer.mjs` imports `node:child_process` and `node:fs` directly, as every

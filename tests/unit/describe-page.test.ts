@@ -209,6 +209,56 @@ describe('readBackInterpretedPage', () => {
 		);
 	});
 
+	/*
+	 * Line weight, on the surface that has no control for it.
+	 *
+	 * Written with the control rather than after a reviewer found it missing, which is the lesson
+	 * Run 24 recorded against itself: when a change makes a field effective, the list of places that
+	 * describe the page is part of the change, not a follow-up. `/describe` never mentioned how
+	 * thick the lines would be, and `ChatInterpretationSeam` can choose any weight from 4 to 12 from
+	 * a description that never raised the subject.
+	 */
+	it('names how thick the outlines will be, which only this read-back can show', () => {
+		expect(readBackInterpretedPage(spec({ textStrokeWidth: 9 })).facts).toContain(
+			'Bold outlines.'
+		);
+		expect(readBackInterpretedPage(spec({ textStrokeWidth: 12 })).facts).toContain(
+			'Chunky outlines.'
+		);
+	});
+
+	// Same rule as the blank-space fact above: the interpreter can return a weight no control
+	// offers, and snapping it to a nearby named step would report the page as something it is not.
+	it('names a line weight no control offers rather than rounding it to one that does', () => {
+		expect(readBackInterpretedPage(spec({ textStrokeWidth: 7 })).facts).toContain(
+			'7px outlines.'
+		);
+	});
+
+	/*
+	 * 4px of line on a 1024px generation, letterboxed onto US Letter, is roughly a third of a
+	 * millimetre on paper — a pencil line, not a coloring book outline. A reader who described a
+	 * page for a child and never mentioned linework can be handed one at that weight, and this is
+	 * the last sentence they see before the button that charges them.
+	 *
+	 * A caution and never a refusal: fine linework for fineliners is a real thing to want.
+	 */
+	it('warns when the outlines are too thin to colour inside, without refusing', () => {
+		const readback = readBackInterpretedPage(spec({ textStrokeWidth: 4 }));
+		expect(readback.cautions.join(' ')).toContain('thin');
+		expect(readback.cautions.join(' ')).toContain('4px');
+		// Still a page, still described. The caution sits beside the facts, it does not replace them.
+		expect(readback.facts).toContain('Fine outlines.');
+	});
+
+	it('says nothing about thin lines for a weight a child can colour inside', () => {
+		for (const textStrokeWidth of [6, 9, 12]) {
+			expect(
+				readBackInterpretedPage(spec({ textStrokeWidth })).cautions.join(' ')
+			).not.toContain('thin');
+		}
+	});
+
 	it('shows the footer item where the prompt actually draws it: second, unnumbered', () => {
 		// `prompt-assembly-seam` L55 and L83-85 use `footerItem.label` as the unnumbered second line
 		// directly under the headline, and never use `footerItem.number` at all. Showing it numbered

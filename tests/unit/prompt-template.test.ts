@@ -10,6 +10,7 @@ import {
 	textStrokeLine,
 	letteringLine,
 	whitespaceLine,
+	LINE_WEIGHT_REFERENCE_PX,
 	MAX_PROMPTABLE_WHITESPACE,
 	MIN_PROMPTABLE_WHITESPACE,
 	decorationLine,
@@ -26,6 +27,7 @@ import {
 	NEGATIVE_PROMPT_HEADING,
 	VECTOR_LINEWORK_PHRASE
 } from '../../src/lib/core/prompt-template';
+import { DEFAULT_IMAGE_SIZE } from '../../src/lib/core/image-generation-pipeline';
 import { makeBaseSpec } from '../helpers/make-base-spec';
 
 describe('prompt-template helpers', () => {
@@ -91,13 +93,6 @@ describe('prompt-template helpers', () => {
 			expect(fontStyleLine('rounded')).toContain('rounded');
 			expect(fontStyleLine('block')).toContain('block');
 			expect(fontStyleLine('hand')).toContain('hand');
-		});
-	});
-
-	describe('textStrokeLine', () => {
-		it('returns stroke width string', () => {
-			expect(textStrokeLine(6)).toContain('6px');
-			expect(textStrokeLine(12)).toContain('12px');
 		});
 	});
 
@@ -289,6 +284,78 @@ describe('prompt-template helpers', () => {
 		it('carries no forbidden token', () => {
 			for (const size of ['small', 'medium', 'large'] as const) {
 				const lowered = letteringLine(size).toLowerCase();
+				for (const token of PROMPT_FORBIDDEN_TOKENS) {
+					expect(lowered).not.toContain(token);
+				}
+			}
+		});
+	});
+
+	/*
+	 * Line weight — how thick the outlines are, and the one property that decides whether a printed
+	 * page can be coloured inside at all.
+	 *
+	 * The defect these pin: `textStrokeLine` used to be `Stroke: ${n}px.` and nothing else, the only
+	 * bare number in the whole prompt, emitted four lines under a TYPOGRAPHY constant that demanded
+	 * "thick outlines" whatever that number said.
+	 */
+	describe('textStrokeLine', () => {
+		it('says something different for every weight the contract allows', () => {
+			const lines = [];
+			for (let width = 4; width <= 12; width += 1) {
+				lines.push(textStrokeLine(width));
+			}
+			expect(new Set(lines).size).toBe(lines.length);
+		});
+
+		// Was the whole of this seam's stroke coverage: `toContain('6px')` and `toContain('12px')`.
+		// Kept, widened to the contract's full range, and joined by the assertions below.
+		it('states the exact width the spec asked for', () => {
+			for (let width = 4; width <= 12; width += 1) {
+				expect(textStrokeLine(width)).toContain(`${width}px`);
+			}
+		});
+
+		/*
+		 * The number is emitted against a 1024x1024 generation that is then letterboxed onto US
+		 * Letter at 300dpi. Without the reference stated in the line itself, "6px" asks the model to
+		 * infer a scale it was never given — on the field where the scale *is* the instruction.
+		 *
+		 * Asserted against `DEFAULT_IMAGE_SIZE` rather than against the literal 1024, so changing
+		 * the generation size fails here instead of leaving this sentence quietly false.
+		 */
+		it('states what its pixel figure is measured against', () => {
+			expect(LINE_WEIGHT_REFERENCE_PX).toBe(Number(DEFAULT_IMAGE_SIZE.split('x')[0]));
+			expect(textStrokeLine(6)).toContain(`${LINE_WEIGHT_REFERENCE_PX}px sheet`);
+		});
+
+		// Words, not only a number, because the words are the part an image model can follow. A
+		// thinner spec must not describe itself in heavier terms than a thicker one.
+		it('names the weight in words, and orders them with the number', () => {
+			expect(textStrokeLine(4)).toContain('fine');
+			expect(textStrokeLine(6)).toContain('medium-weight');
+			expect(textStrokeLine(9)).toContain('bold');
+			expect(textStrokeLine(12)).toContain('very thick');
+		});
+
+		/*
+		 * One field, one instruction — the rule a review of PR #350 earned when `letteringLine`
+		 * claimed page occupancy that `whitespaceScale` already owned. Letterform shape is
+		 * `fontStyleLine`'s, letterform size is `letteringLine`'s, and how much of the sheet is
+		 * covered is `whitespaceLine`'s. This line speaks only about the weight of the linework.
+		 */
+		it('claims nothing that another line in the same prompt already sets', () => {
+			for (let width = 4; width <= 12; width += 1) {
+				const line = textStrokeLine(width).toLowerCase();
+				for (const claim of ['blank', 'filling', '%', 'font', 'rounded', 'block', 'hand']) {
+					expect(line).not.toContain(claim);
+				}
+			}
+		});
+
+		it('carries no forbidden token', () => {
+			for (let width = 4; width <= 12; width += 1) {
+				const lowered = textStrokeLine(width).toLowerCase();
 				for (const token of PROMPT_FORBIDDEN_TOKENS) {
 					expect(lowered).not.toContain(token);
 				}

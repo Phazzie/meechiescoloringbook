@@ -509,6 +509,17 @@ const TOOL_PRESENTATION: Record<MeechieToolOutput['toolId'], ToolPresentation> =
 };
 
 /**
+ * How thick the outlines are on every one of the thirteen tool and mode pages.
+ *
+ * Named rather than left as a literal inside `BASE_SPEC` because `LINE_WEIGHT_OPTIONS` must offer
+ * it: `PageLookControls` renders a reader's own value as an extra "this page's own" option whenever
+ * it is not one of the steps, so a tool page whose weight had drifted out of that list would show
+ * every reader a phantom option beside a "Page default" naming the same number.
+ * `tests/unit/page-style.test.ts` asserts the two agree, which it can only do against a name.
+ */
+export const TOOL_PAGE_STROKE_WIDTH = 9;
+
+/**
  * The house look every tool page shares: heavy outlined text, no fills for the user to fight,
  * a decorative border, and enough blank space left to actually colour.
  */
@@ -518,7 +529,7 @@ const BASE_SPEC = {
 	listGutter: 'normal',
 	textSize: 'large',
 	fontStyle: 'block',
-	textStrokeWidth: 9,
+	textStrokeWidth: TOOL_PAGE_STROKE_WIDTH,
 	colorMode: 'black_and_white_only',
 	decorations: 'dense',
 	illustrations: 'simple',

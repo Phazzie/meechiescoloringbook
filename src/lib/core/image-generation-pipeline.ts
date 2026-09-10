@@ -17,7 +17,15 @@ import type { PageSize } from '../../../contracts/spec-validation.contract';
 import type { ImageGenerationSeam } from '$lib/seams/image-generation-seam/contract';
 
 const RESPONSE_FORMAT = 'b64_json' as const;
-const DEFAULT_IMAGE_SIZE = '1024x1024';
+/*
+ * Exported because `textStrokeLine` states this number in the prompt it sends.
+ *
+ * `Stroke: ... about 6px wide on a 1024px sheet.` is only true while the generation really is 1024
+ * across, and that sentence is the whole reason the stroke figure means anything to the model. A
+ * test drives `LINE_WEIGHT_REFERENCE_PX` against this constant, so changing the generation size
+ * fails rather than leaving a false measurement in every prompt the app sends.
+ */
+export const DEFAULT_IMAGE_SIZE = '1024x1024';
 const REQUIRED_PHRASES = SYSTEM_CONSTANTS.REQUIRED_PROMPT_PHRASES;
 
 // Byte-level signature check (not a base64-string-prefix guess) so a genuine WebP

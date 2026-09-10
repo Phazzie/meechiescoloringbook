@@ -5,7 +5,7 @@ Info flow: evidence files -> summary -> review.
 -->
 # Proof Tape
 
-Generated at: 2026-09-10T07:51:16.889Z
+Generated at: 2026-09-10T13:09:28.622Z
 Evidence folder: docs/evidence/2026-09-10
 
 Files included (this tape's own outputs, proof-tape.json and proof-tape.md, are written
@@ -19,16 +19,16 @@ writing while this runs and would therefore always be listed short):
 - chamber-lock.json (35315 bytes)
 - check.txt (240 bytes) — PREDATES THIS VERIFY RUN
   Commands: meechies-coloringbook@0.1.0 check | svelte-kit sync && svelte-check --tsconfig ./tsconfig.json
-- cipher-gate.json (2330 bytes) — PREDATES THIS VERIFY RUN
+- cipher-gate.json (2458 bytes) — PREDATES THIS VERIFY RUN
 - clan-chain.json (3181 bytes)
 - clan-chain.md (1956 bytes)
-- e2e.txt (11466 bytes) — PREDATES THIS VERIFY RUN
+- e2e.txt (11436 bytes) — PREDATES THIS VERIFY RUN
   Commands: meechies-coloringbook@0.1.0 test:e2e:local | playwright test --config=playwright.local.config.ts
 - lint.txt (48 bytes) — PREDATES THIS VERIFY RUN
   Commands: meechies-coloringbook@0.1.0 lint | eslint .
 - seam-ledger.json (37511 bytes)
 - seam-ledger.md (2981 bytes)
-- shaolin-lint.json (518 bytes)
+- shaolin-lint.json (519 bytes)
 - test.txt (3333 bytes)
   Commands: meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
 - verify.txt (3658 bytes)
