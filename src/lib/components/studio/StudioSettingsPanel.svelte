@@ -255,6 +255,7 @@ Critical invariants — this panel describes a page, so it must never describe o
 			<PageLookControls
 				look={pageLook}
 				effective={effectiveLook}
+				baseline={pageLookBaseline}
 				idPrefix="home-page-look"
 				onChange={async (next) => {
 					pageLook = next;

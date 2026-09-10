@@ -10,7 +10,6 @@ import {
 	textStrokeLine,
 	letteringLine,
 	whitespaceLine,
-	LINE_WEIGHT_REFERENCE_PX,
 	MAX_PROMPTABLE_WHITESPACE,
 	MIN_PROMPTABLE_WHITESPACE,
 	decorationLine,
@@ -27,7 +26,6 @@ import {
 	NEGATIVE_PROMPT_HEADING,
 	VECTOR_LINEWORK_PHRASE
 } from '../../src/lib/core/prompt-template';
-import { DEFAULT_IMAGE_SIZE } from '../../src/lib/core/image-generation-pipeline';
 import { makeBaseSpec } from '../helpers/make-base-spec';
 
 describe('prompt-template helpers', () => {
@@ -310,23 +308,37 @@ describe('prompt-template helpers', () => {
 
 		// Was the whole of this seam's stroke coverage: `toContain('6px')` and `toContain('12px')`.
 		// Kept, widened to the contract's full range, and joined by the assertions below.
-		it('states the exact width the spec asked for', () => {
+		/*
+		 * A proportion of the page, not a pixel count — and this assertion is the second version of
+		 * itself. The first read `toContain(`${width}px`)` against a line that said
+		 * "about Npx wide on a 1024px sheet", naming `DEFAULT_IMAGE_SIZE` as the reference. A review
+		 * of PR #352 established that reference was never true: the xAI adapter's request body
+		 * serializes only `model`, `prompt`, `n` and `response_format`, so the requested size never
+		 * reaches the provider and the prompt was asserting a raster width nothing had asked for.
+		 *
+		 * A ratio needs no such promise. It holds at whatever size the provider returns, which is
+		 * exactly the property a pixel figure did not have.
+		 */
+		it('states the width as a proportion of the page, not as a raster measurement', () => {
+			expect(textStrokeLine(4)).toContain('0.4% of the page width');
+			expect(textStrokeLine(12)).toContain('1.2% of the page width');
 			for (let width = 4; width <= 12; width += 1) {
-				expect(textStrokeLine(width)).toContain(`${width}px`);
+				expect(textStrokeLine(width)).not.toContain('px');
+				expect(textStrokeLine(width)).not.toContain('sheet');
 			}
 		});
 
 		/*
-		 * The number is emitted against a 1024x1024 generation that is then letterboxed onto US
-		 * Letter at 300dpi. Without the reference stated in the line itself, "6px" asks the model to
-		 * infer a scale it was never given — on the field where the scale *is* the instruction.
-		 *
-		 * Asserted against `DEFAULT_IMAGE_SIZE` rather than against the literal 1024, so changing
-		 * the generation size fails here instead of leaving this sentence quietly false.
+		 * One decimal, because the contract's whole range lands between 0.4% and 1.2%. Whole
+		 * percentages would collapse 4, 5 and 6 onto "1%" — the field would stop reaching the picture
+		 * at the thin end, which is the defect this run exists to fix, reintroduced by rounding.
 		 */
-		it('states what its pixel figure is measured against', () => {
-			expect(LINE_WEIGHT_REFERENCE_PX).toBe(Number(DEFAULT_IMAGE_SIZE.split('x')[0]));
-			expect(textStrokeLine(6)).toContain(`${LINE_WEIGHT_REFERENCE_PX}px sheet`);
+		it('keeps every weight in the range distinguishable', () => {
+			const lines = [];
+			for (let width = 4; width <= 12; width += 1) {
+				lines.push(textStrokeLine(width));
+			}
+			expect(new Set(lines).size).toBe(lines.length);
 		});
 
 		// Words, not only a number, because the words are the part an image model can follow. A
@@ -347,7 +359,12 @@ describe('prompt-template helpers', () => {
 		it('claims nothing that another line in the same prompt already sets', () => {
 			for (let width = 4; width <= 12; width += 1) {
 				const line = textStrokeLine(width).toLowerCase();
-				for (const claim of ['blank', 'filling', '%', 'font', 'rounded', 'block', 'hand']) {
+				// '%' is deliberately not on this list, though it was until this line started
+				// expressing itself as a proportion. The percent sign is not the claim —
+				// `whitespaceLine` owns "% of the *sheet* left *blank*", which is page occupancy, and
+				// this owns "% of the page *width*", which is stroke weight. The words below are what
+				// separate them, so those are what this asserts.
+				for (const claim of ['blank', 'filling', 'sheet', 'font', 'rounded', 'block', 'hand']) {
 					expect(line).not.toContain(claim);
 				}
 			}

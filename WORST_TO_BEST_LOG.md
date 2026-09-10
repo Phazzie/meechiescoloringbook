@@ -17271,8 +17271,153 @@ Re-measure everything below; do not inherit it.
   keyword gate in front of a paid generation would reject good quotes for not containing a noun from
   a list of eight, which is worse than the absence.
 - **`MeechieTools.svelte` is still in legacy (non-runes) mode** — worked around a **sixth** time.
+- **SonarCloud findings are identifiable from this container after all**, and the method is worth
+  reusing: `npm i --no-save eslint-plugin-sonarjs`, run its rules against the changed files with the
+  TypeScript parser, then remove it and restore `package-lock.json`. It named this run's finding
+  exactly, and SonarCloud's next run confirmed the fix at 0 new issues. `sonarcloud.io` itself is
+  still refused by the network policy, and the `github-advanced-security[bot]` route Run 24 suggested
+  produced **no** comments on this pull request.
 - **`readJson` conflates a denied read with a damaged store.** Run 22's item, untouched.
 - **A `ConnectionSeam` is still the right home for the `navigator.onLine` read.** Unchanged.
 - **The try-on's `rejected` branch is still unreachable from the UI.** Run 21's item, untouched.
 - **`failure.detail` has one consumer, on one surface out of fourteen.** Run 23's item, untouched.
 - **Run 18 still has no merge close-out entry.** Carried for eight runs now.
+
+## Run 25, first close-out — 2026-09-10 — the Codex round on `f356c433b7`, and one more contradiction
+
+Four findings, **all four correct**, all fixed. Two were user-visible defects; one of those two was in
+code this run did not write and has been shipped since Run 24.
+
+### 1. The prompt named a raster size nothing had asked the provider for (P2, correct)
+
+`textStrokeLine` shipped as `Stroke: ... about 6px wide on a 1024px sheet.` The reference was
+`DEFAULT_IMAGE_SIZE` in `image-generation-pipeline.ts`, exported by this run specifically so a test
+could bind the two and the sentence could not go stale.
+
+Codex measured what actually reaches the provider:
+
+```
+$ sed -n '89,94p' src/lib/adapters/image-generation-seam/index.ts
+            body: JSON.stringify({
+              model: config.xaiImageModel,
+              prompt: buildPrompt(validated),
+              n: validated.n,
+              response_format: validated.format
+            }),
+$ grep -n "size" src/lib/adapters/image-generation-seam/index.ts
+162:          requestedSize: validated.size,
+```
+
+**`size` is never sent.** The pipeline hands it to the seam, the adapter drops it from the request
+body, and it reappears only as `rawModelInfo.requestedSize` on the way back. So the prompt asserted
+a sheet width nothing had requested, and the test bound it to a constant with no effect on the
+generation — a guard that could only ever have been reassuring.
+
+Fixed by asking for a **proportion** instead: `Stroke: bold outlines, about 0.9% of the page width.`
+A ratio is true at whatever size the provider returns, which is precisely the property a pixel figure
+did not have. `NOMINAL_PAGE_WIDTH_PX` is now private to `prompt-template.ts` and documented as this
+application's own unit — the definition `textStrokeWidth` never had — with an explicit note not to
+re-bind it to `DEFAULT_IMAGE_SIZE`. That export is reverted.
+
+One decimal, not zero: the contract's whole range lands between 0.4% and 1.2%, so whole percentages
+would collapse 4, 5 and 6 onto the same instruction and stop the field reaching the picture at the
+thin end — this run's own defect, reintroduced by rounding. A test pins it.
+
+**This is the third contradiction found in the same prompt in two runs**, and the first two were
+found by reading the prompt. This one needed reading the adapter. The opening entry's rule — *grep
+the whole artifact for other members of the class* — was applied to the prompt's text and stopped
+there. The artifact is the request, not the string.
+
+### 2. "Page default" renamed itself to whatever the reader had just chosen (P2, correct, and older than this run)
+
+Every `Page default` option was labelled from `effective`, which already carries the reader's
+override. Pick Chunky and the option read `Page default — Chunky`; selecting it cleared the override
+and returned the studio's own Standard. **The option promised the value the reader had just picked
+and delivered a different one.**
+
+That is the false provenance `PageLookControls`' first invariant exists to prevent, in the option
+that invariant is about — and the wording of that invariant ("the option names that value rather
+than saying 'Default', so the reader can see what leaving it alone gets them") is exactly the promise
+being broken.
+
+**It was not this run's field alone.** Lettering and Room to colour had it from the day they shipped
+in Run 24, and Run 24's own review round renamed this option from "As this page has it" to
+"Page default" *for false provenance* without noticing the value beside it was the wrong one. A
+`baseline` prop is now passed from all three hosts and all three options read it; the help lines
+still read `effective`, which is correct — they describe what is in effect, not what an unselected
+option would do.
+
+**Red proof taken, not assumed.** With the fix reverted, the new browser test fails with
+`Received: "Page default — ChunkyFineStandardBoldChunky"` — the option renamed, reproduced.
+
+The test asserts the option's own text rather than the summary line, which is Run 24's recorded
+lesson: a test that checks a derived string agrees with the state rather than with the reader.
+
+### 3. The Cipher Gate treated string checks as evidence for provider behaviour (P1, correct)
+
+The gate said, in its own Risks field, that the prompt changes every paid generation, cannot be
+tested against the live provider, and that no open Assumption covers it — and then shipped. Naming a
+gap is not recording one. `AGENTS.md` is explicit: *for blocked probes, record an Assumption entry
+with Date, Seams, Statement, Validation, and Status.*
+
+Written now, with the validation stated concretely (generate the same spec at 4 and at 12 and compare
+the linework) and with what it would mean if it failed: the control would still be honest, because it
+changes the stored spec and every sentence the app says about the page — but the picture would not
+follow it, and this log should say so.
+
+Run 24's merge close-out made the identical correction against its own pull request, in prose, and
+wrote no entry either. Two runs, same gap, same reasoning, no artifact. The entry exists now.
+
+### 4. The plan's "exact file inventory" was neither exact nor an inventory (P1, correct)
+
+`AGENTS.md:L47-49` forbids blanket statements and unlisted files. The plan's table carried
+`tests/unit/*`, `fixtures/prompt-assembly/*.json`, and a grouped row of four component files; listed
+`src/routes/+page.svelte`, which this change **does not touch**; omitted the seam contract test, three
+e2e suites, four doc logs, `playwright.local.config.ts` and fourteen evidence artifacts; and promised
+a `LINE_WEIGHT_MIN`/`MAX` guard that was deliberately not built.
+
+All 51 touched paths are now enumerated in four grouped tables, each with its real mechanical edit.
+The struck guard is named as struck, with the reason (`ColoringPageSpecSchema` already declares
+`int().min(4).max(12)`, so a clamp in the encoder is unreachable code pretending to be a guard) — a
+plan that quietly drops a promise is the same defect as one that never listed the file.
+
+### What this round says about the run
+
+Four findings, four correct, and the honest reading is uncomfortable in a specific way: **three of
+the four are about this run's own claims rather than its code.** The prompt sentence asserted a
+measurement, the Cipher Gate asserted sufficiency, the plan asserted an inventory. Each was written
+confidently and each was checkable in one command that was not run.
+
+The fourth is the opposite lesson. The "Page default" bug is a genuine user-visible defect that had
+been live for a full run, and this run touched that exact option — extending it to a third control —
+without checking whether the value beside it was right.
+
+### Gates after the round
+
+| Command | Result |
+|---|---|
+| `npm run check` | 0 errors, 0 warnings |
+| `npm run lint` | exit 0 |
+| `npm test` | **2,036** passed, 1 skipped |
+| `npm run build` | exit 0 |
+| `npm run verify` | exit 0 |
+| `npm run cipher:gate` | exit 0 |
+| `npm run assumption:alarm` | exit 0 |
+| `npm run test:e2e:local` | **87** passed (from 86) |
+
+### The SonarCloud finding, identified rather than recorded as unknowable
+
+Between the two review rounds, SonarCloud's gate passed on `f356c43` reporting **1 new issue**, with
+`sonarcloud.io` refused by the network policy (`curl` → `CONNECT tunnel failed, 403`) and no detail
+in the check run's output. Seven prior runs recorded findings like this as unidentifiable; Run 24
+carried forward that a future run should look at `github-advanced-security[bot]` review comments
+instead. **There were none on this PR** — that route did not work here.
+
+What did work: `npm i --no-save eslint-plugin-sonarjs` and running its rules against the changed
+files, as a throwaway diagnostic that is not a repository dependency and is not in the diff. It named
+the issue exactly — `sonarjs/use-type-alias` at `page-style.ts:367`, the three-member `Pick` this
+change had spelled out at six declarations across four files. Fixed by naming it `EffectivePageLook`.
+
+**Confirmed empirically:** SonarCloud's next run reported **0 New issues**. That is the eighth run's
+worth of "unidentifiable" closed by a method a future run can repeat, and it belongs in the
+carried-forward list as a technique rather than as a one-off.

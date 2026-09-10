@@ -42,6 +42,14 @@ Short, durable decisions with context and tradeoffs.
   options shows the reader a phantom "this page's own" entry for a page the app just made. A test
   binds the list to `STUDIO_DEFAULT_PAGE_LOOK.textStrokeWidth` and `TOOL_PAGE_STROKE_WIDTH` so the
   three cannot drift.
+- Assumption:
+  - Date: 2026-09-10
+  - Seams: PromptAssemblySeam, ImageGenerationSeam, ProviderAdapterSeam
+  - Statement: A prompt line naming the outline weight in words, as a proportion of the page width, changes the linework the image provider draws — and changes it in the direction the words name, so that `fine` yields thinner outlines than `very thick` on the same spec. Nothing in this change verifies that. What is verified is deterministic and stops at the string: the assembled prompt carries exactly one instruction about linework weight, that instruction is built from `textStrokeWidth`, and `DriftDetectionSeam` reports its absence rather than passing it silently.
+  - Validation: **Blocked, and blocked in this container specifically.** No live image generation can be made from here: `api.x.ai` is not reachable under the network policy, and `docs/evidence/2026-09-10/` therefore contains no probe against a real generation. Recorded rather than waved past because a review of PR #352 was right that the Cipher Gate above treated deterministic string checks as sufficient evidence for a claim about external provider behaviour, which they are not. Validate by generating the same spec at `textStrokeWidth` 4 and at 12 against `grok-imagine-image-2.0` with a key present, and comparing the returned linework — either by eye or by measuring mean stroke thickness on the two rasters. If the two come back indistinguishable, the words are not reaching the drawing and this line needs rewording or a different mechanism; the *control* would still be honest, because it changes the stored spec and every sentence the app says about the page, but the picture would not follow it and this log should say so.
+  - Status: Open. It does not block this change: `textStrokeWidth` reached the prompt before this run too, and reached it under a constant that contradicted it. The change strictly narrows what the provider is told, from two conflicting instructions to one. This entry records that the *effect* of that narrowing on a generated image is unproven, not that the narrowing is unsafe.
+  - Scope note: This is the image **prompt's content**. It is deliberately not covered by the existing open Assumption on the deployed full-payload path, which is about `POST /v1/chat/completions` and its `json_schema` response format — the text path. Run 24's merge close-out made that correction against its own pull request and no entry was written; this is that entry.
+
 - Cipher Gate:
   - Date: 2026-09-10
   - Seams: PromptAssemblySeam, DriftDetectionSeam

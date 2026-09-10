@@ -82,20 +82,70 @@ becomes unreadable.
 
 ### Exact file paths
 
+Every path this change touches, with its explicit demarcation and its real mechanical edit. No
+wildcards and no grouped shorthand, which is what this table used to carry — a review of PR #352 was
+right that a plan with `tests/unit/*` in it cannot define or audit a scope. It also listed
+`src/routes/+page.svelte`, which this change does not touch at all, and promised a
+`LINE_WEIGHT_MIN`/`MAX` guard that was deliberately not built: `ColoringPageSpecSchema` already
+declares the field `int().min(4).max(12)`, so a clamp in the encoder would be unreachable code
+pretending to be a guard. That decision is recorded in `DECISIONS.md`; the promise is struck here.
+
+**Seam and prompt (`PromptAssemblySeam`, `DriftDetectionSeam`)**
+
 | Path | Action | Exact touch |
 |---|---|---|
-| `src/lib/core/prompt-template.ts` | `[MODIFY]` | `textStrokeLine` describes the weight in words and keeps the exact px number; add `LINE_WEIGHT_MIN`/`MAX` guard |
-| `src/lib/adapters/prompt-assembly-seam/index.ts` | `[MODIFY]` | drop the `thick outlines` clause from the TYPOGRAPHY constant so the field is the only voice on weight |
-| `src/lib/core/page-style.ts` | `[MODIFY]` | `lineWeight` on `PageLookSelection`; `LINE_WEIGHT_OPTIONS/LABELS/HELP`; `describeLineWeight`; extend `applyPageLook` + `summarizePageLook` |
-| `src/lib/components/PageLookControls.svelte` | `[MODIFY]` | third `<select>`, with the off-step "this page's own" option |
+| `src/lib/core/prompt-template.ts` | `[MODIFY]` | `textStrokeLine` states the weight in words and the width as a proportion of the page; add private `NOMINAL_PAGE_WIDTH_PX`, `strokeWeightWord`, `strokeWidthPercent` |
+| `src/lib/adapters/prompt-assembly-seam/index.ts` | `[MODIFY]` | drop the `thick outlines` clause from the TYPOGRAPHY constant; `TEMPLATE_VERSION` v5 → v6 |
+| `src/lib/core/image-generation-pipeline.ts` | `[MODIFY]` | comment only on `DEFAULT_IMAGE_SIZE`, recording that it never reaches the provider payload; stays unexported |
+| `fixtures/prompt-assembly/sample.json` | `[MODIFY]` | golden prompt restated |
+| `fixtures/prompt-assembly/title-only.json` | `[MODIFY]` | golden prompt restated |
+| `fixtures/prompt-assembly/title-only-marker-fault.json` | `[MODIFY]` | golden prompt restated |
+| `fixtures/drift-detection/sample.json` | `[MODIFY]` | expected prompt restated |
+| `fixtures/drift-detection/fault.json` | `[MODIFY]` | expected prompt restated |
+| `fixtures/drift-detection/title-only.json` | `[MODIFY]` | expected prompt restated |
+| `src/lib/seams/prompt-assembly-seam/test.ts` | `[MODIFY]` | `textStrokeWidth` added to the carries-into-prompt table; two new assertions on the single weight claim |
+
+**The control**
+
+| Path | Action | Exact touch |
+|---|---|---|
+| `src/lib/core/page-style.ts` | `[MODIFY]` | `lineWeight` on `PageLookSelection`; `LINE_WEIGHT_OPTIONS/LABELS/HELP`; `describeLineWeight`; `EffectivePageLook` alias; `applyPageLook` and both summaries extended |
+| `src/lib/components/PageLookControls.svelte` | `[MODIFY]` | third `<select>`; new `baseline` prop; all three "Page default" options read it |
 | `src/lib/core/meechie-studio.ts` | `[MODIFY]` | `STUDIO_DEFAULT_PAGE_LOOK` gains `textStrokeWidth: 6`; builder takes `textStrokeWidth` top-level and drops it from `presentation` |
-| `src/lib/core/describe-page.ts` | `[MODIFY]` | `LINE_WEIGHT_FACTS` in `readBackInterpretedPage` |
-| `src/routes/studio-state.svelte.ts` | `[MODIFY]` | pass `pageLook.lineWeight`; seed it in `loadCreation` and the draft restore |
-| `src/lib/components/studio/StudioSettingsPanel.svelte` | `[MODIFY]` | `pageLookBaseline` type gains `textStrokeWidth` |
-| `src/routes/+page.svelte`, `VerdictPageStudio.svelte`, `MeechieTools.svelte`, `verdict-page-state.svelte.ts` | `[MODIFY]` | `effective` / baseline plumbing only |
-| `fixtures/prompt-assembly/*.json`, `fixtures/drift-detection/*.json` | `[MODIFY]` | regenerated golden prompts |
-| `tests/unit/*`, `tests/e2e/page-controls.spec.ts` | `[MODIFY]` | new assertions |
-| `DECISIONS.md` | `[MODIFY]` | Cipher Gate entry + the deliberate behaviour change |
+| `src/lib/core/tool-page-recipe.ts` | `[MODIFY]` | export `TOOL_PAGE_STROKE_WIDTH` and use it in `BASE_SPEC` |
+| `src/lib/core/describe-page.ts` | `[MODIFY]` | `lineWeightFact` in the read-back; `THIN_LINE_CAUTION_MAX` and its caution |
+| `src/routes/studio-state.svelte.ts` | `[MODIFY]` | destructure `textStrokeWidth` out of carried presentation; pass `pageLook.lineWeight`; seed it in `loadCreation` and the draft restore |
+| `src/lib/components/studio/StudioSettingsPanel.svelte` | `[MODIFY]` | `pageLookBaseline` retyped; passed as `baseline`; legend renamed |
+| `src/lib/components/VerdictPageStudio.svelte` | `[MODIFY]` | pass `baseline`; guard on both derived values; legend renamed |
+| `src/lib/components/verdict-page-state.svelte.ts` | `[MODIFY]` | `effectivePageLook` carries the third field; new `baselinePageLook` |
+| `src/lib/components/MeechieTools.svelte` | `[MODIFY]` | same three, in legacy reactive syntax |
+
+**Tests**
+
+| Path | Action | Exact touch |
+|---|---|---|
+| `tests/unit/prompt-template.test.ts` | `[MODIFY]` | `textStrokeLine` block merged and widened |
+| `tests/unit/page-style.test.ts` | `[MODIFY]` | line-weight tables, `describeLineWeight`, `applyPageLook`, both summaries |
+| `tests/unit/describe-page.test.ts` | `[MODIFY]` | read-back fact and thin-line caution |
+| `tests/unit/meechie-studio.test.ts` | `[MODIFY]` | default and override assertions |
+| `tests/unit/tool-page-recipe.test.ts` | `[MODIFY]` | look-override assertions |
+| `tests/unit/studio-state.test.ts` | `[MODIFY]` | reopened-page assertion updated to the control semantics |
+| `tests/e2e/page-controls.spec.ts` | `[MODIFY]` | control, help lines, off-step select, summary, default-label regression |
+| `tests/e2e/smoke.spec.ts` | `[MODIFY]` | mode route and tools hub line-weight coverage |
+| `tests/e2e/describe.spec.ts` | `[MODIFY]` | read-back fact |
+
+**Docs, config and evidence**
+
+| Path | Action | Exact touch |
+|---|---|---|
+| `DECISIONS.md` | `[MODIFY]` | decision entry, Cipher Gate, blocked-probe Assumption |
+| `LESSONS_LEARNED.md` | `[MODIFY]` | two dated entries |
+| `CHANGELOG.md` | `[MODIFY]` | user-visible entry |
+| `WORST_TO_BEST_LOG.md` | `[MODIFY]` | this run's entry, appended |
+| `docs/seams.md` | `[MODIFY]` | both seam rows |
+| `plan.md` | `[MODIFY]` | this plan |
+| `playwright.local.config.ts` | `[MODIFY]` | comment only: the exact `PLAYWRIGHT_CHROMIUM_PATH` invocation |
+| `docs/evidence/2026-09-10/` (14 files) | `[MODIFY]` | rewritten by `npm run verify` and by the gate commands this run ran |
 
 ### Strict anti-goals (do not touch)
 

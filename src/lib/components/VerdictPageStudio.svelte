@@ -90,7 +90,7 @@ Invariants: The quality report is rendered ONLY through `QualityReportPanel`, ne
 	     standalone mode routes and every `/m/<slug>` page — so this is what puts these controls on
 	     all of them at once, the same way `AiQuotaLine` below puts one truthful allowance on all of
 	     them. Before it, no surface in the application offered either field. -->
-	{#if studio.effectivePageLook}
+	{#if studio.effectivePageLook && studio.baselinePageLook}
 		<fieldset class="page-look-field" data-testid="verdict-page-look">
 			<!-- Named for the group, not for one of its own controls. It read "Room to colour" while
 			     it held two controls, one of which is *also* called Room to colour; the third makes
@@ -102,6 +102,7 @@ Invariants: The quality report is rendered ONLY through `QualityReportPanel`, ne
 			<PageLookControls
 				look={studio.pageLook}
 				effective={studio.effectivePageLook}
+				baseline={studio.baselinePageLook}
 				idPrefix="verdict-page-look"
 				onChange={(next) => studio.setPageLook(next)}
 			/>

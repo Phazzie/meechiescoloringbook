@@ -71,13 +71,19 @@ export const fontStyleLine = (fontStyle: ColoringPageSpec['fontStyle']): string 
  *
  * Two changes, and the second is the one that mattered:
  *
- * 1. The number now states its own reference — `on a 1024px sheet` — which is
- *    `DEFAULT_IMAGE_SIZE` in `image-generation-pipeline.ts`. If that constant ever changes, this
- *    sentence becomes false, which is why `tests/unit/drift-detection-helpers.test.ts` asserts the
- *    two agree rather than leaving them to drift.
+ * 1. The figure is now a **proportion of the page**, not a pixel count. Which is the second attempt:
+ *    the first said `about ${n}px wide on a 1024px sheet`, naming `DEFAULT_IMAGE_SIZE` from
+ *    `image-generation-pipeline.ts` as its reference, with a test binding the two so the sentence
+ *    could not silently go stale. A review of PR #352 found that reference was never true: the
+ *    pipeline passes `size` to `ImageGenerationSeam`, and the adapter's request body serializes only
+ *    `model`, `prompt`, `n` and `response_format` — `validated.size` is never sent, and comes back
+ *    only as `rawModelInfo.requestedSize`. So the prompt asserted a raster width nothing had asked
+ *    the provider for, and the test bound it to a constant with no effect on the generation. A ratio
+ *    needs no such promise: it is true at whatever size the provider returns, and it is the thing
+ *    that actually decides whether a printed line can be coloured inside.
  * 2. It says the weight in words, because the words are what the model can actually follow. The
- *    number stays because the drift check matches this line exactly and because a stored spec's
- *    real value is the thing being reported.
+ *    figure stays because the drift check matches this line exactly and because a stored spec's real
+ *    value is the thing being reported.
  *
  * **The TYPOGRAPHY section used to contradict this line four lines above it.** It opened with the
  * constant `'Bold bubble letters; thick outlines.'`, so a spec asking for `textStrokeWidth: 4` —
@@ -91,12 +97,25 @@ export const fontStyleLine = (fontStyle: ColoringPageSpec['fontStyle']): string 
  * `letteringLine`, sharing the same physical line. One field, one instruction, which is the rule
  * that whole review round earned.
  *
- * No rounding and no clamp, unlike `whitespaceLine`: `ColoringPageSpecSchema` declares this field
+ * No clamp, unlike `whitespaceLine`: `ColoringPageSpecSchema` declares this field
  * `z.number().int().min(4).max(12)`, so every value that reaches here is already a whole number
  * inside a range the model can carry. A clamp here would be unreachable code pretending to be a
  * guard.
  */
-export const LINE_WEIGHT_REFERENCE_PX = 1024;
+
+/**
+ * The nominal page width the spec's stroke pixels are measured against.
+ *
+ * A unit of this application's own, and deliberately **not** a size requested from any provider.
+ * `textStrokeWidth` is `4..12` in the contract with nothing anywhere saying what those pixels are
+ * pixels *of*; this constant is that missing definition, stated in one place, and it exists only to
+ * turn the field into the ratio the prompt actually asks for. Nothing reads it but `textStrokeLine`.
+ *
+ * It is not `DEFAULT_IMAGE_SIZE`, and must not be re-bound to it: that value never reaches the
+ * provider (see this file's `textStrokeLine` notes), so tying the two together would restore exactly
+ * the false reference a review of PR #352 removed.
+ */
+const NOMINAL_PAGE_WIDTH_PX = 1024;
 
 const strokeWeightWord = (strokeWidth: number): string => {
 	if (strokeWidth <= 5) return 'fine';
@@ -105,8 +124,18 @@ const strokeWeightWord = (strokeWidth: number): string => {
 	return 'very thick';
 };
 
+/**
+ * The stroke width as a percentage of the page's width, to one decimal.
+ *
+ * One decimal because the contract's whole range lands between 0.4% and 1.2%, and rounding to whole
+ * percentages would collapse 4, 5 and 6 onto the same instruction — the field would stop reaching
+ * the picture at the thin end, which is the defect this run exists to fix.
+ */
+const strokeWidthPercent = (strokeWidth: number): string =>
+	((strokeWidth / NOMINAL_PAGE_WIDTH_PX) * 100).toFixed(1);
+
 export const textStrokeLine = (strokeWidth: ColoringPageSpec['textStrokeWidth']): string =>
-	`Stroke: ${strokeWeightWord(strokeWidth)} outlines, about ${strokeWidth}px wide on a ${LINE_WEIGHT_REFERENCE_PX}px sheet.`;
+	`Stroke: ${strokeWeightWord(strokeWidth)} outlines, about ${strokeWidthPercent(strokeWidth)}% of the page width.`;
 
 /**
  * How big the drawn lettering is.

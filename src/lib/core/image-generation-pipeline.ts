@@ -18,14 +18,17 @@ import type { ImageGenerationSeam } from '$lib/seams/image-generation-seam/contr
 
 const RESPONSE_FORMAT = 'b64_json' as const;
 /*
- * Exported because `textStrokeLine` states this number in the prompt it sends.
+ * Deliberately NOT exported, and deliberately not referenced by the prompt.
  *
- * `Stroke: ... about 6px wide on a 1024px sheet.` is only true while the generation really is 1024
- * across, and that sentence is the whole reason the stroke figure means anything to the model. A
- * test drives `LINE_WEIGHT_REFERENCE_PX` against this constant, so changing the generation size
- * fails rather than leaving a false measurement in every prompt the app sends.
+ * This value is handed to `ImageGenerationSeam` as `size`, and the xAI adapter's request body
+ * serializes only `model`, `prompt`, `n` and `response_format` — it never sends `size`, and echoes
+ * it back only as `rawModelInfo.requestedSize`. So this constant does not decide the raster the
+ * provider returns. It was briefly exported so `textStrokeLine` could name it as the reference for a
+ * pixel figure in the prompt; a review of PR #352 established the reference was never true, and the
+ * prompt now asks for a proportion of the page instead. Nothing outside this file should read it
+ * until it actually reaches the provider.
  */
-export const DEFAULT_IMAGE_SIZE = '1024x1024';
+const DEFAULT_IMAGE_SIZE = '1024x1024';
 const REQUIRED_PHRASES = SYSTEM_CONSTANTS.REQUIRED_PROMPT_PHRASES;
 
 // Byte-level signature check (not a base64-string-prefix guess) so a genuine WebP

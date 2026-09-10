@@ -159,7 +159,9 @@ describe('PromptAssemblySeam contract', () => {
 				.filter((line) => WEIGHT_CLAIM.test(line));
 			expect(claims).toHaveLength(1);
 			expect(claims[0]).toContain('stroke:');
-			expect(claims[0]).toContain(`${textStrokeWidth}px`);
+			// The spec's own value still reaches the prompt, now as the proportion of the page it
+			// asks for rather than as a raster width the provider was never asked to produce.
+			expect(claims[0]).toContain(`${((textStrokeWidth / 1024) * 100).toFixed(1)}% of the page width`);
 		}
 	});
 

@@ -32,6 +32,12 @@ Invariants:
      from `look` here. A control that displayed only the override would report nothing at all until
      it was touched, which is the exact "reports nothing" failure the Page Controls panel was rebuilt
      to stop.
+  2b. `baseline` is what the surface builds with **no** override, and it is what the "Page default"
+     option is labelled from. It is a separate prop from `effective` for the reason the option
+     exists: `effective` already carries the reader's override, so labelling the option from it made
+     the option rename itself to whatever the reader had just chosen while still delivering the
+     surface's own value. Caught in review of PR #352, and true of all three controls since the day
+     the first two shipped.
   3. The help line under a control describes the value that is *in effect*, including when that
      value is one this control does not offer — a page carrying 35 or 40 is named by its percentage
      rather than rounded to the nearest step it would fit, because rounding reports a page as
@@ -58,6 +64,7 @@ Invariants:
 	let {
 		look,
 		effective,
+		baseline,
 		idPrefix,
 		onChange
 	}: {
@@ -65,6 +72,22 @@ Invariants:
 		look: PageLookSelection;
 		/** What the next page will actually be made with, once `look` is applied to it. */
 		effective: EffectivePageLook;
+		/**
+		 * What this surface builds with **no** override — which is what selecting "Page default"
+		 * actually gets the reader.
+		 *
+		 * Separate from `effective`, and the distinction is a bug a review of PR #352 caught. Every
+		 * "Page default" option named `effective`, which already has the reader's override laid over
+		 * it: choose Chunky and the option relabelled itself "Page default — Chunky", while selecting
+		 * it clears `lineWeight` and returns the surface's own 6 or 9. The option promised the value
+		 * the reader had just picked and delivered a different one — the false provenance this
+		 * panel's first invariant exists to prevent, in the option that invariant is about.
+		 *
+		 * The defect was not this run's field alone: Lettering and Room to colour had it from the day
+		 * they shipped, and all three read this now. The help lines still read `effective`, which is
+		 * correct — they describe what is in effect, not what an unselected option would do.
+		 */
+		baseline: EffectivePageLook;
 		/**
 		 * Namespaces this instance's element ids.
 		 *
@@ -152,7 +175,7 @@ Invariants:
 						: (event.currentTarget.value as ColoringPageSpec['textSize'])
 			})}
 	>
-		<option value={AS_BUILT}>Page default — {TEXT_SIZE_LABELS[effective.textSize]}</option>
+		<option value={AS_BUILT}>Page default — {TEXT_SIZE_LABELS[baseline.textSize]}</option>
 		{#each TEXT_SIZE_OPTIONS as value}
 			<option {value}>{TEXT_SIZE_LABELS[value]}</option>
 		{/each}
@@ -172,7 +195,7 @@ Invariants:
 			})}
 	>
 		<option value={AS_BUILT}>
-			Page default — {describeRoomToColour(effective.whitespaceScale)}
+			Page default — {describeRoomToColour(baseline.whitespaceScale)}
 		</option>
 		{#if restoredRoomOption !== null}
 			<option value={String(restoredRoomOption)}>
@@ -197,7 +220,7 @@ Invariants:
 			})}
 	>
 		<option value={AS_BUILT}>
-			Page default — {describeLineWeight(effective.textStrokeWidth)}
+			Page default — {describeLineWeight(baseline.textStrokeWidth)}
 		</option>
 		{#if restoredLineWeightOption !== null}
 			<option value={String(restoredLineWeightOption)}>

@@ -260,6 +260,50 @@ test('the three controls that decide whether a page can be coloured reach the pa
 	);
 });
 
+/*
+ * The "Page default" option must name what selecting it actually gets you.
+ *
+ * The defect this pins, found by a review of PR #352 and true of all three controls since the first
+ * two shipped: every "Page default" option was labelled from `effective`, which already carries the
+ * reader's override. Pick Chunky and the option relabelled itself "Page default — Chunky" while
+ * selecting it cleared the override and returned the studio's own Standard. The option promised the
+ * value the reader had just chosen and delivered a different one.
+ *
+ * Asserted on the option's own text rather than on the summary line, which is the lesson PR #350's
+ * review left: a test that checks a derived string agrees with the state rather than with the reader.
+ */
+test('the Page default option keeps naming the default after an override is chosen', async ({
+	page
+}) => {
+	const panel = await openPanel(page);
+
+	const lineWeight = panel.locator('#home-page-look-line-weight');
+	const lettering = panel.locator('#home-page-look-lettering');
+	const room = panel.locator('#home-page-look-room');
+
+	await expect(lineWeight).toContainText('Page default — Standard');
+	await expect(lettering).toContainText('Page default — Small');
+	await expect(room).toContainText('Page default — Balanced');
+
+	// Move every one of them away from the studio's own values.
+	await lineWeight.selectOption('12');
+	await lettering.selectOption('large');
+	await room.selectOption('75');
+
+	// The summary follows the choice, because that is what the page will be made with.
+	await expect(panel.locator('summary strong')).toContainText('chunky lines');
+
+	// The default option does not, because that is not what selecting it would do.
+	await expect(lineWeight).toContainText('Page default — Standard');
+	await expect(lettering).toContainText('Page default — Small');
+	await expect(room).toContainText('Page default — Balanced');
+
+	// And selecting it really does return the studio's own value, which is what the label promised.
+	await lineWeight.selectOption('');
+	await expect(panel.locator('#home-page-look-line-weight-help')).toContainText('Medium outlines');
+	await expect(panel.locator('summary strong')).toContainText('standard lines');
+});
+
 test('glitter reaches the summary only when it is on', async ({ page }) => {
 	const panel = await openPanel(page);
 
