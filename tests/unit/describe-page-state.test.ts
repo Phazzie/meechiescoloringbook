@@ -10,6 +10,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import { creationStoreAdapter } from '../../src/lib/adapters/creation-store.adapter';
 import { outputPackagingAdapter } from '../../src/lib/adapters/output-packaging.adapter';
+import {
+	pageExportFailures,
+	pageExportRetryLabel
+} from '../../src/lib/core/page-exports';
 import { DescribePageState } from '../../src/lib/components/describe-page-state.svelte';
 // Shared with `verdict-page-state.test.ts`: both classes extend `PageArtifactState`, so both tests
 // need the same stubbed browser, the same provider fixtures and the same adapter spies.
@@ -626,7 +630,7 @@ describe('turning the interpretation into a page', () => {
 			'original'
 		]);
 		expect(state.pageExports.every((file) => file.label.length > 0)).toBe(true);
-		expect(state.exportError).toBe('');
+		expect(pageExportFailures(state.packageAttempts)).toEqual([]);
 	});
 
 	it('names the page after its own title for print and share', async () => {
@@ -665,7 +669,18 @@ describe('turning the interpretation into a page', () => {
 		// above the button that buys another generation, for a failure in a free local render.
 		expect(state.hasPage).toBe(true);
 		expect(state.generateError).toBe('');
-		expect(state.exportError).not.toBe('');
+		const failures = pageExportFailures(state.packageAttempts);
+		expect(failures).not.toEqual([]);
+		// An unrecognised code lands in `unknown`, which offers the rebuild rather than leaving a
+		// reader with a dead notice. The seam's own sentence stays out of what they read.
+		for (const failure of failures) {
+			expect(failure.cause).toBe('unknown');
+			expect(failure.detail).toBe('Canvas unavailable.');
+			expect(failure.message).not.toContain('Canvas unavailable.');
+		}
+		expect(pageExportRetryLabel(state.packageAttempts)).toBe(
+			'Build the downloads again'
+		);
 	});
 });
 

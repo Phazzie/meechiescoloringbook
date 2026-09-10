@@ -141,7 +141,9 @@ Invariants: The quality report is rendered ONLY through `QualityReportPanel`, ne
 		-->
 		<PageExportRow
 			exports={studio.pageExports}
-			exportError={studio.exportError}
+			attempts={studio.packageAttempts}
+			onRebuild={() => studio.rebuildDownloads()}
+			isRebuilding={studio.isRebuildingDownloads || studio.isGenerating}
 			testIdPrefix="verdict-page"
 		/>
 

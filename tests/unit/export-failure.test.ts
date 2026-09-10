@@ -1,0 +1,248 @@
+// Purpose: Unit tests for what a reader is told when a download could not be built, and whether the
+//          free rebuild is offered.
+// Why: Three separately maintained copies of one packaging call read `result.error.message`,
+//      discarded `result.error.code`, and wrote a caught exception's message into the same
+//      reader-facing field. These tests pin the two rules that replaced that — an exception's or a
+//      seam's words never become a reader's sentence, and a button is offered only where pressing it
+//      could land differently — and the guard that keeps the code table total over the adapter's own
+//      codes rather than over a list copied into the classifier.
+// Info flow: seam error / thrown value + variant -> classifyExportFailure -> assertions.
+import { readFileSync } from 'node:fs';
+import { describe, expect, it } from 'vitest';
+import { classifyExportFailure } from '../../src/lib/core/export-failure';
+import { OutputVariantSchema } from '../../src/lib/seams/output-packaging-seam/contract';
+
+const ADAPTER_PATH = 'src/lib/adapters/output-packaging-seam/index.ts';
+
+/**
+ * Every `code:` literal the packaging adapter can emit, read from the adapter itself.
+ *
+ * The guard `storage-failure.test.ts` established, for the same reason: a table hand-copied from an
+ * adapter is a table that stops agreeing with it. `ENCODING_ERROR_CODES[...]` is a computed lookup
+ * rather than a literal, so its three values are picked up by the second pattern.
+ */
+const adapterErrorCodes = (): string[] => {
+	const source = readFileSync(ADAPTER_PATH, 'utf8');
+	const literals = [...source.matchAll(/code:\s*'([A-Z_]+)'/g)].map(
+		(match) => match[1]
+	);
+	const computed = [...source.matchAll(/^\s*(?:png|jpg|webp):\s*'([A-Z_]+)'/gm)].map(
+		(match) => match[1]
+	);
+	return [...new Set([...literals, ...computed])];
+};
+
+describe('the adapter code table stays total', () => {
+	it('reads at least the ten codes the adapter is known to emit', () => {
+		// A sanity check on the reader itself: a regex that silently stopped matching would make
+		// every assertion below vacuously true.
+		expect(adapterErrorCodes().length).toBeGreaterThanOrEqual(10);
+	});
+
+	it('classifies every code the packaging adapter emits as something other than unknown', () => {
+		// `unknown` is the branch that offers the rebuild. A new adapter failure landing there by
+		// default would invite a reader to press a button against a condition that cannot change,
+		// which is exactly the defect this classifier was written to remove.
+		for (const code of adapterErrorCodes()) {
+			const failure = classifyExportFailure('print', {
+				code,
+				message: 'developer wording'
+			});
+			expect(failure.cause, `${code} is not named by CAUSE_BY_CODE`).not.toBe(
+				'unknown'
+			);
+		}
+	});
+});
+
+describe('classifyExportFailure', () => {
+	it('never puts the seam’s own words in the sentence, and keeps them as detail', () => {
+		const failure = classifyExportFailure('square', {
+			code: 'CANVAS_UNAVAILABLE',
+			message: 'Canvas context unavailable for resizing.'
+		});
+
+		expect(failure.message).not.toContain('Canvas context unavailable');
+		expect(failure.detail).toBe('Canvas context unavailable for resizing.');
+	});
+
+	it('never puts a thrown exception’s words in the sentence, and keeps them as detail', () => {
+		const failure = classifyExportFailure(
+			'print',
+			new Error('pdf-lib could not embed these bytes')
+		);
+
+		expect(failure.message).not.toContain('pdf-lib');
+		expect(failure.detail).toBe('pdf-lib could not embed these bytes');
+		expect(failure.cause).toBe('unknown');
+	});
+
+	it('reads an Error carrying a code as a thrown exception, not as a seam refusal', () => {
+		// The one hole through which an exception's own words could reach the sentence: `Error` can
+		// carry a `code`, and a shape check alone would read it as a `SeamError` and pass its message
+		// through. Same closure as `storage-failure.ts`.
+		const thrown = Object.assign(new Error('ENOENT, no such thing'), {
+			code: 'CANVAS_UNAVAILABLE'
+		});
+
+		const failure = classifyExportFailure('print', thrown);
+
+		expect(failure.cause).toBe('unknown');
+		expect(failure.message).not.toContain('ENOENT');
+		expect(failure.detail).toBe('ENOENT, no such thing');
+	});
+
+	it('offers no rebuild when the browser will never do it', () => {
+		for (const code of ['BROWSER_REQUIRED', 'CANVAS_UNAVAILABLE']) {
+			const failure = classifyExportFailure('print', { code, message: 'nope' });
+			expect(failure.cause).toBe('unsupported_here');
+			expect(failure.retry.kind).toBe('none');
+			// And says so, rather than leaving a reader pressing nothing. In `remedy`, because what to
+			// do about a cause is per cause — `message` names only the download that failed.
+			expect(failure.remedy).toContain('will not help');
+			expect(failure.message).toBe('The printable download could not be built.');
+		}
+	});
+
+	it('offers the rebuild when the draw or the encode missed', () => {
+		for (const code of [
+			'PNG_ENCODING_FAILED',
+			'SVG_IMAGE_LOAD_FAILED',
+			'IMAGE_RESIZE_FAILED'
+		]) {
+			const failure = classifyExportFailure('print', { code, message: 'nope' });
+			expect(failure.cause).toBe('render_failed');
+			expect(failure.retry.kind).toBe('now');
+			// The promise that makes it worth pressing: this is the one retry in the app with no
+			// quota, no provider and no network behind it.
+			expect(failure.remedy).toContain('costs nothing');
+			expect(failure.remedy).toContain('does not use another generation');
+		}
+	});
+
+	it('names the case where a rebuild cannot help, rather than promising one that can', () => {
+		// `PNG_ENCODING_FAILED` is emitted when `toDataURL()` returns an empty payload, and a canvas
+		// returns nothing for two unrelated reasons: memory, which a second attempt can get past, and
+		// a surface larger than the browser will rasterise, which is fixed. A print sheet is
+		// 2550 x 3300 at 300dpi and mobile Safari has capped canvas area below that, so the second is
+		// not exotic. The adapter reports both under one code, so this cannot narrow it — and an
+		// earlier draft promised only the first, leaving a reader pressing a button forever.
+		const failure = classifyExportFailure('print', {
+			code: 'PNG_ENCODING_FAILED',
+			message: 'Failed to encode PNG data.'
+		});
+
+		// The button stays, because it is free and the memory case is real.
+		expect(failure.retry.kind).toBe('now');
+		// And the remedy names the other case, with something the reader can actually do about it.
+		expect(failure.remedy).toContain('fails the same way twice');
+		expect(failure.remedy).toContain('larger than this browser will draw');
+		expect(failure.remedy).toContain('smaller page size');
+	});
+
+	it('offers no rebuild for a picture this step cannot read, and says whose fault it is', () => {
+		for (const code of [
+			'PNG_ENCODING_UNSUPPORTED',
+			'JPG_ENCODING_UNSUPPORTED',
+			'WEBP_ENCODING_UNSUPPORTED',
+			'UNSUPPORTED_IMAGE_FORMAT'
+		]) {
+			const failure = classifyExportFailure('square', { code, message: 'nope' });
+			expect(failure.cause).toBe('unreadable_image');
+			expect(failure.retry.kind).toBe('none');
+			// Every other sentence here implies the device is at fault; a reader who reads this one
+			// that way goes looking for a browser setting that does not exist.
+			expect(failure.remedy).toContain('a fault in this app, not in your browser');
+		}
+	});
+
+	it('offers no rebuild and no consolation when there was no page at all', () => {
+		const failure = classifyExportFailure('print', {
+			code: 'NO_IMAGES',
+			message: 'No images provided for packaging.'
+		});
+
+		expect(failure.cause).toBe('no_page');
+		expect(failure.retry.kind).toBe('none');
+		expect(failure.remedy).toBe('There was no finished page to build it from.');
+	});
+
+	it('never claims another variant survived, because it cannot see one', () => {
+		// This function is given ONE attempt. An earlier draft ended the square's sentence with "the
+		// printable download and the original image are unaffected" — a claim about an attempt it
+		// never saw, and false whenever both fail. A WebP or SVG source hitting CANVAS_UNAVAILABLE
+		// does exactly that: the print path transcodes through the same canvas the share renderer
+		// could not get. What survived is measured by `pageExportSurvivors`.
+		for (const variant of OutputVariantSchema.options) {
+			for (const code of Object.keys({
+				CANVAS_UNAVAILABLE: 0,
+				PNG_ENCODING_FAILED: 0,
+				UNSUPPORTED_IMAGE_FORMAT: 0,
+				NO_IMAGES: 0
+			})) {
+				const { message, remedy } = classifyExportFailure(variant, {
+					code,
+					message: 'x'
+				});
+				for (const text of [message, remedy]) {
+					expect(text).not.toContain('unaffected');
+					expect(text).not.toContain('still in the list');
+					expect(text).not.toContain('Print still works');
+				}
+			}
+		}
+	});
+
+	it('writes a whole sentence for every variant the seam defines', () => {
+		for (const variant of OutputVariantSchema.options) {
+			const failure = classifyExportFailure(variant, {
+				code: 'PNG_ENCODING_FAILED',
+				message: 'nope'
+			});
+			expect(failure.variant).toBe(variant);
+			expect(failure.message).not.toContain('undefined');
+			expect(failure.message).toContain('could not be built.');
+		}
+	});
+
+	it('never claims the generation failed', () => {
+		// Packaging runs after the image exists and after it has been paid for, so it never can. A
+		// notice that reads otherwise is what sends a reader to buy a second generation.
+		for (const variant of OutputVariantSchema.options) {
+			for (const code of [
+				'NO_IMAGES',
+				'BROWSER_REQUIRED',
+				'CANVAS_UNAVAILABLE',
+				'PNG_ENCODING_FAILED',
+				'UNSUPPORTED_IMAGE_FORMAT',
+				'SOMETHING_NEW'
+			]) {
+				const { message, remedy } = classifyExportFailure(variant, {
+					code,
+					message: 'x'
+				});
+				for (const text of [message, remedy]) {
+					expect(text).not.toMatch(/generation failed/i);
+					expect(text).not.toMatch(/your page failed/i);
+					expect(text).not.toMatch(/try generating/i);
+				}
+			}
+		}
+	});
+
+	it('falls back to a rebuild for a value that is not an error at all', () => {
+		const failure = classifyExportFailure('chat', 'a bare string');
+
+		expect(failure.cause).toBe('unknown');
+		expect(failure.detail).toBe('a bare string');
+		expect(failure.retry.kind).toBe('now');
+	});
+
+	it('carries no detail when there is nothing underneath', () => {
+		expect(classifyExportFailure('print', undefined).detail).toBeNull();
+		expect(classifyExportFailure('print', new Error('')).detail).toBeNull();
+		expect(
+			classifyExportFailure('print', { code: 'NO_IMAGES', message: '' }).detail
+		).toBeNull();
+	});
+});

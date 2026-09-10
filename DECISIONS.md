@@ -7,6 +7,44 @@ Info flow: Decision -> consequences -> future changes.
 
 Short, durable decisions with context and tradeoffs.
 
+## 2026-09-10 — Classify `OutputPackagingSeam` failures in core, without changing the seam
+
+- Decision: `src/lib/core/export-failure.ts` maps the packaging seam's `error.code` to reader-facing
+  causes, and `src/lib/components/page-packaging.ts` becomes the app's one call to
+  `outputPackagingAdapter.package`. Neither the contract, the probe, the fixtures, the mock nor the
+  adapter is changed, and no Cipher Gate entry is recorded.
+- Context: a review (Codex, PR #347) read this as an "observable seam behavior change" requiring the
+  full Seam-Driven Development workflow, on the grounds that it adds a user-triggered `package()`
+  invocation and newly interprets errors returned across that boundary. The claim is worth answering
+  rather than waving away, because the consequence of being wrong is shipping a seam change
+  unverified.
+- Measurement: `git diff --name-only a87af7a HEAD` against `contracts/`, `probes/`, `fixtures/`,
+  `src/lib/mocks/`, `tests/contract/` and `src/lib/adapters/` returns **nothing**, which is the one
+  objective test `AGENTS.md` states. `code` is declared by `SeamErrorSchema`
+  (`contracts/shared.contract.ts:11`) and was already emitted by the adapter before this change;
+  reading a field the contract already promises alters neither the contract nor what crosses the
+  boundary. The seam's inputs, outputs and failure values are byte-identical before and after.
+- On "a new invocation": adding a call site of an existing seam method is what every feature in this
+  app does. Run 14 put `package()` behind twelve more surfaces and Run 16 changed what the print
+  variant renders; neither took the full workflow, and requiring it here would mean any new button
+  that reaches a seam is a seam change.
+- The real coupling, stated plainly: `CAUSE_BY_CODE` depends on ten specific code **values** that
+  the contract does not enumerate — it types `code` as any non-empty string. That is a genuine
+  dependency on an adapter implementation detail, and it is the honest half of the review's point.
+- Alternatives: (a) enumerate the ten codes in the contract as an enum. That IS a contract change,
+  needs the full workflow and a Cipher Gate, and under "Merge When The Gates Are Green" must not be
+  merged automatically — so it belongs in its own pull request, not bolted onto this one. (b) Leave
+  the codes unread and keep writing raw strings on screen, which is the defect being removed.
+  (c) Depend on the values and guard the dependency mechanically.
+- Chosen: (c), which is exactly what `storage-failure.ts` did for `CreationStoreSeam` in Run 22
+  (merged as `476dc38`, no Cipher Gate) and what this follows.
+  `tests/unit/export-failure.test.ts` **reads the adapter source** and fails if it emits a code the
+  table does not name — so the coupling cannot rot silently, and a new failure mode cannot land in
+  `unknown`, which is the branch that offers the retry.
+- Consequence: if a future change wants the codes enumerated in the contract, that is a separate,
+  properly-gated pull request. Until then the guard test is the enforcement, and it is mechanical
+  rather than a claim.
+
 ## 2026-09-09 — Reading the connection without a seam
 
 - Decision: `classifyGenerationFailure` takes the connection as a plain `boolean | null` value, and

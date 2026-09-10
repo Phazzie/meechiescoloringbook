@@ -26,7 +26,6 @@
 import { VaultCollection } from '$lib/components/vault-collection.svelte';
 import { authContextAdapter } from '$lib/adapters/auth-context-seam';
 import { creationStoreAdapter } from '$lib/adapters/creation-store-seam';
-import { outputPackagingAdapter } from '$lib/adapters/output-packaging-seam';
 import { sessionAdapter } from '$lib/adapters/session-seam';
 import { specValidationAdapter } from '$lib/adapters/spec-validation-seam';
 import {
@@ -73,10 +72,13 @@ import {
 import {
 	describeOriginalImageExport,
 	describePackagedExports,
-	summarisePageExportFailures,
+	pageExportFailureDetail,
+	rebuildableExportVariants,
+	mergeRebuiltAttempts,
 	type PageExport,
 	type PageExportAttempt
 } from '$lib/core/page-exports';
+import { packagePageVariant } from '$lib/components/page-packaging';
 import {
 	VAULT_PREVIEW_COUNT,
 	restoreCreationImages
@@ -98,7 +100,10 @@ import {
 import type { CreationOwner, CreationRecord } from '$lib/seams/creation-store-seam/contract';
 import type { DriftDetectionOutput, Violation } from '../../contracts/drift-detection.contract';
 import type { GeneratedImage } from '../../contracts/image-generation.contract';
-import type { PackagedFile } from '$lib/seams/output-packaging-seam/contract';
+import type {
+	OutputVariant,
+	PackagedFile
+} from '$lib/seams/output-packaging-seam/contract';
 import type {
 	ColoringPageSpec,
 	SpecValidationOutput
@@ -433,6 +438,15 @@ export class StudioState {
 	 * Not `$state`: it is never read during rendering, only written onto values that are.
 	 */
 	private failureStamp = 0;
+	/**
+	 * The stamp the current packaging attempts were installed at, or `0` when none has failed.
+	 *
+	 * `$state` because `traceFailureDetail` derives from it. Ordering packaging against the three
+	 * classified failures is what stops a stale `textFailure` — which survives a page generation,
+	 * because neither `handleGeneratePage` nor `resetGeneratedPage` clears one — from masking the
+	 * packaging diagnostic beside the very notice reporting it.
+	 */
+	private packagingFailureStamp = $state(0);
 	/**
 	 * Which of the two page generators was last attempted, so a retry runs the same one.
 	 *
@@ -909,10 +923,31 @@ export class StudioState {
 	 * ignored. Ties go to the order listed, which only arises between failures that never went
 	 * through `recordFailure` and so carry no stamp at all.
 	 */
-	traceFailureDetail = $derived(
-		newestFailure([this.pageFailure, this.textFailure, this.tryOnFailure])?.detail ??
-			null
-	);
+	/**
+	 * The technical detail System Trace shows under "What Went Wrong Underneath".
+	 *
+	 * Packaging is included, and it was the gap: `PageExportRow` never renders `failure.detail`, on
+	 * purpose, so once packaging stopped writing its raw string onto the screen the diagnostic had
+	 * **no consumer anywhere** and disappeared entirely. It is read last because the three stamped
+	 * failures are ordered against each other by `newestFailure` and a packaging failure carries no
+	 * stamp to join that ordering — and because a page that failed to generate has no packaging
+	 * attempt to report, so the two are not in practice competing.
+	 */
+	traceFailureDetail = $derived.by((): string | null => {
+		const packaging = pageExportFailureDetail(this.packageAttempts);
+		const classified = newestFailure([
+			this.pageFailure,
+			this.textFailure,
+			this.tryOnFailure
+		]);
+		if (packaging === null) return classified?.detail ?? null;
+		if (classified === null) return packaging;
+		// Ordered, not preferred. A packaging failure is stamped from the same counter the three
+		// classified ones use, so "most recent" means the same thing for all four.
+		return this.packagingFailureStamp > stampOf(classified)
+			? packaging
+			: (classified.detail ?? packaging);
+	});
 	/**
 	 * Every portrait made from the current selfie, keyed by the wig it was made for.
 	 *
@@ -1172,13 +1207,13 @@ export class StudioState {
 		return original ? [...packaged, original] : packaged;
 	});
 	/**
-	 * What could not be packaged, phrased so it can never be read as "the generation failed".
+	 * True while `rebuildPageExports` is running, so the control cannot be double-fired.
 	 *
-	 * A separate field from `generationError` on purpose. Both used to be written to the same string,
-	 * so a page that generated perfectly and then failed to become a PDF showed the same red line as
-	 * a page that never generated — above the finished page itself.
+	 * Its own flag rather than `isGenerating`: a rebuild buys no generation, and reusing that flag
+	 * would disable every paid button in the studio and put the panel into the state a reader reads
+	 * as "it is making my page again".
 	 */
-	exportError = $derived(summarisePageExportFailures(this.packageAttempts));
+	isRebuildingDownloads = $state(false);
 	canTryOn = $derived(
 		!!this.selectedWigId &&
 			!!this.selfieBase64 &&
@@ -1720,6 +1755,11 @@ export class StudioState {
 		// own image through `this.images` above, so nothing from the previous page can be left behind
 		// in the row.
 		this.packageAttempts = [];
+		// Cleared here as well as in `rebuildPageExports`'s own `finally`, because that `finally` may
+		// never run: the packaging adapter awaits `image.onload`/`onerror` with no timeout, so a
+		// rebuild that hangs never settles and would leave the next page's rebuild button disabled by
+		// an operation nobody is waiting for.
+		this.isRebuildingDownloads = false;
 		this.pageFileBaseName = '';
 		// Whatever replaces the paper is not a try-on portrait until a try-on generation says so.
 		this.tryOnPageOnScreen = false;
@@ -2252,43 +2292,6 @@ export class StudioState {
 	};
 
 	/**
-	 * Package one variant of what is on the paper, turning every way it can go wrong into an
-	 * attempt that names its own failure.
-	 *
-	 * The seam reports a refusal in its `Result` and can still reject outright — pdf-lib throwing on
-	 * bytes it cannot embed, a missing canvas — and both mean the same thing to a reader: this
-	 * download is not available, and here is why. Catching here is what keeps a packaging failure out
-	 * of the caller's `catch`, which writes `generationError` and would report a finished page as a
-	 * failed generation.
-	 */
-	private async packageVariant(
-		variant: (typeof STUDIO_EXPORT_VARIANTS)[number],
-		images: GeneratedImage[],
-		fileBaseName: string,
-		pageSize: PageSize
-	): Promise<PageExportAttempt> {
-		try {
-			const result = await outputPackagingAdapter.package({
-				images,
-				outputFormat: 'pdf',
-				fileBaseName,
-				pageSize,
-				variants: [variant]
-			});
-			return result.ok
-				? { variant, files: result.value.files, error: null, pageSize }
-				: { variant, files: [], error: result.error.message, pageSize };
-		} catch (error) {
-			return {
-				variant,
-				files: [],
-				error: error instanceof Error ? error.message : 'Packaging failed.',
-				pageSize
-			};
-		}
-	}
-
-	/**
 	 * Build every download for what is on the paper — unless the page was replaced while packaging
 	 * ran, in which case the late files belong to a page nobody is looking at.
 	 *
@@ -2322,17 +2325,120 @@ export class StudioState {
 		// a replaced page, because the only thing that makes an attempt stale is `resetGeneratedPage`,
 		// which clears this field on its way past.
 		this.pageFileBaseName = fileBaseName;
-		const attempts: PageExportAttempt[] = [];
-		for (const variant of STUDIO_EXPORT_VARIANTS) {
-			const attempt = await this.packageVariant(variant, images, fileBaseName, pageSize);
+		await this.runPackaging(
+			STUDIO_EXPORT_VARIANTS,
+			images,
+			fileBaseName,
+			pageSize,
+			pageToken,
+			(attempt) =>
+				this.installPackageAttempts([...this.packageAttempts, attempt], attempt)
+		);
+	}
+
+	/**
+	 * Package the given variants, in order, and return the attempts — or `null` when the page was
+	 * replaced part-way and the late files belong to a page nobody is looking at.
+	 *
+	 * Returns rather than assigns, because a generation installs a whole new row and a rebuild merges
+	 * a subset back into the one on screen. Those are different installs of the same work.
+	 */
+	private async runPackaging(
+		variants: readonly OutputVariant[],
+		images: GeneratedImage[],
+		fileBaseName: string,
+		pageSize: ColoringPageSpec['pageSize'],
+		pageToken: number,
+		install: (attempt: PageExportAttempt) => void
+	): Promise<void> {
+		for (const variant of variants) {
+			const attempt = await packagePageVariant(variant, images, fileBaseName, pageSize);
 			// Checked between variants, not only at the end: the square variant rasterises a fresh
 			// canvas, and starting that for a page the reader has already replaced spends time and
 			// memory on a result that is guaranteed to be thrown away.
 			if (pageToken !== this.pageLoadToken) return;
-			attempts.push(attempt);
+			install(attempt);
 		}
-		this.packageAttempts = attempts;
 	}
+
+	/**
+	 * Put packaging attempts on screen, and stamp them if any of them failed.
+	 *
+	 * The stamp is what lets `traceFailureDetail` order a packaging failure against the three
+	 * classified ones. Without it packaging was a bare fallback, so a `textFailure` left live by an
+	 * earlier action — neither `handleGeneratePage` nor `resetGeneratedPage` clears one — masked the
+	 * packaging diagnostic for good, and System Trace showed the older problem beside the newer
+	 * notice.
+	 */
+	private installPackageAttempts(
+		attempts: PageExportAttempt[],
+		installed: PageExportAttempt
+	): void {
+		this.packageAttempts = attempts;
+		// Nothing failing means nothing to order. Resetting rather than leaving the old stamp keeps
+		// the field from outliving the failure it dated.
+		if (pageExportFailureDetail(attempts) === null) {
+			this.packagingFailureStamp = 0;
+			return;
+		}
+		// Stamped for the attempt just installed, never for whatever the merged set happens to
+		// contain. Reading the whole set re-dated an OLD failure every time a rebuild installed a
+		// SUCCESSFUL variant beside it — so a text failure that happened in between was pushed back
+		// behind a packaging diagnostic that had not changed since before it.
+		if (installed.failure === null) return;
+		this.failureStamp += 1;
+		this.packagingFailureStamp = this.failureStamp;
+	}
+
+	/**
+	 * Build the downloads again for the page already on screen.
+	 *
+	 * The remedy this studio never had. Packaging is the only failing step in the app that spends
+	 * nothing — the picture is already in memory and already paid for, and the whole step is a canvas
+	 * and a PDF on this device — and until now the only control anywhere near a failed download was
+	 * "Make the page", which buys another generation and re-rolls the picture the reader liked.
+	 *
+	 * Asks for **only the variants that failed**, and merges them back. Re-running one that succeeded
+	 * could take away a download the reader already has: the commonest failure here is memory, and
+	 * its commonest shape is "the PDF built, the 1080px share canvas did not" — so re-running the PDF
+	 * under that same pressure is how the one control offered against a partial failure would make it
+	 * total.
+	 *
+	 * Re-uses `pageFileBaseName` rather than stamping a new one, so rebuilt files still match an
+	 * original image the reader may already have grabbed. `pageSize` comes off the attempt being
+	 * rebuilt and never from the live Page Controls, which stay enabled: re-reading them would
+	 * package the second attempt for different paper than the picture and the saved record.
+	 */
+	rebuildPageExports = async (): Promise<void> => {
+		if (this.isGenerating || this.isRebuildingDownloads) return;
+		const previous = this.packageAttempts;
+		const variants = rebuildableExportVariants(previous);
+		const pageSize = previous[0]?.pageSize;
+		if (variants.length === 0) return;
+		if (this.images.length === 0 || !pageSize || this.pageFileBaseName === '') return;
+		const images = $state.snapshot(this.images);
+		const token = this.pageLoadToken;
+		this.isRebuildingDownloads = true;
+		try {
+			// Merged one at a time, against whatever the row currently holds rather than against the
+			// `previous` snapshot, so a variant that lands while a later one hangs is usable now.
+			await this.runPackaging(
+				variants,
+				images,
+				this.pageFileBaseName,
+				pageSize,
+				token,
+				(attempt) =>
+					this.installPackageAttempts(
+						mergeRebuiltAttempts(this.packageAttempts, [attempt]),
+						attempt
+					)
+			);
+		} finally {
+			// Only if this call still owns the paper — see `PageArtifactState.rebuildDownloads`.
+			if (token === this.pageLoadToken) this.isRebuildingDownloads = false;
+		}
+	};
 
 	handleGeneratePage = async (): Promise<void> => {
 		if (!this.textOutput) {

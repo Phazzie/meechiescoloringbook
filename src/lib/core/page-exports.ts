@@ -1,18 +1,26 @@
-// Purpose: Describe every file a finished coloring page can be taken away as, and say in one
-//          sentence what could not be built.
+// Purpose: Describe every file a finished coloring page can be taken away as, and say what could
+//          not be built.
 // Why: The studio's download row rendered a single hardcoded string — "Download PDF" — once per
 //      file the packaging seam returned, so every link said the same thing whatever was behind it,
 //      and a packaging failure was written into `generationError`, the same field an image
 //      generation failure uses. That made "your page is fine, its PDF is not" render identically to
 //      "your page failed", above a perfectly good page, whose most natural response is to pay for
 //      another generation over a free client-side step.
-// Info flow: packaging attempts (the variant asked for, the files that came back, the error if any)
-//            -> described downloads for the export row + one sentence naming what is missing.
+// Info flow: packaging attempts (the variant asked for, the files that came back, the classified
+//            failure if any) -> described downloads for the export row + what is missing and
+//            whether it can be built again.
 //
 // The variant is carried in from the call site that asked for it rather than recovered from the
 // filename. Sniffing `-square` out of a filename would be a second, weaker answer to a question the
 // caller already knows the answer to, and would start disagreeing the moment `fileBaseName` changes.
+//
+// An attempt's failure is a classified `ExportFailure`, never a string. It used to be the seam's own
+// `message`, quoted verbatim into the reader's sentence — so the one sentence this module wrote for
+// a reader was half authored here and half written for whoever wrote the adapter. Every word a
+// reader sees about a failed download is now `export-failure.ts`'s, and the seam's words go where an
+// exception's words go.
 import type { PackagedFile, OutputVariant } from '../seams/output-packaging-seam/contract';
+import type { ExportFailure } from './export-failure';
 import type { ColoringPageSpec } from '../../../contracts/spec-validation.contract';
 import type { GeneratedImage } from '../../../contracts/image-generation.contract';
 import {
@@ -48,8 +56,14 @@ export type PageExport = {
 export type PageExportAttempt = {
 	variant: OutputVariant;
 	files: PackagedFile[];
-	/** The seam's message when the variant could not be built, or `null` when it was. */
-	error: string | null;
+	/**
+	 * Why the variant could not be built, classified, or `null` when it was.
+	 *
+	 * Was the seam's own `message`. A string could only ever answer "what happened", badly — it could
+	 * not say whether building it again was worth the reader's time, which is the question a free,
+	 * local, already-paid-for step most needs answered.
+	 */
+	failure: ExportFailure | null;
 	/**
 	 * The paper this attempt was packaged for.
 	 *
@@ -112,26 +126,6 @@ const VARIANT_LABEL_PREFIXES: Record<OutputVariant, string> = {
 	square: 'Square',
 	chat: 'Chat'
 };
-
-/**
- * How the failure sentence names each variant.
- *
- * The nouns describe the *request*, not a file type: when a variant fails there is no file to read a
- * media type off, so "the printable PDF" would be asserting something this module cannot see.
- */
-const VARIANT_FAILURE_NOUNS: Record<OutputVariant, string> = {
-	print: 'The printable download',
-	square: 'The square share image',
-	chat: 'The chat-sized image'
-};
-
-/**
- * Drop a trailing full stop so the failure sentence does not end in `..`.
- *
- * The packaging seam's own messages are already sentences — "No images provided for packaging." —
- * and they are quoted mid-sentence here.
- */
-const withoutTrailingPeriod = (text: string): string => text.replace(/\.\s*$/, '');
 
 const BYTES_PER_KB = 1024;
 const BYTES_PER_MB = BYTES_PER_KB * BYTES_PER_KB;
@@ -233,22 +227,201 @@ export const describeOriginalImageExport = (
 	};
 };
 
+/** Every variant that could not be built, in the order they were requested. */
+export const pageExportFailures = (
+	attempts: readonly PageExportAttempt[]
+): ExportFailure[] =>
+	attempts
+		.map((attempt) => attempt.failure)
+		.filter((failure): failure is ExportFailure => failure !== null);
+
 /**
- * One sentence for everything that could not be packaged, or `''` when nothing failed.
+ * The variants a rebuild should ask for: the ones that failed **and could land differently**.
  *
- * Always opens by affirming the page itself, because that is the fact the reader most needs and the
- * one the old wording destroyed: packaging runs after the image exists, so a failure here never
- * means the generation failed, and a message that reads like it did invites the reader to spend
- * another generation fixing a free client-side step.
+ * Two filters, and both are load-bearing.
+ *
+ * A variant that **succeeded** is excluded because re-packaging it could **take away a download the
+ * reader already has**. The commonest failure here is memory on a page that is several megapixels at
+ * print resolution, and the commonest shape of it is "the PDF built, the 1080px share canvas did
+ * not". Re-running the PDF in that state risks losing it to the same pressure that broke the square
+ * — turning the one control offered against a partial failure into a way to make it total. It is
+ * also simply wasted work: the successful attempt already holds its files.
+ *
+ * A variant whose failure is **not retryable** is excluded because the reader has just been told, in
+ * that variant's own sentence, that trying again will not help. `pageExportRetryLabel` offers the
+ * button as soon as *any* failure is retryable, which is right — a page whose print PDF can be
+ * rebuilt is worth pressing for even when its share image provably cannot be. But pressing it must
+ * then do only the part that can work, or the app spends the reader's seconds contradicting its own
+ * message. The excluded attempt keeps its failure through `mergeRebuiltAttempts`, so its sentence
+ * stays on screen and stays true.
+ */
+export const rebuildableExportVariants = (
+	attempts: readonly PageExportAttempt[]
+): OutputVariant[] =>
+	attempts
+		.filter((attempt) => attempt.failure?.retry.kind === 'now')
+		.map((attempt) => attempt.variant);
+
+/**
+ * Put rebuilt attempts back among the ones that were kept, in the original request order.
+ *
+ * Matched by variant rather than by position, because a rebuild asks for a subset. An attempt with
+ * no replacement is returned untouched — that is the successful download the rebuild deliberately
+ * did not re-run.
+ */
+export const mergeRebuiltAttempts = (
+	previous: readonly PageExportAttempt[],
+	rebuilt: readonly PageExportAttempt[]
+): PageExportAttempt[] =>
+	previous.map(
+		(attempt) =>
+			rebuilt.find((replacement) => replacement.variant === attempt.variant) ??
+			attempt
+	);
+
+/**
+ * The line the notice opens with, or `''` when nothing failed.
+ *
+ * Always affirms the page itself first, because that is the fact the reader most needs and the one
+ * the original wording destroyed: packaging runs after the image exists, so a failure here never
+ * means the generation failed, and a notice that reads like it did invites the reader to spend
+ * another generation fixing a free local step.
  */
 export const summarisePageExportFailures = (
 	attempts: readonly PageExportAttempt[]
-): string => {
-	const failures = attempts.filter((attempt) => attempt.error !== null);
-	if (failures.length === 0) return '';
-	const sentences = failures.map(
-		(attempt) =>
-			`${VARIANT_FAILURE_NOUNS[attempt.variant]} could not be built: ${withoutTrailingPeriod(attempt.error ?? '')}`
-	);
-	return `Your page is on the paper. ${sentences.join('. ')}.`;
+): string => (pageExportFailures(attempts).length === 0 ? '' : 'Your page is on the paper.');
+
+/**
+ * How each built variant is named when the notice lists what the reader still has.
+ *
+ * The past tense of `SUBJECT` in `export-failure.ts`: those name a *request* that failed and so
+ * cannot name a file type, while these name files that demonstrably exist.
+ */
+const SURVIVOR_NOUNS: Record<OutputVariant, string> = {
+	print: 'the printable download',
+	square: 'the square share image',
+	chat: 'the chat-sized image'
 };
+
+/** Join a list the way a sentence does: `a`, `a and b`, `a, b and c`. */
+const asSentenceList = (items: readonly string[]): string => {
+	if (items.length <= 1) return items[0] ?? '';
+	return `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`;
+};
+
+/**
+ * One sentence naming what the reader still has, or `''` when there is nothing to name.
+ *
+ * **Measured, never assumed.** This started life inside `classifyExportFailure`, as a per-variant
+ * constant: the square's failure said "the printable download and the original image are
+ * unaffected". That is a claim about an attempt the classifier never sees, and it is **false
+ * whenever both variants fail** — which a WebP or SVG source hitting `CANVAS_UNAVAILABLE` does,
+ * because that print path transcodes through the very canvas the share renderer could not get. A
+ * reader whose page produced no downloads at all was told one of them was fine.
+ *
+ * So it is derived here, from attempts that actually came back, and it names only files that exist.
+ *
+ * Print is mentioned separately and last, because it is not a download: it is `window.print()` over
+ * the layout's own print stylesheet, which never touches the packaging canvas, so it survives every
+ * failure this module can describe — but only while there is a page on screen to print.
+ */
+export const pageExportSurvivors = (
+	attempts: readonly PageExportAttempt[],
+	options: { hasOriginalImage: boolean; hasPage: boolean }
+): string => {
+	if (pageExportFailures(attempts).length === 0) return '';
+	const built = attempts
+		.filter((attempt) => attempt.failure === null && attempt.files.length > 0)
+		.map((attempt) => SURVIVOR_NOUNS[attempt.variant]);
+	const kept = options.hasOriginalImage ? [...built, 'the original image'] : built;
+	const haveSentence =
+		kept.length > 0 ? `You still have ${asSentenceList(kept)}.` : '';
+	const printSentence = options.hasPage ? 'Print still works from this page.' : '';
+	return [haveSentence, printSentence].filter((part) => part.length > 0).join(' ');
+};
+
+/** One remedy, and every failed download it applies to. */
+export type PageExportRemedy = {
+	/** What the reader can do. */
+	remedy: string;
+	/** The variants this advice covers, in request order. */
+	variants: OutputVariant[];
+	/**
+	 * How to name those variants in a sentence, e.g. `the square share image`.
+	 *
+	 * Built here rather than in the component so the row renders text and decides nothing, and so
+	 * the joining is tested with everything else in this module.
+	 */
+	subject: string;
+};
+
+/**
+ * What the reader can do, grouped by advice rather than repeated per download.
+ *
+ * Two forces, and both are review findings against earlier drafts of this notice.
+ *
+ * Repeating the remedy under every failed variant was the first: both variants share a canvas, so
+ * both usually fail for the same reason, and the commonest failure of all printed the same
+ * forty-word paragraph twice — burying the one line that differed.
+ *
+ * Dropping the association entirely was the over-correction. With two variants failing for two
+ * different causes, the notice then showed two "could not be built" lines followed by two unlabelled
+ * remedies, and **nothing said which download each one was about** — while a rebuild button reading
+ * "Build the downloads again" implied it would help with both when only one could be retried.
+ *
+ * So each remedy carries the variants it covers. The caller labels the line when there is more than
+ * one group, and leaves it bare when there is only one, because a label that never varies is noise.
+ */
+export const pageExportRemedies = (
+	attempts: readonly PageExportAttempt[]
+): PageExportRemedy[] => {
+	const grouped = new Map<string, OutputVariant[]>();
+	for (const failure of pageExportFailures(attempts)) {
+		if (failure.remedy.length === 0) continue;
+		const variants = grouped.get(failure.remedy);
+		if (variants) variants.push(failure.variant);
+		else grouped.set(failure.remedy, [failure.variant]);
+	}
+	return [...grouped].map(([remedy, variants]) => ({
+		remedy,
+		variants,
+		subject: asSentenceList(variants.map((variant) => SURVIVOR_NOUNS[variant]))
+	}));
+};
+
+/**
+ * The developer's string behind the first packaging failure, or `null`.
+ *
+ * The consumer that makes `ExportFailure.detail` a promise rather than a claim. `PageExportRow`
+ * deliberately never renders it — that is the whole invariant — so without a reader somewhere the
+ * diagnostic simply vanished, and it used to be visible: badly, as the reader's own sentence, but
+ * visible. "Kept for System Trace and a bug report" has to be true of something.
+ *
+ * The first rather than a joined list, because System Trace shows one line and the print variant is
+ * packaged first and is the product.
+ */
+export const pageExportFailureDetail = (
+	attempts: readonly PageExportAttempt[]
+): string | null =>
+	pageExportFailures(attempts).find((failure) => failure.detail !== null)?.detail ??
+	null;
+
+/**
+ * The label on the rebuild control, or `null` where no control should be rendered.
+ *
+ * One control for the whole row rather than one per failed variant, because a rebuild re-runs
+ * packaging for the page as a whole and two buttons would imply the reader could choose. It appears
+ * as soon as ANY failed variant is retryable: a page whose print PDF can be rebuilt and whose share
+ * image provably cannot is still a page worth pressing for, and the sentences beside it already say
+ * which is which.
+ *
+ * Says what it will do and not "Try again", because this row sits under a page-making button and a
+ * bare retry there reads as an offer to generate the page again — the exact confusion the wording in
+ * `export-failure.ts` exists to prevent.
+ */
+export const pageExportRetryLabel = (
+	attempts: readonly PageExportAttempt[]
+): string | null =>
+	pageExportFailures(attempts).some((failure) => failure.retry.kind === 'now')
+		? 'Build the downloads again'
+		: null;

@@ -18,6 +18,7 @@
     "test:unit": "vitest run",
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "test:e2e": "playwright test",
+    "test:e2e:local": "playwright test --config=playwright.local.config.ts",
     "chamber:lock": "node scripts/chamber-lock.mjs",
     "shaolin:lint": "node scripts/shaolin-lint.mjs",
     "seam:ledger": "node scripts/seam-ledger.mjs",

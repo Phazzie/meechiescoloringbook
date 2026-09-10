@@ -8,6 +8,165 @@ Info flow: User request -> execution specs -> implementation -> review evidence.
 
 Current active plan is listed first. Older dated entries remain below as historical context and are not active unless explicitly reselected.
 
+## Run 23 (2026-09-10) — Worst-feature routine: the downloads that could not be built
+
+**Goal:** when a finished coloring page cannot be packaged into one of its files, the reader is told
+what happened in a sentence written to be read, is told what they still have, and is offered the
+rebuild — which is free. Today all three of those are missing, in three separately maintained copies
+of the same twenty lines.
+
+### The measurement (taken on `main` at `a87af7a`, not inherited)
+
+Packaging is the last step of making a page: the picture already exists and is already paid for, and
+`OutputPackagingSeam` turns it into a printable PDF and a square PNG entirely on this device. No
+network, no provider, no quota. It is the cheapest step in the app to run again — and it is the only
+failing step in the app with no way to run it again.
+
+**Three copies of one function, six raw-string sites.**
+
+| Site | Line | What is written |
+|------|------|-----------------|
+| `src/routes/studio-state.svelte.ts` | 2280 | `result.error.message` (seam refusal) |
+| `src/routes/studio-state.svelte.ts` | 2285 | `error.message` — **a caught exception** |
+| `src/lib/components/page-artifact-state.svelte.ts` | 144 | `result.error.message` (seam refusal) |
+| `src/lib/components/page-artifact-state.svelte.ts` | 150 | `packagingError.message` — **a caught exception** |
+| `src/lib/components/MeechieTools.svelte` | 566 | `result.error.message` (seam refusal) |
+| `src/lib/components/MeechieTools.svelte` | 572 | `packagingError.message` — **a caught exception** |
+
+Each of those strings is then quoted verbatim into the reader's sentence by
+`summarisePageExportFailures` in `src/lib/core/page-exports.ts:251`:
+
+> Your page is on the paper. The square share image could not be built: **Canvas context unavailable
+> for resizing**.
+
+The bold half was written for whoever wrote the adapter. The exception half is worse: pdf-lib's
+`embedPng`, `embedJpg` and `save` all throw, and whatever they say lands on screen unread.
+
+**The seam already answers the question the app throws away.** `SeamErrorSchema` in
+`contracts/shared.contract.ts:11` carries `code` alongside `message`, and
+`src/lib/adapters/output-packaging-seam/index.ts` emits **ten** distinct codes: `NO_IMAGES`,
+`BROWSER_REQUIRED`, `CANVAS_UNAVAILABLE`, `PNG_ENCODING_FAILED`, `SVG_IMAGE_LOAD_FAILED`,
+`IMAGE_RESIZE_FAILED`, `PNG_ENCODING_UNSUPPORTED`, `JPG_ENCODING_UNSUPPORTED`,
+`WEBP_ENCODING_UNSUPPORTED`, `UNSUPPORTED_IMAGE_FORMAT`. All three call sites read `.message` and
+discard `.code`. So nothing in the app can tell "this browser will never do this" from "the draw
+missed this time" — which is the only distinction that decides whether pressing a button again is
+worth the reader's time.
+
+**And nothing names what survived.** A failed print PDF leaves the original image download and the
+in-app Print button working; a failed square leaves the PDF. The sentence mentions neither.
+
+This is the third and last surface of the pattern `src/lib/core/generation-failure.ts` (Run 20) and
+`src/lib/core/storage-failure.ts` (Run 22) removed. Named as the strongest remaining pick by Run 22's
+carried-forward list.
+
+### Seams
+
+`OutputPackagingSeam` (`docs/seams.md`). **Not modified.** `code` is already in the contract's error
+schema and already emitted by the adapter; this change stops discarding it. No file under
+`contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`, `src/lib/adapters/` or `src/lib/seams/`
+is touched, so no Cipher Gate entry is required. If that stops being true mid-work, the full
+Seam-Driven Development workflow applies and this plan is re-written first.
+
+### Files
+
+- `[NEW] src/lib/core/export-failure.ts` — pure classifier. Seam `code` or thrown value, plus the
+  variant that was asked for, becomes `{ variant, cause, message, retry, detail }`. Same invariants
+  as `storage-failure.ts`: an exception's words become `detail` and never `message`; a retry is
+  offered only where a second attempt could land differently.
+- `[NEW] src/lib/components/page-packaging.ts` — the one call to `outputPackagingAdapter.package` in
+  the app. Returns a `PageExportAttempt` carrying a classified failure.
+- `[NEW] tests/unit/export-failure.test.ts` — including the guard `storage-failure.test.ts`
+  established: read the packaging adapter and fail if it emits a code the table does not name.
+- `[NEW] tests/unit/page-packaging.test.ts`.
+- `[MODIFY] src/lib/core/page-exports.ts` — `PageExportAttempt.error: string | null` becomes
+  `failure: ExportFailure | null`; `summarisePageExportFailures` joins written sentences instead of
+  quoting seam strings; add `pageExportRetryLabel`.
+- `[MODIFY] src/lib/components/PageExportRow.svelte` — take the failures rather than a sentence, and
+  render the rebuild control when one is offered.
+- `[MODIFY] src/lib/components/page-artifact-state.svelte.ts` — delete `packageOneVariant`, call the
+  shared one, add `rebuildDownloads()`.
+- `[MODIFY] src/routes/studio-state.svelte.ts` — delete `packageVariant`, call the shared one, add
+  `rebuildDownloads()`.
+- `[MODIFY] src/lib/components/MeechieTools.svelte` — delete its inline `packageVariant`, call the
+  shared one, add its rebuild.
+- `[MODIFY]` the four `PageExportRow` hosts: `VerdictPageStudio.svelte`,
+  `DescribePageStudio.svelte`, `studio/StudioPreviewPanel.svelte`, `MeechieTools.svelte`.
+- `[MODIFY] tests/unit/studio-state.test.ts`, `tests/unit/verdict-page-state.test.ts`,
+  `tests/unit/describe-page-state.test.ts` — the three suites asserting on `attempt.error`.
+- `[MODIFY] CHANGELOG.md`, `LESSONS_LEARNED.md`, `WORST_TO_BEST_LOG.md`.
+
+### Files added to this plan during the run, and why
+
+`AGENTS.md`'s Surgical Delegation Mandate bans blanket statements and unlisted files, and the list
+above had one of each — "the existing tests that assert on `attempt.error`" named no path, and five
+touched files appeared nowhere. Recorded here rather than back-dated into the inventory above,
+because they were **not** planned: this is the honest record of what the run added and what forced
+it. Raised by review on PR #347.
+
+| Path | Action | What forced it |
+|---|---|---|
+| `tests/e2e/smoke.spec.ts` | `[MODIFY]` | The routine requires Playwright for a user-facing change, and there was no browser test for a failed download. |
+| `playwright.local.config.ts` | `[NEW]` | The pinned browser build is absent here; two prior runs rebuilt this override by hand and discarded it. |
+| `package.json` | `[MODIFY]` | The `test:e2e:local` script that runs the config above. |
+| `DECISIONS.md` | `[MODIFY]` | A review finding argued this needed the full seam workflow. Declining it is a tradeoff, and `AGENTS.md` requires tradeoffs to be recorded. |
+| `docs/evidence/2026-09-10/**` | `[NEW]` | Written by `npm run verify`, which the routine requires. Not hand-edited. |
+
+**The lesson, which is the point of the mandate:** a plan that says "the existing tests that do X"
+cannot be checked against a diff, so nothing can tell a planned change from scope drift. Two of the
+five above — `playwright.local.config.ts` and `package.json` — are genuinely new scope this run chose
+to take on, and the inventory is where that choice should have been visible.
+
+### Anti-goals (do not touch)
+
+- Do not change `src/lib/adapters/output-packaging-seam/index.ts` or any code, message or error under
+  `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`, `src/lib/seams/`.
+- Do not change what is packaged, the variants requested, the filenames, or the print geometry.
+- Do not change `src/lib/core/print-layout.ts`.
+- Do not make the rebuild spend a generation, call `/api/generate`, or touch any quota.
+- Do not render `failure.detail` anywhere a reader can see it.
+
+### Self-critique
+
+- **Riskiest assumption:** that a packaging retry can actually land differently. Proof: the retryable
+  causes are exactly `PNG_ENCODING_FAILED`, `SVG_IMAGE_LOAD_FAILED`, `IMAGE_RESIZE_FAILED` and a
+  thrown exception — canvas encode and image decode under memory pressure, and pdf-lib allocating.
+  `CANVAS_UNAVAILABLE` and `BROWSER_REQUIRED` get **no** button, because the same browser answers the
+  same way and a button that cannot work is the defect Run 22 named.
+- **What could be wrong:** that the rebuild re-packages a page that is no longer on screen. Every
+  host already carries a staleness token for exactly this; the rebuild must take one the same way
+  `attachDownloads` does, or a late rebuild lands files on somebody else's page.
+- **Second thing that could be wrong:** three hosts calling one function is only a win if the
+  function is given everything it needs. `pageSize` is not re-read from the live controls — it comes
+  off the attempt being rebuilt, for the reason `page-exports.ts` already gives at length.
+- **What must be proven:** that no adapter string and no exception message can reach a reader. The
+  test reads the adapter's own codes rather than a list copied from it.
+
+### Definition of done
+
+```sh
+npm run check && npm run lint && npm test && npm run build && npm run verify
+npx playwright test        # the routine's mandated gate for a user-facing change
+```
+
+**`npx playwright test` is BLOCKED in this container, and this plan does not get to call it green.**
+The project pins Playwright build 1208 and `/opt/pw-browsers` holds 1194, so the default command
+fails before any test body runs:
+
+```
+Error: browserType.launch: Executable doesn't exist at
+  /opt/pw-browsers/chromium_headless_shell-1208/chrome-headless-shell-linux64/chrome-headless-shell
+```
+
+The remedy it prints — `npx playwright install` — is forbidden by the environment.
+
+What ran instead is `npm run test:e2e:local`: **the same 83 specs against Chromium 1194 rather than
+1208.** That is real evidence and it is not the mandated gate, and this run described it as
+satisfying that gate before review pointed out the difference. Recorded as blocked, not green.
+
+Worth stating plainly: `.github/workflows/verify.yml` runs `npm run verify`, which does **not**
+include Playwright, so the pinned suite runs nowhere in this pipeline — not here and not in CI. The
+1194 run is the only browser evidence that exists for this change.
+
 ## Run 22 (2026-09-09) — Worst-feature routine: what the app says when *storage* fails
 
 **Goal:** every failure of the app's own memory — the Quote Vault and the studio draft — tells the

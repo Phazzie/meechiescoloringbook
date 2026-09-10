@@ -1,10 +1,13 @@
-// Purpose: Unit tests for the export-row descriptions and the packaging-failure sentence.
+// Purpose: Unit tests for the export-row descriptions and what the row says about a failed
+//           packaging attempt.
 // Why: The studio's download row used to render one hardcoded label per file, so nothing about a
 //      download was derived from the download. These tests pin the derivations that replaced it —
 //      including that they stay total over the seam's own variant enum rather than over a list
-//      copied into this module.
-// Info flow: packaging attempts / generated images -> described exports + failure sentence ->
-//            assertions.
+//      copied into this module. An attempt's failure is now a classified `ExportFailure` rather
+//      than the seam's own string, so these also pin that no seam wording reaches this module at
+//      all.
+// Info flow: packaging attempts / generated images -> described exports + failure lines + the
+//            rebuild label -> assertions.
 import { describe, expect, it } from 'vitest';
 import {
 	base64ByteLength,
@@ -14,10 +17,19 @@ import {
 	fileTypeLabel,
 	formatByteSize,
 	generatedImageByteLength,
+	rebuildableExportVariants,
+	mergeRebuiltAttempts,
+	pageExportFailureDetail,
+	pageExportFailures,
+	pageExportRemedies,
+	pageExportRetryLabel,
+	pageExportSurvivors,
 	summarisePageExportFailures,
 	type PageExportAttempt
 } from '../../src/lib/core/page-exports';
+import { classifyExportFailure } from '../../src/lib/core/export-failure';
 import { OutputVariantSchema } from '../../src/lib/seams/output-packaging-seam/contract';
+import type { OutputVariant } from '../../src/lib/seams/output-packaging-seam/contract';
 import type { PackagedFile } from '../../src/lib/seams/output-packaging-seam/contract';
 import type { GeneratedImage } from '../../contracts/image-generation.contract';
 
@@ -26,6 +38,20 @@ const pdfFile = (dataBase64: string): PackagedFile => ({
 	mimeType: 'application/pdf',
 	dataBase64
 });
+
+/** A failed attempt, classified exactly as `packagePageVariant` classifies one. */
+const canvasFailure = (variant: OutputVariant) =>
+	classifyExportFailure(variant, {
+		code: 'CANVAS_UNAVAILABLE',
+		message: 'Canvas context unavailable for resizing.'
+	});
+
+/** A failed attempt whose cause is one a rebuild could get past. */
+const encodeFailure = (variant: OutputVariant) =>
+	classifyExportFailure(variant, {
+		code: 'PNG_ENCODING_FAILED',
+		message: 'Failed to encode PNG data.'
+	});
 
 describe('base64ByteLength', () => {
 	it('agrees with the bytes a real round-trip produces, at every padding length', () => {
@@ -182,9 +208,9 @@ describe('describePackagedExports', () => {
 			{
 				variant: 'print',
 				files: [pdfFile('cGRm')],
-				error: null, pageSize: 'US_Letter'
+				failure: null, pageSize: 'US_Letter'
 			},
-			{ variant: 'square', files: [], error: 'Canvas context unavailable.', pageSize: 'US_Letter' }
+			{ variant: 'square', files: [], failure: canvasFailure('square'), pageSize: 'US_Letter' }
 		];
 
 		expect(describePackagedExports(attempts).map((item) => item.kind)).toEqual([
@@ -200,7 +226,7 @@ describe('describePackagedExports', () => {
 					{ filename: 'page-1.pdf', mimeType: 'application/pdf', dataBase64: 'cGRm' },
 					{ filename: 'page-2.pdf', mimeType: 'application/pdf', dataBase64: 'cGRm' }
 				],
-				error: null,
+				failure: null,
 				pageSize: 'US_Letter'
 			}
 		];
@@ -215,8 +241,8 @@ describe('describePackagedExports', () => {
 		// it was not made on — which is what reading a caller's live spec did whenever the reader
 		// moved Page Size while a generation was in flight.
 		const attempts: PageExportAttempt[] = [
-			{ variant: 'print', files: [pdfFile('cGRm')], error: null, pageSize: 'US_Letter' },
-			{ variant: 'print', files: [pdfFile('cGRmMg==')], error: null, pageSize: 'A4' }
+			{ variant: 'print', files: [pdfFile('cGRm')], failure: null, pageSize: 'US_Letter' },
+			{ variant: 'print', files: [pdfFile('cGRmMg==')], failure: null, pageSize: 'A4' }
 		];
 
 		const described = describePackagedExports(attempts);
@@ -336,54 +362,402 @@ describe('summarisePageExportFailures', () => {
 	it('says nothing when every variant was built', () => {
 		expect(
 			summarisePageExportFailures([
-				{ variant: 'print', files: [pdfFile('cGRm')], error: null, pageSize: 'US_Letter' },
-				{ variant: 'square', files: [pdfFile('cGRm')], error: null, pageSize: 'US_Letter' }
+				{ variant: 'print', files: [pdfFile('cGRm')], failure: null, pageSize: 'US_Letter' },
+				{ variant: 'square', files: [pdfFile('cGRm')], failure: null, pageSize: 'US_Letter' }
 			])
 		).toBe('');
 		expect(summarisePageExportFailures([])).toBe('');
 	});
 
-	it('affirms the page before naming what is missing', () => {
+	it('affirms the page, and says nothing else', () => {
 		const summary = summarisePageExportFailures([
-			{ variant: 'print', files: [], error: 'Canvas context unavailable.', pageSize: 'US_Letter' },
-			{ variant: 'square', files: [pdfFile('cGRm')], error: null, pageSize: 'US_Letter' }
+			{ variant: 'print', files: [], failure: canvasFailure('print'), pageSize: 'US_Letter' },
+			{ variant: 'square', files: [pdfFile('cGRm')], failure: null, pageSize: 'US_Letter' }
 		]);
 
-		// The reader's page is finished; only a free client-side step failed. A message that reads
-		// like the generation failed invites them to pay for another one.
-		expect(summary).toBe(
-			'Your page is on the paper. The printable download could not be built: Canvas context unavailable.'
-		);
+		// The reader's page is finished; only a free local step failed. A notice that reads like the
+		// generation failed invites them to pay for another one. What went wrong is one line per
+		// failed variant below this, written by `export-failure.ts` — this opening asserts nothing
+		// about a variant, which is what lets two variants fail for two different reasons.
+		expect(summary).toBe('Your page is on the paper.');
 	});
+});
 
-	it('names every variant that failed', () => {
-		expect(
-			summarisePageExportFailures([
-				{ variant: 'print', files: [], error: 'no canvas', pageSize: 'US_Letter' },
-				{ variant: 'square', files: [], error: 'still no canvas', pageSize: 'US_Letter' }
-			])
-		).toBe(
-			'Your page is on the paper. The printable download could not be built: no canvas. ' +
-				'The square share image could not be built: still no canvas.'
-		);
-	});
-
-	it('does not double the full stop on a seam message that is already a sentence', () => {
-		const summary = summarisePageExportFailures([
-			{ variant: 'square', files: [], error: 'No images provided for packaging.', pageSize: 'US_Letter' }
+describe('pageExportFailures', () => {
+	it('returns one classified failure per failed variant, in request order', () => {
+		const failures = pageExportFailures([
+			{ variant: 'print', files: [], failure: canvasFailure('print'), pageSize: 'US_Letter' },
+			{ variant: 'square', files: [pdfFile('cGRm')], failure: null, pageSize: 'US_Letter' },
+			{ variant: 'chat', files: [], failure: encodeFailure('chat'), pageSize: 'US_Letter' }
 		]);
 
-		expect(summary.endsWith('packaging.')).toBe(true);
-		expect(summary).not.toContain('..');
+		expect(failures.map((failure) => failure.variant)).toEqual(['print', 'chat']);
+	});
+
+	it('never carries a seam string into anything a reader is shown', () => {
+		// The whole point of the rebuild. The adapter's own sentence is kept for a bug report and
+		// must not appear in the words on screen.
+		for (const variant of OutputVariantSchema.options) {
+			const [failure] = pageExportFailures([
+				{ variant, files: [], failure: canvasFailure(variant), pageSize: 'US_Letter' }
+			]);
+			expect(failure.detail).toBe('Canvas context unavailable for resizing.');
+			expect(failure.message).not.toContain('Canvas context unavailable');
+			expect(failure.message).not.toContain('undefined');
+		}
 	});
 
 	it('names every variant the seam defines', () => {
 		for (const variant of OutputVariantSchema.options) {
-			const summary = summarisePageExportFailures([
-				{ variant, files: [], error: 'no canvas', pageSize: 'US_Letter' }
+			const [failure] = pageExportFailures([
+				{ variant, files: [], failure: canvasFailure(variant), pageSize: 'US_Letter' }
 			]);
-			expect(summary).not.toContain('undefined');
-			expect(summary.startsWith('Your page is on the paper. The ')).toBe(true);
+			expect(failure.message.startsWith('The ')).toBe(true);
+			expect(failure.message).toContain('could not be built.');
 		}
+	});
+});
+
+describe('pageExportRetryLabel', () => {
+	it('offers nothing when every variant was built', () => {
+		expect(
+			pageExportRetryLabel([
+				{ variant: 'print', files: [pdfFile('cGRm')], failure: null, pageSize: 'US_Letter' }
+			])
+		).toBeNull();
+		expect(pageExportRetryLabel([])).toBeNull();
+	});
+
+	it('offers nothing when no failed variant could land differently', () => {
+		// A browser with no canvas has no canvas a second later. A button here would be a lie about
+		// what pressing it does — the defect the storage classifier already names.
+		expect(
+			pageExportRetryLabel([
+				{ variant: 'print', files: [], failure: canvasFailure('print'), pageSize: 'US_Letter' },
+				{ variant: 'square', files: [], failure: canvasFailure('square'), pageSize: 'US_Letter' }
+			])
+		).toBeNull();
+	});
+
+	it('offers the rebuild when any failed variant could land differently', () => {
+		// One control for the row, not one per variant: a page whose print PDF can be rebuilt is
+		// worth pressing for even when its share image provably cannot be.
+		expect(
+			pageExportRetryLabel([
+				{ variant: 'print', files: [], failure: encodeFailure('print'), pageSize: 'US_Letter' },
+				{ variant: 'square', files: [], failure: canvasFailure('square'), pageSize: 'US_Letter' }
+			])
+		).toBe('Build the downloads again');
+	});
+
+	it('does not say "try again", which under a page-making button reads as another generation', () => {
+		const label = pageExportRetryLabel([
+			{ variant: 'print', files: [], failure: encodeFailure('print'), pageSize: 'US_Letter' }
+		]);
+
+		expect(label).not.toMatch(/try again/i);
+		expect(label).toContain('downloads');
+	});
+});
+
+describe('rebuildableExportVariants', () => {
+	it('names only the variants that failed', () => {
+		expect(
+			rebuildableExportVariants([
+				{ variant: 'print', files: [pdfFile('cGRm')], failure: null, pageSize: 'US_Letter' },
+				{ variant: 'square', files: [], failure: encodeFailure('square'), pageSize: 'US_Letter' }
+			])
+		).toEqual(['square']);
+	});
+
+	it('names nothing when every variant was built', () => {
+		expect(
+			rebuildableExportVariants([
+				{ variant: 'print', files: [pdfFile('cGRm')], failure: null, pageSize: 'US_Letter' }
+			])
+		).toEqual([]);
+	});
+
+	it('skips a failure the classifier says a rebuild cannot help', () => {
+		// The button appears as soon as ANY failure is retryable, which is right. But pressing it must
+		// then do only the part that can work: re-running the canvas variant would spend the reader's
+		// seconds contradicting the sentence they just read on that same variant.
+		expect(
+			rebuildableExportVariants([
+				{ variant: 'print', files: [], failure: encodeFailure('print'), pageSize: 'US_Letter' },
+				{ variant: 'square', files: [], failure: canvasFailure('square'), pageSize: 'US_Letter' }
+			])
+		).toEqual(['print']);
+	});
+
+	it('names nothing when no failure could land differently', () => {
+		// Consistent with `pageExportRetryLabel`, which renders no button in this case at all — so the
+		// two can never disagree about whether there is anything to do.
+		const attempts: PageExportAttempt[] = [
+			{ variant: 'print', files: [], failure: canvasFailure('print'), pageSize: 'US_Letter' },
+			{ variant: 'square', files: [], failure: canvasFailure('square'), pageSize: 'US_Letter' }
+		];
+
+		expect(rebuildableExportVariants(attempts)).toEqual([]);
+		expect(pageExportRetryLabel(attempts)).toBeNull();
+	});
+
+	it('agrees with the retry label on every combination', () => {
+		// One invariant rather than two lists that can drift: a button is offered exactly when there
+		// is something for it to do.
+		const cases: PageExportAttempt[][] = [
+			[],
+			[{ variant: 'print', files: [pdfFile('cGRm')], failure: null, pageSize: 'A4' }],
+			[{ variant: 'print', files: [], failure: canvasFailure('print'), pageSize: 'A4' }],
+			[{ variant: 'print', files: [], failure: encodeFailure('print'), pageSize: 'A4' }],
+			[
+				{ variant: 'print', files: [], failure: encodeFailure('print'), pageSize: 'A4' },
+				{ variant: 'square', files: [], failure: canvasFailure('square'), pageSize: 'A4' }
+			]
+		];
+
+		for (const attempts of cases) {
+			expect(rebuildableExportVariants(attempts).length > 0).toBe(
+				pageExportRetryLabel(attempts) !== null
+			);
+		}
+	});
+});
+
+describe('mergeRebuiltAttempts', () => {
+	it('keeps a download the rebuild deliberately did not re-run', () => {
+		// The regression this exists to stop. Re-packaging a variant that already succeeded can take
+		// away a file the reader has: the commonest failure here is memory, and its commonest shape
+		// is "the PDF built, the 1080px share canvas did not". Re-running the PDF under that same
+		// pressure turns the one control offered against a partial failure into a way to make it
+		// total.
+		const printAttempt: PageExportAttempt = {
+			variant: 'print',
+			files: [pdfFile('cGRm')],
+			failure: null,
+			pageSize: 'US_Letter'
+		};
+		const previous: PageExportAttempt[] = [
+			printAttempt,
+			{ variant: 'square', files: [], failure: encodeFailure('square'), pageSize: 'US_Letter' }
+		];
+		const rebuiltSquare: PageExportAttempt = {
+			variant: 'square',
+			files: [pdfFile('c3F1YXJl')],
+			failure: null,
+			pageSize: 'US_Letter'
+		};
+
+		const merged = mergeRebuiltAttempts(previous, [rebuiltSquare]);
+
+		expect(merged[0]).toBe(printAttempt);
+		expect(merged[1]).toBe(rebuiltSquare);
+	});
+
+	it('keeps the original request order, matching by variant rather than position', () => {
+		const previous: PageExportAttempt[] = [
+			{ variant: 'print', files: [], failure: encodeFailure('print'), pageSize: 'A4' },
+			{ variant: 'square', files: [pdfFile('cGRm')], failure: null, pageSize: 'A4' },
+			{ variant: 'chat', files: [], failure: encodeFailure('chat'), pageSize: 'A4' }
+		];
+
+		const merged = mergeRebuiltAttempts(previous, [
+			{ variant: 'chat', files: [pdfFile('Y2hhdA==')], failure: null, pageSize: 'A4' },
+			{ variant: 'print', files: [pdfFile('cHJpbnQ=')], failure: null, pageSize: 'A4' }
+		]);
+
+		expect(merged.map((attempt) => attempt.variant)).toEqual([
+			'print',
+			'square',
+			'chat'
+		]);
+		expect(merged.every((attempt) => attempt.failure === null)).toBe(true);
+	});
+
+	it('leaves a failure in place when its rebuild failed too', () => {
+		const previous: PageExportAttempt[] = [
+			{ variant: 'square', files: [], failure: encodeFailure('square'), pageSize: 'US_Letter' }
+		];
+
+		const merged = mergeRebuiltAttempts(previous, [
+			{ variant: 'square', files: [], failure: canvasFailure('square'), pageSize: 'US_Letter' }
+		]);
+
+		// The newer classification wins, so the sentence follows what happened this time.
+		expect(merged[0].failure?.cause).toBe('unsupported_here');
+	});
+});
+
+describe('pageExportSurvivors', () => {
+	const HAS_PAGE = { hasOriginalImage: true, hasPage: true };
+
+	it('says nothing when every variant was built', () => {
+		expect(
+			pageExportSurvivors(
+				[{ variant: 'print', files: [pdfFile('cGRm')], failure: null, pageSize: 'US_Letter' }],
+				HAS_PAGE
+			)
+		).toBe('');
+	});
+
+	it('claims nothing about a variant that also failed', () => {
+		// The defect this function exists to remove. As a per-variant constant in the classifier, the
+		// square's message ended "the printable download and the original image are unaffected" — and
+		// a WebP or SVG source hitting CANVAS_UNAVAILABLE fails BOTH, because the print path
+		// transcodes through the very canvas the share renderer could not get. A reader with no
+		// downloads at all was told one of them was fine.
+		const sentence = pageExportSurvivors(
+			[
+				{ variant: 'print', files: [], failure: canvasFailure('print'), pageSize: 'US_Letter' },
+				{ variant: 'square', files: [], failure: canvasFailure('square'), pageSize: 'US_Letter' }
+			],
+			HAS_PAGE
+		);
+
+		expect(sentence).not.toContain('printable download');
+		// What is genuinely left: the provider's own bytes, and the browser's own print path, which
+		// never touches the packaging canvas.
+		expect(sentence).toBe(
+			'You still have the original image. Print still works from this page.'
+		);
+	});
+
+	it('names the variants that were actually built', () => {
+		expect(
+			pageExportSurvivors(
+				[
+					{ variant: 'print', files: [pdfFile('cGRm')], failure: null, pageSize: 'US_Letter' },
+					{ variant: 'square', files: [], failure: encodeFailure('square'), pageSize: 'US_Letter' }
+				],
+				HAS_PAGE
+			)
+		).toBe(
+			'You still have the printable download and the original image. Print still works from this page.'
+		);
+	});
+
+	it('does not name a variant that reported success with no files', () => {
+		// A `Result` that is ok and empty is not a download. Naming it would be the same unchecked
+		// claim in a different place.
+		expect(
+			pageExportSurvivors(
+				[
+					{ variant: 'print', files: [], failure: null, pageSize: 'US_Letter' },
+					{ variant: 'square', files: [], failure: encodeFailure('square'), pageSize: 'US_Letter' }
+				],
+				HAS_PAGE
+			)
+		).toBe('You still have the original image. Print still works from this page.');
+	});
+
+	it('omits the original when there is none, and Print when there is no page', () => {
+		const attempts: PageExportAttempt[] = [
+			{ variant: 'square', files: [], failure: encodeFailure('square'), pageSize: 'US_Letter' }
+		];
+
+		expect(
+			pageExportSurvivors(attempts, { hasOriginalImage: false, hasPage: true })
+		).toBe('Print still works from this page.');
+		expect(
+			pageExportSurvivors(attempts, { hasOriginalImage: false, hasPage: false })
+		).toBe('');
+	});
+
+	it('joins three survivors as a sentence rather than a list', () => {
+		expect(
+			pageExportSurvivors(
+				[
+					{ variant: 'print', files: [pdfFile('cGRm')], failure: null, pageSize: 'A4' },
+					{ variant: 'square', files: [pdfFile('c3E=')], failure: null, pageSize: 'A4' },
+					{ variant: 'chat', files: [], failure: encodeFailure('chat'), pageSize: 'A4' }
+				],
+				HAS_PAGE
+			)
+		).toContain(
+			'the printable download, the square share image and the original image'
+		);
+	});
+});
+
+describe('pageExportFailureDetail', () => {
+	it('hands the adapter\u2019s own words to the one consumer that shows them', () => {
+		// Without a consumer, `detail` is a decoration and the diagnostic vanishes: `PageExportRow`
+		// never renders it, on purpose. It used to be visible - badly, as the reader's own sentence,
+		// but visible - so "kept for System Trace and a bug report" has to be true of something.
+		expect(
+			pageExportFailureDetail([
+				{ variant: 'print', files: [pdfFile('cGRm')], failure: null, pageSize: 'A4' },
+				{ variant: 'square', files: [], failure: canvasFailure('square'), pageSize: 'A4' }
+			])
+		).toBe('Canvas context unavailable for resizing.');
+	});
+
+	it('is null when nothing failed', () => {
+		expect(
+			pageExportFailureDetail([
+				{ variant: 'print', files: [pdfFile('cGRm')], failure: null, pageSize: 'A4' }
+			])
+		).toBeNull();
+		expect(pageExportFailureDetail([])).toBeNull();
+	});
+});
+
+describe('pageExportRemedies', () => {
+	it('says what to do once when both variants failed the same way', () => {
+		// The common case, because both variants share a canvas. Folded into each variant's own
+		// sentence, this printed the same forty-word paragraph twice and buried the one clause that
+		// differed between the two lines.
+		const remedies = pageExportRemedies([
+			{ variant: 'print', files: [], failure: encodeFailure('print'), pageSize: 'US_Letter' },
+			{ variant: 'square', files: [], failure: encodeFailure('square'), pageSize: 'US_Letter' }
+		]);
+
+		expect(remedies).toHaveLength(1);
+		expect(remedies[0].remedy).toContain('costs nothing');
+		// And it names both downloads it covers, so grouping never costs the association.
+		expect(remedies[0].variants).toEqual(['print', 'square']);
+		expect(remedies[0].subject).toBe(
+			'the printable download and the square share image'
+		);
+	});
+
+	it('says both when the two variants failed for different reasons', () => {
+		const remedies = pageExportRemedies([
+			{ variant: 'print', files: [], failure: encodeFailure('print'), pageSize: 'US_Letter' },
+			{ variant: 'square', files: [], failure: canvasFailure('square'), pageSize: 'US_Letter' }
+		]);
+
+		expect(remedies).toHaveLength(2);
+		expect(remedies[0].remedy).toContain('costs nothing');
+		expect(remedies[1].remedy).toContain('will not help');
+		// The association the first draft of the grouping threw away: with two remedies on screen,
+		// nothing said which download each one was about, under a button that could only retry one.
+		expect(remedies[0].subject).toBe('the printable download');
+		expect(remedies[1].subject).toBe('the square share image');
+	});
+
+	it('says nothing when nothing failed', () => {
+		expect(
+			pageExportRemedies([
+				{ variant: 'print', files: [pdfFile('cGRm')], failure: null, pageSize: 'A4' }
+			])
+		).toEqual([]);
+	});
+
+	it('never repeats itself, whatever the mix', () => {
+		// The invariant, rather than the two cases: distinct advice, in first-seen order.
+		const remedies = pageExportRemedies([
+			{ variant: 'print', files: [], failure: canvasFailure('print'), pageSize: 'A4' },
+			{ variant: 'square', files: [], failure: encodeFailure('square'), pageSize: 'A4' },
+			{ variant: 'chat', files: [], failure: canvasFailure('chat'), pageSize: 'A4' }
+		]);
+
+		expect(new Set(remedies.map((entry) => entry.remedy)).size).toBe(
+			remedies.length
+		);
+		expect(remedies).toHaveLength(2);
+		// Grouped, so the two canvas failures share one line and name both their downloads.
+		expect(remedies[0].variants).toEqual(['print', 'chat']);
+		expect(remedies[1].variants).toEqual(['square']);
 	});
 });

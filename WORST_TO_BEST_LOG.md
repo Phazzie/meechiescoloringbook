@@ -15465,3 +15465,665 @@ What to do with it: **a small pull request may get a real Sourcery review while 
 same account cannot.** If a run wants line-by-line coverage on a large change, the lever is splitting
 the diff — which is also what this log's standing request for an owner ruling on evidence churn has
 been circling for four runs without naming the mechanism.
+
+## Run 23 — 2026-09-10 — The downloads that could not be built
+
+**Branch:** `claude/great-bell-woxzow`
+**Base:** `main` at `a87af7a`
+
+### The feature, and why it was the worst
+
+Making a coloring page ends in packaging: `OutputPackagingSeam` turns the finished picture into a
+printable PDF and a square share PNG. That step runs **entirely on the reader's own device**. No
+network, no provider, no quota, and the picture it works from has already been generated and already
+been paid for.
+
+So it is the cheapest step in the app to run a second time. It was the only failing step in the app
+with **no way to run it again** — and, measured against every other failure surface, it was the one
+whose promise and delivery had drifted furthest.
+
+Three things were wrong, on `main` at `a87af7a`.
+
+**1. Three copies of one function, six raw-string sites.**
+
+| Site | Line | What was written into a field a reader sees |
+|------|------|---------------------------------------------|
+| `src/routes/studio-state.svelte.ts` | 2280 | `result.error.message` |
+| `src/routes/studio-state.svelte.ts` | 2285 | `error.message` — **a caught exception** |
+| `src/lib/components/page-artifact-state.svelte.ts` | 144 | `result.error.message` |
+| `src/lib/components/page-artifact-state.svelte.ts` | 150 | `packagingError.message` — **a caught exception** |
+| `src/lib/components/MeechieTools.svelte` | 566 | `result.error.message` |
+| `src/lib/components/MeechieTools.svelte` | 572 | `packagingError.message` — **a caught exception** |
+
+`summarisePageExportFailures` in `src/lib/core/page-exports.ts:251` then quoted each of those
+verbatim into the reader's sentence, so the one sentence this app wrote about a failed download was
+half authored for a reader and half written for whoever wrote the adapter:
+
+> Your page is on the paper. The square share image could not be built: **Canvas context unavailable
+> for resizing**.
+
+The exception half is worse. pdf-lib's `embedPng`, `embedJpg` and `save` all throw, and whatever they
+said reached the screen unread.
+
+**2. The seam already answered the question the app threw away.** `SeamErrorSchema`
+(`contracts/shared.contract.ts:11`) carries `code` next to `message`, and
+`src/lib/adapters/output-packaging-seam/index.ts` emits **ten** distinct codes. All three call sites
+read `.message` and discarded `.code`. Nothing in the app could tell `CANVAS_UNAVAILABLE` — this
+browser never will — from `PNG_ENCODING_FAILED` — that missed, and a second attempt runs against a
+heap the first one has released. That is the only distinction that decides whether pressing a button
+is worth the reader's time, and it was being returned and dropped at each of three doors.
+
+**3. No retry, and the nearest control was the paid one.** The only button anywhere near a failed
+download was "Make the page", which buys a generation and returns a **different** picture, because a
+new generation is a new drawing. The most natural response to a free local step failing was to pay
+for a fresh page and lose the one they liked.
+
+And nothing named what survived. A failed print PDF leaves the original image download and the
+in-app Print button; a failed square leaves the PDF. The sentence mentioned neither.
+
+This is the third and last surface of the pattern Run 20 removed for AI calls
+(`generation-failure.ts`) and Run 22 removed for storage (`storage-failure.ts`). Run 22's
+carried-forward list named it "the strongest small pick on this list"; measured this run rather than
+inherited, it is larger than "small" — the three copies and the missing retry were not in that
+description.
+
+**Runners-up considered and passed over.** `src/lib/core/meechie-quote-scoring.ts` has **zero
+importers anywhere in the repo** — a complete, tested-looking 107-line deterministic quote scorer
+that nothing calls, which is the Run 17 shape exactly. It was passed over on purpose: wiring it in
+would be *inventing* a feature rather than rebuilding the worst one, and its heuristics hardcode
+`'easter'`, `'cheap seats'` and `'vision problem'` as evidence of wit, so switching it on could
+actively degrade what Meechie says. **Left for a future run to decide deliberately: wire it or delete
+it, but stop shipping it.**
+
+### What shipped
+
+- **`[NEW] src/lib/core/export-failure.ts`** — pure classifier, same shape family as
+  `generation-failure.ts` and `storage-failure.ts`. Seam `code` or thrown value plus the variant
+  asked for becomes `{ variant, cause, message, retry, detail }`. Five causes, chosen because they
+  are the distinctions that change what a reader should do: `unsupported_here`, `render_failed`,
+  `unreadable_image`, `no_page`, `unknown`. An exception's or the seam's words become `detail` and
+  never `message`. Unlike `storage-failure.ts` there is **no verbatim allowlist**, because none of
+  the ten strings the packaging seam can emit was written for a reader.
+- **`[NEW] src/lib/components/page-packaging.ts`** — the one call to `outputPackagingAdapter.package`
+  in the app. `tests/unit/page-packaging.test.ts` walks `src/**` and fails if a second one appears,
+  the same rule `SharePageButton` holds for `navigator.share`.
+- **The free rebuild.** `Build the downloads again` re-runs packaging on the picture already on
+  screen, re-using the existing `pageFileBaseName` so rebuilt files still match an original image the
+  reader may already have grabbed, and taking `pageSize` off the attempt being rebuilt rather than
+  from the live Page Controls, which stay enabled. It is offered **only** where a failed variant's
+  cause could land differently, and its own `isRebuildingDownloads` flag rather than `isGenerating`,
+  so it does not disable every paid button on the surface.
+- **One line per failed variant** instead of one run-on sentence, because two variants can fail for
+  two different reasons — one rebuildable, one not — and the reader has to be able to tell which line
+  is which.
+- **`[NEW] playwright.local.config.ts` + `npm run test:e2e:local`.** Two runs of this log have now
+  rebuilt the same `executablePath` override by hand and thrown it away. It is env-driven
+  (`PLAYWRIGHT_CHROMIUM_PATH`) rather than hardcoded, and with the variable unset it behaves exactly
+  like the pinned config, so it cannot quietly change what is being tested.
+
+### Scope
+
+No file under `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`, `src/lib/adapters/` or
+`src/lib/seams/` was touched. `git diff --name-only a87af7a HEAD` against those six paths returns
+nothing. `code` was already in the contract's error schema and already emitted by the adapter; this
+change stops discarding it. **No Cipher Gate was required.**
+
+### Evidence
+
+| Command | Result |
+|---|---|
+| `npm run check` | 0 errors, 0 warnings |
+| `npm run lint` | exit 0 |
+| `npm test` | **1,953** passed, 1 skipped (from 1,927 — 26 new) |
+| `npm run build` | exit 0 |
+| `npm run verify` | exit 0, `docs/evidence/2026-09-10/` refreshed |
+| `npm run test:e2e:local` | **83** passed (from 82 — 1 new) |
+
+The new browser test forces the failure by breaking `HTMLCanvasElement.prototype.toDataURL` rather
+than by stubbing a route, because **packaging never touches the network — there is no request to
+intercept.** That break takes the square share image only: a PNG source is embedded in the PDF
+without going through a canvas at all, which is exactly the split the two separate packaging calls
+exist to preserve. So the test proves the real thing in a real browser: the PDF survives, the notice
+names the square in the app's own words, the rebuild appears, and pressing it produces the missing
+file without a second generation.
+
+### Carried forward for the next run
+
+Re-measure everything below; do not inherit it.
+
+- **`meechie-quote-scoring.ts` has zero importers.** Wire it or delete it. See the runner-up note
+  above for why switching it on unexamined is not obviously an improvement.
+- **`readJson` still conflates a denied read with a damaged store**, and `writeJson` a denied write
+  with a transient one. Run 22's item, untouched — it is a seam change and needs the full workflow
+  plus a Cipher Gate.
+- **`failure.detail` still has nowhere to render on most surfaces**, and this run added ten more
+  causes' worth of it. System Trace shows it on the home studio only.
+- **`MeechieTools.svelte` is still in legacy (non-runes) mode**, worked around for the fourth run
+  running — this run wrote a plain `let isRebuildingDownloads` and a module-scope
+  `TOOL_EXPORT_VARIANTS` where the other two hosts use `$state` and a class constant.
+- **`PAGE_EXPORT_VARIANTS`, `STUDIO_EXPORT_VARIANTS` and `TOOL_EXPORT_VARIANTS` are three identical
+  lists** in three files. This run reduced three copies of the packaging *call* to one and left three
+  copies of the two-element list it iterates. Small, and honest to name.
+- **A `ConnectionSeam` is still the right home for the `navigator.onLine` read.** Unchanged.
+- **The try-on's `rejected` branch is still unreachable from the UI.** Run 21's item, untouched.
+- **Run 18 still has no merge close-out entry.** Carried for six runs now.
+- **Sourcery's quoted wait is a function of the diff size, not a reset date** — Run 22's fourth
+  close-out established this against three earlier entries that each named a flat date. Do not name
+  a date. A small pull request may get a real review while a large one from the same account cannot.
+- **SonarCloud still cannot be read from this container** (`sonarcloud.io`, CONNECT tunnel 403).
+- **Playwright runs in this container only as a substitute** — `npm run test:e2e:local` with
+  `PLAYWRIGHT_CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome`, which is build 1194
+  against a pin of 1208. **The mandated `npx playwright test` still fails here and this item cannot
+  stop being carried.** See the seventh close-out: this sentence was wrong when written.
+- **Governance, met this run:** the plan was written into `plan.md` before any code.
+
+## Run 23, first close-out — 2026-09-10 — the rebuild could take away a download the reader already had
+
+Found by this run's own adversarial re-read of the diff, after every gate on `c48d5f2` had gone
+green: `check` 0/0, `lint`, 1,953 unit tests, `build`, the full `verify` chain, 83 Playwright tests,
+**and** SonarCloud, CodeQL, both `verify` CI jobs, Rosentic and Vercel. None of them asks the
+question that caught it, which is the standing gap Run 22's close-out named.
+
+### The defect
+
+`rebuildDownloads` re-packaged **every** variant, not the ones that failed. So:
+
+1. The print PDF builds. The 1080px square canvas runs out of memory and fails.
+2. The reader is offered "Build the downloads again" — correctly, because `PNG_ENCODING_FAILED` is
+   exactly the cause a second attempt can get past.
+3. The rebuild re-runs the print PDF **under the same memory pressure that just broke the square**.
+4. If it fails this time, the reader now has **no** PDF where they had one.
+
+The feature exists to stop a partial packaging failure reading as a total one. Its one control could
+make it total. The failure mode is not exotic either — it is the *commonest* shape of the commonest
+cause here, which is why the classifier offers the button for it at all.
+
+### The fix
+
+`failedExportVariants` and `mergeRebuiltAttempts`, both pure, both in `page-exports.ts`. A rebuild
+asks only for the variants that failed and merges the results back by variant, in the original
+request order. An attempt with no replacement is returned **by identity** — `tests/unit/page-exports.test.ts`
+asserts `toBe`, not `toEqual`, because "kept" and "rebuilt to the same value" are different claims
+and only the first one is safe.
+
+It is also strictly cheaper: the successful attempt already holds its files, so re-running it was
+wasted work even when it succeeded.
+
+Applied to all three surfaces. `runPackaging` now takes the variants and **returns** the attempts
+rather than assigning them, because a generation installs a whole new row and a rebuild merges a
+subset into the one on screen — two different installs of the same work, and collapsing them is what
+produced the bug.
+
+### The transferable part
+
+**A retry that re-runs more than what failed can lose what succeeded.** The retries this app already
+had were all whole-operation: a generation, a save, a try-on. Each of those has one outcome, so
+"retry it" is unambiguous. Packaging is the first retry here over a **set** of independent outcomes,
+and the reflex from the previous three — re-run the operation — is wrong the moment the operation is
+plural.
+
+Worth checking anywhere else a retry covers more than one result.
+
+### Evidence after the fix
+
+`check` 0/0, `lint`, **1,959** unit tests (6 new), `build`, the full `verify` chain, and **83**
+Playwright tests, all exit 0.
+
+## Run 23, second close-out — 2026-09-10 — the Codex round on `c48d5f2`, and the claim that survived nothing
+
+Codex reviewed the first head and filed four findings. One P1, three P2. **Two were right and are
+fixed. One had already been found and fixed by this run's own re-read. One is declined, with the
+measurement and the honest half of it recorded in `DECISIONS.md`.**
+
+### P2 — "Preserve successful downloads when rebuilding failures" — already fixed
+
+The same defect this run found independently and pushed as `495f42f`, forty minutes before Codex
+filed it. Two independent readers, one from the diff and one from the code, reached the same place.
+
+Worth recording that **the automated gates did not**: every check on `c48d5f2` was green — `verify`
+twice, SonarCloud, CodeQL, Rosentic, Vercel — plus 1,953 local unit tests and 83 Playwright tests.
+The code did what it was written to do. What it was written to do was harmful. That is the same gap
+Run 22's close-out named, now observed a second time.
+
+### P2 — "Avoid claiming a failed printable download is unaffected" — right, and the sharper of the two
+
+The first head ended the square's failure sentence with *"The printable download and the original
+image are unaffected."* That is **a claim about an attempt the classifier never sees.**
+`classifyExportFailure` is given one variant. The sentence was a per-variant constant asserting
+something about a different variant.
+
+And it is false. Codex's example — a JPG source — is imprecise: `embedJpg` embeds JPG bytes into the
+PDF without touching a canvas. But **WebP and SVG** print paths go through `imageToPngBase64` →
+`transcodeToPngBase64`/`svgToPngBase64`, which is the same canvas the share renderer needs. So a
+WebP or SVG page under `CANVAS_UNAVAILABLE` fails **both** variants, and a reader who got no
+downloads at all was told one of them was fine. More simply: any double failure makes the claim
+false, whatever the cause.
+
+Fixed by measuring it. `pageExportSurvivors(attempts, { hasOriginalImage, hasPage })` in
+`page-exports.ts` derives one sentence from attempts that actually came back, naming only variants
+whose attempt succeeded **and produced files** — a `Result` that is ok and empty is not a download.
+Print is named separately and last, because it is not a download at all: it is `window.print()` over
+the layout's own print stylesheet, which never touches the packaging canvas, so it survives every
+failure this module can describe — but only while a page is on screen.
+
+`export-failure.ts` now says what happened and what to do, and **nothing** about what else exists.
+A test walks every variant and every cause asserting the words "unaffected", "still in the list" and
+"Print still works" appear in none of them.
+
+**The transferable part: a per-item message cannot make a claim about the other items.** The
+classifier's whole design is one failure at a time, which is right — and it is exactly why the
+survivor sentence did not belong in it. The signature was the warning: a function taking one variant
+returning a sentence naming two.
+
+### P2 — "Clear the rebuild flag when resetting the page" — right, and it exposed a second race
+
+`resetPage` cleared eleven fields and not `isRebuildingDownloads`. The `finally` does clear it, so
+the ordinary path was fine — but Codex named the mechanism that breaks it: **the packaging adapter
+awaits `image.onload`/`onerror` with no timeout.** A rebuild that hangs never settles, the `finally`
+never runs, and the *next* page's failed download offers a button disabled for the rest of the
+session.
+
+Fixing it surfaced a second problem the finding did not mention. Clearing the flag on reset alone
+introduces a race: rebuild A hangs, the page resets (flag cleared), a new page starts rebuild B
+(flag set), then A finally settles and its `finally` clears the flag **while B is still running** —
+re-enabling the button mid-flight so a second press can race B for `packageAttempts`. So the
+`finally` is now token-scoped: it clears only if this call still owns the page. Both halves are
+needed; either alone leaves a hole.
+
+### P1 — "Run the required workflow for the packaging seam change" — declined, and recorded
+
+Codex reads the new call site and the reading of `error.code` as an observable seam behavior change
+under `AGENTS.md:100-104`.
+
+Measured rather than argued: `git diff --name-only a87af7a HEAD` against `contracts/`, `probes/`,
+`fixtures/`, `src/lib/mocks/`, `tests/contract/` and `src/lib/adapters/` returns **nothing**, which
+is the one objective test that section states. `code` is declared by `SeamErrorSchema` at
+`contracts/shared.contract.ts:11` and was already emitted by the adapter before this change; the
+seam's inputs, outputs and failure values are byte-identical before and after. Adding a call site of
+an existing seam method is what every feature here does — Run 14 put `package()` behind twelve more
+surfaces and Run 16 changed what the print variant renders, and neither took the full workflow.
+
+**But there is an honest half, and it is now written down.** `CAUSE_BY_CODE` depends on ten specific
+code *values* the contract does not enumerate — it types `code` as any non-empty string. That is a
+real dependency on an adapter implementation detail. Enumerating them would be a contract change,
+which needs the full workflow, a Cipher Gate, and its own pull request under the merge rule. The
+alternative taken is the one `storage-failure.ts` took in Run 22 and merged without a Cipher Gate:
+depend on the values, and guard the dependency **mechanically** — `tests/unit/export-failure.test.ts`
+reads the adapter source and fails if it emits a code the table does not name.
+
+Recorded in `DECISIONS.md` under **2026-09-10 — Classify `OutputPackagingSeam` failures in core,
+without changing the seam**, with the measurement, the alternatives, and the consequence.
+
+### Rosentic: 17 findings, none of them this pull request's
+
+All 17 compare against `claude/great-bell-k1i146`, an unrelated open branch. Measured on this head:
+`git diff a87af7a HEAD` adds **zero** lines mentioning any of the five cited symbols — `stampOf`,
+`newestFailure`, `makeToolkitVerdict`, `arrangeTryOn`, `routeRefusal` — and every cited call exists
+verbatim on the base (2, 2, 4, 10 and 4 occurrences respectively). The line numbers moved only
+because this diff changed those files elsewhere. The check run is **green**, so these are advisory.
+Commented on the pull request with the measurement rather than merging past it silently, which is
+the standard Run 22 set.
+
+### Evidence after this round
+
+`check` 0/0, `lint`, **1,966** unit tests (13 more than the first head), `build`, the full `verify`
+chain, and **83** Playwright tests, all exit 0.
+
+### A process note this round earned
+
+The private-method error in the new reset test was caught by `npm run verify`, **not** by `npm test`.
+Vitest transpiles without type checking, so a test calling a `private` method runs green and
+`svelte-check` fails the build. The gap was running `test`, `lint` and `build` after adding a test
+and *not* `check`. **`npm run check` belongs in every loop that adds a test, not only every loop that
+adds source.**
+
+## Run 23, third close-out — 2026-09-10 — the Codex round on `495f42f`, and the button that contradicted its own sentence
+
+One P2 on the fix from the first close-out. **Right, and it is the second finding this round that is
+about the app saying one thing and doing another** — the same class as the "unaffected" claim, one
+control over.
+
+`failedExportVariants` returned every failed variant. `pageExportRetryLabel` offers the button as
+soon as **any** failure is retryable, which is correct: a page whose print PDF can be rebuilt is
+worth pressing for even when its share image provably cannot be. But pressing it then re-ran the
+share image too — the variant whose own sentence, two lines above the button, says *"This browser
+will not let the app draw the file, so trying again here will not help."*
+
+So the app printed a sentence and then, on the reader's press, spent their seconds doing exactly the
+thing it had just called useless — and returned the identical message.
+
+Fixed by filtering on `failure.retry.kind === 'now'` and renaming to `rebuildableExportVariants`, so
+the name states the rule and the next reader cannot use it for "everything that failed". The
+excluded attempt keeps its failure through `mergeRebuiltAttempts`, so its sentence stays on screen
+and stays true.
+
+The test worth keeping is not the case itself but the **invariant**: across every combination, a
+button is offered exactly when there is something for it to do —
+`rebuildableExportVariants(attempts).length > 0` iff `pageExportRetryLabel(attempts) !== null`. Two
+lists that must agree will eventually stop agreeing; one asserted relationship will not.
+
+### The pattern across all three findings this round
+
+All three of Codex's correct findings are the same shape, and none of them is a bug in the ordinary
+sense — every one of them was code doing exactly what it was written to do:
+
+| Finding | What the app said | What it did |
+|---|---|---|
+| "unaffected" | the printable download is fine | both variants had failed |
+| rebuild everything | build the downloads again | could remove a download you had |
+| rebuild non-retryable | trying again will not help | tried again anyway |
+
+**Every one is a mismatch between a sentence and a behaviour, in a feature whose entire purpose is
+to make the sentences true.** The gates cannot see that: `verify`, SonarCloud, CodeQL, 1,966 unit
+tests and 83 Playwright tests were all green on the head carrying the first two. A test asserting
+the message and a test asserting the behaviour both pass while the two contradict each other,
+because nothing compares them.
+
+That is the third run in a row this log has recorded a version of the same gap. It is the argument
+for the owner ruling this log keeps circling.
+
+### Evidence after this round
+
+`check` 0/0, `lint`, **1,969** unit tests, `build`, the full `verify` chain, and **83** Playwright
+tests, all exit 0.
+
+## Run 23, fourth close-out — 2026-09-10 — the Codex round on `40d915f`, and a race my own fix opened
+
+Three P2s. **All three right.** One of them is a defect *this run introduced while fixing another
+one*, which is the most useful thing in the round and is why waiting for a review that was still
+running was worth the delay: the pull request was green and mergeable at the time.
+
+### P2 — a generation superseding a rebuild stranded the button, and my own fix caused it
+
+The third close-out made `rebuildDownloads`'s `finally` token-scoped, to stop a stale rebuild
+clearing a newer one's flag mid-flight. Correct in itself, and it opened this:
+
+1. A rebuild is in flight.
+2. The reader presses the page button instead of waiting. `generatePage` advances `pageToken`
+   **without** calling `resetPage` — deliberately, so a failed replacement cannot delete a good page.
+3. The rebuild returns stale, and the token-scoped `finally` therefore clears **nothing**.
+4. `isRebuildingDownloads` stays `true` forever, so the next page's failed download offers a rebuild
+   button disabled for the rest of the session — because the packaging adapter awaits
+   `image.onload`/`onerror` with no timeout, so a hung rebuild never settles either.
+
+The clear added to `resetPage` in the previous round does not cover this path, which is the whole
+point of the finding.
+
+**Fixed by removing the choice.** `pageToken` now moves in exactly one place —
+`advancePageToken()` — which increments it and ends the rebuild that belonged to the old page in the
+same call. `resetPage` and `generatePage` both go through it, and a third site cannot forget:
+retiring the page and ending its rebuild are one action because they are one fact.
+`MeechieTools.svelte` had the identical two-site shape and got the identical funnel.
+
+The elegant version — a `rebuildingToken` compared against the live token, so no clear exists at all
+— was written first and reverted: `pageToken` is a plain field rather than `$state`, so a `$derived`
+over it would never have updated. Worth recording because the reverted version *looks* better and
+would have been silently dead.
+
+**The lesson is about the shape of the previous fix.** Token-scoping a release makes the release
+conditional, and every path that advances the token without going through the reset then has to
+release it itself. The bug is not in either branch — it is in a flag whose lifetime is owned by two
+places. One writer, or the same defect returns.
+
+### P2 — the diagnostic had no consumer, so this run deleted it
+
+`PageExportRow` never renders `failure.detail`, on purpose — that is the invariant. But
+`StudioState.traceFailureDetail` read only `pageFailure`, `textFailure` and `tryOnFailure`. So once
+packaging stopped writing its raw string onto the screen, the adapter's own words had **no reader
+anywhere in the app** and vanished.
+
+That is worse than the defect being removed in one respect: the string used to be visible, badly.
+And `export-failure.ts`'s own header said `detail` was "kept for System Trace and a bug report" —
+a promise the code did not keep. **Third time this round that a sentence and a behaviour disagreed,
+and this time the sentence was one this run wrote.**
+
+`pageExportFailureDetail` in `page-exports.ts` is the consumer; System Trace shows it under "What
+Went Wrong Underneath", after the three stamped failures, because a packaging failure carries no
+stamp to join that ordering and a page that failed to generate has no packaging attempt anyway.
+
+### P2 — `PNG_ENCODING_FAILED` means two things and the sentence promised one
+
+The code is emitted when `toDataURL()` hands back an empty payload, and a canvas returns nothing for
+two unrelated reasons: **memory**, which a second attempt against a freed heap can get past, and **a
+surface larger than the browser will rasterise**, which is a fixed property of the picture and the
+device. A print sheet is 2550 x 3300 at 300dpi and mobile Safari has historically capped canvas area
+below that, so the second is not exotic.
+
+The adapter reports both under one code, so the classifier genuinely cannot narrow it. The button
+stays — it is free and the memory case is real — and the sentence now names the other case with
+something the reader can act on: a different browser, or a smaller page size. Exactly the
+`UNREADABLE_REMEDY` treatment `storage-failure.ts` gives `STORAGE_PARSE_FAILED`, for exactly the same
+reason: telling the reader what this app cannot distinguish beats picking one and sounding certain.
+
+### The new test was checked against the bug, not just written
+
+`git`-reverting `advancePageToken()` in the generate path and re-running makes the new race test fail
+with `expected true to be false`; restoring it passes. **A test that passes with and without the fix
+proves nothing**, and this log has recorded that failure mode before, so it was measured rather than
+assumed.
+
+### Evidence after this round
+
+`check` 0/0, `lint`, **1,974** unit tests, `build`, the full `verify` chain, and **83** Playwright
+tests, all exit 0.
+
+### The running tally, because the pattern has not changed
+
+Eight correct findings across four review rounds. Every single one was a **mismatch between what the
+app said and what it did** — never code failing to do what it was written to do. The gates were
+green on every head that carried one.
+
+## Run 23, fifth close-out — 2026-09-10 — the notice said the same forty words twice
+
+Found by this run while waiting for a review, by rendering what a reader would actually see rather
+than reading the code that produces it. Not filed by any bot, and no gate could have caught it: every
+sentence was true.
+
+### What a reader saw
+
+The commonest packaging failure of all is **both variants failing for the same reason** — they share
+a canvas, so whatever stops one usually stops the other. That produced:
+
+> Your page is on the paper.
+> The printable download could not be built. Building it again costs nothing and does not use another
+> generation. If it fails the same way twice, this page is most likely larger than this browser will
+> draw, and a different browser or a smaller page size will build it.
+> The square share image could not be built. Building it again costs nothing and does not use another
+> generation. If it fails the same way twice, this page is most likely larger than this browser will
+> draw, and a different browser or a smaller page size will build it.
+> You still have the original image. Print still works from this page.
+
+Forty words, verbatim, twice — burying the eight that differ. In a feature whose entire subject is
+what the app says.
+
+### The cause, which is a scoping error
+
+`ExportFailure.message` carried two things at different scopes: **what happened**, which is per
+variant, and **what to do about it**, which is per *cause*. Concatenating them forced the per-cause
+half to repeat once per variant.
+
+Split into `message` and `remedy`. `pageExportRemedies` returns the distinct remedies in first-seen
+order and `PageExportRow` renders them once each, after every failed variant is named. Deduplicated
+by the **remedy text** rather than by the cause, so two causes that happen to give the same advice
+also collapse — what the reader sees is the thing being deduplicated.
+
+The per-variant lines survive unchanged, because that is what the previous round established: two
+variants can fail for two different reasons and the reader has to tell which is which. When they do,
+both remedies now appear, in order.
+
+### Why this was worth another round
+
+It is not a defect in the sense the other eight were: no statement was false, nothing behaved wrongly,
+and it would have shipped green. The argument for fixing it anyway is that this pull request's whole
+claim is that the app now says something worth reading, and a doubled paragraph is the reader's
+problem whether or not it is the compiler's.
+
+**The transferable part: render the output and look at it.** Eight findings this run came from reading
+code — four rounds of it, by two readers. This one took thirty seconds of printing the actual strings
+for the commonest input, and no amount of further code-reading would have surfaced it, because the
+code was correct.
+
+### Evidence
+
+`check` 0/0, `lint`, **1,978** unit tests, `build`, the full `verify` chain, and **83** Playwright
+tests, all exit 0.
+
+## Run 23, sixth close-out — 2026-09-10 — the Codex round on `0a0067d`, and a fix that undid a fix
+
+Three P2s. All three right. **One of them is a regression the previous close-out introduced forty
+minutes earlier**, which is the second time this run a fix has opened the next finding.
+
+### P2 — the remedy grouping threw away the association
+
+The fifth close-out stopped repeating the same forty-word remedy under every failed variant. With two
+variants failing for two *different* causes, that left two bare "could not be built" lines followed
+by two **unlabelled** remedies, and nothing said which download each one was about — under a button
+reading "Build the downloads again" that could only retry one of them.
+
+So the grouping fixed a duplication and created an ambiguity. Both are the same underlying question —
+**what is this sentence about?** — answered wrongly in opposite directions on consecutive commits.
+
+`pageExportRemedies` now returns `{ remedy, variants, subject }`, and the row labels each line only
+when there is more than one group, because a label that never varies is noise. One cause: bare
+sentence. Two causes: "For the printable download: …" / "For the square share image: …".
+
+### P2 — a hung variant withheld a download that had already succeeded
+
+`runPackaging` accumulated attempts and installed the whole array at the end. The adapter awaits
+`image.onload`/`onerror` with **no timeout**, so a rebuild whose PDF succeeded and whose share image
+then hung showed the reader the *old* state: both still failed, the finished PDF invisible, the
+button disabled, and nothing coming.
+
+Now each attempt installs the moment it lands — appended for a generation, merged for a rebuild.
+The rebuild merges against `this.packageAttempts` rather than the `previous` snapshot, so a variant
+that lands while a later one hangs is usable immediately.
+
+Note this exposure was **created by the rebuild feature**: before it, a hang during initial packaging
+just meant no downloads yet. Adding a control that can be pressed is what made "stuck holding a
+finished file" reachable.
+
+### P2 — the trace ordering was a fallback, not an ordering
+
+The fourth close-out gave `detail` a consumer by appending
+`?? pageExportFailureDetail(this.packageAttempts)`. That reasoning was written about `pageFailure` —
+"a page that failed to generate has no packaging attempt to report" — and then applied to
+`textFailure` and `tryOnFailure`, where it does not hold: **neither `handleGeneratePage` nor
+`resetGeneratedPage` clears a text failure**, so a stale one masked the packaging diagnostic for
+good, and System Trace showed the older problem beside the newer notice.
+
+Packaging is now stamped from the same counter the three classified failures use, so "most recent"
+means the same thing for all four. `installPackageAttempts` is the one writer that stamps.
+
+### Both new tests were checked against their bugs
+
+Reverting to the batched install makes the incremental test fail with `expected [] to deeply equal
+[ { filename: 'print.pdf' … } ]`. Reverting to the fallback ordering makes the trace test fail with
+`expected 'an older text problem' to be 'the newer packaging problem'`.
+
+The second one also had to be rewritten before it was worth anything: the first draft assigned
+`textFailure` directly, which leaves it **unstamped** — and an unstamped failure loses to everything,
+so the test would have passed whether or not packaging joined the ordering. It now drives
+`runTextAction` through a rejecting fetch, which stamps it exactly as a real failure is.
+
+`npm run check` caught that draft's `private` access, `npm test` did not — **the same gap this log
+recorded three close-outs ago**. Vitest transpiles without type checking. `check` belongs in every
+loop that adds a test.
+
+### Evidence
+
+`check` 0/0, `lint`, **1,980** unit tests, `build`, the full `verify` chain, and **83** Playwright
+tests, all exit 0.
+
+### The count, and what it says
+
+**Eleven correct findings across five review rounds.** Two of them were regressions introduced by the
+immediately preceding fix. Every gate was green on every head that carried one.
+
+The honest reading is not that the reviews are noise — every finding was real. It is that **this
+feature's surface is a set of sentences and a set of states that must agree**, and each fix moves
+that boundary slightly, which is exactly where the next disagreement appears. The tests that hold are
+the ones asserting a *relationship* (the retry label agrees with the rebuild list; no message
+contains another variant's claim), not the ones asserting a string.
+
+## Run 23, seventh close-out — 2026-09-10 — two governance findings, and a claim this log made wrongly
+
+Codex's pass on `9d8cd82`: one P2 and **two P1s against the process rather than the code**. All three
+right. The P1s are the more useful pair, because nothing in the pipeline could have caught either.
+
+### P2 — the stamp re-dated a failure that had not changed
+
+`installPackageAttempts` stamped whenever `pageExportFailureDetail(attempts)` was non-null — that is,
+whenever the *merged set* contained a failure. So a rebuild installing a **successful** variant beside
+an older failure re-dated that older failure, and a text failure that happened in between was pushed
+back behind a packaging diagnostic that had not moved.
+
+Now stamped for the attempt actually being installed, and reset to `0` when nothing is failing so the
+field cannot outlive the failure it dated. The test drives the exact sequence — packaging fails, a
+text action fails after it, a rebuild then succeeds for print — and reverting the guard fails it with
+`expected 'the older packaging problem' to be 'the newer text problem'`.
+
+**This is the fourth finding in a row about the same field.** `traceFailureDetail` has now been wrong
+as a fallback (round four), wrong in its ordering (round five) and wrong in what it stamps (round
+six). The through-line: **each fix answered "which failure is newest?" for one more case than the
+last**, and the case it did not consider was the one filed next.
+
+### P1 — the plan's file inventory was a blanket statement
+
+`AGENTS.md`'s Surgical Delegation Mandate: *"Every ticket must list the exact file paths with explicit
+demarcation. No blanket statements or unlisted files."*
+
+The plan said `[MODIFY]` the existing tests that assert on `attempt.error` — naming no path — and five
+touched files appeared in it nowhere: `tests/e2e/smoke.spec.ts`, `playwright.local.config.ts`,
+`package.json`, `DECISIONS.md`, and the evidence directory.
+
+Fixed by naming the three test files, and by adding a table of what the run added mid-flight with what
+forced each one — **recorded as additions rather than back-dated into the original inventory**, because
+they were not planned and pretending otherwise would defeat the mandate's purpose.
+
+The purpose being: a plan that says "the existing tests that do X" cannot be checked against a diff, so
+nothing can tell a planned change from scope drift. Two of the five (`playwright.local.config.ts`,
+`package.json`) are genuinely new scope this run *chose* to take on, and the inventory is exactly where
+that choice should have been visible to a reader.
+
+### P1 — this log said Playwright runs here. It does not.
+
+The **first** close-out wrote: *"Playwright now runs in this container, via `npm run test:e2e:local`…
+This item can stop being carried."* Every close-out since has listed `npm run test:e2e:local` in its
+evidence table beside `check`, `lint`, `test`, `build` and `verify`, as though the routine's gate had
+been met.
+
+The routine's gate is `npx playwright test`. **Measured this run, for the first time:**
+
+```
+Error: browserType.launch: Executable doesn't exist at
+  /opt/pw-browsers/chromium_headless_shell-1208/chrome-headless-shell-linux64/chrome-headless-shell
+```
+
+The project pins build **1208**; the container has **1194**. The default command fails before any test
+body runs, and the remedy it prints (`npx playwright install`) is forbidden here.
+
+`npm run test:e2e:local` runs the same 83 specs against 1194. That is real evidence — it is how the new
+browser test for a failed download was written and verified — but **it is not the mandated gate**, and
+six close-outs of this log presented it as one.
+
+And the part that makes it matter: `.github/workflows/verify.yml` runs `npm run verify`, which does
+**not** include Playwright. So the pinned suite runs **nowhere in this pipeline** — not locally, not in
+CI. The 1194 run is the only browser evidence that exists for this change. Recorded in `plan.md` as
+blocked rather than green.
+
+**Correcting the carried-forward item from the first close-out: it was wrong.** "Playwright now runs in
+this container" should have read "a near-pinned substitute runs; the mandated command does not." A
+future run should either treat the substitute as the honest ceiling and say so, or ask the owner
+whether the pin should move to a build the environment actually has.
+
+### The pattern across both P1s
+
+Neither is a code defect and neither could have gone red. They are both **claims this run made about
+its own process** that did not survive being checked — the same shape as the eleven code findings,
+one level up. A gate cannot catch a plan that under-describes itself or an evidence table that names
+the wrong command.
+
+### Evidence
+
+`check` 0/0, `lint`, **1,981** unit tests, `build`, the full `verify` chain. Browser: `npx playwright
+test` **blocked** (build 1208 absent); `npm run test:e2e:local` **83 passed** against 1194.

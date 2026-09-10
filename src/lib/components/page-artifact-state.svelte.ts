@@ -26,7 +26,6 @@
 //     itself after that puts page A underneath source B on screen — which the reader then
 //     downloads, or saves to the vault, believing it is the page for what they are reading.
 import { creationStoreAdapter } from '$lib/adapters/creation-store-seam';
-import { outputPackagingAdapter } from '$lib/adapters/output-packaging-seam';
 import { sessionAdapter } from '$lib/adapters/session-seam';
 import { clockSeam } from '$lib/adapters/clock-seam';
 import type { ClockSeam } from '$lib/seams/clock-seam/contract';
@@ -41,9 +40,11 @@ import { buildQualityReport } from '$lib/core/quality-report';
 import {
 	describeOriginalImageExport,
 	describePackagedExports,
-	summarisePageExportFailures
+	rebuildableExportVariants,
+	mergeRebuiltAttempts
 } from '$lib/core/page-exports';
 import type { PageExport, PageExportAttempt } from '$lib/core/page-exports';
+import { packagePageVariant } from './page-packaging';
 import {
 	classifyGenerationFailure,
 	PAGE_SUBJECT,
@@ -58,7 +59,10 @@ import { newCreationId } from '$lib/components/creation-id';
 import type { CreationOwner } from '$lib/seams/creation-store-seam/contract';
 import type { MeechieStudioTextOutput } from '../../../contracts/meechie-studio-text.contract';
 import type { GeneratedImage } from '../../../contracts/image-generation.contract';
-import type { PackagedFile } from '$lib/seams/output-packaging-seam/contract';
+import type {
+	OutputVariant,
+	PackagedFile
+} from '$lib/seams/output-packaging-seam/contract';
 
 /**
  * Whether the browser can actually decode this preview.
@@ -71,6 +75,16 @@ import type { PackagedFile } from '$lib/seams/output-packaging-seam/contract';
  * Shared in shape with `MeechieTools.svelte`, deliberately: the two flows should reject the same
  * bytes for the same reason.
  */
+/**
+ * The variants every surface built on this class packages, in the order they are built.
+ *
+ * Print first and deliberately: it is the product, and the square rasterisation is the step most
+ * likely to fail on a memory-tight device. `STUDIO_EXPORT_VARIANTS` in `studio-state.svelte.ts` is
+ * the home studio's identical list; the two are separate because the two classes are, and both are
+ * asserted against each other in `tests/unit/page-exports.test.ts`.
+ */
+const PAGE_EXPORT_VARIANTS = ['print', 'square'] as const;
+
 const canDecodeImage = async (url: string | null): Promise<boolean> => {
 	if (url === null) return false;
 	if (typeof Image === 'undefined') return true;
@@ -111,46 +125,6 @@ const decodableImages = async (
 	return decoded
 		.filter((entry) => entry.usable)
 		.map(({ image, preview }) => ({ image, preview }));
-};
-
-/** What one packaging variant produced, or why it produced nothing. */
-type PackagedVariant = { files: PackagedFile[]; error: string | null };
-
-/**
- * Package one variant, turning every failure shape into a value.
- *
- * The adapter does not wrap every failure in a `Result`: `package()` has no try/catch, and
- * pdf-lib's `embedPng`/`embedJpg`/`save` and the canvas in `imageToPngBase64` all throw. A
- * rejection used to escape to the caller's outer catch and discard the print PDF that had already
- * been built — so splitting print and square into two calls bought nothing against the failure
- * shape most likely to occur.
- */
-const packageOneVariant = async (
-	variant: 'print' | 'square',
-	images: GeneratedImage[],
-	fileBaseName: string,
-	pageSize: ToolPageRecipe['spec']['pageSize']
-): Promise<PackagedVariant> => {
-	try {
-		const result = await outputPackagingAdapter.package({
-			images,
-			outputFormat: 'pdf',
-			fileBaseName,
-			pageSize,
-			variants: [variant]
-		});
-		return result.ok
-			? { files: result.value.files, error: null }
-			: { files: [], error: result.error.message };
-	} catch (packagingError) {
-		return {
-			files: [],
-			error:
-				packagingError instanceof Error
-					? packagingError.message
-					: 'Packaging failed.'
-		};
-	}
 };
 
 /**
@@ -249,14 +223,15 @@ export class PageArtifactState {
 		return original ? [...packaged, original] : packaged;
 	});
 	/**
-	 * What could not be packaged, phrased so it can never be read as "the generation failed".
+	 * True while a rebuild is running for the page on screen.
 	 *
-	 * A separate field from `generateError`, which is where both used to be written — so a page that
-	 * generated perfectly and then failed to become a square PNG showed the same crimson box, in the
-	 * same place, as a page that never generated at all, directly above the button that buys another
-	 * generation.
+	 * Its own state rather than `isGenerating`: a rebuild buys no generation, and reusing that flag
+	 * would disable every paid button on the surface and put the page into the state a reader reads
+	 * as "it is making my page again".
+	 *
+	 * Cleared by `advancePageToken`, never by hand — see that method for why.
 	 */
-	exportError = $derived(summarisePageExportFailures(this.packageAttempts));
+	isRebuildingDownloads = $state(false);
 	assembledPrompt = $state('');
 	revisedPrompt = $state('');
 	/**
@@ -341,6 +316,23 @@ export class PageArtifactState {
 	 */
 	protected lastAttemptedSource: PageSource | null = null;
 	protected pageToken = 0;
+	/**
+	 * Retire the page the current token names, and with it any rebuild that belonged to it.
+	 *
+	 * The one place `pageToken` moves, and that is the point. `isRebuildingDownloads` was cleared by
+	 * hand instead, and **every site that forgot left the rebuild button disabled for the rest of the
+	 * session** — because the packaging adapter awaits `image.onload`/`onerror` with no timeout, so a
+	 * rebuild that hangs never settles and its `finally` never runs. Review found two such sites one
+	 * after the other: `resetPage`, and then `generatePage`, which advances the token WITHOUT
+	 * resetting because it deliberately keeps the current page while its replacement loads.
+	 *
+	 * Both are now the same call, and a third site cannot forget: retiring the page and ending its
+	 * rebuild are one action because they are one fact.
+	 */
+	protected advancePageToken(): void {
+		this.pageToken += 1;
+		this.isRebuildingDownloads = false;
+	}
 	/**
 	 * The clock behind a saved page's `createdAtISO`. Injectable for the same reason `StudioState`
 	 * injects one: a test should be able to state the instant rather than observe it.
@@ -512,7 +504,7 @@ export class PageArtifactState {
 	 * to. Without this, resetting mid-generation left the button disabled until a reload.
 	 */
 	resetPage(): void {
-		this.pageToken += 1;
+		this.advancePageToken();
 		this.isGenerating = false;
 		this.failure = null;
 		this.imagePreviews = [];
@@ -553,7 +545,7 @@ export class PageArtifactState {
 		// has actually arrived it is the best thing this class has. Calling `resetPage()` here meant
 		// a timeout, a provider error, an off-contract response or an undecodable image deleted a
 		// good page and left the reader with nothing.
-		this.pageToken += 1;
+		this.advancePageToken();
 		this.failure = null;
 		this.vaultStatus = '';
 		this.clearSourceStatus();
@@ -704,40 +696,118 @@ export class PageArtifactState {
 		pageSize: ToolPageRecipe['spec']['pageSize'],
 		token: number
 	): Promise<void> {
-		const isStale = (): boolean => token !== this.pageToken;
 		const fileBaseName = `meechie-${this.fileBaseSlug}-${Date.now()}`;
 		// Set before packaging, not after: the provider's own image is already downloadable, and
 		// naming it only once the PDF exists would hand anyone who grabbed it early a file named
 		// after no page in particular. Cleared by `resetPage` on its way past, so a late attempt for
 		// a replaced page cannot revive it.
 		this.pageFileBaseName = fileBaseName;
-		const print = await packageOneVariant(
-			'print',
-			images,
-			fileBaseName,
-			pageSize
-		);
-		// Checked here, not only after both: the square variant rasterises a 1080px canvas, and
-		// starting that for a page the user has already replaced burns time and memory on a result
-		// that is guaranteed to be discarded.
-		if (isStale()) return;
-		const share = await packageOneVariant(
-			'square',
-			images,
-			fileBaseName,
-			pageSize
-		);
-		if (isStale()) return;
-
 		// Recorded as attempts, and *not* into `generateError`. Both used to go there: a page that
 		// generated perfectly and then failed to become a square PNG rendered in the same crimson
 		// box, in the same place, as a page that never generated — directly above the button that
-		// buys another generation, for a failure in a free local render. `exportError` is derived
-		// from these and worded so it cannot be read that way, exactly as the home studio's is.
-		this.packageAttempts = [
-			{ variant: 'print', files: print.files, error: print.error, pageSize },
-			{ variant: 'square', files: share.files, error: share.error, pageSize }
-		];
+		// buys another generation, for a failure in a free local render.
+		await this.runPackaging(
+			PAGE_EXPORT_VARIANTS,
+			images,
+			fileBaseName,
+			pageSize,
+			token,
+			(attempt) => {
+				this.packageAttempts = [...this.packageAttempts, attempt];
+			}
+		);
+	}
+
+	/**
+	 * Package the given variants, in order, installing each one **the moment it lands**.
+	 *
+	 * Installing per attempt rather than returning the finished array is the difference between a
+	 * download the reader can use and one they cannot. The packaging adapter awaits
+	 * `image.onload`/`onerror` with no timeout, so a variant can hang forever — and with the whole
+	 * batch withheld until the last call returns, a rebuild whose PDF succeeded and whose share image
+	 * then hung showed the reader the **old** state: both still failed, the finished PDF invisible,
+	 * and the rebuild button disabled with nothing coming.
+	 *
+	 * `install` differs by caller because the two installs differ: a generation appends to a row it
+	 * has just emptied, a rebuild merges a subset into the row on screen.
+	 *
+	 * One seam call per variant, never `variants: ['print', 'square']`: the adapter returns on its
+	 * first error WITHOUT its accumulated files, so asking for both together loses the printable PDF
+	 * whenever the square rasterisation is the thing that breaks. The PDF is the product.
+	 */
+	private async runPackaging(
+		variants: readonly OutputVariant[],
+		images: readonly GeneratedImage[],
+		fileBaseName: string,
+		pageSize: ToolPageRecipe['spec']['pageSize'],
+		token: number,
+		install: (attempt: PageExportAttempt) => void
+	): Promise<void> {
+		for (const variant of variants) {
+			const attempt = await packagePageVariant(
+				variant,
+				images,
+				fileBaseName,
+				pageSize
+			);
+			// Checked between variants, not only at the end: the square variant rasterises a 1080px
+			// canvas, and starting that for a page the reader has already replaced burns time and
+			// memory on a result that is guaranteed to be discarded.
+			if (token !== this.pageToken) return;
+			install(attempt);
+		}
+	}
+
+	/**
+	 * Build the downloads again for the page already on screen.
+	 *
+	 * The remedy this surface never had. Packaging is the only failing step in the app that spends
+	 * nothing: the picture is already in memory and already paid for, and the whole step is a canvas
+	 * and a PDF on this device. Before this the only control anywhere near a failed download was the
+	 * one that buys another generation — which re-rolls the picture the reader liked, to fix a free
+	 * local render.
+	 *
+	 * Asks for **only the variants that failed**, and merges them back. Re-running one that
+	 * succeeded could take a download the reader already has: the commonest failure here is memory,
+	 * and its commonest shape is "the PDF built, the share canvas did not" — so re-running the PDF
+	 * under that same pressure is how the one control offered against a partial failure would make
+	 * it total.
+	 *
+	 * Re-uses `pageFileBaseName` rather than stamping a new one, so a reader who already grabbed the
+	 * original image gets rebuilt files that match it. `pageSize` comes off the attempt being
+	 * rebuilt, never from the live controls: those stay enabled, and re-reading them would package
+	 * the second attempt for different paper than the picture and the saved record.
+	 */
+	async rebuildDownloads(): Promise<void> {
+		if (this.isGenerating || this.isRebuildingDownloads) return;
+		const images = this.generatedImages;
+		const previous = this.packageAttempts;
+		const variants = rebuildableExportVariants(previous);
+		const pageSize = previous[0]?.pageSize;
+		if (variants.length === 0) return;
+		if (images.length === 0 || !pageSize || this.pageFileBaseName === '') return;
+		const token = this.pageToken;
+		this.isRebuildingDownloads = true;
+		try {
+			// Merged one at a time, against whatever the row currently holds rather than against the
+			// `previous` snapshot, so a variant that lands while a later one hangs is usable now.
+			await this.runPackaging(
+				variants,
+				images,
+				this.pageFileBaseName,
+				pageSize,
+				token,
+				(attempt) => {
+					this.packageAttempts = mergeRebuiltAttempts(this.packageAttempts, [attempt]);
+				}
+			);
+		} finally {
+			// Only if this call still owns the page. A stale rebuild has already been cleared by
+			// `advancePageToken`, and a NEW rebuild may be running on the new page by now — clearing
+			// that one would re-enable its button mid-flight and let a second press race it for
+			// `packageAttempts`.
+			if (token === this.pageToken) this.isRebuildingDownloads = false;
+		}
 	}
 
 	/** Keep the page: write it into the same owner-scoped vault every other surface saves to. */
