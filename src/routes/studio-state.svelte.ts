@@ -2331,7 +2331,8 @@ export class StudioState {
 			fileBaseName,
 			pageSize,
 			pageToken,
-			(attempt) => this.installPackageAttempts([...this.packageAttempts, attempt])
+			(attempt) =>
+				this.installPackageAttempts([...this.packageAttempts, attempt], attempt)
 		);
 	}
 
@@ -2369,9 +2370,22 @@ export class StudioState {
 	 * packaging diagnostic for good, and System Trace showed the older problem beside the newer
 	 * notice.
 	 */
-	private installPackageAttempts(attempts: PageExportAttempt[]): void {
+	private installPackageAttempts(
+		attempts: PageExportAttempt[],
+		installed: PageExportAttempt
+	): void {
 		this.packageAttempts = attempts;
-		if (pageExportFailureDetail(attempts) === null) return;
+		// Nothing failing means nothing to order. Resetting rather than leaving the old stamp keeps
+		// the field from outliving the failure it dated.
+		if (pageExportFailureDetail(attempts) === null) {
+			this.packagingFailureStamp = 0;
+			return;
+		}
+		// Stamped for the attempt just installed, never for whatever the merged set happens to
+		// contain. Reading the whole set re-dated an OLD failure every time a rebuild installed a
+		// SUCCESSFUL variant beside it — so a text failure that happened in between was pushed back
+		// behind a packaging diagnostic that had not changed since before it.
+		if (installed.failure === null) return;
 		this.failureStamp += 1;
 		this.packagingFailureStamp = this.failureStamp;
 	}
@@ -2416,7 +2430,8 @@ export class StudioState {
 				token,
 				(attempt) =>
 					this.installPackageAttempts(
-						mergeRebuiltAttempts(this.packageAttempts, [attempt])
+						mergeRebuiltAttempts(this.packageAttempts, [attempt]),
+						attempt
 					)
 			);
 		} finally {

@@ -15611,9 +15611,10 @@ Re-measure everything below; do not inherit it.
   close-out established this against three earlier entries that each named a flat date. Do not name
   a date. A small pull request may get a real review while a large one from the same account cannot.
 - **SonarCloud still cannot be read from this container** (`sonarcloud.io`, CONNECT tunnel 403).
-- **Playwright now runs in this container**, via `npm run test:e2e:local` with
-  `PLAYWRIGHT_CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome`. This item can stop
-  being carried.
+- **Playwright runs in this container only as a substitute** — `npm run test:e2e:local` with
+  `PLAYWRIGHT_CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome`, which is build 1194
+  against a pin of 1208. **The mandated `npx playwright test` still fails here and this item cannot
+  stop being carried.** See the seventh close-out: this sentence was wrong when written.
 - **Governance, met this run:** the plan was written into `plan.md` before any code.
 
 ## Run 23, first close-out — 2026-09-10 — the rebuild could take away a download the reader already had
@@ -16043,3 +16044,86 @@ feature's surface is a set of sentences and a set of states that must agree**, a
 that boundary slightly, which is exactly where the next disagreement appears. The tests that hold are
 the ones asserting a *relationship* (the retry label agrees with the rebuild list; no message
 contains another variant's claim), not the ones asserting a string.
+
+## Run 23, seventh close-out — 2026-09-10 — two governance findings, and a claim this log made wrongly
+
+Codex's pass on `9d8cd82`: one P2 and **two P1s against the process rather than the code**. All three
+right. The P1s are the more useful pair, because nothing in the pipeline could have caught either.
+
+### P2 — the stamp re-dated a failure that had not changed
+
+`installPackageAttempts` stamped whenever `pageExportFailureDetail(attempts)` was non-null — that is,
+whenever the *merged set* contained a failure. So a rebuild installing a **successful** variant beside
+an older failure re-dated that older failure, and a text failure that happened in between was pushed
+back behind a packaging diagnostic that had not moved.
+
+Now stamped for the attempt actually being installed, and reset to `0` when nothing is failing so the
+field cannot outlive the failure it dated. The test drives the exact sequence — packaging fails, a
+text action fails after it, a rebuild then succeeds for print — and reverting the guard fails it with
+`expected 'the older packaging problem' to be 'the newer text problem'`.
+
+**This is the fourth finding in a row about the same field.** `traceFailureDetail` has now been wrong
+as a fallback (round four), wrong in its ordering (round five) and wrong in what it stamps (round
+six). The through-line: **each fix answered "which failure is newest?" for one more case than the
+last**, and the case it did not consider was the one filed next.
+
+### P1 — the plan's file inventory was a blanket statement
+
+`AGENTS.md`'s Surgical Delegation Mandate: *"Every ticket must list the exact file paths with explicit
+demarcation. No blanket statements or unlisted files."*
+
+The plan said `[MODIFY]` the existing tests that assert on `attempt.error` — naming no path — and five
+touched files appeared in it nowhere: `tests/e2e/smoke.spec.ts`, `playwright.local.config.ts`,
+`package.json`, `DECISIONS.md`, and the evidence directory.
+
+Fixed by naming the three test files, and by adding a table of what the run added mid-flight with what
+forced each one — **recorded as additions rather than back-dated into the original inventory**, because
+they were not planned and pretending otherwise would defeat the mandate's purpose.
+
+The purpose being: a plan that says "the existing tests that do X" cannot be checked against a diff, so
+nothing can tell a planned change from scope drift. Two of the five (`playwright.local.config.ts`,
+`package.json`) are genuinely new scope this run *chose* to take on, and the inventory is exactly where
+that choice should have been visible to a reader.
+
+### P1 — this log said Playwright runs here. It does not.
+
+The **first** close-out wrote: *"Playwright now runs in this container, via `npm run test:e2e:local`…
+This item can stop being carried."* Every close-out since has listed `npm run test:e2e:local` in its
+evidence table beside `check`, `lint`, `test`, `build` and `verify`, as though the routine's gate had
+been met.
+
+The routine's gate is `npx playwright test`. **Measured this run, for the first time:**
+
+```
+Error: browserType.launch: Executable doesn't exist at
+  /opt/pw-browsers/chromium_headless_shell-1208/chrome-headless-shell-linux64/chrome-headless-shell
+```
+
+The project pins build **1208**; the container has **1194**. The default command fails before any test
+body runs, and the remedy it prints (`npx playwright install`) is forbidden here.
+
+`npm run test:e2e:local` runs the same 83 specs against 1194. That is real evidence — it is how the new
+browser test for a failed download was written and verified — but **it is not the mandated gate**, and
+six close-outs of this log presented it as one.
+
+And the part that makes it matter: `.github/workflows/verify.yml` runs `npm run verify`, which does
+**not** include Playwright. So the pinned suite runs **nowhere in this pipeline** — not locally, not in
+CI. The 1194 run is the only browser evidence that exists for this change. Recorded in `plan.md` as
+blocked rather than green.
+
+**Correcting the carried-forward item from the first close-out: it was wrong.** "Playwright now runs in
+this container" should have read "a near-pinned substitute runs; the mandated command does not." A
+future run should either treat the substitute as the honest ceiling and say so, or ask the owner
+whether the pin should move to a build the environment actually has.
+
+### The pattern across both P1s
+
+Neither is a code defect and neither could have gone red. They are both **claims this run made about
+its own process** that did not survive being checked — the same shape as the eleven code findings,
+one level up. A gate cannot catch a plan that under-describes itself or an evidence table that names
+the wrong command.
+
+### Evidence
+
+`check` 0/0, `lint`, **1,981** unit tests, `build`, the full `verify` chain. Browser: `npx playwright
+test` **blocked** (build 1208 absent); `npm run test:e2e:local` **83 passed** against 1194.

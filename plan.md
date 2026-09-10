@@ -91,8 +91,30 @@ Seam-Driven Development workflow applies and this plan is re-written first.
   shared one, add its rebuild.
 - `[MODIFY]` the four `PageExportRow` hosts: `VerdictPageStudio.svelte`,
   `DescribePageStudio.svelte`, `studio/StudioPreviewPanel.svelte`, `MeechieTools.svelte`.
-- `[MODIFY]` the existing tests that assert on `attempt.error`.
+- `[MODIFY] tests/unit/studio-state.test.ts`, `tests/unit/verdict-page-state.test.ts`,
+  `tests/unit/describe-page-state.test.ts` — the three suites asserting on `attempt.error`.
 - `[MODIFY] CHANGELOG.md`, `LESSONS_LEARNED.md`, `WORST_TO_BEST_LOG.md`.
+
+### Files added to this plan during the run, and why
+
+`AGENTS.md`'s Surgical Delegation Mandate bans blanket statements and unlisted files, and the list
+above had one of each — "the existing tests that assert on `attempt.error`" named no path, and five
+touched files appeared nowhere. Recorded here rather than back-dated into the inventory above,
+because they were **not** planned: this is the honest record of what the run added and what forced
+it. Raised by review on PR #347.
+
+| Path | Action | What forced it |
+|---|---|---|
+| `tests/e2e/smoke.spec.ts` | `[MODIFY]` | The routine requires Playwright for a user-facing change, and there was no browser test for a failed download. |
+| `playwright.local.config.ts` | `[NEW]` | The pinned browser build is absent here; two prior runs rebuilt this override by hand and discarded it. |
+| `package.json` | `[MODIFY]` | The `test:e2e:local` script that runs the config above. |
+| `DECISIONS.md` | `[MODIFY]` | A review finding argued this needed the full seam workflow. Declining it is a tradeoff, and `AGENTS.md` requires tradeoffs to be recorded. |
+| `docs/evidence/2026-09-10/**` | `[NEW]` | Written by `npm run verify`, which the routine requires. Not hand-edited. |
+
+**The lesson, which is the point of the mandate:** a plan that says "the existing tests that do X"
+cannot be checked against a diff, so nothing can tell a planned change from scope drift. Two of the
+five above — `playwright.local.config.ts` and `package.json` — are genuinely new scope this run chose
+to take on, and the inventory is where that choice should have been visible.
 
 ### Anti-goals (do not touch)
 
@@ -123,7 +145,27 @@ Seam-Driven Development workflow applies and this plan is re-written first.
 
 ```sh
 npm run check && npm run lint && npm test && npm run build && npm run verify
+npx playwright test        # the routine's mandated gate for a user-facing change
 ```
+
+**`npx playwright test` is BLOCKED in this container, and this plan does not get to call it green.**
+The project pins Playwright build 1208 and `/opt/pw-browsers` holds 1194, so the default command
+fails before any test body runs:
+
+```
+Error: browserType.launch: Executable doesn't exist at
+  /opt/pw-browsers/chromium_headless_shell-1208/chrome-headless-shell-linux64/chrome-headless-shell
+```
+
+The remedy it prints — `npx playwright install` — is forbidden by the environment.
+
+What ran instead is `npm run test:e2e:local`: **the same 83 specs against Chromium 1194 rather than
+1208.** That is real evidence and it is not the mandated gate, and this run described it as
+satisfying that gate before review pointed out the difference. Recorded as blocked, not green.
+
+Worth stating plainly: `.github/workflows/verify.yml` runs `npm run verify`, which does **not**
+include Playwright, so the pinned suite runs nowhere in this pipeline — not here and not in CI. The
+1194 run is the only browser evidence that exists for this change.
 
 ## Run 22 (2026-09-09) — Worst-feature routine: what the app says when *storage* fails
 

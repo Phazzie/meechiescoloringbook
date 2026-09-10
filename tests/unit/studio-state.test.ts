@@ -662,6 +662,48 @@ describe('StudioState', () => {
 		expect(studio.traceFailureDetail).toBe('the newer packaging problem');
 	});
 
+	it('does not re-date an old packaging failure when a rebuild succeeds beside it', async () => {
+		// Stamping on "the merged set contains a failure" rather than "this attempt failed" re-dated
+		// the older failure every time a rebuild installed a successful variant next to it — pushing
+		// a text failure that happened in between back behind a diagnostic that had not changed.
+		const studio = new StudioState();
+		vi.spyOn(outputPackagingAdapter, 'package').mockImplementation(async (input) =>
+			input.variants?.includes('square')
+				? { ok: false, error: { code: 'CANVAS_UNAVAILABLE', message: 'the older packaging problem' } }
+				: { ok: false, error: { code: 'PNG_ENCODING_FAILED', message: 'the older packaging problem' } }
+		);
+		await studio.loadCreation({
+			id: 'creation-stamp-order',
+			createdAtISO: '2026-09-03T00:00:00.000Z',
+			intent: buildSeedSpec(DEFAULT_STUDIO_TEXT_OUTPUT),
+			assembledPrompt: 'the saved prompt',
+			images: [{ b64: ONE_PIXEL_PNG_BASE64 }],
+			owner: { kind: 'anonymous', sessionId: 'session-1' }
+		});
+		expect(studio.traceFailureDetail).toBe('the older packaging problem');
+
+		// A text action fails AFTER the packaging failure, so it is the newest thing that happened.
+		studio.evidence = 'He said the traffic was bad again.';
+		vi.stubGlobal(
+			'fetch',
+			vi.fn().mockRejectedValue(new Error('the newer text problem'))
+		);
+		await studio.runTextAction('generate_text');
+		expect(studio.traceFailureDetail).toBe('the newer text problem');
+
+		// Now the rebuild succeeds for print. The square's older failure is still live, but nothing
+		// about it just happened, so it must not jump back in front of the text failure.
+		vi.spyOn(outputPackagingAdapter, 'package').mockImplementation(async (input) =>
+			input.variants?.includes('square')
+				? { ok: false, error: { code: 'CANVAS_UNAVAILABLE', message: 'the older packaging problem' } }
+				: { ok: true, value: { files: [{ filename: 'p.pdf', mimeType: 'application/pdf', dataBase64: 'cGRm' }] } }
+		);
+		await studio.rebuildPageExports();
+
+		expect(studio.packagedFiles).toHaveLength(1);
+		expect(studio.traceFailureDetail).toBe('the newer text problem');
+	});
+
 	it('feeds a packaging diagnostic to System Trace, where it is the only consumer', () => {
 		// `PageExportRow` never renders `failure.detail`, on purpose. So once packaging stopped
 		// writing its raw string onto the screen, the diagnostic had no consumer anywhere and
