@@ -411,7 +411,14 @@ export const LETTER_SHAPE_LABELS: Record<FontStyle, string> = {
  */
 export const LETTER_SHAPE_HELP: Record<FontStyle, string> = {
 	rounded: 'Inflated bubble letters with soft curves. Big open middles to colour in.',
-	block: 'Straight-sided capitals, squared off. The plainest shapes and the easiest to read.',
+	/*
+	 * "letters", never "capitals". Caught in review of PR #354, one layer above the identical fix to
+	 * `fontStyleLine`: the prompt stopped asking for capitals, and this help line went on promising
+	 * them. Nothing uppercases a tool or mode page's title — `compactColoringPageTitle` preserves the
+	 * provider's own casing — and Block is the default on exactly those thirteen surfaces, so the
+	 * reader would have been told they were choosing capitals and handed title case.
+	 */
+	block: 'Straight-sided letters, squared off. The plainest shapes and the easiest to read.',
 	hand: 'Casual handwriting, uneven on purpose. Reads like a note rather than a printed page.'
 };
 

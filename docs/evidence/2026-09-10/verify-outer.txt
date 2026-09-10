@@ -1,5 +1,5 @@
 $ npm run verify
-# started 2026-09-10T19:12:39.472Z
+# started 2026-09-10T19:26:40.343Z
 
 $ npm run audit:gate
 
@@ -44,8 +44,8 @@ svelte-check found 0 errors and 0 warnings
 
 [2m Test Files [22m [1m[32m112 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (113)[39m
 [2m      Tests [22m [1m[32m2049 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (2050)[39m
-[2m   Start at [22m 19:12:52
-[2m   Duration [22m 94.62s[2m (transform 3.67s, setup 920ms, import 7.45s, tests 8.61s, environment 60.57s)[22m
+[2m   Start at [22m 19:26:53
+[2m   Duration [22m 95.07s[2m (transform 3.77s, setup 917ms, import 7.69s, tests 8.72s, environment 60.50s)[22m
 
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
@@ -85,4 +85,4 @@ $ /opt/node22/bin/node scripts/clan-chain.mjs
 $ /opt/node22/bin/node scripts/proof-tape.mjs
 
 # npm run verify exited 0
-# finished 2026-09-10T19:14:27.384Z
+# finished 2026-09-10T19:28:29.189Z

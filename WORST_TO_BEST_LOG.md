@@ -17795,3 +17795,57 @@ Carried forward as a panel-wide item rather than fixed for one field on a run ab
 
 One defect found by a reviewer that was this run's own, in the very line the run is about. Zero found
 before the reviewer saw it.
+
+
+## Run 26, second close-out — 2026-09-10 — the same promise, one layer up
+
+Codex re-reviewed `6a34ef3` and found the *other half* of the finding it had just made. One P2, correct,
+fixed.
+
+**The prompt stopped asking for capitals. The control went on promising them.**
+
+```
+LETTER_SHAPE_HELP.block = 'Straight-sided capitals, squared off. …'
+```
+
+That is the reader-facing help under the Letter shape control, and it survived the first fix
+untouched because I was looking at the prompt.
+
+Its supporting measurement is the part worth keeping. Nothing uppercases a tool or mode page's
+title — `compactColoringPageTitle` normalizes characters and length and never touches case:
+
+```
+$ grep -n "toUpperCase" src/lib/core/coloring-page-title.ts
+$ # no output
+```
+
+And `TOOL_PAGE_FONT_STYLE` is `block`, so Block is the **default** on exactly the thirteen surfaces
+where casing is preserved. A reader picking it — or simply leaving it — was told they were choosing
+capitals and would be handed the provider's own title case.
+
+Fixed to `'Straight-sided letters, squared off. …'`, and the four user-facing `CHANGELOG` sentences
+that said "block capitals" now say "block letters", because a changelog that promises capitals is
+the same false promise in the place a reader is most likely to read it.
+
+**The lesson, and it is not the one I recorded an hour ago.** The first close-out said a repair can
+write a new contradiction. This says something narrower and more useful: **a wording fix has a
+blast radius, and the prompt is only one of the places the word appears.** The same claim lived in
+the prompt line, the control's help table and the changelog. Fixing one and re-running a green suite
+proves nothing about the other two, because no test asserts that the help text and the prompt agree
+about what the app will do.
+
+### Re-proved after the second fix
+
+| Command | Result |
+|---|---|
+| `npm run check` | 0 errors, 0 warnings |
+| `npm run lint` | exit 0 |
+| `npm test` | 2,049 passed, 1 skipped |
+| `npm run build` | exit 0 |
+| `npm run verify` | exit 0 |
+| browser suite | 87 passed |
+
+### The honest count, revised
+
+Two defects found by a reviewer, both this run's own, both about a case promise nothing in the app
+asked for. Zero found before a reviewer saw them, twice.
