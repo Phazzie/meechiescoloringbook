@@ -7,6 +7,34 @@ Info flow: Decision -> consequences -> future changes.
 
 Short, durable decisions with context and tradeoffs.
 
+## 2026-09-10 — `AGENTS.md`'s I/O mandate governs the application, not `scripts/`
+
+- Decision: `scripts/verify-outer.mjs` imports `node:child_process` and `node:fs` directly, as every
+  other file in `scripts/` does. No process or evidence-storage seam is introduced.
+- Context: a review (Codex, PR #350) read `AGENTS.md:L116` — "All filesystem/network/process I/O
+  must flow through approved seam adapters only" — as covering the verify wrapper, and asked for
+  registered seams with a contract, fixtures, a fault proof and seam-scoped tests. The claim is
+  worth answering rather than waving away: the consequence of being wrong is a release gate outside
+  the workflow that gates everything else.
+- Measurement: **all thirteen** files in `scripts/` import `node:fs` or `node:child_process`
+  directly — `assumption-alarm`, `chamber-lock`, `cipher-gate`, `clan-chain`, `evidence-reporting`,
+  `install-githooks`, `proof-tape`, `rewind`, `run-probe`, `seam-ledger`, `shaolin-lint`,
+  `verify-outer` and `verify-runner`. The last is called by the verify chain itself and is named in
+  `AGENTS.md`'s own Automation Tools list. The new file is the fourteenth of a kind, not the first.
+- Alternatives: (a) **Introduce process and evidence-storage seams and route all thirteen through
+  them.** Rejected here, not on principle but on dependency direction: `npm run verify` would import
+  the application's adapters in order to verify the application, so a broken adapter would take the
+  verifier down with it and the gate would report *nothing* rather than a failure. A gate that fails
+  closed on the code it gates is worse than one that reads the filesystem directly. (b) **Exempt
+  `scripts/` in `AGENTS.md`'s text.** Not taken unilaterally — the mandate is listed as
+  non-negotiable and changing its scope is an owner's call, recorded here instead.
+- **Open for an owner ruling.** If L116 is meant to cover `scripts/`, it is a thirteen-file change
+  and its own run. Until then the mandate is read as governing the application — the code whose I/O
+  the seams exist to make testable — and not the automation that runs the tests. The security half
+  of the original finding was real and is fixed regardless: the file first spawned the chain as one
+  `&&`-joined string with `shell: true`, which SonarCloud failed the quality gate on, and now spawns
+  each step as an argv array with no shell.
+
 ## 2026-09-10 — Carry `textSize` and `whitespaceScale` into the prompt, and give the reader the two controls
 
 - Decision: `PromptAssemblySeam` emits a lettering line and a whitespace line built from the spec's
