@@ -26,7 +26,6 @@
 import { VaultCollection } from '$lib/components/vault-collection.svelte';
 import { authContextAdapter } from '$lib/adapters/auth-context-seam';
 import { creationStoreAdapter } from '$lib/adapters/creation-store-seam';
-import { outputPackagingAdapter } from '$lib/adapters/output-packaging-seam';
 import { sessionAdapter } from '$lib/adapters/session-seam';
 import { specValidationAdapter } from '$lib/adapters/spec-validation-seam';
 import {
@@ -73,10 +72,10 @@ import {
 import {
 	describeOriginalImageExport,
 	describePackagedExports,
-	summarisePageExportFailures,
 	type PageExport,
 	type PageExportAttempt
 } from '$lib/core/page-exports';
+import { packagePageVariant } from '$lib/components/page-packaging';
 import {
 	VAULT_PREVIEW_COUNT,
 	restoreCreationImages
@@ -1172,13 +1171,13 @@ export class StudioState {
 		return original ? [...packaged, original] : packaged;
 	});
 	/**
-	 * What could not be packaged, phrased so it can never be read as "the generation failed".
+	 * True while `rebuildPageExports` is running, so the control cannot be double-fired.
 	 *
-	 * A separate field from `generationError` on purpose. Both used to be written to the same string,
-	 * so a page that generated perfectly and then failed to become a PDF showed the same red line as
-	 * a page that never generated — above the finished page itself.
+	 * Its own flag rather than `isGenerating`: a rebuild buys no generation, and reusing that flag
+	 * would disable every paid button in the studio and put the panel into the state a reader reads
+	 * as "it is making my page again".
 	 */
-	exportError = $derived(summarisePageExportFailures(this.packageAttempts));
+	isRebuildingDownloads = $state(false);
 	canTryOn = $derived(
 		!!this.selectedWigId &&
 			!!this.selfieBase64 &&
@@ -2252,43 +2251,6 @@ export class StudioState {
 	};
 
 	/**
-	 * Package one variant of what is on the paper, turning every way it can go wrong into an
-	 * attempt that names its own failure.
-	 *
-	 * The seam reports a refusal in its `Result` and can still reject outright — pdf-lib throwing on
-	 * bytes it cannot embed, a missing canvas — and both mean the same thing to a reader: this
-	 * download is not available, and here is why. Catching here is what keeps a packaging failure out
-	 * of the caller's `catch`, which writes `generationError` and would report a finished page as a
-	 * failed generation.
-	 */
-	private async packageVariant(
-		variant: (typeof STUDIO_EXPORT_VARIANTS)[number],
-		images: GeneratedImage[],
-		fileBaseName: string,
-		pageSize: PageSize
-	): Promise<PageExportAttempt> {
-		try {
-			const result = await outputPackagingAdapter.package({
-				images,
-				outputFormat: 'pdf',
-				fileBaseName,
-				pageSize,
-				variants: [variant]
-			});
-			return result.ok
-				? { variant, files: result.value.files, error: null, pageSize }
-				: { variant, files: [], error: result.error.message, pageSize };
-		} catch (error) {
-			return {
-				variant,
-				files: [],
-				error: error instanceof Error ? error.message : 'Packaging failed.',
-				pageSize
-			};
-		}
-	}
-
-	/**
 	 * Build every download for what is on the paper — unless the page was replaced while packaging
 	 * ran, in which case the late files belong to a page nobody is looking at.
 	 *
@@ -2324,7 +2286,7 @@ export class StudioState {
 		this.pageFileBaseName = fileBaseName;
 		const attempts: PageExportAttempt[] = [];
 		for (const variant of STUDIO_EXPORT_VARIANTS) {
-			const attempt = await this.packageVariant(variant, images, fileBaseName, pageSize);
+			const attempt = await packagePageVariant(variant, images, fileBaseName, pageSize);
 			// Checked between variants, not only at the end: the square variant rasterises a fresh
 			// canvas, and starting that for a page the reader has already replaced spends time and
 			// memory on a result that is guaranteed to be thrown away.
@@ -2333,6 +2295,35 @@ export class StudioState {
 		}
 		this.packageAttempts = attempts;
 	}
+
+	/**
+	 * Build the downloads again for the page already on screen.
+	 *
+	 * The remedy this studio never had. Packaging is the only failing step in the app that spends
+	 * nothing — the picture is already in memory and already paid for, and the whole step is a canvas
+	 * and a PDF on this device — and until now the only control anywhere near a failed download was
+	 * "Make the page", which buys another generation and re-rolls the picture the reader liked.
+	 *
+	 * Re-uses `pageFileBaseName` rather than stamping a new one, so rebuilt files still match an
+	 * original image the reader may already have grabbed. `pageSize` comes off the attempt being
+	 * rebuilt and never from the live Page Controls, which stay enabled: re-reading them would
+	 * package the second attempt for different paper than the picture and the saved record.
+	 */
+	rebuildPageExports = async (): Promise<void> => {
+		if (this.isGenerating || this.isRebuildingDownloads) return;
+		const pageSize = this.packageAttempts[0]?.pageSize;
+		if (this.images.length === 0 || !pageSize || this.pageFileBaseName === '') return;
+		this.isRebuildingDownloads = true;
+		try {
+			await this.attachPageExports(
+				this.pageFileBaseName,
+				this.pageLoadToken,
+				pageSize
+			);
+		} finally {
+			this.isRebuildingDownloads = false;
+		}
+	};
 
 	handleGeneratePage = async (): Promise<void> => {
 		if (!this.textOutput) {

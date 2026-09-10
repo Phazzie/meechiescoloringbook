@@ -27,10 +27,10 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 	import { buildQualityReport } from '$lib/core/quality-report';
 	import {
 		describeOriginalImageExport,
-		describePackagedExports,
-		summarisePageExportFailures
+		describePackagedExports
 	} from '$lib/core/page-exports';
 	import type { PageExportAttempt } from '$lib/core/page-exports';
+	import { packagePageVariant } from './page-packaging';
 	import PageExportRow from './PageExportRow.svelte';
 	import SharePageButton from './SharePageButton.svelte';
 	import QualityReportPanel from './QualityReportPanel.svelte';
@@ -45,7 +45,6 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 		MeechieToolResultSchema
 	} from '../../../contracts/meechie-tool.contract';
 	import type { GeneratedImage } from '../../../contracts/image-generation.contract';
-	import type { PackagedFile } from '$lib/seams/output-packaging-seam/contract';
 	import type { CreationOwner } from '$lib/seams/creation-store-seam/contract';
 	import {
 		classifyGenerationFailure,
@@ -57,7 +56,6 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 	import GenerationFailureNotice from './GenerationFailureNotice.svelte';
 	import { GenerateResultSchema } from '../../../contracts/generate.contract';
 	import type { GenerateResponseValue } from '../../../contracts/generate.contract';
-	import { outputPackagingAdapter } from '$lib/adapters/output-packaging-seam';
 	import { creationStoreAdapter } from '$lib/adapters/creation-store-seam';
 	import { VAULT_SAVED_CONFIRMATION } from '$lib/core/vault-page';
 	import VaultStatusLine from '$lib/components/VaultStatusLine.svelte';
@@ -134,6 +132,14 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 		}
 	] as const;
 
+	/**
+	 * The variants this hub packages, in the order they are built.
+	 *
+	 * Print first and deliberately: it is the product, and the square rasterisation is the step most
+	 * likely to fail on a memory-tight device.
+	 */
+	const TOOL_EXPORT_VARIANTS = ['print', 'square'] as const;
+
 	const signs = HoroscopeSignSchema.options;
 	type Tool = (typeof tools)[number];
 	type ToolId = (typeof tools)[number]['id'];
@@ -195,10 +201,10 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 	// The original comes last and is derived rather than stored, so it appears and disappears with
 	// the page it belongs to and can never be left behind by a reset.
 	$: pageExports = originalExport ? [...packagedExports, originalExport] : packagedExports;
-	// A separate value from `pageFailure`, which is where both used to be written: a page that
-	// generated perfectly and then failed to become a square PNG showed the same crimson box, in
-	// the same place, as a page that never generated at all.
-	$: exportError = summarisePageExportFailures(packageAttempts);
+	// True while the downloads are being built again for the page already on screen. Its own flag
+	// rather than `isGenerating`: a rebuild buys no generation, and reusing that flag would disable
+	// every paid button on the hub and read as "it is making my page again".
+	let isRebuildingDownloads = false;
 	let assembledPrompt = '';
 	let revisedPrompt = '';
 	// Drift diagnostics from `/api/generate`. The provider's revised prompt can drop an exact-text
@@ -411,6 +417,71 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 	};
 
 	/**
+	 * Package every variant, in order, into `packageAttempts`.
+	 *
+	 * One call per variant, never `variants: ['print', 'square']`: the adapter builds the print file
+	 * first and then returns the square failure *without* its accumulated files, so a browser that
+	 * cannot encode the 1080px share canvas would take the printable PDF down with it. The PDF is the
+	 * product; the square image is a nicety.
+	 *
+	 * Shared by the generation that first builds the downloads and by `rebuildDownloads`, so a
+	 * rebuild produces the same attempts under the same staleness rule.
+	 */
+	const runPackaging = async (
+		images: readonly GeneratedImage[],
+		fileBaseName: string,
+		pageSize: ToolPageRecipe['spec']['pageSize'],
+		isStale: () => boolean
+	): Promise<void> => {
+		const attempts: PageExportAttempt[] = [];
+		for (const variant of TOOL_EXPORT_VARIANTS) {
+			const attempt = await packagePageVariant(
+				variant,
+				images,
+				fileBaseName,
+				pageSize
+			);
+			// Checked between variants, not only at the end: the square variant rasterises a fresh
+			// 1080px canvas, and starting that for a page the reader has already replaced spends time
+			// and memory on a result guaranteed to be thrown away.
+			if (isStale()) return;
+			attempts.push(attempt);
+		}
+		packageAttempts = attempts;
+	};
+
+	/**
+	 * Build the downloads again for the page already on screen.
+	 *
+	 * The remedy this hub never had. Packaging spends nothing — the picture is already in memory and
+	 * already paid for — and until now the only control anywhere near a failed download was the one
+	 * that buys another generation and re-rolls the picture the reader liked.
+	 *
+	 * Re-uses `pageFileBaseName` rather than stamping a new one, so rebuilt files still match an
+	 * original image the reader may already have grabbed, and takes `pageSize` off the attempt being
+	 * rebuilt rather than from `lastRecipe`, which the reader's next dedication edit would change.
+	 */
+	const rebuildDownloads = async (): Promise<void> => {
+		if (isGenerating || isRebuildingDownloads) return;
+		const pageSize = packageAttempts[0]?.pageSize;
+		if (generatedImages.length === 0 || !pageSize || pageFileBaseName === '') return;
+		const token = pageToken;
+		const images = generatedImages;
+		const fileBaseName = pageFileBaseName;
+		isRebuildingDownloads = true;
+		try {
+			await runPackaging(
+				images,
+				fileBaseName,
+				pageSize,
+				() => token !== pageToken
+			);
+		} finally {
+			isRebuildingDownloads = false;
+		}
+	};
+
+	/**
 	 * Build the page for one verdict.
 	 *
 	 * Takes the verdict rather than reading `output`, so a retry re-asks for the page that failed
@@ -536,56 +607,17 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 			pageOriginalImage = null;
 			pageFileBaseName = '';
 
-			// Two calls, not one with `variants: ['print', 'square']`. The adapter builds the print
-			// file first and then returns the square failure *without* its accumulated files, so a
-			// browser that cannot encode the 1080px share canvas would take the printable PDF down
-			// with it. The PDF is the product; the square image is a nicety.
-			//
-			// Each call is caught on its own, because the adapter does not wrap every failure into a
-			// `Result` — pdf-lib and the canvas both throw. A rejection from the square call used to
-			// escape to the outer catch and discard the print PDF that had already been built.
 			const fileBaseName = `meechie-${verdict.toolId}-${Date.now()}`;
 			// Named before packaging, not after: the provider's own image is downloadable the moment
 			// the page lands, and naming it only once the PDF exists hands anyone who grabbed it
 			// early a file named after no page in particular.
 			pageFileBaseName = fileBaseName;
 			pageOriginalImage = images[0] ?? null;
-			const packageVariant = async (
-				variant: 'print' | 'square'
-			): Promise<{ files: PackagedFile[]; error: string | null }> => {
-				try {
-					const result = await outputPackagingAdapter.package({
-						images,
-						outputFormat: 'pdf',
-						fileBaseName,
-						pageSize: recipe.spec.pageSize,
-						variants: [variant]
-					});
-					return result.ok
-						? { files: result.value.files, error: null }
-						: { files: [], error: result.error.message };
-				} catch (packagingError) {
-					return {
-						files: [],
-						error:
-							packagingError instanceof Error
-								? packagingError.message
-								: 'Packaging failed.'
-					};
-				}
-			};
-			const print = await packageVariant('print');
-			const share = await packageVariant('square');
-			if (isStale()) return;
-
 			// Recorded as attempts, and not into `pageFailure`. Packaging runs after the paid
 			// generation has already succeeded, so a failure here never means the page failed —
 			// and reporting it in the field a failed generation uses, above the button that buys
 			// another one, is an invitation to pay again for a free local render.
-			packageAttempts = [
-				{ variant: 'print', files: print.files, error: print.error, pageSize: recipe.spec.pageSize },
-				{ variant: 'square', files: share.files, error: share.error, pageSize: recipe.spec.pageSize }
-			];
+			await runPackaging(images, fileBaseName, recipe.spec.pageSize, isStale);
 		} catch (requestError) {
 			if (isStale()) return;
 			pageFailure = classifyPageFailure({ thrown: requestError });
@@ -1089,7 +1121,13 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 					`meechie-who-fucked-up-1788784316892.pdf` — no idea what either file was for, no
 					size, and no way at all to get the provider's own image.
 				-->
-				<PageExportRow {exportError} exports={pageExports} testIdPrefix="meechie-tool" />
+				<PageExportRow
+					exports={pageExports}
+					attempts={packageAttempts}
+					onRebuild={rebuildDownloads}
+					isRebuilding={isRebuildingDownloads || isGenerating}
+					testIdPrefix="meechie-tool"
+				/>
 
 				<div class="page-actions">
 					<button

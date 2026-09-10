@@ -15465,3 +15465,153 @@ What to do with it: **a small pull request may get a real Sourcery review while 
 same account cannot.** If a run wants line-by-line coverage on a large change, the lever is splitting
 the diff — which is also what this log's standing request for an owner ruling on evidence churn has
 been circling for four runs without naming the mechanism.
+
+## Run 23 — 2026-09-10 — The downloads that could not be built
+
+**Branch:** `claude/great-bell-woxzow`
+**Base:** `main` at `a87af7a`
+
+### The feature, and why it was the worst
+
+Making a coloring page ends in packaging: `OutputPackagingSeam` turns the finished picture into a
+printable PDF and a square share PNG. That step runs **entirely on the reader's own device**. No
+network, no provider, no quota, and the picture it works from has already been generated and already
+been paid for.
+
+So it is the cheapest step in the app to run a second time. It was the only failing step in the app
+with **no way to run it again** — and, measured against every other failure surface, it was the one
+whose promise and delivery had drifted furthest.
+
+Three things were wrong, on `main` at `a87af7a`.
+
+**1. Three copies of one function, six raw-string sites.**
+
+| Site | Line | What was written into a field a reader sees |
+|------|------|---------------------------------------------|
+| `src/routes/studio-state.svelte.ts` | 2280 | `result.error.message` |
+| `src/routes/studio-state.svelte.ts` | 2285 | `error.message` — **a caught exception** |
+| `src/lib/components/page-artifact-state.svelte.ts` | 144 | `result.error.message` |
+| `src/lib/components/page-artifact-state.svelte.ts` | 150 | `packagingError.message` — **a caught exception** |
+| `src/lib/components/MeechieTools.svelte` | 566 | `result.error.message` |
+| `src/lib/components/MeechieTools.svelte` | 572 | `packagingError.message` — **a caught exception** |
+
+`summarisePageExportFailures` in `src/lib/core/page-exports.ts:251` then quoted each of those
+verbatim into the reader's sentence, so the one sentence this app wrote about a failed download was
+half authored for a reader and half written for whoever wrote the adapter:
+
+> Your page is on the paper. The square share image could not be built: **Canvas context unavailable
+> for resizing**.
+
+The exception half is worse. pdf-lib's `embedPng`, `embedJpg` and `save` all throw, and whatever they
+said reached the screen unread.
+
+**2. The seam already answered the question the app threw away.** `SeamErrorSchema`
+(`contracts/shared.contract.ts:11`) carries `code` next to `message`, and
+`src/lib/adapters/output-packaging-seam/index.ts` emits **ten** distinct codes. All three call sites
+read `.message` and discarded `.code`. Nothing in the app could tell `CANVAS_UNAVAILABLE` — this
+browser never will — from `PNG_ENCODING_FAILED` — that missed, and a second attempt runs against a
+heap the first one has released. That is the only distinction that decides whether pressing a button
+is worth the reader's time, and it was being returned and dropped at each of three doors.
+
+**3. No retry, and the nearest control was the paid one.** The only button anywhere near a failed
+download was "Make the page", which buys a generation and returns a **different** picture, because a
+new generation is a new drawing. The most natural response to a free local step failing was to pay
+for a fresh page and lose the one they liked.
+
+And nothing named what survived. A failed print PDF leaves the original image download and the
+in-app Print button; a failed square leaves the PDF. The sentence mentioned neither.
+
+This is the third and last surface of the pattern Run 20 removed for AI calls
+(`generation-failure.ts`) and Run 22 removed for storage (`storage-failure.ts`). Run 22's
+carried-forward list named it "the strongest small pick on this list"; measured this run rather than
+inherited, it is larger than "small" — the three copies and the missing retry were not in that
+description.
+
+**Runners-up considered and passed over.** `src/lib/core/meechie-quote-scoring.ts` has **zero
+importers anywhere in the repo** — a complete, tested-looking 107-line deterministic quote scorer
+that nothing calls, which is the Run 17 shape exactly. It was passed over on purpose: wiring it in
+would be *inventing* a feature rather than rebuilding the worst one, and its heuristics hardcode
+`'easter'`, `'cheap seats'` and `'vision problem'` as evidence of wit, so switching it on could
+actively degrade what Meechie says. **Left for a future run to decide deliberately: wire it or delete
+it, but stop shipping it.**
+
+### What shipped
+
+- **`[NEW] src/lib/core/export-failure.ts`** — pure classifier, same shape family as
+  `generation-failure.ts` and `storage-failure.ts`. Seam `code` or thrown value plus the variant
+  asked for becomes `{ variant, cause, message, retry, detail }`. Five causes, chosen because they
+  are the distinctions that change what a reader should do: `unsupported_here`, `render_failed`,
+  `unreadable_image`, `no_page`, `unknown`. An exception's or the seam's words become `detail` and
+  never `message`. Unlike `storage-failure.ts` there is **no verbatim allowlist**, because none of
+  the ten strings the packaging seam can emit was written for a reader.
+- **`[NEW] src/lib/components/page-packaging.ts`** — the one call to `outputPackagingAdapter.package`
+  in the app. `tests/unit/page-packaging.test.ts` walks `src/**` and fails if a second one appears,
+  the same rule `SharePageButton` holds for `navigator.share`.
+- **The free rebuild.** `Build the downloads again` re-runs packaging on the picture already on
+  screen, re-using the existing `pageFileBaseName` so rebuilt files still match an original image the
+  reader may already have grabbed, and taking `pageSize` off the attempt being rebuilt rather than
+  from the live Page Controls, which stay enabled. It is offered **only** where a failed variant's
+  cause could land differently, and its own `isRebuildingDownloads` flag rather than `isGenerating`,
+  so it does not disable every paid button on the surface.
+- **One line per failed variant** instead of one run-on sentence, because two variants can fail for
+  two different reasons — one rebuildable, one not — and the reader has to be able to tell which line
+  is which.
+- **`[NEW] playwright.local.config.ts` + `npm run test:e2e:local`.** Two runs of this log have now
+  rebuilt the same `executablePath` override by hand and thrown it away. It is env-driven
+  (`PLAYWRIGHT_CHROMIUM_PATH`) rather than hardcoded, and with the variable unset it behaves exactly
+  like the pinned config, so it cannot quietly change what is being tested.
+
+### Scope
+
+No file under `contracts/`, `probes/`, `fixtures/`, `src/lib/mocks/`, `src/lib/adapters/` or
+`src/lib/seams/` was touched. `git diff --name-only a87af7a HEAD` against those six paths returns
+nothing. `code` was already in the contract's error schema and already emitted by the adapter; this
+change stops discarding it. **No Cipher Gate was required.**
+
+### Evidence
+
+| Command | Result |
+|---|---|
+| `npm run check` | 0 errors, 0 warnings |
+| `npm run lint` | exit 0 |
+| `npm test` | **1,953** passed, 1 skipped (from 1,927 — 26 new) |
+| `npm run build` | exit 0 |
+| `npm run verify` | exit 0, `docs/evidence/2026-09-10/` refreshed |
+| `npm run test:e2e:local` | **83** passed (from 82 — 1 new) |
+
+The new browser test forces the failure by breaking `HTMLCanvasElement.prototype.toDataURL` rather
+than by stubbing a route, because **packaging never touches the network — there is no request to
+intercept.** That break takes the square share image only: a PNG source is embedded in the PDF
+without going through a canvas at all, which is exactly the split the two separate packaging calls
+exist to preserve. So the test proves the real thing in a real browser: the PDF survives, the notice
+names the square in the app's own words, the rebuild appears, and pressing it produces the missing
+file without a second generation.
+
+### Carried forward for the next run
+
+Re-measure everything below; do not inherit it.
+
+- **`meechie-quote-scoring.ts` has zero importers.** Wire it or delete it. See the runner-up note
+  above for why switching it on unexamined is not obviously an improvement.
+- **`readJson` still conflates a denied read with a damaged store**, and `writeJson` a denied write
+  with a transient one. Run 22's item, untouched — it is a seam change and needs the full workflow
+  plus a Cipher Gate.
+- **`failure.detail` still has nowhere to render on most surfaces**, and this run added ten more
+  causes' worth of it. System Trace shows it on the home studio only.
+- **`MeechieTools.svelte` is still in legacy (non-runes) mode**, worked around for the fourth run
+  running — this run wrote a plain `let isRebuildingDownloads` and a module-scope
+  `TOOL_EXPORT_VARIANTS` where the other two hosts use `$state` and a class constant.
+- **`PAGE_EXPORT_VARIANTS`, `STUDIO_EXPORT_VARIANTS` and `TOOL_EXPORT_VARIANTS` are three identical
+  lists** in three files. This run reduced three copies of the packaging *call* to one and left three
+  copies of the two-element list it iterates. Small, and honest to name.
+- **A `ConnectionSeam` is still the right home for the `navigator.onLine` read.** Unchanged.
+- **The try-on's `rejected` branch is still unreachable from the UI.** Run 21's item, untouched.
+- **Run 18 still has no merge close-out entry.** Carried for six runs now.
+- **Sourcery's quoted wait is a function of the diff size, not a reset date** — Run 22's fourth
+  close-out established this against three earlier entries that each named a flat date. Do not name
+  a date. A small pull request may get a real review while a large one from the same account cannot.
+- **SonarCloud still cannot be read from this container** (`sonarcloud.io`, CONNECT tunnel 403).
+- **Playwright now runs in this container**, via `npm run test:e2e:local` with
+  `PLAYWRIGHT_CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome`. This item can stop
+  being carried.
+- **Governance, met this run:** the plan was written into `plan.md` before any code.

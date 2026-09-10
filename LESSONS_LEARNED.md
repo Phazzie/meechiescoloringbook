@@ -7,6 +7,18 @@ Info flow: Experience -> lesson -> action applied to future changes.
 
 Short, dated entries capturing pitfalls, surprises, and fixes.
 
+## 2026-09-10
+- Date: 2026-09-10
+- Context: The packaging step turns a finished coloring page into its files entirely on the reader's own device. No network, no provider, no quota. It was therefore the cheapest step in the whole app to run a second time — and it was the only failing step with no way to run it again. The one control near a failed download was "Make the page", which buys a generation and returns a *different* picture.
+- Lesson: **The cost of a retry and the presence of a retry were inversely related in this app.** Every expensive failure had been given a considered retry over three runs; the one free failure had none. The reason is that a local step reads as trivial while it is working, so nobody asks what it offers when it is not — and the moment it fails, the reader is standing in front of the only button on the screen, which is the paid one.
+- Action: For each failure path, ask what the reader's *next press* would be if no remedy is offered. Where the nearest control spends money and the failed step did not, that is the gap, whatever the failure's likelihood.
+
+## 2026-09-10
+- Date: 2026-09-10
+- Context: Three surfaces carried byte-similar twenty-line copies of one packaging call. All three read `result.error.message` and dropped `result.error.code` — the field that says whether trying again could work. The contract had carried `code` on every `SeamError` the whole time.
+- Lesson: **A contract field that every call site discards is invisible in exactly the way a missing field is.** Nothing failed, nothing warned, and three separate authors each independently wrote the same lossy line, because `.message` is the field that reads like the answer. The distinction the app most needed — "this browser never will" versus "that missed, try again" — was already being returned and thrown away at each of the three doors.
+- Action: When a seam returns a structured error, grep for `.error.message` and check whether `.error.code` is read anywhere at all. A code with zero readers is a design decision nobody made.
+
 ## 2026-09-09
 - Date: 2026-09-09
 - Context: A run fixed the raw-error-string defect for every AI call in the app, wrote a classifier and a notice component for it, and left storage doing the identical thing at twelve call sites — four of them writing a caught exception's own message. The AI module's own header even lists the five call sites it replaced, and none of the storage ones is among them. The follow-up sat unwritten for two runs while a carried-forward list described it as "a defensible next pick".

@@ -32,6 +32,11 @@ import {
 import type { MeechieToolOutput } from '../../src/lib/seams/meechie-tool-seam/contract';
 import { StudioState } from '../../src/routes/studio-state.svelte';
 import { VAULT_CAPACITY } from '../../src/lib/core/vault-gallery';
+import {
+	pageExportFailures,
+	pageExportRetryLabel,
+	summarisePageExportFailures
+} from '../../src/lib/core/page-exports';
 import type { CreationRecord, DraftRecord } from '../../contracts/creation-store.contract';
 import type { MeechieStudioTextOutput } from '../../contracts/meechie-studio-text.contract';
 import type { Wig } from '../../src/lib/seams/wig-catalog-seam/contract';
@@ -77,7 +82,7 @@ const arrangeTryOnPortrait = (
  * Put a studio in the state of having already packaged its page.
  *
  * Arranged through `packageAttempts` — the one stored record — because `packagedFiles`,
- * `pageExports` and `exportError` are all derived from it. Assigning the derived view instead would
+ * `pageExports` and the failure notice are all derived from it. Assigning the derived view would
  * make the test assert about a value it wrote itself, which is a test that passes whatever the code
  * does.
  */
@@ -88,7 +93,7 @@ const arrangePackagedPage = (studio: StudioState): void => {
 			files: [
 				{ filename: 'page.pdf', mimeType: 'application/pdf', dataBase64: 'abc' }
 			],
-			error: null,
+			failure: null,
 			pageSize: 'US_Letter'
 		}
 	];
@@ -448,7 +453,9 @@ describe('StudioState', () => {
 			'square',
 			'original'
 		]);
-		expect(studio.exportError).toBe('');
+		expect(studio.packageAttempts.every((attempt) => attempt.failure === null)).toBe(
+			true
+		);
 	});
 
 	it('discards a stale packaging result when another page is opened first', async () => {
@@ -539,10 +546,55 @@ describe('StudioState', () => {
 		expect(studio.pageExports.map((item) => item.kind)).toEqual(['original']);
 		// And it says so, rather than leaving a dead button with no reason — which is what the
 		// reopen path's own near-copy of the packaging code used to do.
-		expect(studio.exportError).toBe(
-			'Your page is on the paper. The printable download could not be built: no canvas. ' +
-				'The square share image could not be built: no canvas.'
+		expect(summarisePageExportFailures(studio.packageAttempts)).toBe(
+			'Your page is on the paper.'
 		);
+		const failures = pageExportFailures(studio.packageAttempts);
+		expect(failures.map((failure) => failure.variant)).toEqual(['print', 'square']);
+		// A thrown exception's own words never reach the reader. They are kept for a bug report.
+		for (const failure of failures) {
+			expect(failure.message).not.toContain('no canvas');
+			expect(failure.detail).toBe('no canvas');
+		}
+		// And the rebuild is offered, because a rejection here is usually memory and a second
+		// attempt runs against a heap the first one has released. It costs nothing to press.
+		expect(pageExportRetryLabel(studio.packageAttempts)).toBe(
+			'Build the downloads again'
+		);
+	});
+
+	it('builds the downloads again, for free, without asking for another generation', async () => {
+		const studio = new StudioState();
+		const packageSpy = vi
+			.spyOn(outputPackagingAdapter, 'package')
+			.mockRejectedValue(new Error('no canvas'));
+
+		await studio.loadCreation({
+			id: 'creation-rebuildable',
+			createdAtISO: '2026-09-03T00:00:00.000Z',
+			intent: buildSeedSpec(DEFAULT_STUDIO_TEXT_OUTPUT),
+			assembledPrompt: 'the saved prompt',
+			images: [{ b64: ONE_PIXEL_PNG_BASE64 }],
+			owner: { kind: 'anonymous', sessionId: 'session-1' }
+		});
+
+		expect(studio.packagedFiles).toEqual([]);
+		const rebuiltFile = {
+			filename: 'rebuilt.pdf',
+			mimeType: 'application/pdf',
+			dataBase64: 'cmVidWlsdA=='
+		};
+		packageSpy.mockResolvedValue({ ok: true, value: { files: [rebuiltFile] } });
+		// Nothing may leave this device. A rebuild that reached the network would be a paid call in
+		// all but name, and the reason it can be offered at all is that it is not one.
+		const fetchSpy = vi.fn();
+		vi.stubGlobal('fetch', fetchSpy);
+
+		await studio.rebuildPageExports();
+
+		expect(studio.packagedFiles).toEqual([rebuiltFile, rebuiltFile]);
+		expect(pageExportFailures(studio.packageAttempts)).toEqual([]);
+		expect(fetchSpy).not.toHaveBeenCalled();
 	});
 
 	it('applies the dedication input value before validation and schedules draft save', () => {
@@ -2728,10 +2780,20 @@ describe('StudioState page exports', () => {
 		// a free client-side step.
 		expect(studio.images).toHaveLength(1);
 		expect(studio.generationError).toBe('');
-		expect(studio.exportError).toBe(
-			'Your page is on the paper. The printable download could not be built: Canvas context unavailable for resizing. ' +
-				'The square share image could not be built: Canvas context unavailable for resizing.'
+		expect(summarisePageExportFailures(studio.packageAttempts)).toBe(
+			'Your page is on the paper.'
 		);
+		const failures = pageExportFailures(studio.packageAttempts);
+		expect(failures.map((failure) => failure.variant)).toEqual(['print', 'square']);
+		// The seam's own words are kept for a bug report and never put on screen.
+		for (const failure of failures) {
+			expect(failure.detail).toBe('Canvas context unavailable for resizing.');
+			expect(failure.message).not.toContain('Canvas context unavailable');
+		}
+		// A browser with no canvas has no canvas a second later, so no rebuild is offered — the
+		// sentence names what does work instead.
+		expect(pageExportRetryLabel(studio.packageAttempts)).toBeNull();
+		expect(failures[0].message).toContain('Print still works');
 		// And the provider's own bytes are still there to take away.
 		expect(studio.pageExports.map((item) => item.kind)).toEqual(['original']);
 	});
@@ -2763,9 +2825,10 @@ describe('StudioState page exports', () => {
 		// One call per variant is what buys this: the seam returns on its first error, so asking for
 		// both at once would lose the PDF whenever the square rasterisation is what breaks.
 		expect(studio.pageExports.map((item) => item.kind)).toEqual(['print', 'original']);
-		expect(studio.exportError).toBe(
-			'Your page is on the paper. The square share image could not be built: no canvas.'
-		);
+		const failures = pageExportFailures(studio.packageAttempts);
+		expect(failures.map((failure) => failure.variant)).toEqual(['square']);
+		// And the sentence says the PDF is fine, which is the fact the reader most needs.
+		expect(failures[0].message).toContain('The printable download and the original image are unaffected.');
 	});
 
 	it('survives a packaging adapter that throws rather than returning an error', async () => {
@@ -2778,7 +2841,13 @@ describe('StudioState page exports', () => {
 
 		// A throw used to reach `handleGeneratePage`'s catch, which writes `generationError`.
 		expect(studio.generationError).toBe('');
-		expect(studio.exportError).toContain('pdf-lib could not embed these bytes');
+		const failures = pageExportFailures(studio.packageAttempts);
+		expect(failures).toHaveLength(2);
+		// pdf-lib's own words are diagnostic, not the reader's sentence. They used to be both.
+		for (const failure of failures) {
+			expect(failure.detail).toBe('pdf-lib could not embed these bytes');
+			expect(failure.message).not.toContain('pdf-lib');
+		}
 	});
 
 	it('offers the provider image as soon as the page lands, before packaging finishes', async () => {
@@ -2931,7 +3000,7 @@ describe('StudioState page exports', () => {
 		});
 
 		await studio.handleGeneratePage();
-		expect(studio.exportError).not.toBe('');
+		expect(pageExportFailures(studio.packageAttempts)).not.toEqual([]);
 
 		studio.handleModeSelect(studio.modes[1].id);
 
@@ -2939,7 +3008,8 @@ describe('StudioState page exports', () => {
 		// all four are derived from the one thing `resetGeneratedPage` clears.
 		expect(studio.packagedFiles).toEqual([]);
 		expect(studio.pageExports).toEqual([]);
-		expect(studio.exportError).toBe('');
+		expect(pageExportFailures(studio.packageAttempts)).toEqual([]);
+		expect(summarisePageExportFailures(studio.packageAttempts)).toBe('');
 		expect(studio.pageFileBaseName).toBe('');
 	});
 });

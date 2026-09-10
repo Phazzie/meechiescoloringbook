@@ -13,32 +13,54 @@ Why: Run 6 rebuilt this row for the home studio and put the decisions behind it 
      uses — directly under the button that buys another one. The home page, from the same page, in
      the same browser, offered three links reading "Printable PDF · US Letter — ready to print ·
      946 B".
-Info flow: described exports (+ the failure sentence) -> this row -> download links and a notice.
+Info flow: described exports + the packaging attempts -> this row -> download links, a notice
+           naming what could not be built, and the control that builds it again.
 Invariant: this component decides nothing. What each download is called, what it is for, how big it
-           is and how a failure is worded all come from `$lib/core/page-exports`, which is pure and
-           tested. Nothing here reads a filename to work out what a file is — the export row carries
-           the variant it was packaged as, for the reason that module gives at length.
+           is, how a failure is worded and whether a rebuild is offered all come from
+           `$lib/core/page-exports` and `$lib/core/export-failure`, which are pure and tested.
+           Nothing here reads a filename to work out what a file is — the export row carries the
+           variant it was packaged as, for the reason that module gives at length.
+           `failure.detail` is never rendered: it is the seam's or an exception's own words, and
+           putting it on screen restores the exact defect this row was rebuilt to remove.
 -->
 <script lang="ts">
-	import type { PageExport } from '$lib/core/page-exports';
+	import {
+		pageExportFailures,
+		pageExportRetryLabel,
+		summarisePageExportFailures,
+		type PageExport,
+		type PageExportAttempt
+	} from '$lib/core/page-exports';
 
 	let {
 		exports,
-		exportError = '',
+		attempts = [],
+		onRebuild,
+		isRebuilding = false,
 		emptyMessage = 'Make a page — its printable PDF, its share image and the original all land here.',
 		testIdPrefix
 	}: {
 		/** Every file this page can be taken away as, already described. */
 		exports: readonly PageExport[];
 		/**
-		 * One sentence naming what could not be packaged, or `''`.
+		 * What each packaging call was asked for and what it produced.
 		 *
-		 * Deliberately a separate input from any generation error the host is showing. Packaging runs
-		 * after the paid generation has already succeeded, so a failure here never means the page
-		 * failed — and a message that reads like it did invites the reader to buy another generation
-		 * to fix a free local step.
+		 * The whole attempt rather than a pre-rendered sentence, because the notice needs the retry
+		 * advice too — the same move `GenerationFailureNotice` and `StorageFailureNotice` made.
+		 * Deliberately separate from any generation error the host is showing: packaging runs after
+		 * the paid generation has already succeeded, so a failure here never means the page failed.
 		 */
-		exportError?: string;
+		attempts?: readonly PageExportAttempt[];
+		/**
+		 * Re-run packaging for the page already on screen. Omitted where a surface has nothing to
+		 * re-run.
+		 *
+		 * Free by construction — the picture is in memory and packaging never touches the network —
+		 * which is why this is the one retry in the app offered without a cost to weigh.
+		 */
+		onRebuild?: () => void;
+		/** True while a rebuild or a generation is already running, so it cannot be double-fired. */
+		isRebuilding?: boolean;
 		/** What the row says before there is a page. Surfaces differ in what they packaged. */
 		emptyMessage?: string;
 		/**
@@ -50,6 +72,9 @@ Invariant: this component decides nothing. What each download is called, what it
 	} = $props();
 
 	const headingId = $derived(`${testIdPrefix}-export-heading`);
+	const opening = $derived(summarisePageExportFailures(attempts));
+	const failures = $derived(pageExportFailures(attempts));
+	const rebuildLabel = $derived(pageExportRetryLabel(attempts));
 </script>
 
 <!-- Labelled with the same words it shows, so what a screen reader announces and what a sighted
@@ -79,13 +104,32 @@ Invariant: this component decides nothing. What each download is called, what it
 	{:else}
 		<p class="export-empty" data-testid={`${testIdPrefix}-export-empty`}>{emptyMessage}</p>
 	{/if}
-	{#if exportError}
+	{#if failures.length > 0}
 		<!-- A notice, not an error: the page above it is finished and worth keeping. Styled and
 		     worded apart from a generation failure so nobody reads a failed PDF as a failed
 		     generation and pays for a second one. -->
-		<p class="export-notice" data-testid={`${testIdPrefix}-export-error`} role="status">
-			{exportError}
-		</p>
+		<div class="export-notice" data-testid={`${testIdPrefix}-export-error`} role="status">
+			<p class="export-notice-line">{opening}</p>
+			<!-- One line per failed variant rather than one run-on sentence. Two variants can fail for
+			     two different reasons — one rebuildable, one not — and the reader has to be able to
+			     tell which line belongs to which download. -->
+			{#each failures as failure}
+				<p class="export-notice-line" data-export-failure-variant={failure.variant}>
+					{failure.message}
+				</p>
+			{/each}
+			{#if rebuildLabel && onRebuild}
+				<button
+					type="button"
+					class="export-rebuild"
+					data-testid={`${testIdPrefix}-export-rebuild`}
+					onclick={onRebuild}
+					disabled={isRebuilding}
+				>
+					{rebuildLabel}
+				</button>
+			{/if}
+		</div>
 	{/if}
 </section>
 
@@ -177,15 +221,51 @@ Invariant: this component decides nothing. What each download is called, what it
 	}
 
 	/* Gold, not the error pink: what it reports is a missing download, above a page that is finished
-	   and still worth keeping. */
+	   and still worth keeping. The left rule and the button below match `StorageFailureNotice`, so a
+	   reader does not learn a third visual language for "this did not work". */
 	.export-notice {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 0.45rem;
 		margin: 0.7rem 0 0;
-		padding: 0.5rem 0.65rem;
+		padding: 0.6rem 0.7rem;
 		border: 1px solid rgba(201, 162, 39, 0.32);
+		border-left: 3px solid var(--gold, #c9a227);
 		border-radius: 6px;
 		background: rgba(201, 162, 39, 0.09);
 		color: var(--gold-bright, #f0c44a);
 		font-size: 0.8rem;
+	}
+
+	.export-notice-line {
+		margin: 0;
+		line-height: 1.45;
+	}
+
+	.export-rebuild {
+		margin-top: 0.15rem;
+		padding: 0.5rem 0.9rem;
+		border: 1px solid rgba(201, 162, 39, 0.42);
+		border-radius: 6px;
+		background: rgba(7, 7, 15, 0.62);
+		color: var(--gold-bright, #f0c44a);
+		font-family: var(--font-label, sans-serif);
+		font-weight: 700;
+		font-size: 0.76rem;
+		text-transform: uppercase;
+		letter-spacing: 0.1em;
+		cursor: pointer;
+		transition: background 0.12s;
+	}
+
+	.export-rebuild:hover:not(:disabled) {
+		background: rgba(201, 162, 39, 0.14);
+	}
+
+	.export-rebuild:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
 	}
 
 	/*

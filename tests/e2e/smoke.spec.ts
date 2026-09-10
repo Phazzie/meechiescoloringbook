@@ -2027,3 +2027,82 @@ test('a rate-limited try-on names when it can be tried again, and will not be pr
 	// identical refusal back.
 	await expect(page.getByTestId('home-try-on-error-retry')).toBeDisabled();
 });
+
+test('a download that could not be built says so in words, and can be built again for free', async ({
+	page
+}) => {
+	// The failure this app could not report. Packaging is the last step of making a page and the
+	// only one that spends nothing — the picture already exists and already cost a generation, and
+	// turning it into a PDF and a share PNG happens entirely on this device. Until this run the
+	// reader was shown the adapter's own words quoted mid-sentence and offered no way to run it
+	// again, so the only control anywhere near a failed download bought another generation.
+	//
+	// Forced by breaking the canvas encode rather than by stubbing a route, because packaging never
+	// touches the network — there is no request to intercept. `toDataURL` returning nothing is
+	// `PNG_ENCODING_FAILED`, and it takes the square share image only: a PNG source is embedded in
+	// the PDF without ever going through a canvas, which is exactly the split the two separate
+	// packaging calls exist to preserve.
+	await page.addInitScript(() => {
+		const original = HTMLCanvasElement.prototype.toDataURL;
+		let broken = true;
+		// Exposed so the rebuild below can be given something that will actually succeed. A retry
+		// that could only ever fail again would prove the button exists, not that it works.
+		(window as unknown as { repairCanvas: () => void }).repairCanvas = () => {
+			broken = false;
+		};
+		HTMLCanvasElement.prototype.toDataURL = function toDataURL(
+			this: HTMLCanvasElement,
+			...args: Parameters<typeof original>
+		) {
+			return broken ? '' : original.apply(this, args);
+		};
+	});
+	await stubApis(page);
+	await gotoHydrated(page, '/');
+
+	await page.getByTestId('home-evidence').fill('He said traffic made him late.');
+	await page.getByTestId('home-generate-verdict').click();
+	await expect(page.getByTestId('home-verdict-quote')).toBeVisible();
+	await page.getByTestId('home-create-page').click();
+	await expect(page.getByTestId('home-generated-image')).toBeVisible();
+
+	// The printable PDF survived, which is the product. Only the share image is missing.
+	const links = page.locator('[data-testid="home-export-link"]');
+	await expect(
+		links.and(page.locator('[data-export-kind="print"]'))
+	).toHaveCount(1);
+	await expect(
+		links.and(page.locator('[data-export-kind="square"]'))
+	).toHaveCount(0);
+
+	const notice = page.getByTestId('home-export-error');
+	// The page is affirmed first. A notice that reads like the generation failed is what sends a
+	// reader to buy a second one over a free local step.
+	await expect(notice).toContainText('Your page is on the paper.');
+	await expect(notice).toContainText('The square share image could not be built.');
+	// And it says what the reader still has, which the old sentence had no room for.
+	await expect(notice).toContainText(
+		'The printable download and the original image are unaffected.'
+	);
+	// None of the adapter's own words, and none of an exception's. This is the whole point.
+	await expect(notice).not.toContainText('toDataURL');
+	await expect(notice).not.toContainText('Failed to encode PNG data');
+	await expect(notice).not.toContainText('canvas');
+	// Not in the crimson box a failed generation uses, which sits above the button that buys one.
+	await expect(page.getByTestId('home-generation-error')).toHaveCount(0);
+
+	// The remedy. Free, local, and it does not re-roll the picture the reader liked.
+	const rebuild = page.getByTestId('home-export-rebuild');
+	await expect(rebuild).toContainText('Build the downloads again');
+	await page.evaluate(() => {
+		(window as unknown as { repairCanvas: () => void }).repairCanvas();
+	});
+	await rebuild.click();
+
+	await expect(
+		links.and(page.locator('[data-export-kind="square"]'))
+	).toHaveCount(1);
+	await expect(page.getByTestId('home-export-error')).toHaveCount(0);
+	// The picture on screen is the same one, never re-generated.
+	await expect(page.getByTestId('home-generated-image')).toBeVisible();
+});

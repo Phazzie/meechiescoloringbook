@@ -15,7 +15,7 @@ Critical invariant: the paper on screen shows the page's OWN look, never the liv
 	import { getStudioAction } from '$lib/core/meechie-studio';
 	import type { StudioTheme } from '$lib/core/meechie-studio';
 	import type { MeechieStudioTextOutput } from '$lib/seams/meechie-studio-text-seam/contract';
-	import type { PageExport } from '$lib/core/page-exports';
+	import type { PageExport, PageExportAttempt } from '$lib/core/page-exports';
 	import PageExportRow from '../PageExportRow.svelte';
 	import PrintPageButton from '../PrintPageButton.svelte';
 	import SharePageButton from '../SharePageButton.svelte';
@@ -28,7 +28,9 @@ Critical invariant: the paper on screen shows the page's OWN look, never the liv
 		previewOutput,
 		imagePreviews,
 		pageExports,
-		exportError,
+		attempts,
+		onRebuild,
+		isRebuildingDownloads,
 		pageFailure,
 		onRetryPage,
 		isGenerating,
@@ -52,8 +54,18 @@ Critical invariant: the paper on screen shows the page's OWN look, never the liv
 		imagePreviews: string[];
 		/** Every way this page can be taken away, each one describing itself. */
 		pageExports: PageExport[];
-		/** What could not be packaged — never a reason to think the page itself failed. */
-		exportError: string;
+		/**
+		 * What each packaging call was asked for and what it produced.
+		 *
+		 * The attempts rather than a pre-rendered sentence, because the notice needs the retry advice
+		 * too. Never a reason to think the page itself failed: packaging runs after the paid
+		 * generation has already succeeded.
+		 */
+		attempts: PageExportAttempt[];
+		/** Build the downloads again, for free, for the page already on screen. */
+		onRebuild: () => void;
+		/** True while that rebuild is running, so it cannot be double-fired. */
+		isRebuildingDownloads: boolean;
 		pageFailure: GenerationFailure | null;
 		onRetryPage: () => void;
 		isGenerating: boolean;
@@ -226,7 +238,13 @@ Critical invariant: the paper on screen shows the page's OWN look, never the liv
 		panel's own copy, and the twelve other surfaces that make a page kept the raw-filename row
 		this one replaced.
 	-->
-	<PageExportRow exports={pageExports} {exportError} testIdPrefix="home" />
+	<PageExportRow
+		exports={pageExports}
+		{attempts}
+		{onRebuild}
+		isRebuilding={isRebuildingDownloads}
+		testIdPrefix="home"
+	/>
 
 	<!-- One line for both, as before: a copy confirmation and a save confirmation never both
 	     need saying, and the save is the one that comes with somewhere to go. -->

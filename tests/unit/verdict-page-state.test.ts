@@ -27,6 +27,11 @@ import {
 	type FetchStub
 } from './support/page-artifact-harness';
 import { MEECHIE_TOOL_QUOTA_COST } from '../../src/lib/core/ai-quota';
+import {
+	pageExportFailures,
+	pageExportRetryLabel,
+	summarisePageExportFailures
+} from '../../src/lib/core/page-exports';
 import { VAULT_RECORD_CAP_REFUSAL } from '../../src/lib/core/vault-capacity';
 import { vaultLinkFor } from '../../src/lib/core/vault-page';
 import { GenerateResultSchema } from '../../contracts/generate.contract';
@@ -346,7 +351,8 @@ describe('makePage', () => {
 		// Named after the route's own slug, so it lands in a downloads folder saying which page it is.
 		expect(original.filename.startsWith('meechie-who-fucked-up-')).toBe(true);
 		// Nothing failed, so there is no notice.
-		expect(state.exportError).toBe('');
+		expect(pageExportFailures(state.packageAttempts)).toEqual([]);
+		expect(summarisePageExportFailures(state.packageAttempts)).toBe('');
 	});
 
 	it('takes the whole export row away with the page it belonged to', async () => {
@@ -356,7 +362,7 @@ describe('makePage', () => {
 		// Including the original, which is derived rather than stored precisely so a reset cannot
 		// leave it behind pointing at a page that is gone.
 		expect(state.pageExports).toEqual([]);
-		expect(state.exportError).toBe('');
+		expect(pageExportFailures(state.packageAttempts)).toEqual([]);
 	});
 
 	it('keeps the printable PDF when only the square share image fails', async () => {
@@ -377,8 +383,12 @@ describe('makePage', () => {
 		// `generateError`, so a page that generated perfectly and then failed to become a square
 		// PNG rendered in the same crimson box, in the same place, as a page that never generated —
 		// directly above the button that buys another generation.
-		expect(state.exportError).toContain('The square share image could not be built');
-		expect(state.exportError).toContain('Your page is on the paper.');
+		const failures = pageExportFailures(state.packageAttempts);
+		expect(failures.map((failure) => failure.variant)).toEqual(['square']);
+		expect(failures[0].message).toContain('The square share image could not be built.');
+		expect(summarisePageExportFailures(state.packageAttempts)).toBe(
+			'Your page is on the paper.'
+		);
 		expect(state.generateError).toBe('');
 	});
 
@@ -399,8 +409,12 @@ describe('makePage', () => {
 		expect(state.hasPage).toBe(true);
 		expect(state.imagePreviews).toHaveLength(1);
 		expect(state.packagedFiles).toEqual([printFile]);
-		expect(state.exportError).toContain('The square share image could not be built');
-		expect(state.exportError).toContain('canvas is tainted');
+		const failures = pageExportFailures(state.packageAttempts);
+		expect(failures.map((failure) => failure.variant)).toEqual(['square']);
+		expect(failures[0].message).toContain('The square share image could not be built.');
+		// The exception's own words are kept for a bug report and never shown. They used to be both.
+		expect(failures[0].detail).toBe('canvas is tainted');
+		expect(failures[0].message).not.toContain('canvas is tainted');
 		expect(state.generateError).toBe('');
 	});
 
@@ -414,8 +428,37 @@ describe('makePage', () => {
 		expect(state.hasPage).toBe(true);
 		expect(state.imagePreviews).toHaveLength(1);
 		expect(state.packagedFiles).toEqual([]);
-		expect(state.exportError).toContain('The printable download could not be built');
+		const failures = pageExportFailures(state.packageAttempts);
+		expect(failures[0].message).toContain('The printable download could not be built.');
 		expect(state.generateError).toBe('');
+	});
+
+	it('builds the downloads again on request, without asking for another generation', async () => {
+		// The remedy this surface never had. Packaging is the only failing step in the app that
+		// spends nothing, and until now the only control near a failed download bought a generation.
+		vi.mocked(outputPackagingAdapter.package).mockRejectedValue(
+			new Error('out of memory')
+		);
+		const state = await withPage();
+		expect(state.packagedFiles).toEqual([]);
+		expect(pageExportRetryLabel(state.packageAttempts)).toBe(
+			'Build the downloads again'
+		);
+		const fileBaseNameBefore = state.pageExports[0]?.filename ?? '';
+		const generateCalls = vi.mocked(globalThis.fetch).mock.calls.length;
+
+		vi.mocked(outputPackagingAdapter.package).mockResolvedValue({
+			ok: true,
+			value: { files: [printFile] }
+		});
+		await state.rebuildDownloads();
+
+		expect(state.packagedFiles).toEqual([printFile, printFile]);
+		expect(pageExportFailures(state.packageAttempts)).toEqual([]);
+		// No paid call, and no new file base name: a reader who already grabbed the original image
+		// gets rebuilt files that still match it.
+		expect(vi.mocked(globalThis.fetch).mock.calls.length).toBe(generateCalls);
+		expect(state.pageExports.at(-1)?.filename).toBe(fileBaseNameBefore);
 	});
 
 	it('drops an image the browser cannot decode before it becomes a saveable page', async () => {
