@@ -15615,3 +15615,55 @@ Re-measure everything below; do not inherit it.
   `PLAYWRIGHT_CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome`. This item can stop
   being carried.
 - **Governance, met this run:** the plan was written into `plan.md` before any code.
+
+## Run 23, first close-out — 2026-09-10 — the rebuild could take away a download the reader already had
+
+Found by this run's own adversarial re-read of the diff, after every gate on `c48d5f2` had gone
+green: `check` 0/0, `lint`, 1,953 unit tests, `build`, the full `verify` chain, 83 Playwright tests,
+**and** SonarCloud, CodeQL, both `verify` CI jobs, Rosentic and Vercel. None of them asks the
+question that caught it, which is the standing gap Run 22's close-out named.
+
+### The defect
+
+`rebuildDownloads` re-packaged **every** variant, not the ones that failed. So:
+
+1. The print PDF builds. The 1080px square canvas runs out of memory and fails.
+2. The reader is offered "Build the downloads again" — correctly, because `PNG_ENCODING_FAILED` is
+   exactly the cause a second attempt can get past.
+3. The rebuild re-runs the print PDF **under the same memory pressure that just broke the square**.
+4. If it fails this time, the reader now has **no** PDF where they had one.
+
+The feature exists to stop a partial packaging failure reading as a total one. Its one control could
+make it total. The failure mode is not exotic either — it is the *commonest* shape of the commonest
+cause here, which is why the classifier offers the button for it at all.
+
+### The fix
+
+`failedExportVariants` and `mergeRebuiltAttempts`, both pure, both in `page-exports.ts`. A rebuild
+asks only for the variants that failed and merges the results back by variant, in the original
+request order. An attempt with no replacement is returned **by identity** — `tests/unit/page-exports.test.ts`
+asserts `toBe`, not `toEqual`, because "kept" and "rebuilt to the same value" are different claims
+and only the first one is safe.
+
+It is also strictly cheaper: the successful attempt already holds its files, so re-running it was
+wasted work even when it succeeded.
+
+Applied to all three surfaces. `runPackaging` now takes the variants and **returns** the attempts
+rather than assigning them, because a generation installs a whole new row and a rebuild merges a
+subset into the one on screen — two different installs of the same work, and collapsing them is what
+produced the bug.
+
+### The transferable part
+
+**A retry that re-runs more than what failed can lose what succeeded.** The retries this app already
+had were all whole-operation: a generation, a save, a try-on. Each of those has one outcome, so
+"retry it" is unambiguous. Packaging is the first retry here over a **set** of independent outcomes,
+and the reflex from the previous three — re-run the operation — is wrong the moment the operation is
+plural.
+
+Worth checking anywhere else a retry covers more than one result.
+
+### Evidence after the fix
+
+`check` 0/0, `lint`, **1,959** unit tests (6 new), `build`, the full `verify` chain, and **83**
+Playwright tests, all exit 0.

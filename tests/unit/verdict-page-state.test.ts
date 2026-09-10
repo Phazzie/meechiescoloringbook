@@ -433,6 +433,37 @@ describe('makePage', () => {
 		expect(state.generateError).toBe('');
 	});
 
+	it('rebuilds only what failed, and never re-runs a download the reader already has', async () => {
+		// The regression the merge exists to stop. The commonest packaging failure is memory on a
+		// print sheet that is megapixels at 300dpi, and its commonest shape is "the PDF built, the
+		// 1080px share canvas did not". Re-running the PDF under that same pressure would turn the
+		// one control offered against a partial failure into a way to make it total.
+		vi.mocked(outputPackagingAdapter.package).mockImplementation(async (input) =>
+			input.variants?.includes('square')
+				? { ok: false, error: { code: 'PNG_ENCODING_FAILED', message: 'no memory' } }
+				: { ok: true, value: { files: [printFile] } }
+		);
+		const state = await withPage();
+		expect(state.packagedFiles).toEqual([printFile]);
+
+		const squareFile = {
+			filename: 'square.png',
+			mimeType: 'image/png',
+			dataBase64: 'c3F1YXJl'
+		};
+		const packageSpy = vi.mocked(outputPackagingAdapter.package);
+		packageSpy.mockClear();
+		packageSpy.mockResolvedValue({ ok: true, value: { files: [squareFile] } });
+
+		await state.rebuildDownloads();
+
+		// One call, for the square only. The print attempt was kept whole rather than re-run.
+		expect(packageSpy).toHaveBeenCalledTimes(1);
+		expect(packageSpy.mock.calls[0][0].variants).toEqual(['square']);
+		expect(state.packagedFiles).toEqual([printFile, squareFile]);
+		expect(pageExportFailures(state.packageAttempts)).toEqual([]);
+	});
+
 	it('builds the downloads again on request, without asking for another generation', async () => {
 		// The remedy this surface never had. Packaging is the only failing step in the app that
 		// spends nothing, and until now the only control near a failed download bought a generation.

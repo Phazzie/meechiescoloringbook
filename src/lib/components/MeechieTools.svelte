@@ -27,7 +27,9 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 	import { buildQualityReport } from '$lib/core/quality-report';
 	import {
 		describeOriginalImageExport,
-		describePackagedExports
+		describePackagedExports,
+		failedExportVariants,
+		mergeRebuiltAttempts
 	} from '$lib/core/page-exports';
 	import type { PageExportAttempt } from '$lib/core/page-exports';
 	import { packagePageVariant } from './page-packaging';
@@ -45,6 +47,7 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 		MeechieToolResultSchema
 	} from '../../../contracts/meechie-tool.contract';
 	import type { GeneratedImage } from '../../../contracts/image-generation.contract';
+	import type { OutputVariant } from '$lib/seams/output-packaging-seam/contract';
 	import type { CreationOwner } from '$lib/seams/creation-store-seam/contract';
 	import {
 		classifyGenerationFailure,
@@ -428,13 +431,14 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 	 * rebuild produces the same attempts under the same staleness rule.
 	 */
 	const runPackaging = async (
+		variants: readonly OutputVariant[],
 		images: readonly GeneratedImage[],
 		fileBaseName: string,
 		pageSize: ToolPageRecipe['spec']['pageSize'],
 		isStale: () => boolean
-	): Promise<void> => {
+	): Promise<PageExportAttempt[] | null> => {
 		const attempts: PageExportAttempt[] = [];
-		for (const variant of TOOL_EXPORT_VARIANTS) {
+		for (const variant of variants) {
 			const attempt = await packagePageVariant(
 				variant,
 				images,
@@ -444,10 +448,10 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 			// Checked between variants, not only at the end: the square variant rasterises a fresh
 			// 1080px canvas, and starting that for a page the reader has already replaced spends time
 			// and memory on a result guaranteed to be thrown away.
-			if (isStale()) return;
+			if (isStale()) return null;
 			attempts.push(attempt);
 		}
-		packageAttempts = attempts;
+		return attempts;
 	};
 
 	/**
@@ -457,25 +461,35 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 	 * already paid for — and until now the only control anywhere near a failed download was the one
 	 * that buys another generation and re-rolls the picture the reader liked.
 	 *
+	 * Asks for **only the variants that failed**, and merges them back. Re-running one that succeeded
+	 * could take away a download the reader already has: the commonest failure here is memory, and
+	 * its commonest shape is "the PDF built, the share canvas did not".
+	 *
 	 * Re-uses `pageFileBaseName` rather than stamping a new one, so rebuilt files still match an
 	 * original image the reader may already have grabbed, and takes `pageSize` off the attempt being
 	 * rebuilt rather than from `lastRecipe`, which the reader's next dedication edit would change.
 	 */
 	const rebuildDownloads = async (): Promise<void> => {
 		if (isGenerating || isRebuildingDownloads) return;
-		const pageSize = packageAttempts[0]?.pageSize;
+		const previous = packageAttempts;
+		const variants = failedExportVariants(previous);
+		const pageSize = previous[0]?.pageSize;
+		if (variants.length === 0) return;
 		if (generatedImages.length === 0 || !pageSize || pageFileBaseName === '') return;
 		const token = pageToken;
 		const images = generatedImages;
 		const fileBaseName = pageFileBaseName;
 		isRebuildingDownloads = true;
 		try {
-			await runPackaging(
+			const rebuilt = await runPackaging(
+				variants,
 				images,
 				fileBaseName,
 				pageSize,
 				() => token !== pageToken
 			);
+			if (rebuilt === null) return;
+			packageAttempts = mergeRebuiltAttempts(previous, rebuilt);
 		} finally {
 			isRebuildingDownloads = false;
 		}
@@ -617,7 +631,15 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 			// generation has already succeeded, so a failure here never means the page failed —
 			// and reporting it in the field a failed generation uses, above the button that buys
 			// another one, is an invitation to pay again for a free local render.
-			await runPackaging(images, fileBaseName, recipe.spec.pageSize, isStale);
+			const attempts = await runPackaging(
+				TOOL_EXPORT_VARIANTS,
+				images,
+				fileBaseName,
+				recipe.spec.pageSize,
+				isStale
+			);
+			if (attempts === null) return;
+			packageAttempts = attempts;
 		} catch (requestError) {
 			if (isStale()) return;
 			pageFailure = classifyPageFailure({ thrown: requestError });

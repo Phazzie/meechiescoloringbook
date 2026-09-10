@@ -17,6 +17,8 @@ import {
 	fileTypeLabel,
 	formatByteSize,
 	generatedImageByteLength,
+	failedExportVariants,
+	mergeRebuiltAttempts,
 	pageExportFailures,
 	pageExportRetryLabel,
 	summarisePageExportFailures,
@@ -452,5 +454,88 @@ describe('pageExportRetryLabel', () => {
 
 		expect(label).not.toMatch(/try again/i);
 		expect(label).toContain('downloads');
+	});
+});
+
+describe('failedExportVariants', () => {
+	it('names only the variants that failed', () => {
+		expect(
+			failedExportVariants([
+				{ variant: 'print', files: [pdfFile('cGRm')], failure: null, pageSize: 'US_Letter' },
+				{ variant: 'square', files: [], failure: encodeFailure('square'), pageSize: 'US_Letter' }
+			])
+		).toEqual(['square']);
+	});
+
+	it('names nothing when every variant was built', () => {
+		expect(
+			failedExportVariants([
+				{ variant: 'print', files: [pdfFile('cGRm')], failure: null, pageSize: 'US_Letter' }
+			])
+		).toEqual([]);
+	});
+});
+
+describe('mergeRebuiltAttempts', () => {
+	it('keeps a download the rebuild deliberately did not re-run', () => {
+		// The regression this exists to stop. Re-packaging a variant that already succeeded can take
+		// away a file the reader has: the commonest failure here is memory, and its commonest shape
+		// is "the PDF built, the 1080px share canvas did not". Re-running the PDF under that same
+		// pressure turns the one control offered against a partial failure into a way to make it
+		// total.
+		const printAttempt: PageExportAttempt = {
+			variant: 'print',
+			files: [pdfFile('cGRm')],
+			failure: null,
+			pageSize: 'US_Letter'
+		};
+		const previous: PageExportAttempt[] = [
+			printAttempt,
+			{ variant: 'square', files: [], failure: encodeFailure('square'), pageSize: 'US_Letter' }
+		];
+		const rebuiltSquare: PageExportAttempt = {
+			variant: 'square',
+			files: [pdfFile('c3F1YXJl')],
+			failure: null,
+			pageSize: 'US_Letter'
+		};
+
+		const merged = mergeRebuiltAttempts(previous, [rebuiltSquare]);
+
+		expect(merged[0]).toBe(printAttempt);
+		expect(merged[1]).toBe(rebuiltSquare);
+	});
+
+	it('keeps the original request order, matching by variant rather than position', () => {
+		const previous: PageExportAttempt[] = [
+			{ variant: 'print', files: [], failure: encodeFailure('print'), pageSize: 'A4' },
+			{ variant: 'square', files: [pdfFile('cGRm')], failure: null, pageSize: 'A4' },
+			{ variant: 'chat', files: [], failure: encodeFailure('chat'), pageSize: 'A4' }
+		];
+
+		const merged = mergeRebuiltAttempts(previous, [
+			{ variant: 'chat', files: [pdfFile('Y2hhdA==')], failure: null, pageSize: 'A4' },
+			{ variant: 'print', files: [pdfFile('cHJpbnQ=')], failure: null, pageSize: 'A4' }
+		]);
+
+		expect(merged.map((attempt) => attempt.variant)).toEqual([
+			'print',
+			'square',
+			'chat'
+		]);
+		expect(merged.every((attempt) => attempt.failure === null)).toBe(true);
+	});
+
+	it('leaves a failure in place when its rebuild failed too', () => {
+		const previous: PageExportAttempt[] = [
+			{ variant: 'square', files: [], failure: encodeFailure('square'), pageSize: 'US_Letter' }
+		];
+
+		const merged = mergeRebuiltAttempts(previous, [
+			{ variant: 'square', files: [], failure: canvasFailure('square'), pageSize: 'US_Letter' }
+		]);
+
+		// The newer classification wins, so the sentence follows what happened this time.
+		expect(merged[0].failure?.cause).toBe('unsupported_here');
 	});
 });

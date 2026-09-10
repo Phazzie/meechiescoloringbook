@@ -236,6 +236,40 @@ export const pageExportFailures = (
 		.filter((failure): failure is ExportFailure => failure !== null);
 
 /**
+ * The variants a rebuild should ask for: the ones that failed, and only those.
+ *
+ * A rebuild that re-packaged everything could **take away a download the reader already has**. The
+ * commonest failure here is memory on a page that is several megapixels at print resolution, and the
+ * commonest shape of it is "the PDF built, the 1080px share canvas did not". Re-running the PDF in
+ * that state risks losing it to the same pressure that broke the square — turning the one control
+ * offered against a partial failure into a way to make it total. It is also simply wasted work: the
+ * successful attempt already holds its files.
+ */
+export const failedExportVariants = (
+	attempts: readonly PageExportAttempt[]
+): OutputVariant[] =>
+	attempts
+		.filter((attempt) => attempt.failure !== null)
+		.map((attempt) => attempt.variant);
+
+/**
+ * Put rebuilt attempts back among the ones that were kept, in the original request order.
+ *
+ * Matched by variant rather than by position, because a rebuild asks for a subset. An attempt with
+ * no replacement is returned untouched — that is the successful download the rebuild deliberately
+ * did not re-run.
+ */
+export const mergeRebuiltAttempts = (
+	previous: readonly PageExportAttempt[],
+	rebuilt: readonly PageExportAttempt[]
+): PageExportAttempt[] =>
+	previous.map(
+		(attempt) =>
+			rebuilt.find((replacement) => replacement.variant === attempt.variant) ??
+			attempt
+	);
+
+/**
  * The line the notice opens with, or `''` when nothing failed.
  *
  * Always affirms the page itself first, because that is the fact the reader most needs and the one

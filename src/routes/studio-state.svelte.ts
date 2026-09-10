@@ -72,6 +72,8 @@ import {
 import {
 	describeOriginalImageExport,
 	describePackagedExports,
+	failedExportVariants,
+	mergeRebuiltAttempts,
 	type PageExport,
 	type PageExportAttempt
 } from '$lib/core/page-exports';
@@ -97,7 +99,10 @@ import {
 import type { CreationOwner, CreationRecord } from '$lib/seams/creation-store-seam/contract';
 import type { DriftDetectionOutput, Violation } from '../../contracts/drift-detection.contract';
 import type { GeneratedImage } from '../../contracts/image-generation.contract';
-import type { PackagedFile } from '$lib/seams/output-packaging-seam/contract';
+import type {
+	OutputVariant,
+	PackagedFile
+} from '$lib/seams/output-packaging-seam/contract';
 import type {
 	ColoringPageSpec,
 	SpecValidationOutput
@@ -2284,16 +2289,41 @@ export class StudioState {
 		// a replaced page, because the only thing that makes an attempt stale is `resetGeneratedPage`,
 		// which clears this field on its way past.
 		this.pageFileBaseName = fileBaseName;
+		const attempts = await this.runPackaging(
+			STUDIO_EXPORT_VARIANTS,
+			images,
+			fileBaseName,
+			pageSize,
+			pageToken
+		);
+		if (attempts === null) return;
+		this.packageAttempts = attempts;
+	}
+
+	/**
+	 * Package the given variants, in order, and return the attempts — or `null` when the page was
+	 * replaced part-way and the late files belong to a page nobody is looking at.
+	 *
+	 * Returns rather than assigns, because a generation installs a whole new row and a rebuild merges
+	 * a subset back into the one on screen. Those are different installs of the same work.
+	 */
+	private async runPackaging(
+		variants: readonly OutputVariant[],
+		images: GeneratedImage[],
+		fileBaseName: string,
+		pageSize: ColoringPageSpec['pageSize'],
+		pageToken: number
+	): Promise<PageExportAttempt[] | null> {
 		const attempts: PageExportAttempt[] = [];
-		for (const variant of STUDIO_EXPORT_VARIANTS) {
+		for (const variant of variants) {
 			const attempt = await packagePageVariant(variant, images, fileBaseName, pageSize);
 			// Checked between variants, not only at the end: the square variant rasterises a fresh
 			// canvas, and starting that for a page the reader has already replaced spends time and
 			// memory on a result that is guaranteed to be thrown away.
-			if (pageToken !== this.pageLoadToken) return;
+			if (pageToken !== this.pageLoadToken) return null;
 			attempts.push(attempt);
 		}
-		this.packageAttempts = attempts;
+		return attempts;
 	}
 
 	/**
@@ -2304,6 +2334,12 @@ export class StudioState {
 	 * and a PDF on this device — and until now the only control anywhere near a failed download was
 	 * "Make the page", which buys another generation and re-rolls the picture the reader liked.
 	 *
+	 * Asks for **only the variants that failed**, and merges them back. Re-running one that succeeded
+	 * could take away a download the reader already has: the commonest failure here is memory, and
+	 * its commonest shape is "the PDF built, the 1080px share canvas did not" — so re-running the PDF
+	 * under that same pressure is how the one control offered against a partial failure would make it
+	 * total.
+	 *
 	 * Re-uses `pageFileBaseName` rather than stamping a new one, so rebuilt files still match an
 	 * original image the reader may already have grabbed. `pageSize` comes off the attempt being
 	 * rebuilt and never from the live Page Controls, which stay enabled: re-reading them would
@@ -2311,15 +2347,23 @@ export class StudioState {
 	 */
 	rebuildPageExports = async (): Promise<void> => {
 		if (this.isGenerating || this.isRebuildingDownloads) return;
-		const pageSize = this.packageAttempts[0]?.pageSize;
+		const previous = this.packageAttempts;
+		const variants = failedExportVariants(previous);
+		const pageSize = previous[0]?.pageSize;
+		if (variants.length === 0) return;
 		if (this.images.length === 0 || !pageSize || this.pageFileBaseName === '') return;
+		const images = $state.snapshot(this.images);
 		this.isRebuildingDownloads = true;
 		try {
-			await this.attachPageExports(
+			const rebuilt = await this.runPackaging(
+				variants,
+				images,
 				this.pageFileBaseName,
-				this.pageLoadToken,
-				pageSize
+				pageSize,
+				this.pageLoadToken
 			);
+			if (rebuilt === null) return;
+			this.packageAttempts = mergeRebuiltAttempts(previous, rebuilt);
 		} finally {
 			this.isRebuildingDownloads = false;
 		}

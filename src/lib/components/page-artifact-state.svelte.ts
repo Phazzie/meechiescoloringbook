@@ -39,7 +39,9 @@ import type { ToolPageRecipe } from '$lib/core/tool-page-recipe';
 import { buildQualityReport } from '$lib/core/quality-report';
 import {
 	describeOriginalImageExport,
-	describePackagedExports
+	describePackagedExports,
+	failedExportVariants,
+	mergeRebuiltAttempts
 } from '$lib/core/page-exports';
 import type { PageExport, PageExportAttempt } from '$lib/core/page-exports';
 import { packagePageVariant } from './page-packaging';
@@ -57,7 +59,10 @@ import { newCreationId } from '$lib/components/creation-id';
 import type { CreationOwner } from '$lib/seams/creation-store-seam/contract';
 import type { MeechieStudioTextOutput } from '../../../contracts/meechie-studio-text.contract';
 import type { GeneratedImage } from '../../../contracts/image-generation.contract';
-import type { PackagedFile } from '$lib/seams/output-packaging-seam/contract';
+import type {
+	OutputVariant,
+	PackagedFile
+} from '$lib/seams/output-packaging-seam/contract';
 
 /**
  * Whether the browser can actually decode this preview.
@@ -678,29 +683,41 @@ export class PageArtifactState {
 		// after no page in particular. Cleared by `resetPage` on its way past, so a late attempt for
 		// a replaced page cannot revive it.
 		this.pageFileBaseName = fileBaseName;
-		await this.runPackaging(images, fileBaseName, pageSize, token);
+		const attempts = await this.runPackaging(
+			PAGE_EXPORT_VARIANTS,
+			images,
+			fileBaseName,
+			pageSize,
+			token
+		);
+		if (attempts === null) return;
+		// Recorded as attempts, and *not* into `generateError`. Both used to go there: a page that
+		// generated perfectly and then failed to become a square PNG rendered in the same crimson
+		// box, in the same place, as a page that never generated — directly above the button that
+		// buys another generation, for a failure in a free local render.
+		this.packageAttempts = attempts;
 	}
 
 	/**
-	 * Package every variant, in order, into `packageAttempts`.
+	 * Package the given variants, in order, and return the attempts — or `null` when the page was
+	 * replaced part-way and the late files belong to a page nobody is looking at.
 	 *
-	 * Shared by the generation that first builds the downloads and by `rebuildDownloads`, so a
-	 * rebuild produces the same attempts under the same staleness rule rather than a second
-	 * arrangement that can drift from it.
+	 * Returns rather than assigns, because the generation installs a whole new row and a rebuild
+	 * merges a subset back into the one on screen. Those are different installs of the same work.
 	 *
-	 * Both variants are packaged in sequence rather than in one call: the seam returns on its first
-	 * error without its accumulated files, so asking for print and square together loses the print
-	 * PDF whenever the square rasterisation is the thing that breaks.
+	 * One call per variant, never `variants: ['print', 'square']`: the seam returns on its first
+	 * error WITHOUT its accumulated files, so asking for both together loses the printable PDF
+	 * whenever the square rasterisation is the thing that breaks. The PDF is the product.
 	 */
 	private async runPackaging(
+		variants: readonly OutputVariant[],
 		images: readonly GeneratedImage[],
 		fileBaseName: string,
 		pageSize: ToolPageRecipe['spec']['pageSize'],
 		token: number
-	): Promise<void> {
-		const isStale = (): boolean => token !== this.pageToken;
+	): Promise<PageExportAttempt[] | null> {
 		const attempts: PageExportAttempt[] = [];
-		for (const variant of PAGE_EXPORT_VARIANTS) {
+		for (const variant of variants) {
 			const attempt = await packagePageVariant(
 				variant,
 				images,
@@ -710,14 +727,10 @@ export class PageArtifactState {
 			// Checked between variants, not only at the end: the square variant rasterises a 1080px
 			// canvas, and starting that for a page the reader has already replaced burns time and
 			// memory on a result that is guaranteed to be discarded.
-			if (isStale()) return;
+			if (token !== this.pageToken) return null;
 			attempts.push(attempt);
 		}
-		// Recorded as attempts, and *not* into `generateError`. Both used to go there: a page that
-		// generated perfectly and then failed to become a square PNG rendered in the same crimson
-		// box, in the same place, as a page that never generated — directly above the button that
-		// buys another generation, for a failure in a free local render.
-		this.packageAttempts = attempts;
+		return attempts;
 	}
 
 	/**
@@ -729,6 +742,12 @@ export class PageArtifactState {
 	 * one that buys another generation — which re-rolls the picture the reader liked, to fix a free
 	 * local render.
 	 *
+	 * Asks for **only the variants that failed**, and merges them back. Re-running one that
+	 * succeeded could take a download the reader already has: the commonest failure here is memory,
+	 * and its commonest shape is "the PDF built, the share canvas did not" — so re-running the PDF
+	 * under that same pressure is how the one control offered against a partial failure would make
+	 * it total.
+	 *
 	 * Re-uses `pageFileBaseName` rather than stamping a new one, so a reader who already grabbed the
 	 * original image gets rebuilt files that match it. `pageSize` comes off the attempt being
 	 * rebuilt, never from the live controls: those stay enabled, and re-reading them would package
@@ -737,16 +756,22 @@ export class PageArtifactState {
 	async rebuildDownloads(): Promise<void> {
 		if (this.isGenerating || this.isRebuildingDownloads) return;
 		const images = this.generatedImages;
-		const pageSize = this.packageAttempts[0]?.pageSize;
+		const previous = this.packageAttempts;
+		const variants = failedExportVariants(previous);
+		const pageSize = previous[0]?.pageSize;
+		if (variants.length === 0) return;
 		if (images.length === 0 || !pageSize || this.pageFileBaseName === '') return;
 		this.isRebuildingDownloads = true;
 		try {
-			await this.runPackaging(
+			const rebuilt = await this.runPackaging(
+				variants,
 				images,
 				this.pageFileBaseName,
 				pageSize,
 				this.pageToken
 			);
+			if (rebuilt === null) return;
+			this.packageAttempts = mergeRebuiltAttempts(previous, rebuilt);
 		} finally {
 			this.isRebuildingDownloads = false;
 		}
