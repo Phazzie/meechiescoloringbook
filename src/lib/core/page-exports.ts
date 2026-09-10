@@ -236,20 +236,30 @@ export const pageExportFailures = (
 		.filter((failure): failure is ExportFailure => failure !== null);
 
 /**
- * The variants a rebuild should ask for: the ones that failed, and only those.
+ * The variants a rebuild should ask for: the ones that failed **and could land differently**.
  *
- * A rebuild that re-packaged everything could **take away a download the reader already has**. The
- * commonest failure here is memory on a page that is several megapixels at print resolution, and the
- * commonest shape of it is "the PDF built, the 1080px share canvas did not". Re-running the PDF in
- * that state risks losing it to the same pressure that broke the square — turning the one control
- * offered against a partial failure into a way to make it total. It is also simply wasted work: the
- * successful attempt already holds its files.
+ * Two filters, and both are load-bearing.
+ *
+ * A variant that **succeeded** is excluded because re-packaging it could **take away a download the
+ * reader already has**. The commonest failure here is memory on a page that is several megapixels at
+ * print resolution, and the commonest shape of it is "the PDF built, the 1080px share canvas did
+ * not". Re-running the PDF in that state risks losing it to the same pressure that broke the square
+ * — turning the one control offered against a partial failure into a way to make it total. It is
+ * also simply wasted work: the successful attempt already holds its files.
+ *
+ * A variant whose failure is **not retryable** is excluded because the reader has just been told, in
+ * that variant's own sentence, that trying again will not help. `pageExportRetryLabel` offers the
+ * button as soon as *any* failure is retryable, which is right — a page whose print PDF can be
+ * rebuilt is worth pressing for even when its share image provably cannot be. But pressing it must
+ * then do only the part that can work, or the app spends the reader's seconds contradicting its own
+ * message. The excluded attempt keeps its failure through `mergeRebuiltAttempts`, so its sentence
+ * stays on screen and stays true.
  */
-export const failedExportVariants = (
+export const rebuildableExportVariants = (
 	attempts: readonly PageExportAttempt[]
 ): OutputVariant[] =>
 	attempts
-		.filter((attempt) => attempt.failure !== null)
+		.filter((attempt) => attempt.failure?.retry.kind === 'now')
 		.map((attempt) => attempt.variant);
 
 /**

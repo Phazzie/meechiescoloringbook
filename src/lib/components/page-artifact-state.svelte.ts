@@ -40,7 +40,7 @@ import { buildQualityReport } from '$lib/core/quality-report';
 import {
 	describeOriginalImageExport,
 	describePackagedExports,
-	failedExportVariants,
+	rebuildableExportVariants,
 	mergeRebuiltAttempts
 } from '$lib/core/page-exports';
 import type { PageExport, PageExportAttempt } from '$lib/core/page-exports';
@@ -762,7 +762,7 @@ export class PageArtifactState {
 		if (this.isGenerating || this.isRebuildingDownloads) return;
 		const images = this.generatedImages;
 		const previous = this.packageAttempts;
-		const variants = failedExportVariants(previous);
+		const variants = rebuildableExportVariants(previous);
 		const pageSize = previous[0]?.pageSize;
 		if (variants.length === 0) return;
 		if (images.length === 0 || !pageSize || this.pageFileBaseName === '') return;

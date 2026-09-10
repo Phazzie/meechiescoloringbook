@@ -15775,3 +15775,53 @@ Vitest transpiles without type checking, so a test calling a `private` method ru
 `svelte-check` fails the build. The gap was running `test`, `lint` and `build` after adding a test
 and *not* `check`. **`npm run check` belongs in every loop that adds a test, not only every loop that
 adds source.**
+
+## Run 23, third close-out — 2026-09-10 — the Codex round on `495f42f`, and the button that contradicted its own sentence
+
+One P2 on the fix from the first close-out. **Right, and it is the second finding this round that is
+about the app saying one thing and doing another** — the same class as the "unaffected" claim, one
+control over.
+
+`failedExportVariants` returned every failed variant. `pageExportRetryLabel` offers the button as
+soon as **any** failure is retryable, which is correct: a page whose print PDF can be rebuilt is
+worth pressing for even when its share image provably cannot be. But pressing it then re-ran the
+share image too — the variant whose own sentence, two lines above the button, says *"This browser
+will not let the app draw the file, so trying again here will not help."*
+
+So the app printed a sentence and then, on the reader's press, spent their seconds doing exactly the
+thing it had just called useless — and returned the identical message.
+
+Fixed by filtering on `failure.retry.kind === 'now'` and renaming to `rebuildableExportVariants`, so
+the name states the rule and the next reader cannot use it for "everything that failed". The
+excluded attempt keeps its failure through `mergeRebuiltAttempts`, so its sentence stays on screen
+and stays true.
+
+The test worth keeping is not the case itself but the **invariant**: across every combination, a
+button is offered exactly when there is something for it to do —
+`rebuildableExportVariants(attempts).length > 0` iff `pageExportRetryLabel(attempts) !== null`. Two
+lists that must agree will eventually stop agreeing; one asserted relationship will not.
+
+### The pattern across all three findings this round
+
+All three of Codex's correct findings are the same shape, and none of them is a bug in the ordinary
+sense — every one of them was code doing exactly what it was written to do:
+
+| Finding | What the app said | What it did |
+|---|---|---|
+| "unaffected" | the printable download is fine | both variants had failed |
+| rebuild everything | build the downloads again | could remove a download you had |
+| rebuild non-retryable | trying again will not help | tried again anyway |
+
+**Every one is a mismatch between a sentence and a behaviour, in a feature whose entire purpose is
+to make the sentences true.** The gates cannot see that: `verify`, SonarCloud, CodeQL, 1,966 unit
+tests and 83 Playwright tests were all green on the head carrying the first two. A test asserting
+the message and a test asserting the behaviour both pass while the two contradict each other,
+because nothing compares them.
+
+That is the third run in a row this log has recorded a version of the same gap. It is the argument
+for the owner ruling this log keeps circling.
+
+### Evidence after this round
+
+`check` 0/0, `lint`, **1,969** unit tests, `build`, the full `verify` chain, and **83** Playwright
+tests, all exit 0.

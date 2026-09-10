@@ -17,7 +17,7 @@ import {
 	fileTypeLabel,
 	formatByteSize,
 	generatedImageByteLength,
-	failedExportVariants,
+	rebuildableExportVariants,
 	mergeRebuiltAttempts,
 	pageExportFailures,
 	pageExportRetryLabel,
@@ -458,10 +458,10 @@ describe('pageExportRetryLabel', () => {
 	});
 });
 
-describe('failedExportVariants', () => {
+describe('rebuildableExportVariants', () => {
 	it('names only the variants that failed', () => {
 		expect(
-			failedExportVariants([
+			rebuildableExportVariants([
 				{ variant: 'print', files: [pdfFile('cGRm')], failure: null, pageSize: 'US_Letter' },
 				{ variant: 'square', files: [], failure: encodeFailure('square'), pageSize: 'US_Letter' }
 			])
@@ -470,10 +470,55 @@ describe('failedExportVariants', () => {
 
 	it('names nothing when every variant was built', () => {
 		expect(
-			failedExportVariants([
+			rebuildableExportVariants([
 				{ variant: 'print', files: [pdfFile('cGRm')], failure: null, pageSize: 'US_Letter' }
 			])
 		).toEqual([]);
+	});
+
+	it('skips a failure the classifier says a rebuild cannot help', () => {
+		// The button appears as soon as ANY failure is retryable, which is right. But pressing it must
+		// then do only the part that can work: re-running the canvas variant would spend the reader's
+		// seconds contradicting the sentence they just read on that same variant.
+		expect(
+			rebuildableExportVariants([
+				{ variant: 'print', files: [], failure: encodeFailure('print'), pageSize: 'US_Letter' },
+				{ variant: 'square', files: [], failure: canvasFailure('square'), pageSize: 'US_Letter' }
+			])
+		).toEqual(['print']);
+	});
+
+	it('names nothing when no failure could land differently', () => {
+		// Consistent with `pageExportRetryLabel`, which renders no button in this case at all — so the
+		// two can never disagree about whether there is anything to do.
+		const attempts: PageExportAttempt[] = [
+			{ variant: 'print', files: [], failure: canvasFailure('print'), pageSize: 'US_Letter' },
+			{ variant: 'square', files: [], failure: canvasFailure('square'), pageSize: 'US_Letter' }
+		];
+
+		expect(rebuildableExportVariants(attempts)).toEqual([]);
+		expect(pageExportRetryLabel(attempts)).toBeNull();
+	});
+
+	it('agrees with the retry label on every combination', () => {
+		// One invariant rather than two lists that can drift: a button is offered exactly when there
+		// is something for it to do.
+		const cases: PageExportAttempt[][] = [
+			[],
+			[{ variant: 'print', files: [pdfFile('cGRm')], failure: null, pageSize: 'A4' }],
+			[{ variant: 'print', files: [], failure: canvasFailure('print'), pageSize: 'A4' }],
+			[{ variant: 'print', files: [], failure: encodeFailure('print'), pageSize: 'A4' }],
+			[
+				{ variant: 'print', files: [], failure: encodeFailure('print'), pageSize: 'A4' },
+				{ variant: 'square', files: [], failure: canvasFailure('square'), pageSize: 'A4' }
+			]
+		];
+
+		for (const attempts of cases) {
+			expect(rebuildableExportVariants(attempts).length > 0).toBe(
+				pageExportRetryLabel(attempts) !== null
+			);
+		}
 	});
 });
 

@@ -72,7 +72,7 @@ import {
 import {
 	describeOriginalImageExport,
 	describePackagedExports,
-	failedExportVariants,
+	rebuildableExportVariants,
 	mergeRebuiltAttempts,
 	type PageExport,
 	type PageExportAttempt
@@ -2353,7 +2353,7 @@ export class StudioState {
 	rebuildPageExports = async (): Promise<void> => {
 		if (this.isGenerating || this.isRebuildingDownloads) return;
 		const previous = this.packageAttempts;
-		const variants = failedExportVariants(previous);
+		const variants = rebuildableExportVariants(previous);
 		const pageSize = previous[0]?.pageSize;
 		if (variants.length === 0) return;
 		if (this.images.length === 0 || !pageSize || this.pageFileBaseName === '') return;

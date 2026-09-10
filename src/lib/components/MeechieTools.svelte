@@ -28,7 +28,7 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 	import {
 		describeOriginalImageExport,
 		describePackagedExports,
-		failedExportVariants,
+		rebuildableExportVariants,
 		mergeRebuiltAttempts
 	} from '$lib/core/page-exports';
 	import type { PageExportAttempt } from '$lib/core/page-exports';
@@ -476,7 +476,7 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 	const rebuildDownloads = async (): Promise<void> => {
 		if (isGenerating || isRebuildingDownloads) return;
 		const previous = packageAttempts;
-		const variants = failedExportVariants(previous);
+		const variants = rebuildableExportVariants(previous);
 		const pageSize = previous[0]?.pageSize;
 		if (variants.length === 0) return;
 		if (generatedImages.length === 0 || !pageSize || pageFileBaseName === '') return;
