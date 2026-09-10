@@ -16156,26 +16156,43 @@ measured too — a detached worktree at `a87af7a` — rather than quoted from Ru
 | `npx playwright test` | **NOT MET** — pinned build 1208 absent from this container |
 | `npm run test:e2e:local` | **83** passed against 1194 |
 
-### The routine's browser gate was not met, and the merge did not wait for it
+### Two gates governed this merge and neither was fully met
 
-Stated plainly rather than as an environment footnote, because the two are separate gates and only
-one of them was satisfied.
+Consolidated into one section on the fourth attempt. The first draft claimed all four merge
+conditions held; the second added a corrective section further down and left the claim standing above
+it; the third fixed the claim and left "the merge was legitimate under the rule" standing beside it.
+Three rounds of patching one clause at a time, each fix agreeing with the finding and contradicting
+its own neighbours. **The defect was structural: the same question was answered in two places, so
+every partial fix produced a document that disagreed with itself.** One account now, and nothing
+pointing forward to another.
 
-`AGENTS.md`'s **merge rule** (L127–159) conditions a merge on CI green on the current head, every
-review comment addressed, `verify` and `test` green with committed evidence, and no conflict. Three
-held outright and the fourth held only in part — see *One merge condition was not fully met* below,
-which is the section this sentence has to agree with. `AGENTS.md`'s **worst-feature routine**
-(L213–214) separately requires `npx playwright
-test` *when the change is user-facing*. This change is user-facing and that command **failed before
-any test body ran**. Passing the same 83 specs against build 1194 through `test:e2e:local` is not the
-pinned gate going green, and `.github/workflows/verify.yml` does not run Playwright either, so the
-pinned suite ran nowhere.
+**`AGENTS.md`'s merge rule (L127–159)** conditions a merge on four things: CI green on the current
+head, every review comment addressed, `verify` and `test` green with committed evidence, and no
+conflict.
 
-So: the merge was legitimate under the rule that governs merging, and the run shipped with one of the
-routine's own verification requirements **unmet**. The 1194 run is real evidence — it is how the new
-browser test was written and verified — and it is not the required one. This is recorded as an open
-deficiency of Run 23 rather than as a note about the container, and it is the strongest form of the
-carried-forward item below.
+Conditions 1, 2 and 4 held outright. **Condition 3 did not.** `baf5cb5` committed `test.txt` and
+`verify.txt`; `verify.txt` is written by the inner runner and carries neither the `audit:gate` result
+nor the chain's own exit status. The artifact that carries both, `verify-outer.txt`, was not in the
+merged commit. So at the moment of merging there was committed evidence that the tests were green and
+that the inner stage was green, and **none that `npm run verify` itself exited 0**.
+
+The rule permits merging when every condition is met, so this merge **proceeded despite condition 3
+being incompletely evidenced** — it was not authorised by the rule. That is the accurate statement and
+it took three rounds to write, because each earlier version reached for a form of words that let the
+merge keep the rule's blessing. The transcript added later in this pull request does not change it:
+that is evidence about the merged *content*, not evidence that was committed *at the merge*.
+
+**`AGENTS.md`'s worst-feature routine (L213–214)** separately requires `npx playwright test` *when
+the change is user-facing*. This change is user-facing and that command **failed before any test body
+ran**. Passing the same 83 specs against build 1194 through `test:e2e:local` is not the pinned gate
+going green, and `.github/workflows/verify.yml` does not run Playwright either, so the pinned suite
+ran nowhere. The 1194 run is real evidence — it is how the new browser test was written and verified
+— and it is not the required one.
+
+So the run shipped with one gate incompletely evidenced and one requirement outright unmet. Nothing
+about the code changed on discovering either; what changed is what can be checked about it. Both are
+recorded as open deficiencies of Run 23 rather than as notes about the container, and the browser one
+is first on the carried-forward list.
 
 ### Scope
 
@@ -16206,26 +16223,8 @@ all of them. It is open in `docs/evidence/2026-09-10/assumption-alarm.json` and 
 listed the same four, so the omission was inherited rather than invented. Enumerating each and
 recording the determination is what makes the audit checkable; "none of them applies" is not.
 
-All twenty review threads were resolved.
-
-### One merge condition was not fully met, and this entry first claimed all four were
-
-Condition 3 of the merge rule is `verify` and `test` green **with committed evidence**. `baf5cb5`
-committed `test.txt` and `verify.txt`, and `verify.txt` is written by the inner runner and carries
-neither the `audit:gate` result nor the chain's own exit status. The artifact that carries both —
-`verify-outer.txt` — was **not in the merged commit**. So at the moment of merging there was
-committed evidence that the tests were green and that the inner stage was green, and none that
-`npm run verify` itself exited 0.
-
-The transcript added later in this pull request does not change that. It is evidence about the
-merged *content*, which is worth having, and it is not evidence that was committed *at the merge*.
-The first draft of this entry said all four conditions held, then two sections later admitted the
-file was missing from `baf5cb5` — an entry contradicting itself between one paragraph and another.
-
-The honest statement: three of the four conditions held outright, the fourth held for `test` and for
-the inner stage and not for the outer chain, and the merge went ahead on a reading of the evidence
-that was one artifact short. Nothing about the code changed; what changed is what could be checked
-about it afterwards.
+All twenty review threads were resolved. Condition 3 of the merge rule was not, which is covered in
+full above.
 
 ### What the review rounds actually cost, and what they bought
 
