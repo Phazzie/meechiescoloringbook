@@ -16127,3 +16127,289 @@ the wrong command.
 
 `check` 0/0, `lint`, **1,981** unit tests, `build`, the full `verify` chain. Browser: `npx playwright
 test` **blocked** (build 1208 absent); `npm run test:e2e:local` **83 passed** against 1194.
+
+## Run 23 — merge close-out — 2026-09-10 — PR #347 merged as `baf5cb5`
+
+**Merged:** `baf5cb5`, squashed from eight commits on `claude/great-bell-woxzow`.
+**Base at merge:** `main` at `a87af7a`. 36 files, +6,864 / -304.
+
+### Gates at merge
+
+Every check run green on the head `3cf70a3` — both `verify` jobs, SonarCloud twice, CodeQL twice
+(`Analyze (actions)` and `Analyze (javascript-typescript)`), Rosentic conflict detection, Vercel
+preview comments — plus both commit statuses (Vercel "Deployment has completed", CodeRabbit's
+manual-review skip), combined status `success`, `mergeable_state` `clean`. `Sourcery review` reported
+`skipped`, which is the budget refusal recorded in Run 22's fourth close-out and not a failure.
+
+**Re-measured at the merged commit, not carried forward** — the correction Run 19 earned and Runs 20
+through 22 kept. `git rev-parse` reports the same tree (`e8791cd`) for `3cf70a3`, the PR head ref and
+`baf5cb5`, so a re-run measures the merged content rather than a near-copy of it. The base figure is
+measured too — a detached worktree at `a87af7a` — rather than quoted from Run 22's close-out:
+
+| Command | Result at `baf5cb5` |
+|---|---|
+| `npm run check` | 0 errors, 0 warnings |
+| `npm run lint` | exit 0 |
+| `npm test` | **1,981** passed, 1 skipped, 112 files (from **1,927** in 110 files — 54 net) |
+| `npm run build` | exit 0 |
+| `npm run verify` | exit 0 — outer transcript at `docs/evidence/2026-09-10/verify-outer.txt` |
+| `npx playwright test` | **NOT MET** — pinned build 1208 absent from this container |
+| `npm run test:e2e:local` | **83** passed against 1194 |
+
+### Two gates governed this merge and neither was fully met
+
+Consolidated into one section on the fourth attempt. The first draft claimed all four merge
+conditions held; the second added a corrective section further down and left the claim standing above
+it; the third fixed the claim and left "the merge was legitimate under the rule" standing beside it.
+Three rounds of patching one clause at a time, each fix agreeing with the finding and contradicting
+its own neighbours. **The defect was structural: the same question was answered in two places, so
+every partial fix produced a document that disagreed with itself.** One account now, and nothing
+pointing forward to another.
+
+**`AGENTS.md`'s merge rule (L127–159)** conditions a merge on four things: CI green on the current
+head, every review comment addressed, `verify` and `test` green with committed evidence, and no
+conflict.
+
+Conditions 1, 2 and 4 held outright. **Condition 3 did not.** `baf5cb5` committed `test.txt` and
+`verify.txt`; `verify.txt` is written by the inner runner and carries neither the `audit:gate` result
+nor the chain's own exit status. The artifact that carries both, `verify-outer.txt`, was not in the
+merged commit. So at the moment of merging there was committed evidence that the tests were green and
+that the inner stage was green, and **none that `npm run verify` itself exited 0**.
+
+The rule permits merging when every condition is met, so this merge **proceeded despite condition 3
+being incompletely evidenced** — it was not authorised by the rule. That is the accurate statement and
+it took three rounds to write, because each earlier version reached for a form of words that let the
+merge keep the rule's blessing. The transcript added later in this pull request does not change it:
+that is evidence about the merged *content*, not evidence that was committed *at the merge*.
+
+**`AGENTS.md`'s worst-feature routine (L213–214)** separately requires `npx playwright test` *when
+the change is user-facing*. This change is user-facing and that command **failed before any test body
+ran**. Passing the same 83 specs against build 1194 through `test:e2e:local` is not the pinned gate
+going green, and `.github/workflows/verify.yml` does not run Playwright either, so the pinned suite
+ran nowhere. The 1194 run is real evidence — it is how the new browser test was written and verified
+— and it is not the required one.
+
+So the run shipped with one gate incompletely evidenced and one requirement outright unmet. Nothing
+about the code changed on discovering either; what changed is what can be checked about it. Both are
+recorded as open deficiencies of Run 23 rather than as notes about the container, and the browser one
+is first on the carried-forward list.
+
+### Scope
+
+`git diff --name-only a87af7a baf5cb5` against **all seven** governed paths — `contracts/`,
+`probes/`, `fixtures/`, `src/lib/mocks/`, `tests/contract/`, `src/lib/adapters/` and
+`src/lib/seams/` — returns **nothing**. No Cipher Gate was required and the merge rule's
+contract-change exclusion did not apply.
+
+`tests/contract/` is named in `AGENTS.md:L102` alongside the others and this close-out first ran the
+audit without it. The conclusion did not change, but the command as originally recorded could not
+have established it, which is the same defect as a plan that describes a set instead of naming it.
+
+### Open Assumptions, enumerated rather than summarised
+
+All **five** open entries in `DECISIONS.md` were read and each was individually judged against what
+this change decides:
+
+| Open Assumption | Covers this change? |
+|---|---|
+| CSP font sources pending first deploy | No — head policy, not export packaging |
+| `vercel.json` header rules | No — route headers, not export packaging |
+| Durable Upstash-backed rate-limit store | No — request throttling, not export packaging |
+| Live xAI image-edit call | No — provider I/O, which packaging runs after |
+| **Deployed full-payload path** (2026-08-24; `ProviderAdapterSeam`, `AppConfigSeam`, `MeechieStudioTextSeam`, `MeechieToolSeam`, `ChatInterpretationSeam`) | No — a text-generation request shape; packaging never reaches a provider |
+
+The fifth was **omitted from the first draft of this entry**, which listed four and asserted that was
+all of them. It is open in `docs/evidence/2026-09-10/assumption-alarm.json` and Run 22's close-out
+listed the same four, so the omission was inherited rather than invented. Enumerating each and
+recording the determination is what makes the audit checkable; "none of them applies" is not.
+
+All twenty review threads were resolved. Condition 3 of the merge rule was not, which is covered in
+full above.
+
+### What the review rounds actually cost, and what they bought
+
+Six review rounds, **fourteen** findings — **twelve in code, two in process** — and every one of the
+fourteen landed on a pull request whose **automated checks** were already green. Not one of them
+could have gone red, because none of them was code failing to do what it was written to do.
+
+"Automated checks", not "gates". Two of this run's gates were never green: the mandatory
+`npx playwright test`, which is the subject of one of the fourteen findings, and merge condition 3.
+Writing "gates were already green" here would have restated in the summary exactly the claim the
+section above spent four rounds retiring — the same defect one more time, in the paragraph that
+congratulates the reviews for catching it.
+
+The count is stated from the entries above rather than from memory, because two earlier attempts at
+it were short. The sixth close-out records **eleven correct findings across five review rounds**, all
+in code. The seventh adds one P2 in code (the stamp that re-dated a failure that had not changed) and
+two P1s in process. Eleven plus one is twelve code findings; the seventh close-out's own line calling
+them "the eleven code findings" was already one behind when it was written, and the first draft of
+this entry repeated the eleven and totalled thirteen. Those entries are merged and append-only, so
+the correction is made here rather than in them.
+
+**The rule this run earned, from every count it got wrong:** a summary sentence written in the same
+breath as the enumeration beneath it does not get checked against that enumeration. The seventh
+close-out says "the eleven code findings" in an entry that had just added a twelfth, and calls a
+finding "the fourth in a row about the same field" one line above a sentence naming three. This entry
+then repeated both. Every number this run stated wrongly was a count **of things it had itself just
+listed**, in the same paragraph, and none of them survived a reader who added up the list. So the
+check is mechanical and cheap: before writing a total, count the items directly under it.
+
+Every code finding was the same shape: **a mismatch between what the app said and what it did.** A
+rebuild button that could take away a download the reader already had. A sentence claiming the print
+PDF was unaffected on a page where both variants had failed. A remedy printed twice, then a fix for
+that which threw away which download each remedy was about. A diagnostic field that answered "which
+failure is newest?" correctly for one more case on each of three separate rounds — three, per the
+correction in the carried-forward list; this sentence said four until the same review round caught
+both.
+
+The two process findings are the ones worth carrying. Both were **claims this run made about its own
+work** that did not survive being checked: a plan whose file inventory used a blanket statement, and
+six evidence tables that named `npm run test:e2e:local` where the routine mandates `npx playwright
+test`. A gate cannot catch either.
+
+### Three regressions this run introduced and then caught
+
+Recorded because the fix-to-defect ratio is the honest measure of a review round, and this run's was
+not 1:0. **Three, not two** — the count said two until a review round pointed at a third that the
+entries above already described.
+
+1. Token-scoping the `finally` in round three opened the generation-supersedes-rebuild strand that
+   round four filed.
+2. Grouping remedies by text in `0a0067d` — this run's own fix for the duplicated forty words —
+   discarded the variant association, which round five filed.
+3. **The stamp.** `packagingFailureStamp` exists because of the ordering fix in the sixth close-out;
+   the seventh then found it re-dating a failure that had not changed. The escalating chain that
+   close-out describes — wrong as a fallback, then wrong in its ordering, then wrong in what it
+   stamps — is by its own account a sequence in which **each finding is against the previous fix**,
+   so the third belongs on this list and the entry left it off.
+
+All three were found by review, not by a gate, and all three were fixes rather than original code.
+That is the more useful ratio: of the twelve code findings, a quarter were against this run's own
+corrections.
+
+### Rosentic stood down on measured grounds, as in Run 22
+
+All 18 findings compare against `claude/great-bell-k1i146`, an unrelated open branch that changes the
+signatures of `stampOf`, `newestFailure`, `makeToolkitVerdict`, `arrangeTryOn` and `routeRefusal`.
+Every call in this diff matches `main`'s current signatures. The incompatibility is genuine and
+belongs to whichever of the two branches merges second. The check run was **green**, so these are
+advisory, and the measurement was written on the pull request rather than merged past in silence.
+
+### Carried forward for the next run
+
+Re-measure everything below; do not inherit it.
+
+- **`src/lib/core/meechie-quote-scoring.ts` has no *production* importer** — 107 lines of
+  deterministic quote scoring that no route, component or pipeline calls. **Corrected here: this run
+  said "zero importers anywhere in the repo" in the opening entry and in PR #347's description, and
+  that is false.** `tests/unit/meechie-quote-scoring.test.ts:5` imports both exported functions:
+
+  ```
+  $ grep -rn "meechie-quote-scoring" --include=*.ts --include=*.svelte . | grep -v node_modules
+  ./tests/unit/meechie-quote-scoring.test.ts:5:import { scoreMeechieQuote, selectBestMeechieQuote } ...
+  ```
+
+  The distinction decides what a future run should do with it. Unreferenced code is a delete
+  candidate. **Tested-but-unwired** code is a finished, covered unit somebody built and never
+  connected, which is a much stronger case for wiring it in — and a reason to read the tests first,
+  since they document what its author intended. Still passed over deliberately this run: wiring it in
+  would be inventing a feature rather than rebuilding the worst one, and its heuristics hardcode
+  `'easter'` and `'cheap seats'` as evidence of wit.
+- **`MeechieTools.svelte` is still in legacy (non-runes) mode** — worked around a fourth time this
+  run, with a plain `let isRebuildingDownloads` and a hand-rolled `advancePageToken` where the other
+  hosts use `$state`. Fourth run running. Corrected here: the first draft said this is why a
+  packaging change has to be written **twice**. It is **three times** — three independent
+  `runPackaging` implementations, one per host:
+
+  ```
+  $ grep -rn "runPackaging" src/ | grep -v "this.runPackaging\|await runPackaging"
+  src/lib/components/MeechieTools.svelte:448:  const runPackaging = async (
+  src/lib/components/page-artifact-state.svelte.ts:738:  private async runPackaging(
+  src/routes/studio-state.svelte.ts:2346:  private async runPackaging(
+  ```
+
+  The legacy mode explains only why the third cannot share the other two. **The other two are runes
+  hosts that duplicate each other for no reason at all**, which is the larger finding and the one
+  "twice" was hiding — a next run that de-legacies `MeechieTools` and stops there leaves two copies
+  in sync only by hand.
+- **`traceFailureDetail` has been corrected three times**, in the fourth, sixth and seventh
+  close-outs: wrong as a fallback, wrong in its ordering, wrong in what it stamps. Corrected here
+  from "four rounds in a row" — the fifth close-out sits between them and is about remedy
+  deduplication, not this field. The seventh close-out's own line calls the third finding "the
+  fourth finding in a row" while enumerating three directly beneath it, which is **the second
+  off-by-one in that one entry**, alongside its "eleven code findings" when twelve was the count.
+  Both are merged and append-only, so both are corrected forward here. The next change to this
+  function should start by enumerating the orderings rather than patching the one that was filed.
+- **`readJson` conflates a denied read with a damaged store**, and `writeJson` a denied write with a
+  transient one. Run 22's item, untouched. Root fix is adapter codes: a seam change with a Cipher
+  Gate.
+- **A `ConnectionSeam` is still the right home for the `navigator.onLine` read.** Unchanged.
+- **The try-on's `rejected` branch is still unreachable from the UI.** Run 21's item, untouched.
+- **`failure.detail` has one consumer, on one surface out of fourteen.** Narrowed twice. The first
+  draft said "storage and generation details still have nowhere to render", which is **wrong for
+  generation**: `traceFailureDetail` reads `pageFailure`, `textFailure` and `tryOnFailure`, and this
+  run added packaging alongside them. The second draft then said *thirteen* surfaces, which is the
+  count this log has carried since Run 14 and **`/describe` post-dates it**. Measured now:
+
+  ```
+  $ grep -rln "SystemTrace" src/ | grep -v SystemTrace.svelte
+  src/lib/core/quality-report.ts
+  src/routes/+page.svelte
+  ```
+
+  **Both hits, not the one this entry first printed.** The first is not a renderer: `quality-report.ts`
+  names the component in its `Info flow:` header comment (`-> QualityReport -> SystemTrace.svelte /
+  VerdictPageStudio.svelte / MeechieTools.svelte.`) and imports nothing. Recording one line of a
+  two-line result is the same defect as every other finding in this entry, committed **in the command
+  offered as proof against it** — and had the second hit been a real renderer, the trimmed output
+  would have hidden it. The honest form is the full output plus the reason a hit does not count.
+
+  Fourteen page-making surfaces — the home studio, the three standalone mode routes, the eight
+  `/m/<slug>` pages, the eleven-tool hub and `/describe`, which reaches `PageExportRow` through
+  `DescribePageStudio` and imports no `SystemTrace`. So generation *and* packaging details do render,
+  on the home studio only; **thirteen** surfaces have no System Trace at all; and **storage details
+  render nowhere on any of the fourteen**, which `StorageFailureNotice.svelte` states in its own
+  header. Two gaps rather than one: a diagnostic with no consumer, and thirteen surfaces with no
+  place to put one.
+
+  The count is worth stating carefully because a denominator carried forward from before a surface
+  existed is exactly how `/describe` got missed for its whole life — a seam that shipped complete
+  and had **zero callers** until **Run 17** built it one — "The interpreter with no front door",
+  2026-09-08. First written here as Run 20, from memory, in the very paragraph warning against
+  claims carried without measurement. Checked against the entry heading and corrected before push.
+- **`npx playwright test` cannot run in this container and runs nowhere in CI.** The project pins
+  build 1208; `/opt/pw-browsers` has 1194. `playwright.local.config.ts` and `npm run test:e2e:local`
+  are committed this run so the substitute stops being rebuilt by hand each time, but **the
+  substitute is not the mandated gate**. Run 23 shipped a user-facing change with this requirement
+  **unmet**, which is the first item a next run should resolve: either move the pin to a build the
+  environment has, add Playwright to `verify.yml` so the gate exists somewhere, or get an owner
+  ruling that the substitute is the accepted ceiling. Recording it as blocked is honest; leaving it
+  blocked for another run is not.
+- **`verify-outer.txt` is captured by hand and this run forgot it.** `docs/evidence/README.md:13-16`
+  makes it the only artifact carrying the `audit:gate` result and the chain's own exit status —
+  `verify.txt` is written by the inner runner and carries neither, despite the name. Runs on
+  2026-09-05, -06, -08 and -09 all committed one; `baf5cb5` does not, so the merged commit has no
+  committed proof that `npm run verify` itself exited 0. Nothing in `package.json` or `scripts/`
+  writes it, which is exactly why it is the artifact that goes missing. **A next run should make the
+  `verify` script emit it** rather than relying on whoever remembers the redirect.
+- **SonarCloud still cannot be read from this container** (`sonarcloud.io`, `CONNECT tunnel failed,
+  response 403`). Its "2 New issues" on this pull request were never identified. `eslint-plugin-sonarjs`
+  is a strict subset of the remote analyzer, so a null local result proves nothing — the over-sell
+  Run 22 corrected.
+- **Run 18 still has no merge close-out entry.** Carried for six runs now.
+- Every item on **Run 19's carried-forward list** still stands, untouched by this run.
+- **Governance:** the plan was in `plan.md` before any code. **Its file inventory did not name every
+  path until this close-out, and the line above claiming otherwise was false when written.** Measured
+  against `git diff --name-only a87af7a baf5cb5`, the Run 23 inventory omitted
+  `src/routes/+page.svelte` and `tests/unit/page-exports.test.ts` — a fourth suite where it said
+  "the three suites" — and carried `docs/evidence/2026-09-10/**`, a glob covering eleven files.
+
+  A glob **is** a blanket statement. So the table written to answer an unlisted-files finding shipped
+  with a blanket row in it, called itself an enumeration in its own preamble, and this entry then
+  reported the mandate as met. Three layers, each asserting the layer under it was fixed. Runs 17 and
+  18 enumerate their evidence files one per row, five hundred lines further down the same file, so
+  the standard was never in doubt.
+
+  Now enumerated: fifteen rows, including `plan.md` itself and the `verify-outer.txt` that no chain
+  writes. The mandate exists so a diff can be checked against a plan mechanically; until this
+  close-out that check would have returned four discrepancies on a run reporting none.

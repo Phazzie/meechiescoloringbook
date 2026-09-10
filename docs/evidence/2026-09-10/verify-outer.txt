@@ -1,20 +1,46 @@
-# Purpose: Store the verify runner's check and test stage output.
-# Why: Keep this inner stage distinct from the outer verify chain and its separate artifacts.
-# Info flow: check/test output -> evidence file -> outer verify chain.
+# Purpose: Capture the OUTER 'npm run verify' command's own output and exit status.
+# Why: verify.txt holds only the inner verify-runner stage, despite its name. Without this
+#      file the audit:gate result and the chain's exit status are asserted rather than
+#      captured, which is unauditable. Run 23 merged `baf5cb5` with this file absent and a
+#      close-out that claimed the chain was green, which a review caught.
+# Info flow: `npm run verify` -> scratch path -> moved here after the chain returns.
+# Invariant: written AFTER the chain, per docs/evidence/README.md "Capture order", so it is
+#            deliberately absent from that chain's own proof-tape inventory. Captured to a
+#            scratch path first, because a file cannot be inventoried while still being
+#            written. The exit status is read from `$?` immediately after the command, never
+#            from PIPESTATUS after an intervening command, which reports the wrong process.
 
-$ node scripts/verify-runner.mjs
+> meechies-coloringbook@0.1.0 verify
+> npm run audit:gate && node scripts/chamber-lock.mjs && node scripts/verify-runner.mjs && node scripts/shaolin-lint.mjs && node scripts/assumption-alarm.mjs && node scripts/seam-ledger.mjs && node scripts/clan-chain.mjs && node scripts/proof-tape.mjs
 
-$ npm run check
+
+> meechies-coloringbook@0.1.0 audit:gate
+> npm audit --audit-level=high
+
+# npm audit report
+
+@vitest/mocker  2.1.0 - 4.1.10
+Severity: moderate
+Vitest: Path Traversal / Arbitrary File Read via @vitest/mocker Redirect Mock - https://github.com/advisories/GHSA-82fw-gwwq-j7x9
+fix available via `npm audit fix`
+node_modules/@vitest/mocker
+  vitest  2.1.0-beta.1 - 4.1.10
+  Depends on vulnerable versions of @vitest/mocker
+  node_modules/vitest
+
+
+2 moderate severity vulnerabilities
+
+To address all issues, run:
+  npm audit fix
 
 > meechies-coloringbook@0.1.0 check
 > svelte-kit sync && svelte-check --tsconfig ./tsconfig.json
 
-Loading svelte-check in workspace: <REPO_ROOT>
+Loading svelte-check in workspace: /home/user/meechiescoloringbook
 Getting Svelte diagnostics...
 
 svelte-check found 0 errors and 0 warnings
-
-$ npm test -- --pool=forks --maxWorkers=1
 
 > meechies-coloringbook@0.1.0 test
 > vitest run --pool=forks --maxWorkers=1
@@ -54,3 +80,5 @@ Not implemented: HTMLCanvasElement's getContext() method: without installing the
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+
+Outer chain exit status: 0
