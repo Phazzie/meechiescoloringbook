@@ -16127,3 +16127,118 @@ the wrong command.
 
 `check` 0/0, `lint`, **1,981** unit tests, `build`, the full `verify` chain. Browser: `npx playwright
 test` **blocked** (build 1208 absent); `npm run test:e2e:local` **83 passed** against 1194.
+
+## Run 23 — merge close-out — 2026-09-10 — PR #347 merged as `baf5cb5`
+
+**Merged:** `baf5cb5`, squashed from eight commits on `claude/great-bell-woxzow`.
+**Base at merge:** `main` at `a87af7a`. 36 files, +6,864 / -304.
+
+### Gates at merge
+
+Every check run green on the head `3cf70a3` — both `verify` jobs, SonarCloud twice, CodeQL twice
+(`Analyze (actions)` and `Analyze (javascript-typescript)`), Rosentic conflict detection, Vercel
+preview comments — plus both commit statuses (Vercel "Deployment has completed", CodeRabbit's
+manual-review skip), combined status `success`, `mergeable_state` `clean`. `Sourcery review` reported
+`skipped`, which is the budget refusal recorded in Run 22's fourth close-out and not a failure.
+
+**Re-measured at the merged commit, not carried forward** — the correction Run 19 earned and Runs 20
+through 22 kept. `git rev-parse` reports the same tree (`e8791cd`) for `3cf70a3`, the PR head ref and
+`baf5cb5`, so a re-run measures the merged content rather than a near-copy of it. The base figure is
+measured too — a detached worktree at `a87af7a` — rather than quoted from Run 22's close-out:
+
+| Command | Result at `baf5cb5` |
+|---|---|
+| `npm run check` | 0 errors, 0 warnings |
+| `npm run lint` | exit 0 |
+| `npm test` | **1,981** passed, 1 skipped, 112 files (from **1,927** in 110 files — 54 net) |
+| `npm run build` | exit 0 |
+| `npx playwright test` | **BLOCKED** — pinned build 1208 absent from this container |
+| `npm run test:e2e:local` | **83** passed against 1194 |
+
+The Playwright line is stated as blocked rather than green because of the seventh close-out's P1. The
+1194 run is the only browser evidence that exists for this change, and `.github/workflows/verify.yml`
+does not run Playwright at all.
+
+`git diff --name-only a87af7a baf5cb5` against `contracts/`, `probes/`, `fixtures/`,
+`src/lib/mocks/`, `src/lib/seams/` and `src/lib/adapters/` returns **nothing**. No Cipher Gate was
+required and the merge rule's contract-change exclusion did not apply.
+
+The open Assumption entries in `DECISIONS.md` were read rather than assumed irrelevant. Those still
+open concern the CSP font sources pending first deploy, the `vercel.json` header rules, the durable
+Upstash-backed rate-limit store, and the live xAI image-edit call. **None of them covers what a
+failed download says to a reader or whether a rebuild is offered.** All twenty review threads were
+resolved. So the conditions in `AGENTS.md` were met and it was merged without asking, which is the
+rule.
+
+### What the review rounds actually cost, and what they bought
+
+Six review rounds, thirteen findings — **eleven in code, two in process** — and every one of the
+thirteen landed on a pull request whose gates were already green. Not one of them could have gone
+red, because none of them was code failing to do what it was written to do.
+
+Every code finding was the same shape: **a mismatch between what the app said and what it did.** A
+rebuild button that could take away a download the reader already had. A sentence claiming the print
+PDF was unaffected on a page where both variants had failed. A remedy printed twice, then a fix for
+that which threw away which download each remedy was about. A diagnostic field that answered "which
+failure is newest?" correctly for one more case on each of four consecutive rounds.
+
+The two process findings are the ones worth carrying. Both were **claims this run made about its own
+work** that did not survive being checked: a plan whose file inventory used a blanket statement, and
+six evidence tables that named `npm run test:e2e:local` where the routine mandates `npx playwright
+test`. A gate cannot catch either.
+
+### Two regressions this run introduced and then caught
+
+Recorded because the fix-to-defect ratio is the honest measure of a review round, and this run's was
+not 1:0.
+
+1. Token-scoping the `finally` in round three opened the generation-supersedes-rebuild strand that
+   round four filed.
+2. Grouping remedies by text in `0a0067d` — this run's own fix for the duplicated forty words —
+   discarded the variant association, which round five filed.
+
+Both were found by review, not by a gate, and both were fixes rather than original code.
+
+### Rosentic stood down on measured grounds, as in Run 22
+
+All 18 findings compare against `claude/great-bell-k1i146`, an unrelated open branch that changes the
+signatures of `stampOf`, `newestFailure`, `makeToolkitVerdict`, `arrangeTryOn` and `routeRefusal`.
+Every call in this diff matches `main`'s current signatures. The incompatibility is genuine and
+belongs to whichever of the two branches merges second. The check run was **green**, so these are
+advisory, and the measurement was written on the pull request rather than merged past in silence.
+
+### Carried forward for the next run
+
+Re-measure everything below; do not inherit it.
+
+- **`src/lib/core/meechie-quote-scoring.ts` has zero importers anywhere in the repo** — 107 lines of
+  deterministic quote scoring nothing calls. Passed over deliberately this run: wiring it in would be
+  inventing a feature rather than rebuilding the worst one, and its heuristics hardcode `'easter'`
+  and `'cheap seats'` as evidence of wit. A future run should wire it deliberately or delete it.
+- **`MeechieTools.svelte` is still in legacy (non-runes) mode** — worked around a fourth time this
+  run, with a plain `let isRebuildingDownloads` and a hand-rolled `advancePageToken` where the other
+  hosts use `$state`. Fourth run running, and it is now the reason every packaging change has to be
+  written twice.
+- **`traceFailureDetail` is the app's most-corrected function**, four rounds in a row. The next
+  change to it should start by enumerating the orderings rather than patching the one that was filed.
+- **`readJson` conflates a denied read with a damaged store**, and `writeJson` a denied write with a
+  transient one. Run 22's item, untouched. Root fix is adapter codes: a seam change with a Cipher
+  Gate.
+- **A `ConnectionSeam` is still the right home for the `navigator.onLine` read.** Unchanged.
+- **The try-on's `rejected` branch is still unreachable from the UI.** Run 21's item, untouched.
+- **`failure.detail` now has one consumer, not none.** `pageExportFailureDetail` puts packaging
+  diagnostics under System Trace. Storage and generation details still have nowhere to render — the
+  shape of Run 20's item, now smaller rather than larger for the first time.
+- **`npx playwright test` cannot run in this container and runs nowhere in CI.** The project pins
+  build 1208; `/opt/pw-browsers` has 1194. `playwright.local.config.ts` and `npm run test:e2e:local`
+  are committed this run so the substitute stops being rebuilt by hand each time, but **the
+  substitute is not the mandated gate**. Either a run treats it as the honest ceiling and says so, or
+  the owner is asked whether the pin should move.
+- **SonarCloud still cannot be read from this container** (`sonarcloud.io`, `CONNECT tunnel failed,
+  response 403`). Its "2 New issues" on this pull request were never identified. `eslint-plugin-sonarjs`
+  is a strict subset of the remote analyzer, so a null local result proves nothing — the over-sell
+  Run 22 corrected.
+- **Run 18 still has no merge close-out entry.** Carried for six runs now.
+- Every item on **Run 19's carried-forward list** still stands, untouched by this run.
+- **Governance, met this run:** the plan was in `plan.md` before any code, and its file inventory was
+  corrected mid-run to name every path rather than describe a set.
