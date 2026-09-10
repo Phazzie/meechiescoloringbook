@@ -27,6 +27,7 @@ Invariant: this component decides nothing. What each download is called, what it
 	import {
 		pageExportFailures,
 		pageExportRetryLabel,
+		pageExportSurvivors,
 		summarisePageExportFailures,
 		type PageExport,
 		type PageExportAttempt
@@ -75,6 +76,15 @@ Invariant: this component decides nothing. What each download is called, what it
 	const opening = $derived(summarisePageExportFailures(attempts));
 	const failures = $derived(pageExportFailures(attempts));
 	const rebuildLabel = $derived(pageExportRetryLabel(attempts));
+	// Measured from what this row is actually holding, never assumed. The claim used to live in the
+	// classifier as a per-variant constant, where "the printable download is unaffected" was a
+	// statement about an attempt that function never saw — and false whenever both variants failed.
+	const survivors = $derived(
+		pageExportSurvivors(attempts, {
+			hasOriginalImage: exports.some((item) => item.kind === 'original'),
+			hasPage: exports.length > 0
+		})
+	);
 </script>
 
 <!-- Labelled with the same words it shows, so what a screen reader announces and what a sighted
@@ -118,6 +128,13 @@ Invariant: this component decides nothing. What each download is called, what it
 					{failure.message}
 				</p>
 			{/each}
+			{#if survivors}
+				<!-- Last, and one line for the whole notice rather than one per failure: what the reader
+				     still has is a fact about the page, not about any single variant that failed. -->
+				<p class="export-notice-line" data-testid={`${testIdPrefix}-export-survivors`}>
+					{survivors}
+				</p>
+			{/if}
 			{#if rebuildLabel && onRebuild}
 				<button
 					type="button"

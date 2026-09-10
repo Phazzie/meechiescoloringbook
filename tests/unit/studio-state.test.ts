@@ -35,6 +35,7 @@ import { VAULT_CAPACITY } from '../../src/lib/core/vault-gallery';
 import {
 	pageExportFailures,
 	pageExportRetryLabel,
+	pageExportSurvivors,
 	summarisePageExportFailures
 } from '../../src/lib/core/page-exports';
 import type { CreationRecord, DraftRecord } from '../../contracts/creation-store.contract';
@@ -595,6 +596,35 @@ describe('StudioState', () => {
 		expect(studio.packagedFiles).toEqual([rebuiltFile, rebuiltFile]);
 		expect(pageExportFailures(studio.packageAttempts)).toEqual([]);
 		expect(fetchSpy).not.toHaveBeenCalled();
+	});
+
+	it('does not leave the rebuild button disabled by an operation nobody is waiting for', async () => {
+		// The packaging adapter awaits `image.onload`/`onerror` with NO timeout, so a rebuild can
+		// hang forever and its `finally` never runs. Without clearing the flag on reset, the next
+		// page's failed download would offer a button disabled for the rest of the session.
+		const studio = new StudioState();
+		vi.spyOn(outputPackagingAdapter, 'package').mockRejectedValue(new Error('nope'));
+		await studio.loadCreation({
+			id: 'creation-hanging-rebuild',
+			createdAtISO: '2026-09-03T00:00:00.000Z',
+			intent: buildSeedSpec(DEFAULT_STUDIO_TEXT_OUTPUT),
+			assembledPrompt: 'the saved prompt',
+			images: [{ b64: ONE_PIXEL_PNG_BASE64 }],
+			owner: { kind: 'anonymous', sessionId: 'session-1' }
+		});
+
+		// A rebuild that never settles.
+		vi.spyOn(outputPackagingAdapter, 'package').mockReturnValue(
+			new Promise(() => {})
+		);
+		void studio.rebuildPageExports();
+		expect(studio.isRebuildingDownloads).toBe(true);
+
+		// Through the control a reader actually presses: switching mode replaces the paper, which is
+		// the reset path this flag has to survive.
+		studio.handleModeSelect(studio.modes[1].id);
+
+		expect(studio.isRebuildingDownloads).toBe(false);
 	});
 
 	it('applies the dedication input value before validation and schedules draft save', () => {
@@ -2790,10 +2820,13 @@ describe('StudioState page exports', () => {
 			expect(failure.detail).toBe('Canvas context unavailable for resizing.');
 			expect(failure.message).not.toContain('Canvas context unavailable');
 		}
-		// A browser with no canvas has no canvas a second later, so no rebuild is offered — the
-		// sentence names what does work instead.
+		// A browser with no canvas has no canvas a second later, so no rebuild is offered.
 		expect(pageExportRetryLabel(studio.packageAttempts)).toBeNull();
-		expect(failures[0].message).toContain('Print still works');
+		// And with BOTH variants down, nothing claims one of them survived. The sentence naming what
+		// is left is measured from the attempts, not written per variant.
+		for (const failure of failures) {
+			expect(failure.message).not.toContain('unaffected');
+		}
 		// And the provider's own bytes are still there to take away.
 		expect(studio.pageExports.map((item) => item.kind)).toEqual(['original']);
 	});
@@ -2827,8 +2860,14 @@ describe('StudioState page exports', () => {
 		expect(studio.pageExports.map((item) => item.kind)).toEqual(['print', 'original']);
 		const failures = pageExportFailures(studio.packageAttempts);
 		expect(failures.map((failure) => failure.variant)).toEqual(['square']);
-		// And the sentence says the PDF is fine, which is the fact the reader most needs.
-		expect(failures[0].message).toContain('The printable download and the original image are unaffected.');
+		// And the notice says the PDF is fine, which is the fact the reader most needs — measured
+		// from the attempt that actually produced it.
+		expect(
+			pageExportSurvivors(studio.packageAttempts, {
+				hasOriginalImage: true,
+				hasPage: true
+			})
+		).toContain('the printable download');
 	});
 
 	it('survives a packaging adapter that throws rather than returning an error', async () => {

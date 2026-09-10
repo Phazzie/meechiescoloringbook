@@ -282,6 +282,55 @@ export const summarisePageExportFailures = (
 ): string => (pageExportFailures(attempts).length === 0 ? '' : 'Your page is on the paper.');
 
 /**
+ * How each built variant is named when the notice lists what the reader still has.
+ *
+ * The past tense of `SUBJECT` in `export-failure.ts`: those name a *request* that failed and so
+ * cannot name a file type, while these name files that demonstrably exist.
+ */
+const SURVIVOR_NOUNS: Record<OutputVariant, string> = {
+	print: 'the printable download',
+	square: 'the square share image',
+	chat: 'the chat-sized image'
+};
+
+/** Join a list the way a sentence does: `a`, `a and b`, `a, b and c`. */
+const asSentenceList = (items: readonly string[]): string => {
+	if (items.length <= 1) return items[0] ?? '';
+	return `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`;
+};
+
+/**
+ * One sentence naming what the reader still has, or `''` when there is nothing to name.
+ *
+ * **Measured, never assumed.** This started life inside `classifyExportFailure`, as a per-variant
+ * constant: the square's failure said "the printable download and the original image are
+ * unaffected". That is a claim about an attempt the classifier never sees, and it is **false
+ * whenever both variants fail** — which a WebP or SVG source hitting `CANVAS_UNAVAILABLE` does,
+ * because that print path transcodes through the very canvas the share renderer could not get. A
+ * reader whose page produced no downloads at all was told one of them was fine.
+ *
+ * So it is derived here, from attempts that actually came back, and it names only files that exist.
+ *
+ * Print is mentioned separately and last, because it is not a download: it is `window.print()` over
+ * the layout's own print stylesheet, which never touches the packaging canvas, so it survives every
+ * failure this module can describe — but only while there is a page on screen to print.
+ */
+export const pageExportSurvivors = (
+	attempts: readonly PageExportAttempt[],
+	options: { hasOriginalImage: boolean; hasPage: boolean }
+): string => {
+	if (pageExportFailures(attempts).length === 0) return '';
+	const built = attempts
+		.filter((attempt) => attempt.failure === null && attempt.files.length > 0)
+		.map((attempt) => SURVIVOR_NOUNS[attempt.variant]);
+	const kept = options.hasOriginalImage ? [...built, 'the original image'] : built;
+	const haveSentence =
+		kept.length > 0 ? `You still have ${asSentenceList(kept)}.` : '';
+	const printSentence = options.hasPage ? 'Print still works from this page.' : '';
+	return [haveSentence, printSentence].filter((part) => part.length > 0).join(' ');
+};
+
+/**
  * The label on the rebuild control, or `null` where no control should be rendered.
  *
  * One control for the whole row rather than one per failed variant, because a rebuild re-runs

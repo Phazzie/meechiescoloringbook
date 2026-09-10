@@ -29,9 +29,12 @@
  *     canvas has no canvas a second later, and a picture in a shape this step cannot read is in the
  *     same shape a second later: those get a sentence naming what still works instead of a button
  *     that provably cannot.
- *   - Every sentence names what the reader STILL HAS. A failed print PDF leaves the original image
- *     and the in-app Print button; a failed share image leaves the PDF. The old sentence named
- *     neither, which is what made a free local failure read like a lost page.
+ *   - Nothing here says what the reader still has. That was tried and it was WRONG: a per-variant
+ *     sentence sees one attempt, so the square's "the printable download is unaffected" was a claim
+ *     about a variant this function never saw — and it is false whenever both fail, which a WebP or
+ *     SVG source hitting CANVAS_UNAVAILABLE does, because that print path transcodes through the
+ *     same canvas the share renderer needs. What survived is measured from the whole attempt set by
+ *     `pageExportSurvivors` in `page-exports.ts`, which is the only place that can see it.
  *   - Nothing here claims the page failed. Packaging runs after the image exists, so it never can.
  */
 
@@ -142,27 +145,6 @@ const SUBJECT: Record<OutputVariant, string> = {
 };
 
 /**
- * What the reader still has, per variant.
- *
- * The half of the sentence the old wording had no room for, and the half that decides whether this
- * reads as a lost page or a missing convenience. The print variant keeps the two routes to paper the
- * app already offers and that do not go through the packaging canvas at all: the provider's own
- * image, and the in-app Print button, which is `window.print()` over the layout's own print
- * stylesheet. The share variants keep the thing the app is actually for.
- *
- * Neither claim is a guess about a file that might not exist. The original download is derived from
- * the image the page is currently showing, so it is present whenever a page is, and Print is
- * likewise gated on the page rather than on packaging — see `describeOriginalImageExport` and
- * `print-sheet.ts`.
- */
-const STILL_AVAILABLE: Record<OutputVariant, string> = {
-	print:
-		'The original image is still in the list below, and Print still works from this page.',
-	square: 'The printable download and the original image are unaffected.',
-	chat: 'The printable download and the original image are unaffected.'
-};
-
-/**
  * What a reader can do about a browser that will not give the app a canvas.
  *
  * Named as a capability rather than a setting, because unlike blocked site data there is usually no
@@ -211,14 +193,13 @@ const describe = (
 	variant: OutputVariant
 ): { message: string; retry: ExportRetry } => {
 	const subject = SUBJECT[variant];
-	const stillHave = STILL_AVAILABLE[variant];
 	switch (cause) {
 		case 'unsupported_here':
 			// No rebuild. `BROWSER_REQUIRED` and `CANVAS_UNAVAILABLE` are properties of the browser
 			// this page is open in, and it answers identically every time. The sentence carries the
 			// only thing that actually works instead.
 			return {
-				message: `${subject} ${UNSUPPORTED_REMEDY} ${stillHave}`,
+				message: `${subject} ${UNSUPPORTED_REMEDY}`,
 				retry: { kind: 'none' }
 			};
 		case 'render_failed':
@@ -227,7 +208,7 @@ const describe = (
 			// 300dpi and the encode allocates all of it twice; a second attempt runs against a heap
 			// the first one has since released. `unknown` shares this branch because the commonest way
 			// to land in it is pdf-lib throwing, which is the same story.
-			return { message: `${subject} ${FREE_REBUILD} ${stillHave}`, retry: { kind: 'now' } };
+			return { message: `${subject} ${FREE_REBUILD}`, retry: { kind: 'now' } };
 		case 'unreadable_image':
 			// No rebuild: the same bytes are refused identically. Says plainly that this is the app's
 			// own fault, because every other sentence here implies the device is at fault and a reader
@@ -236,7 +217,7 @@ const describe = (
 				message:
 					`${subject} The picture came back in a form this step cannot read, so building ` +
 					`it again would produce the same result. That is a fault in this app, not in ` +
-					`your browser. ${stillHave}`,
+					`your browser.`,
 				retry: { kind: 'none' }
 			};
 		case 'no_page':

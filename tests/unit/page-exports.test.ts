@@ -21,6 +21,7 @@ import {
 	mergeRebuiltAttempts,
 	pageExportFailures,
 	pageExportRetryLabel,
+	pageExportSurvivors,
 	summarisePageExportFailures,
 	type PageExportAttempt
 } from '../../src/lib/core/page-exports';
@@ -537,5 +538,96 @@ describe('mergeRebuiltAttempts', () => {
 
 		// The newer classification wins, so the sentence follows what happened this time.
 		expect(merged[0].failure?.cause).toBe('unsupported_here');
+	});
+});
+
+describe('pageExportSurvivors', () => {
+	const HAS_PAGE = { hasOriginalImage: true, hasPage: true };
+
+	it('says nothing when every variant was built', () => {
+		expect(
+			pageExportSurvivors(
+				[{ variant: 'print', files: [pdfFile('cGRm')], failure: null, pageSize: 'US_Letter' }],
+				HAS_PAGE
+			)
+		).toBe('');
+	});
+
+	it('claims nothing about a variant that also failed', () => {
+		// The defect this function exists to remove. As a per-variant constant in the classifier, the
+		// square's message ended "the printable download and the original image are unaffected" — and
+		// a WebP or SVG source hitting CANVAS_UNAVAILABLE fails BOTH, because the print path
+		// transcodes through the very canvas the share renderer could not get. A reader with no
+		// downloads at all was told one of them was fine.
+		const sentence = pageExportSurvivors(
+			[
+				{ variant: 'print', files: [], failure: canvasFailure('print'), pageSize: 'US_Letter' },
+				{ variant: 'square', files: [], failure: canvasFailure('square'), pageSize: 'US_Letter' }
+			],
+			HAS_PAGE
+		);
+
+		expect(sentence).not.toContain('printable download');
+		// What is genuinely left: the provider's own bytes, and the browser's own print path, which
+		// never touches the packaging canvas.
+		expect(sentence).toBe(
+			'You still have the original image. Print still works from this page.'
+		);
+	});
+
+	it('names the variants that were actually built', () => {
+		expect(
+			pageExportSurvivors(
+				[
+					{ variant: 'print', files: [pdfFile('cGRm')], failure: null, pageSize: 'US_Letter' },
+					{ variant: 'square', files: [], failure: encodeFailure('square'), pageSize: 'US_Letter' }
+				],
+				HAS_PAGE
+			)
+		).toBe(
+			'You still have the printable download and the original image. Print still works from this page.'
+		);
+	});
+
+	it('does not name a variant that reported success with no files', () => {
+		// A `Result` that is ok and empty is not a download. Naming it would be the same unchecked
+		// claim in a different place.
+		expect(
+			pageExportSurvivors(
+				[
+					{ variant: 'print', files: [], failure: null, pageSize: 'US_Letter' },
+					{ variant: 'square', files: [], failure: encodeFailure('square'), pageSize: 'US_Letter' }
+				],
+				HAS_PAGE
+			)
+		).toBe('You still have the original image. Print still works from this page.');
+	});
+
+	it('omits the original when there is none, and Print when there is no page', () => {
+		const attempts: PageExportAttempt[] = [
+			{ variant: 'square', files: [], failure: encodeFailure('square'), pageSize: 'US_Letter' }
+		];
+
+		expect(
+			pageExportSurvivors(attempts, { hasOriginalImage: false, hasPage: true })
+		).toBe('Print still works from this page.');
+		expect(
+			pageExportSurvivors(attempts, { hasOriginalImage: false, hasPage: false })
+		).toBe('');
+	});
+
+	it('joins three survivors as a sentence rather than a list', () => {
+		expect(
+			pageExportSurvivors(
+				[
+					{ variant: 'print', files: [pdfFile('cGRm')], failure: null, pageSize: 'A4' },
+					{ variant: 'square', files: [pdfFile('c3E=')], failure: null, pageSize: 'A4' },
+					{ variant: 'chat', files: [], failure: encodeFailure('chat'), pageSize: 'A4' }
+				],
+				HAS_PAGE
+			)
+		).toContain(
+			'the printable download, the square share image and the original image'
+		);
 	});
 });

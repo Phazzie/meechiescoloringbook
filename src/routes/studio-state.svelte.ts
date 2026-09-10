@@ -1724,6 +1724,11 @@ export class StudioState {
 		// own image through `this.images` above, so nothing from the previous page can be left behind
 		// in the row.
 		this.packageAttempts = [];
+		// Cleared here as well as in `rebuildPageExports`'s own `finally`, because that `finally` may
+		// never run: the packaging adapter awaits `image.onload`/`onerror` with no timeout, so a
+		// rebuild that hangs never settles and would leave the next page's rebuild button disabled by
+		// an operation nobody is waiting for.
+		this.isRebuildingDownloads = false;
 		this.pageFileBaseName = '';
 		// Whatever replaces the paper is not a try-on portrait until a try-on generation says so.
 		this.tryOnPageOnScreen = false;
@@ -2353,6 +2358,7 @@ export class StudioState {
 		if (variants.length === 0) return;
 		if (this.images.length === 0 || !pageSize || this.pageFileBaseName === '') return;
 		const images = $state.snapshot(this.images);
+		const token = this.pageLoadToken;
 		this.isRebuildingDownloads = true;
 		try {
 			const rebuilt = await this.runPackaging(
@@ -2360,12 +2366,13 @@ export class StudioState {
 				images,
 				this.pageFileBaseName,
 				pageSize,
-				this.pageLoadToken
+				token
 			);
 			if (rebuilt === null) return;
 			this.packageAttempts = mergeRebuiltAttempts(previous, rebuilt);
 		} finally {
-			this.isRebuildingDownloads = false;
+			// Only if this call still owns the paper — see `PageArtifactState.rebuildDownloads`.
+			if (token === this.pageLoadToken) this.isRebuildingDownloads = false;
 		}
 	};
 

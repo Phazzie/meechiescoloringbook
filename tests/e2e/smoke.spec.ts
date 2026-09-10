@@ -2080,9 +2080,13 @@ test('a download that could not be built says so in words, and can be built agai
 	// reader to buy a second one over a free local step.
 	await expect(notice).toContainText('Your page is on the paper.');
 	await expect(notice).toContainText('The square share image could not be built.');
-	// And it says what the reader still has, which the old sentence had no room for.
-	await expect(notice).toContainText(
-		'The printable download and the original image are unaffected.'
+	// And it says what the reader still has — measured from the attempts that actually came back,
+	// never a per-variant assumption. Here the PDF really did build, so it is named.
+	await expect(page.getByTestId('home-export-survivors')).toContainText(
+		'You still have the printable download and the original image.'
+	);
+	await expect(page.getByTestId('home-export-survivors')).toContainText(
+		'Print still works from this page.'
 	);
 	// None of the adapter's own words, and none of an exception's. This is the whole point.
 	await expect(notice).not.toContainText('toDataURL');

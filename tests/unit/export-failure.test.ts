@@ -142,29 +142,27 @@ describe('classifyExportFailure', () => {
 
 		expect(failure.cause).toBe('no_page');
 		expect(failure.retry.kind).toBe('none');
-		// Nothing "still works" to name when there is no page. Claiming otherwise would be the same
-		// invented reassurance the old sentence gave.
-		expect(failure.message).not.toContain('still');
+		expect(failure.message).toContain('There was no finished page to build it from.');
 	});
 
-	it('names what the reader still has, per variant', () => {
-		// The half of the sentence the old wording had no room for, and the half that decides whether
-		// a free local failure reads as a lost page or a missing convenience.
-		const print = classifyExportFailure('print', {
-			code: 'PNG_ENCODING_FAILED',
-			message: 'nope'
-		});
-		expect(print.message).toContain('The original image is still in the list below');
-		expect(print.message).toContain('Print still works');
-
-		for (const variant of ['square', 'chat'] as const) {
-			const failure = classifyExportFailure(variant, {
-				code: 'PNG_ENCODING_FAILED',
-				message: 'nope'
-			});
-			expect(failure.message).toContain(
-				'The printable download and the original image are unaffected.'
-			);
+	it('never claims another variant survived, because it cannot see one', () => {
+		// This function is given ONE attempt. An earlier draft ended the square's sentence with "the
+		// printable download and the original image are unaffected" — a claim about an attempt it
+		// never saw, and false whenever both fail. A WebP or SVG source hitting CANVAS_UNAVAILABLE
+		// does exactly that: the print path transcodes through the same canvas the share renderer
+		// could not get. What survived is measured by `pageExportSurvivors`.
+		for (const variant of OutputVariantSchema.options) {
+			for (const code of Object.keys({
+				CANVAS_UNAVAILABLE: 0,
+				PNG_ENCODING_FAILED: 0,
+				UNSUPPORTED_IMAGE_FORMAT: 0,
+				NO_IMAGES: 0
+			})) {
+				const { message } = classifyExportFailure(variant, { code, message: 'x' });
+				expect(message).not.toContain('unaffected');
+				expect(message).not.toContain('still in the list');
+				expect(message).not.toContain('Print still works');
+			}
 		}
 	});
 

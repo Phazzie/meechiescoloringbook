@@ -15667,3 +15667,111 @@ Worth checking anywhere else a retry covers more than one result.
 
 `check` 0/0, `lint`, **1,959** unit tests (6 new), `build`, the full `verify` chain, and **83**
 Playwright tests, all exit 0.
+
+## Run 23, second close-out — 2026-09-10 — the Codex round on `c48d5f2`, and the claim that survived nothing
+
+Codex reviewed the first head and filed four findings. One P1, three P2. **Two were right and are
+fixed. One had already been found and fixed by this run's own re-read. One is declined, with the
+measurement and the honest half of it recorded in `DECISIONS.md`.**
+
+### P2 — "Preserve successful downloads when rebuilding failures" — already fixed
+
+The same defect this run found independently and pushed as `495f42f`, forty minutes before Codex
+filed it. Two independent readers, one from the diff and one from the code, reached the same place.
+
+Worth recording that **the automated gates did not**: every check on `c48d5f2` was green — `verify`
+twice, SonarCloud, CodeQL, Rosentic, Vercel — plus 1,953 local unit tests and 83 Playwright tests.
+The code did what it was written to do. What it was written to do was harmful. That is the same gap
+Run 22's close-out named, now observed a second time.
+
+### P2 — "Avoid claiming a failed printable download is unaffected" — right, and the sharper of the two
+
+The first head ended the square's failure sentence with *"The printable download and the original
+image are unaffected."* That is **a claim about an attempt the classifier never sees.**
+`classifyExportFailure` is given one variant. The sentence was a per-variant constant asserting
+something about a different variant.
+
+And it is false. Codex's example — a JPG source — is imprecise: `embedJpg` embeds JPG bytes into the
+PDF without touching a canvas. But **WebP and SVG** print paths go through `imageToPngBase64` →
+`transcodeToPngBase64`/`svgToPngBase64`, which is the same canvas the share renderer needs. So a
+WebP or SVG page under `CANVAS_UNAVAILABLE` fails **both** variants, and a reader who got no
+downloads at all was told one of them was fine. More simply: any double failure makes the claim
+false, whatever the cause.
+
+Fixed by measuring it. `pageExportSurvivors(attempts, { hasOriginalImage, hasPage })` in
+`page-exports.ts` derives one sentence from attempts that actually came back, naming only variants
+whose attempt succeeded **and produced files** — a `Result` that is ok and empty is not a download.
+Print is named separately and last, because it is not a download at all: it is `window.print()` over
+the layout's own print stylesheet, which never touches the packaging canvas, so it survives every
+failure this module can describe — but only while a page is on screen.
+
+`export-failure.ts` now says what happened and what to do, and **nothing** about what else exists.
+A test walks every variant and every cause asserting the words "unaffected", "still in the list" and
+"Print still works" appear in none of them.
+
+**The transferable part: a per-item message cannot make a claim about the other items.** The
+classifier's whole design is one failure at a time, which is right — and it is exactly why the
+survivor sentence did not belong in it. The signature was the warning: a function taking one variant
+returning a sentence naming two.
+
+### P2 — "Clear the rebuild flag when resetting the page" — right, and it exposed a second race
+
+`resetPage` cleared eleven fields and not `isRebuildingDownloads`. The `finally` does clear it, so
+the ordinary path was fine — but Codex named the mechanism that breaks it: **the packaging adapter
+awaits `image.onload`/`onerror` with no timeout.** A rebuild that hangs never settles, the `finally`
+never runs, and the *next* page's failed download offers a button disabled for the rest of the
+session.
+
+Fixing it surfaced a second problem the finding did not mention. Clearing the flag on reset alone
+introduces a race: rebuild A hangs, the page resets (flag cleared), a new page starts rebuild B
+(flag set), then A finally settles and its `finally` clears the flag **while B is still running** —
+re-enabling the button mid-flight so a second press can race B for `packageAttempts`. So the
+`finally` is now token-scoped: it clears only if this call still owns the page. Both halves are
+needed; either alone leaves a hole.
+
+### P1 — "Run the required workflow for the packaging seam change" — declined, and recorded
+
+Codex reads the new call site and the reading of `error.code` as an observable seam behavior change
+under `AGENTS.md:100-104`.
+
+Measured rather than argued: `git diff --name-only a87af7a HEAD` against `contracts/`, `probes/`,
+`fixtures/`, `src/lib/mocks/`, `tests/contract/` and `src/lib/adapters/` returns **nothing**, which
+is the one objective test that section states. `code` is declared by `SeamErrorSchema` at
+`contracts/shared.contract.ts:11` and was already emitted by the adapter before this change; the
+seam's inputs, outputs and failure values are byte-identical before and after. Adding a call site of
+an existing seam method is what every feature here does — Run 14 put `package()` behind twelve more
+surfaces and Run 16 changed what the print variant renders, and neither took the full workflow.
+
+**But there is an honest half, and it is now written down.** `CAUSE_BY_CODE` depends on ten specific
+code *values* the contract does not enumerate — it types `code` as any non-empty string. That is a
+real dependency on an adapter implementation detail. Enumerating them would be a contract change,
+which needs the full workflow, a Cipher Gate, and its own pull request under the merge rule. The
+alternative taken is the one `storage-failure.ts` took in Run 22 and merged without a Cipher Gate:
+depend on the values, and guard the dependency **mechanically** — `tests/unit/export-failure.test.ts`
+reads the adapter source and fails if it emits a code the table does not name.
+
+Recorded in `DECISIONS.md` under **2026-09-10 — Classify `OutputPackagingSeam` failures in core,
+without changing the seam**, with the measurement, the alternatives, and the consequence.
+
+### Rosentic: 17 findings, none of them this pull request's
+
+All 17 compare against `claude/great-bell-k1i146`, an unrelated open branch. Measured on this head:
+`git diff a87af7a HEAD` adds **zero** lines mentioning any of the five cited symbols — `stampOf`,
+`newestFailure`, `makeToolkitVerdict`, `arrangeTryOn`, `routeRefusal` — and every cited call exists
+verbatim on the base (2, 2, 4, 10 and 4 occurrences respectively). The line numbers moved only
+because this diff changed those files elsewhere. The check run is **green**, so these are advisory.
+Commented on the pull request with the measurement rather than merging past it silently, which is
+the standard Run 22 set.
+
+### Evidence after this round
+
+`check` 0/0, `lint`, **1,966** unit tests (13 more than the first head), `build`, the full `verify`
+chain, and **83** Playwright tests, all exit 0.
+
+### A process note this round earned
+
+The private-method error in the new reset test was caught by `npm run verify`, **not** by `npm test`.
+Vitest transpiles without type checking, so a test calling a `private` method runs green and
+`svelte-check` fails the build. The gap was running `test`, `lint` and `build` after adding a test
+and *not* `check`. **`npm run check` belongs in every loop that adds a test, not only every loop that
+adds source.**

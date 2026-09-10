@@ -490,6 +490,11 @@ export class PageArtifactState {
 		this.failure = null;
 		this.imagePreviews = [];
 		this.packageAttempts = [];
+		// Cleared here as well as in `rebuildDownloads`'s own `finally`, because that `finally` may
+		// never run: the packaging adapter awaits `image.onload`/`onerror` with no timeout, so a
+		// rebuild that hangs never settles. Without this, the NEXT page's failed download would offer
+		// a rebuild button disabled forever by an operation nobody is waiting for.
+		this.isRebuildingDownloads = false;
 		this.pageOriginalImage = null;
 		this.pageFileBaseName = '';
 		this.assembledPrompt = '';
@@ -761,6 +766,7 @@ export class PageArtifactState {
 		const pageSize = previous[0]?.pageSize;
 		if (variants.length === 0) return;
 		if (images.length === 0 || !pageSize || this.pageFileBaseName === '') return;
+		const token = this.pageToken;
 		this.isRebuildingDownloads = true;
 		try {
 			const rebuilt = await this.runPackaging(
@@ -768,12 +774,16 @@ export class PageArtifactState {
 				images,
 				this.pageFileBaseName,
 				pageSize,
-				this.pageToken
+				token
 			);
 			if (rebuilt === null) return;
 			this.packageAttempts = mergeRebuiltAttempts(previous, rebuilt);
 		} finally {
-			this.isRebuildingDownloads = false;
+			// Only if this call still owns the page. A stale rebuild settling after `resetPage` has
+			// already cleared the flag would otherwise clear it a second time — and if a NEW rebuild
+			// were running by then, that second clear would re-enable the button mid-flight and let a
+			// second press race the first for `packageAttempts`.
+			if (token === this.pageToken) this.isRebuildingDownloads = false;
 		}
 	}
 

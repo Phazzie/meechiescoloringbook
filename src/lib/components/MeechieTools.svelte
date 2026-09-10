@@ -332,6 +332,10 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 		lastPageVerdict = null;
 		imagePreviews = [];
 		packageAttempts = [];
+		// Cleared here as well as in `rebuildDownloads`'s own `finally`, because that `finally` may
+		// never run: the packaging adapter awaits `image.onload`/`onerror` with no timeout, so a
+		// rebuild that hangs never settles and would leave the next page's rebuild button disabled.
+		isRebuildingDownloads = false;
 		pageOriginalImage = null;
 		pageFileBaseName = '';
 		generatedImages = [];
@@ -491,7 +495,8 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 			if (rebuilt === null) return;
 			packageAttempts = mergeRebuiltAttempts(previous, rebuilt);
 		} finally {
-			isRebuildingDownloads = false;
+			// Only if this call still owns the page — see `PageArtifactState.rebuildDownloads`.
+			if (token === pageToken) isRebuildingDownloads = false;
 		}
 	};
 
