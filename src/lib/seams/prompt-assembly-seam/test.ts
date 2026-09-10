@@ -59,6 +59,37 @@ describe('PromptAssemblySeam contract', () => {
 		).not.toThrow();
 	});
 
+	// The two spec fields that reached no prompt at all until this seam learned to carry them. The
+	// assertion is that changing the field changes the prompt: a test that only checked the line was
+	// present would have passed against the constant sentences these replaced.
+	it.each([
+		['textSize', 'small', 'large'],
+		['whitespaceScale', 20, 80]
+	] as const)('carries %s into the prompt', async (field, low, high) => {
+		const assemble = async (value: string | number) => {
+			const result = await promptAssemblyAdapter.assemble({
+				...promptAssemblySampleFixture.input,
+				spec: { ...promptAssemblySampleFixture.input.spec, [field]: value }
+			});
+			if (!result.ok) throw new Error(result.error.message);
+			return result.value.prompt;
+		};
+
+		expect(await assemble(low)).not.toBe(await assemble(high));
+	});
+
+	// The whitespace line replaced 'Keep generous whitespace; treat blank space intentional.', which
+	// asked for generous whitespace on a page whose spec wanted almost none.
+	it('does not claim generous whitespace for a spec that asked for little', async () => {
+		const result = await promptAssemblyAdapter.assemble({
+			...promptAssemblySampleFixture.input,
+			spec: { ...promptAssemblySampleFixture.input.spec, whitespaceScale: 10 }
+		});
+		if (!result.ok) throw new Error(result.error.message);
+		expect(result.value.prompt).not.toContain('generous whitespace');
+		expect(result.value.prompt).toContain('leave about 10% of the sheet blank');
+	});
+
 	it('emits each list item on its own line with no separator punctuation', async () => {
 		// Live generations against grok-imagine-image-2.0 showed the model drawing the '; '
 		// separator from the old single-line list onto the printed page. The assembled prompt

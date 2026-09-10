@@ -62,6 +62,46 @@ export const fontStyleLine = (fontStyle: ColoringPageSpec['fontStyle']): string 
 export const textStrokeLine = (strokeWidth: ColoringPageSpec['textStrokeWidth']): string =>
 	`Stroke: ${strokeWidth}px.`;
 
+/**
+ * How big the drawn lettering is.
+ *
+ * Called "Lettering", never "Text size" — `PROMPT_FORBIDDEN_TOKENS` contains `size:`, and the drift
+ * check reports every line that carries it. The TYPOGRAPHY section previously stated only the
+ * constant 'Bold bubble letters; thick outlines.', so a spec asking for `small` and a spec asking
+ * for `large` produced byte-identical prompts.
+ */
+export const letteringLine = (textSize: ColoringPageSpec['textSize']): string => {
+	switch (textSize) {
+		case 'medium':
+			return 'Lettering: medium, filling about half the sheet height.';
+		case 'large':
+			return 'Lettering: large, filling most of the sheet.';
+		default:
+			return 'Lettering: small, leaving the most room to colour.';
+	}
+};
+
+/**
+ * How much of the sheet is left blank for the reader to colour.
+ *
+ * `whitespaceScale` is a 0-100 `ColoringPageSpec` field that until now reached nothing at all — not
+ * this prompt, not the drift check, not packaging. It replaces the constant sentence
+ * 'Keep generous whitespace; treat blank space intentional.', which claimed *generous* whitespace
+ * for every page including one whose spec asked for almost none.
+ *
+ * Higher means more blank space. Nothing in the repository established that before this line
+ * existed, because nothing read the field; the name, and `constants.ts` handing the interpreter 50
+ * as the neutral default, are what it rests on. Stated here in the prompt itself so the meaning is
+ * checkable against a generated page rather than inferred from a variable name.
+ *
+ * The value is rounded because the contract admits any number in range and a prompt reading
+ * "about 47.5%" invites the model to draw the figure.
+ */
+export const whitespaceLine = (
+	whitespaceScale: ColoringPageSpec['whitespaceScale']
+): string =>
+	`Whitespace: leave about ${Math.round(whitespaceScale)}% of the sheet blank; treat blank space as intentional.`;
+
 export const decorationLine = (decorations: ColoringPageSpec['decorations']): string => {
 	switch (decorations) {
 		case 'minimal':

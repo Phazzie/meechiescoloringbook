@@ -17,13 +17,15 @@ import {
 	dedicationLine,
 	decorationLine,
 	fontStyleLine,
+	letteringLine,
 	listLineForSpec,
 	negativeLinesForSpec,
 	outputLine,
 	pageSizeLine,
 	shadingLine,
 	illustrationLine,
-	textStrokeLine
+	textStrokeLine,
+	whitespaceLine
 } from '$lib/core/prompt-template';
 import { formatAlignmentLine } from '$lib/utils/alignment-line';
 
@@ -166,6 +168,13 @@ export const driftDetectionAdapter: DriftDetectionSeam = {
 			listLineForSpec(input.spec),
 			fontStyleLine(input.spec.fontStyle),
 			textStrokeLine(input.spec.textStrokeWidth),
+			// The two fields this check could not previously speak about at all. Their absence from
+			// this list is why they could sit in the contract for the app's whole life, be validated
+			// on every request, and reach no prompt: the drift seam only ever reported the fields it
+			// was told to look for. With them here, dropping either one again is a
+			// `MISSING_OPTION_LINE` on the reader's own quality report rather than a silent no-op.
+			letteringLine(input.spec.textSize),
+			whitespaceLine(input.spec.whitespaceScale),
 			decorationLine(input.spec.decorations),
 			illustrationLine(input.spec.illustrations),
 			shadingLine(input.spec.shading),

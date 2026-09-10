@@ -8,6 +8,8 @@ import {
 	pageSizeLine,
 	fontStyleLine,
 	textStrokeLine,
+	letteringLine,
+	whitespaceLine,
 	decorationLine,
 	illustrationLine,
 	shadingLine,
@@ -253,6 +255,61 @@ describe('prompt-template helpers', () => {
 			expect(lines).toContain('no gradients');
 			expect(lines).toContain('no filled shapes');
 			expect(lines).toContain('no extra words');
+		});
+	});
+
+	describe('letteringLine', () => {
+		it('says something different for every text size', () => {
+			const lines = (['small', 'medium', 'large'] as const).map(letteringLine);
+			expect(new Set(lines).size).toBe(3);
+		});
+
+		it('names the size the spec asked for', () => {
+			expect(letteringLine('small')).toContain('small');
+			expect(letteringLine('medium')).toContain('medium');
+			expect(letteringLine('large')).toContain('large');
+		});
+
+		// `PROMPT_FORBIDDEN_TOKENS` contains `size:`, and the drift check reports any line carrying
+		// one. A line called "Text size:" would have made every page in the app report a forbidden
+		// token, which is why this one is called "Lettering".
+		it('carries no forbidden token', () => {
+			for (const size of ['small', 'medium', 'large'] as const) {
+				const lowered = letteringLine(size).toLowerCase();
+				for (const token of PROMPT_FORBIDDEN_TOKENS) {
+					expect(lowered).not.toContain(token);
+				}
+			}
+		});
+	});
+
+	describe('whitespaceLine', () => {
+		it('states the scale the spec asked for', () => {
+			expect(whitespaceLine(35)).toContain('35%');
+			expect(whitespaceLine(50)).toContain('50%');
+			expect(whitespaceLine(0)).toContain('0%');
+			expect(whitespaceLine(100)).toContain('100%');
+		});
+
+		// The contract admits any number in range, and a prompt reading "about 47.5%" invites an
+		// image model to draw the figure onto a sheet somebody colours in.
+		it('rounds a fractional scale to a whole percentage', () => {
+			expect(whitespaceLine(47.5)).toContain('48%');
+			expect(whitespaceLine(47.4)).toContain('47%');
+			// The sentence ends on a full stop, so "contains no dot" is the wrong assertion. What
+			// must not appear is a decimal fraction before the percent sign.
+			expect(whitespaceLine(47.5)).not.toMatch(/\d\.\d/);
+		});
+
+		it('says something different for different scales', () => {
+			expect(whitespaceLine(35)).not.toBe(whitespaceLine(45));
+		});
+
+		it('carries no forbidden token', () => {
+			const lowered = whitespaceLine(50).toLowerCase();
+			for (const token of PROMPT_FORBIDDEN_TOKENS) {
+				expect(lowered).not.toContain(token);
+			}
 		});
 	});
 

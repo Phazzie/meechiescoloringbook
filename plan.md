@@ -8,6 +8,167 @@ Info flow: User request -> execution specs -> implementation -> review evidence.
 
 Current active plan is listed first. Older dated entries remain below as historical context and are not active unless explicitly reselected.
 
+## Run 24 (2026-09-10) — Worst-feature routine: how much room there is to colour
+
+**Goal:** the two `ColoringPageSpec` fields that decide whether a coloring page is actually
+colourable — `textSize` and `whitespaceScale` — reach the image prompt, are defended by the app's
+own drift check, and become controls the reader can set. Today both are required contract fields
+that are validated, persisted, restored on reopen, described to the reader before they pay, and
+read by nothing.
+
+### The measurement (taken on `main` at `498d6c0`, not inherited)
+
+`ColoringPageSpec` carries 21 fields. The assembled prompt is built in exactly one place,
+`src/lib/adapters/prompt-assembly-seam/index.ts`. Every field it reads, directly or through a
+`prompt-template.ts` helper:
+
+```
+$ grep -o "spec\.[a-zA-Z]*" src/lib/adapters/prompt-assembly-seam/index.ts | sort -u
+spec.alignment spec.border spec.borderThickness spec.colorMode spec.decorations
+spec.dedication spec.fontStyle spec.footerItem spec.illustrations spec.pageSize
+spec.shading spec.textStrokeWidth spec.title
+$ grep -o "spec\.[a-zA-Z]*" src/lib/core/prompt-template.ts src/lib/utils/alignment-line.ts | sed 's/.*://' | sort -u
+spec.alignment spec.colorMode spec.items spec.listGutter spec.listMode
+spec.numberAlignment spec.shading
+```
+
+`variations` is the provider's `n` and `outputFormat` belongs to packaging, so neither is a prompt
+field. That leaves exactly two spec fields that reach **nothing** — not the prompt, not the drift
+check, not packaging, not image generation:
+
+| Field | Range | Set by | Read by |
+|---|---|---|---|
+| `textSize` | `small` / `medium` / `large` | `meechie-studio.ts:704` (`'small'`), `tool-page-recipe.ts:509` (`'large'`) | nothing |
+| `whitespaceScale` | 0-100 | `meechie-studio.ts:703` (50), `tool-page-recipe.ts:527` (35), `:533` (45) | nothing |
+
+**What it costs the reader.** `/describe` shows a read-back the reader checks *before* the paid
+generation. `src/lib/core/describe-page.ts:184-188` builds one of its sentences from `spec.textSize`:
+
+```
+small:  'Small lettering, which leaves the most room to colour.'
+large:  'Large lettering, which fills more of the sheet.'
+```
+
+The app tells the reader how much room they will have to colour, and then makes the identical
+picture either way. The interpreter is instructed to choose both fields
+(`src/lib/core/constants.ts:16,20`) and is billed for producing them.
+
+Where the prompt should carry them it carries two constants that contradict the fields instead:
+`'Bold bubble letters; thick outlines.'` regardless of `textSize`, and
+`'Keep generous whitespace; treat blank space intentional.'` regardless of `whitespaceScale`
+(`prompt-assembly-seam/index.ts:96`).
+
+**The second half: the reader cannot choose either, anywhere.**
+`src/lib/components/studio/StudioSettingsPanel.svelte:3` says of itself: *"This is the app's only
+say over what a coloring page looks like."* It offers theme, three voice settings, page size,
+border and glitter. Of the 13 spec fields that decide what the drawing looks like, it offers two.
+The other thirteen page-making surfaces offer none. `ADVANCED_SPEC_FIELDS`
+(`src/lib/seams/spec-validation-seam/contract.ts:166`) enumerates 14 field names for a disclosure UI
+and is imported by nothing.
+
+### Scope
+
+Two controls, not thirteen: exactly the two fields this run makes real. Page size and border are
+already reader-owned on the home studio and are deliberately not extended to other surfaces here —
+recorded as a follow-up rather than folded in.
+
+`/describe` deliberately gets **no** control. There the reader says what they want in words and the
+interpreter chooses; the read-back *is* the control. A live override there would contradict the
+read-back the reader had just checked, which is the exact mismatch that read-back exists to expose.
+Part 1 makes it truthful, which is the whole fix that surface needs.
+
+### Seams touched (exact names, all already in `docs/seams.md`)
+
+- **PromptAssemblySeam** — adapter emits two new lines; `templateVersion` `v4` -> `v5`. Contract
+  shape unchanged.
+- **DriftDetectionSeam** — adapter adds the two lines to `expectedOptionLines`, so a future drop is
+  reported as `MISSING_OPTION_LINE`. Existing violation codes; contract shape unchanged.
+- **ImageGenerationSeam** — golden prompt fixtures only.
+
+Cipher Gate entry required in `DECISIONS.md` (adapter + fixture change under `src/lib/adapters/`,
+`src/lib/seams/` and `fixtures/`).
+
+### Explicit file and action inventory
+
+Every path is named. No globs, no "and the tests".
+
+| # | Path | Action | Exact touch |
+|---|---|---|---|
+| 1 | `src/lib/core/prompt-template.ts` | MODIFY | add `letteringLine(textSize)` and `whitespaceLine(whitespaceScale)`; no existing export changes signature |
+| 2 | `src/lib/adapters/prompt-assembly-seam/index.ts` | MODIFY | import both; replace the constant whitespace sentence in `layoutLines` with `whitespaceLine(spec.whitespaceScale)`; append `letteringLine(spec.textSize)` to the TYPOGRAPHY font/stroke line; `TEMPLATE_VERSION` `'v4'` -> `'v5'` |
+| 3 | `src/lib/adapters/drift-detection-seam/index.ts` | MODIFY | import both; add both to `expectedOptionLines` |
+| 4 | `src/lib/seams/prompt-assembly-seam/fixtures.ts` | MODIFY | golden prompt strings |
+| 5 | `src/lib/seams/drift-detection-seam/fixtures.ts` | MODIFY | golden `promptSent` strings |
+| 6 | `fixtures/prompt-assembly/sample.json` | MODIFY | golden prompt |
+| 7 | `fixtures/prompt-assembly/fault.json` | MODIFY | golden prompt if present |
+| 8 | `fixtures/prompt-assembly/title-only.json` | MODIFY | golden prompt |
+| 9 | `fixtures/prompt-assembly/title-only-marker-fault.json` | MODIFY | golden prompt |
+| 10 | `fixtures/drift-detection/sample.json` | MODIFY | golden `promptSent` |
+| 11 | `fixtures/drift-detection/fault.json` | MODIFY | golden `promptSent` |
+| 12 | `fixtures/drift-detection/title-only.json` | MODIFY | golden `promptSent` |
+| 13 | `fixtures/image-generation/sample.json` | MODIFY | golden prompt |
+| 14 | `fixtures/image-generation/dense-scene.json` | MODIFY | golden prompt |
+| 15 | `src/lib/core/page-style.ts` | MODIFY | add `PageLookSelection`, `DEFAULT_PAGE_LOOK`, `TEXT_SIZE_*` and `ROOM_TO_COLOUR_*` label/help/option tables, `summarizePageLook`; fold into `summarizePageControls` |
+| 16 | `src/lib/components/PageLookControls.svelte` | NEW | the one rendering of the two controls; owns its CSS |
+| 17 | `src/lib/components/studio/StudioSettingsPanel.svelte` | MODIFY | host `PageLookControls` in the Paper fieldset; two new bindable props |
+| 18 | `src/lib/components/VerdictPageStudio.svelte` | MODIFY | host `PageLookControls` above the generate button |
+| 19 | `src/lib/components/verdict-page-state.svelte.ts` | MODIFY | `pageLook = $state(DEFAULT_PAGE_LOOK)`; pass to `buildToolPageRecipe` |
+| 20 | `src/lib/components/MeechieTools.svelte` | MODIFY | host `PageLookControls`; legacy `let pageLook`; pass to `buildToolPageRecipe` |
+| 21 | `src/lib/core/tool-page-recipe.ts` | MODIFY | `ToolPageRecipeOptions.look?`; applied over `BASE_SPEC`; correct the QUOTE/LIST whitespace comments to match their numbers |
+| 22 | `src/lib/core/meechie-studio.ts` | MODIFY | `buildSpecFromMeechieText` takes `textSize` and `whitespaceScale` top-level like `pageSize`/`border`; removed from the `presentation` Pick |
+| 23 | `src/routes/studio-state.svelte.ts` | MODIFY | two `$state` fields, restored from `creation.intent` and the draft beside `pageSize`/`border`; passed to `buildSpecFromMeechieText` |
+| 24 | `src/routes/+page.svelte` | MODIFY | bind the two new props on `StudioSettingsPanel` |
+| 25 | `tests/unit/page-style.test.ts` | MODIFY | cover the new tables and summary |
+| 26 | `tests/unit/prompt-template.test.ts` | MODIFY | cover `letteringLine` and `whitespaceLine` |
+| 27 | `tests/unit/tool-page-recipe.test.ts` | MODIFY | cover the `look` override |
+| 28 | `src/lib/seams/prompt-assembly-seam/test.ts` | MODIFY | assert both lines are in the assembled prompt |
+| 29 | `src/lib/seams/drift-detection-seam/test.ts` | MODIFY | assert a prompt missing either line is reported |
+| 30 | `DECISIONS.md` | MODIFY | Cipher Gate entry |
+| 31 | `CHANGELOG.md` | MODIFY | user-visible entry |
+| 32 | `WORST_TO_BEST_LOG.md` | MODIFY | Run 24 entry |
+| 33 | `plan.md` | MODIFY | this plan |
+| 34 | `docs/seams.md` | MODIFY | last-probe notes on the three seam rows |
+
+Any file this inventory does not name and the diff does contain is a defect in the plan and is
+recorded as one in the log rather than argued away.
+
+### Strict anti-goals — do not touch
+
+- Do **not** change the numeric values `35`, `45` or `50` that the recipe builders assign to
+  `whitespaceScale`. They are what shipped and what saved pages carry. Their comments disagree with
+  their ordering; correct the comments and record the discrepancy, do not invent new numbers.
+- Do **not** add a control to `/describe`, `DescribePageStudio.svelte` or
+  `describe-page-state.svelte.ts`.
+- Do **not** extend page size or border to non-home surfaces.
+- Do **not** touch `contracts/`, `probes/`, or any seam contract schema. No field is added, removed
+  or retyped.
+- Do **not** put `size:` in any prompt line — `PROMPT_FORBIDDEN_TOKENS` contains it and the drift
+  check would report every page.
+- Do **not** migrate `MeechieTools.svelte` out of legacy mode. It is a carried-forward item, not
+  this run's.
+
+### Self-critique
+
+- **Riskiest assumption:** that higher `whitespaceScale` means more blank space. Nothing consumes
+  the field, so nothing establishes it. Evidence for: the field name, and `constants.ts:20` giving
+  50 as the neutral default. Evidence against: `tool-page-recipe.ts:527` assigns 35 under a comment
+  reading "More whitespace than a list page" while `:533` assigns 45 to that list page. **One of
+  those two is wrong and this run makes the choice load-bearing for the first time.** The plan
+  resolves it by naming the semantics explicitly in the prompt line ("leave about N% of the sheet
+  blank"), leaving the shipped numbers alone, and recording the contradiction for an owner ruling.
+- **What could be wrong:** the prompt text changes for every page the app makes, so every golden
+  fixture changes. If any fixture is missed, the contract tests fail — which is the point of them,
+  and is a red proof rather than a risk.
+- **What must be proven:** that a prompt missing either new line is now reported by the drift seam.
+  Proven by a test that removes the line and asserts `MISSING_OPTION_LINE`.
+
+### Literal definition of done
+
+```
+npm run check && npm run lint && npm test && npm run build && npm run verify
+npx playwright test
+```
+
 ## Run 23 (2026-09-10) — Worst-feature routine: the downloads that could not be built
 
 **Goal:** when a finished coloring page cannot be packaged into one of its files, the reader is told

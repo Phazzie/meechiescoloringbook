@@ -21,16 +21,21 @@ import {
 	decorationLine,
 	fontStyleLine,
 	illustrationLine,
+	letteringLine,
 	listLineForSpec,
 	negativeLinesForSpec,
 	outputLine,
 	pageSizeLine,
 	shadingLine,
-	textStrokeLine
+	textStrokeLine,
+	whitespaceLine
 } from '$lib/core/prompt-template';
 import { formatAlignmentLine } from '$lib/utils/alignment-line';
 
-const TEMPLATE_VERSION = 'v4';
+// v5 adds the two lines that carry `textSize` and `whitespaceScale`. The version is what a stored
+// page records the prompt shape under, so a page made before this exists is identifiable as one
+// whose lettering and whitespace fields were decorative.
+const TEMPLATE_VERSION = 'v5';
 const MAX_PROMPT_LENGTH = 8000;
 
 const includesReservedHeading = (styleHint: string): boolean => {
@@ -93,7 +98,12 @@ const buildPrompt = (input: PromptAssemblyInput): PromptAssemblyOutput => {
 
 	const layoutLines = [
 		alignmentSentence,
-		'Keep generous whitespace; treat blank space intentional.',
+		// Was the constant 'Keep generous whitespace; treat blank space intentional.', which told the
+		// model every page wanted generous whitespace no matter what `whitespaceScale` said — and
+		// `whitespaceScale` is a required spec field the studio sets to 50, the tools hub to 35 or 45,
+		// the interpreter is prompted to choose, and the vault stores and restores. It reached
+		// nothing. This line is the field.
+		whitespaceLine(spec.whitespaceScale),
 		listLine,
 		alignmentLine,
 		dedicationLine(spec.dedication)
@@ -107,7 +117,12 @@ const buildPrompt = (input: PromptAssemblyInput): PromptAssemblyOutput => {
 		'TYPOGRAPHY:',
 		'Bold bubble letters; thick outlines.',
 		'Glitter outline only (no shading).',
-		`${fontStyleLine(spec.fontStyle)} ${textStrokeLine(spec.textStrokeWidth)}`,
+		// `letteringLine` joins the other two typography lines on one physical line, which is how
+		// `fontStyleLine` and `textStrokeLine` have always been emitted: the drift check tests each
+		// with `prompt.includes(line)`, so sharing a line costs it nothing. Before it was here the
+		// section stated only the constant above, and `textSize` — small, medium or large — changed
+		// no byte of the prompt it was carried into.
+		`${fontStyleLine(spec.fontStyle)} ${textStrokeLine(spec.textStrokeWidth)} ${letteringLine(spec.textSize)}`,
 		'LAYOUT:',
 		...layoutLines,
 		'DECORATIONS:',
