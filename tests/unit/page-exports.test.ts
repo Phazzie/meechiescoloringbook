@@ -21,6 +21,7 @@ import {
 	mergeRebuiltAttempts,
 	pageExportFailureDetail,
 	pageExportFailures,
+	pageExportRemedies,
 	pageExportRetryLabel,
 	pageExportSurvivors,
 	summarisePageExportFailures,
@@ -698,5 +699,51 @@ describe('pageExportFailureDetail', () => {
 			])
 		).toBeNull();
 		expect(pageExportFailureDetail([])).toBeNull();
+	});
+});
+
+describe('pageExportRemedies', () => {
+	it('says what to do once when both variants failed the same way', () => {
+		// The common case, because both variants share a canvas. Folded into each variant's own
+		// sentence, this printed the same forty-word paragraph twice and buried the one clause that
+		// differed between the two lines.
+		const remedies = pageExportRemedies([
+			{ variant: 'print', files: [], failure: encodeFailure('print'), pageSize: 'US_Letter' },
+			{ variant: 'square', files: [], failure: encodeFailure('square'), pageSize: 'US_Letter' }
+		]);
+
+		expect(remedies).toHaveLength(1);
+		expect(remedies[0]).toContain('costs nothing');
+	});
+
+	it('says both when the two variants failed for different reasons', () => {
+		const remedies = pageExportRemedies([
+			{ variant: 'print', files: [], failure: encodeFailure('print'), pageSize: 'US_Letter' },
+			{ variant: 'square', files: [], failure: canvasFailure('square'), pageSize: 'US_Letter' }
+		]);
+
+		expect(remedies).toHaveLength(2);
+		expect(remedies[0]).toContain('costs nothing');
+		expect(remedies[1]).toContain('will not help');
+	});
+
+	it('says nothing when nothing failed', () => {
+		expect(
+			pageExportRemedies([
+				{ variant: 'print', files: [pdfFile('cGRm')], failure: null, pageSize: 'A4' }
+			])
+		).toEqual([]);
+	});
+
+	it('never repeats itself, whatever the mix', () => {
+		// The invariant, rather than the two cases: distinct advice, in first-seen order.
+		const remedies = pageExportRemedies([
+			{ variant: 'print', files: [], failure: canvasFailure('print'), pageSize: 'A4' },
+			{ variant: 'square', files: [], failure: encodeFailure('square'), pageSize: 'A4' },
+			{ variant: 'chat', files: [], failure: canvasFailure('chat'), pageSize: 'A4' }
+		]);
+
+		expect(new Set(remedies).size).toBe(remedies.length);
+		expect(remedies).toHaveLength(2);
 	});
 });

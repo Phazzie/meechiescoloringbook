@@ -15911,3 +15911,58 @@ tests, all exit 0.
 Eight correct findings across four review rounds. Every single one was a **mismatch between what the
 app said and what it did** — never code failing to do what it was written to do. The gates were
 green on every head that carried one.
+
+## Run 23, fifth close-out — 2026-09-10 — the notice said the same forty words twice
+
+Found by this run while waiting for a review, by rendering what a reader would actually see rather
+than reading the code that produces it. Not filed by any bot, and no gate could have caught it: every
+sentence was true.
+
+### What a reader saw
+
+The commonest packaging failure of all is **both variants failing for the same reason** — they share
+a canvas, so whatever stops one usually stops the other. That produced:
+
+> Your page is on the paper.
+> The printable download could not be built. Building it again costs nothing and does not use another
+> generation. If it fails the same way twice, this page is most likely larger than this browser will
+> draw, and a different browser or a smaller page size will build it.
+> The square share image could not be built. Building it again costs nothing and does not use another
+> generation. If it fails the same way twice, this page is most likely larger than this browser will
+> draw, and a different browser or a smaller page size will build it.
+> You still have the original image. Print still works from this page.
+
+Forty words, verbatim, twice — burying the eight that differ. In a feature whose entire subject is
+what the app says.
+
+### The cause, which is a scoping error
+
+`ExportFailure.message` carried two things at different scopes: **what happened**, which is per
+variant, and **what to do about it**, which is per *cause*. Concatenating them forced the per-cause
+half to repeat once per variant.
+
+Split into `message` and `remedy`. `pageExportRemedies` returns the distinct remedies in first-seen
+order and `PageExportRow` renders them once each, after every failed variant is named. Deduplicated
+by the **remedy text** rather than by the cause, so two causes that happen to give the same advice
+also collapse — what the reader sees is the thing being deduplicated.
+
+The per-variant lines survive unchanged, because that is what the previous round established: two
+variants can fail for two different reasons and the reader has to tell which is which. When they do,
+both remedies now appear, in order.
+
+### Why this was worth another round
+
+It is not a defect in the sense the other eight were: no statement was false, nothing behaved wrongly,
+and it would have shipped green. The argument for fixing it anyway is that this pull request's whole
+claim is that the app now says something worth reading, and a doubled paragraph is the reader's
+problem whether or not it is the compiler's.
+
+**The transferable part: render the output and look at it.** Eight findings this run came from reading
+code — four rounds of it, by two readers. This one took thirty seconds of printing the actual strings
+for the commonest input, and no amount of further code-reading would have surfaced it, because the
+code was correct.
+
+### Evidence
+
+`check` 0/0, `lint`, **1,978** unit tests, `build`, the full `verify` chain, and **83** Playwright
+tests, all exit 0.

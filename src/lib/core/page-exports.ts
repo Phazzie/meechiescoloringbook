@@ -341,6 +341,27 @@ export const pageExportSurvivors = (
 };
 
 /**
+ * What the reader can do, once per distinct cause, in the order the causes first appear.
+ *
+ * Per cause and not per variant, because the two have different scopes. Both variants share a
+ * canvas, so both usually fail for the same reason — and with the remedy folded into each variant's
+ * sentence, the commonest failure of all printed the same forty-word paragraph twice, burying the
+ * one clause that actually differed between the two lines.
+ *
+ * Deduplicated by the remedy text rather than by the cause, so two causes that happen to give the
+ * same advice also collapse to one line. What the reader sees is the thing being deduplicated.
+ */
+export const pageExportRemedies = (
+	attempts: readonly PageExportAttempt[]
+): string[] => [
+	...new Set(
+		pageExportFailures(attempts)
+			.map((failure) => failure.remedy)
+			.filter((remedy) => remedy.length > 0)
+	)
+];
+
+/**
  * The developer's string behind the first packaging failure, or `null`.
  *
  * The consumer that makes `ExportFailure.detail` a promise rather than a claim. `PageExportRow`

@@ -102,8 +102,21 @@ export type ExportFailure = {
 	/** The variant that was asked for. Names the request, never a file that does not exist. */
 	variant: OutputVariant;
 	cause: ExportFailureCause;
-	/** What the reader is told. Written to be read, and never the seam's or an exception's words. */
+	/**
+	 * What happened, for this variant. One sentence, naming the download and nothing else.
+	 *
+	 * Split from `remedy` because the two have different scopes: what happened is per **variant**,
+	 * what to do about it is per **cause** — and both variants usually fail for the same cause,
+	 * because they share a canvas. Together in one string, the commonest failure printed the same
+	 * forty-word remedy twice, which buries the one line that differs.
+	 */
 	message: string;
+	/**
+	 * What the reader can do about this cause, or `''` where there is nothing to do.
+	 *
+	 * Rendered once per distinct cause by `PageExportRow`, never once per variant.
+	 */
+	remedy: string;
 	retry: ExportRetry;
 	/**
 	 * The developer's string, kept for System Trace and a bug report.
@@ -214,40 +227,38 @@ const asSeamError = (error: unknown): { code: string; message: string } | null =
 const describe = (
 	cause: ExportFailureCause,
 	variant: OutputVariant
-): { message: string; retry: ExportRetry } => {
-	const subject = SUBJECT[variant];
+): { message: string; remedy: string; retry: ExportRetry } => {
+	const message = SUBJECT[variant];
 	switch (cause) {
 		case 'unsupported_here':
 			// No rebuild. `BROWSER_REQUIRED` and `CANVAS_UNAVAILABLE` are properties of the browser
 			// this page is open in, and it answers identically every time. The sentence carries the
 			// only thing that actually works instead.
-			return {
-				message: `${subject} ${UNSUPPORTED_REMEDY}`,
-				retry: { kind: 'none' }
-			};
+			return { message, remedy: UNSUPPORTED_REMEDY, retry: { kind: 'none' } };
 		case 'render_failed':
 		case 'unknown':
 			// The rebuild, and the whole reason this module exists. A print sheet is 2550 x 3300 at
 			// 300dpi and the encode allocates all of it twice; a second attempt runs against a heap
 			// the first one has since released. `unknown` shares this branch because the commonest way
 			// to land in it is pdf-lib throwing, which is the same story.
-			return { message: `${subject} ${FREE_REBUILD}`, retry: { kind: 'now' } };
+			return { message, remedy: FREE_REBUILD, retry: { kind: 'now' } };
 		case 'unreadable_image':
 			// No rebuild: the same bytes are refused identically. Says plainly that this is the app's
 			// own fault, because every other sentence here implies the device is at fault and a reader
 			// who reads this one that way will go looking for a setting that does not exist.
 			return {
-				message:
-					`${subject} The picture came back in a form this step cannot read, so building ` +
-					`it again would produce the same result. That is a fault in this app, not in ` +
-					`your browser.`,
+				message,
+				remedy:
+					'The picture came back in a form this step cannot read, so building it again ' +
+					'would produce the same result. That is a fault in this app, not in your browser.',
 				retry: { kind: 'none' }
 			};
 		case 'no_page':
 			// No rebuild and no consolation: there is no page, so there is nothing that "still works"
 			// to name. Every call site checks for images first, so a reader should never see this.
 			return {
-				message: `${subject} There was no finished page to build it from.`,
+				message,
+				remedy: 'There was no finished page to build it from.',
 				retry: { kind: 'none' }
 			};
 	}

@@ -26,6 +26,7 @@ Invariant: this component decides nothing. What each download is called, what it
 <script lang="ts">
 	import {
 		pageExportFailures,
+		pageExportRemedies,
 		pageExportRetryLabel,
 		pageExportSurvivors,
 		summarisePageExportFailures,
@@ -76,6 +77,9 @@ Invariant: this component decides nothing. What each download is called, what it
 	const opening = $derived(summarisePageExportFailures(attempts));
 	const failures = $derived(pageExportFailures(attempts));
 	const rebuildLabel = $derived(pageExportRetryLabel(attempts));
+	// Once per distinct cause, not once per failed variant: both variants share a canvas, so both
+	// usually fail for the same reason, and the remedy repeated verbatim buries the line that differs.
+	const remedies = $derived(pageExportRemedies(attempts));
 	// Measured from what this row is actually holding, never assumed. The claim used to live in the
 	// classifier as a per-variant constant, where "the printable download is unaffected" was a
 	// statement about an attempt that function never saw — and false whenever both variants failed.
@@ -126,6 +130,12 @@ Invariant: this component decides nothing. What each download is called, what it
 			{#each failures as failure}
 				<p class="export-notice-line" data-export-failure-variant={failure.variant}>
 					{failure.message}
+				</p>
+			{/each}
+			<!-- What to do about it, after everything that went wrong is named. -->
+			{#each remedies as remedy}
+				<p class="export-notice-line" data-testid={`${testIdPrefix}-export-remedy`}>
+					{remedy}
 				</p>
 			{/each}
 			{#if survivors}

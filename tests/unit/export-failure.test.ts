@@ -97,8 +97,10 @@ describe('classifyExportFailure', () => {
 			const failure = classifyExportFailure('print', { code, message: 'nope' });
 			expect(failure.cause).toBe('unsupported_here');
 			expect(failure.retry.kind).toBe('none');
-			// And says so, rather than leaving a reader pressing nothing.
-			expect(failure.message).toContain('will not help');
+			// And says so, rather than leaving a reader pressing nothing. In `remedy`, because what to
+			// do about a cause is per cause — `message` names only the download that failed.
+			expect(failure.remedy).toContain('will not help');
+			expect(failure.message).toBe('The printable download could not be built.');
 		}
 	});
 
@@ -113,8 +115,8 @@ describe('classifyExportFailure', () => {
 			expect(failure.retry.kind).toBe('now');
 			// The promise that makes it worth pressing: this is the one retry in the app with no
 			// quota, no provider and no network behind it.
-			expect(failure.message).toContain('costs nothing');
-			expect(failure.message).toContain('does not use another generation');
+			expect(failure.remedy).toContain('costs nothing');
+			expect(failure.remedy).toContain('does not use another generation');
 		}
 	});
 
@@ -132,10 +134,10 @@ describe('classifyExportFailure', () => {
 
 		// The button stays, because it is free and the memory case is real.
 		expect(failure.retry.kind).toBe('now');
-		// And the sentence names the other case, with something the reader can actually do about it.
-		expect(failure.message).toContain('fails the same way twice');
-		expect(failure.message).toContain('larger than this browser will draw');
-		expect(failure.message).toContain('smaller page size');
+		// And the remedy names the other case, with something the reader can actually do about it.
+		expect(failure.remedy).toContain('fails the same way twice');
+		expect(failure.remedy).toContain('larger than this browser will draw');
+		expect(failure.remedy).toContain('smaller page size');
 	});
 
 	it('offers no rebuild for a picture this step cannot read, and says whose fault it is', () => {
@@ -150,7 +152,7 @@ describe('classifyExportFailure', () => {
 			expect(failure.retry.kind).toBe('none');
 			// Every other sentence here implies the device is at fault; a reader who reads this one
 			// that way goes looking for a browser setting that does not exist.
-			expect(failure.message).toContain('a fault in this app, not in your browser');
+			expect(failure.remedy).toContain('a fault in this app, not in your browser');
 		}
 	});
 
@@ -162,7 +164,7 @@ describe('classifyExportFailure', () => {
 
 		expect(failure.cause).toBe('no_page');
 		expect(failure.retry.kind).toBe('none');
-		expect(failure.message).toContain('There was no finished page to build it from.');
+		expect(failure.remedy).toBe('There was no finished page to build it from.');
 	});
 
 	it('never claims another variant survived, because it cannot see one', () => {
@@ -178,10 +180,15 @@ describe('classifyExportFailure', () => {
 				UNSUPPORTED_IMAGE_FORMAT: 0,
 				NO_IMAGES: 0
 			})) {
-				const { message } = classifyExportFailure(variant, { code, message: 'x' });
-				expect(message).not.toContain('unaffected');
-				expect(message).not.toContain('still in the list');
-				expect(message).not.toContain('Print still works');
+				const { message, remedy } = classifyExportFailure(variant, {
+					code,
+					message: 'x'
+				});
+				for (const text of [message, remedy]) {
+					expect(text).not.toContain('unaffected');
+					expect(text).not.toContain('still in the list');
+					expect(text).not.toContain('Print still works');
+				}
 			}
 		}
 	});
@@ -210,10 +217,15 @@ describe('classifyExportFailure', () => {
 				'UNSUPPORTED_IMAGE_FORMAT',
 				'SOMETHING_NEW'
 			]) {
-				const { message } = classifyExportFailure(variant, { code, message: 'x' });
-				expect(message).not.toMatch(/generation failed/i);
-				expect(message).not.toMatch(/your page failed/i);
-				expect(message).not.toMatch(/try generating/i);
+				const { message, remedy } = classifyExportFailure(variant, {
+					code,
+					message: 'x'
+				});
+				for (const text of [message, remedy]) {
+					expect(text).not.toMatch(/generation failed/i);
+					expect(text).not.toMatch(/your page failed/i);
+					expect(text).not.toMatch(/try generating/i);
+				}
 			}
 		}
 	});

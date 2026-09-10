@@ -2088,6 +2088,12 @@ test('a download that could not be built says so in words, and can be built agai
 	await expect(page.getByTestId('home-export-survivors')).toContainText(
 		'Print still works from this page.'
 	);
+	// What to do about it appears once, not once per failed variant. Only the square failed here,
+	// so there is one line either way — the deduplication is asserted in the unit tests, and this
+	// asserts the reader is actually shown a remedy at all.
+	await expect(page.getByTestId('home-export-remedy')).toHaveCount(1);
+	await expect(page.getByTestId('home-export-remedy')).toContainText('costs nothing');
+
 	// None of the adapter's own words, and none of an exception's. This is the whole point.
 	await expect(notice).not.toContainText('toDataURL');
 	await expect(notice).not.toContainText('Failed to encode PNG data');
