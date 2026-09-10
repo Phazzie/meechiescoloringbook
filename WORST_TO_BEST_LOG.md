@@ -16867,3 +16867,168 @@ has it" wording (a false-provenance defect shipped into the panel built against 
 the `Record<number, string>` typing, and the shell spawn in the file written to close a
 carried-forward item. The honest reading is that this run was at its least reliable exactly where it
 was fixing something.
+
+## Run 24 — merge close-out — 2026-09-10 — PR #350 merged as `52c5d7e`
+
+**Merged:** `52c5d7e`, squashed from six commits on `claude/great-bell-ze90ak`.
+**Base at merge:** `main` at `498d6c0`. 59 files, +2,825 / -122.
+
+### Re-measured at the merged commit, not carried forward
+
+`git rev-parse` reports the same tree — `7f20f87c` — for `52c5d7e` and for the PR head
+`58359b5`, so a re-run measures the merged content rather than a near-copy of it. The base figure is
+measured too, in a detached worktree at `498d6c0`, rather than quoted from Run 23's close-out.
+
+| Command | Result at `52c5d7e` |
+|---|---|
+| `npm run check` | 0 errors, 0 warnings |
+| `npm run lint` | exit 0 |
+| `npm test` | **2,016** passed, 1 skipped (from **1,981** measured at `498d6c0` — 35 net) |
+| `npm run build` | exit 0 |
+| `npm run verify` | exit 0 |
+| `npm run cipher:gate` | exit 0 |
+| **`npx playwright test`** | **MET, in CI, on both jobs** — the first time this gate has been green anywhere |
+| `npm run test:e2e:local` | **86** passed against build 1194 (from 83 — 3 net) |
+
+### All four merge conditions held, including the one Run 23 could not meet
+
+`AGENTS.md:L127-159`. Each was checked against the current head and written on the pull request
+before merging, rather than asserted afterwards.
+
+Condition 3 — "`npm run verify` and `npm test` green, **with committed evidence**" — is the one Run
+23 shipped unmet, because `verify-outer.txt` is the only artifact carrying the `audit:gate` result
+and the chain's own exit status, and nothing wrote it but a remembered shell redirect. `52c5d7e`
+carries it, ending in `# npm run verify exited 0`, **written by the chain**. That is Run 23's
+carried-forward item closed by the mechanism rather than by remembering harder.
+
+Condition 1 was met on all 12 check runs on `58359b5`. `Sourcery review` reported `skipped`, which is
+the budget refusal recorded in Run 22's fourth close-out and not a failure.
+
+### The other carried-forward item: the browser gate now exists
+
+Run 23 recorded `npx playwright test` as **unmet** and named it the first thing a next run should
+resolve — "either move the pin to a build the environment has, add Playwright to `verify.yml` so the
+gate exists somewhere, or get an owner ruling."
+
+Moving the pin was tried first and is impossible here: `npx playwright install` is refused by the
+network policy (`403 ... no rule or allowlist entry allows host "cdn.playwright.dev"`). So the second
+option, and it works — an `e2e` job that installs the **pinned** build and runs the suite, green on
+its first CI run and on every run since. Deliberately not `playwright.local.config.ts`, whose whole
+purpose is to run against whatever Chromium a sandbox has; putting that in CI would make CI agree
+with the sandbox instead of holding the line it exists to hold.
+
+**One honest qualification:** CI spells the command `npm run test:e2e`, not `npx playwright test`.
+Same binary, same `playwright.config.ts`, same pinned build — `npx` itself was one of SonarCloud's
+security findings, on the one job in the repository that downloads a browser. The routine's wording
+and the workflow now differ by that spelling, which is recorded here rather than left for a reader to
+trip over.
+
+### Scope and the Cipher Gate
+
+`git diff --name-only 498d6c0 52c5d7e` against **all seven** governed paths — `contracts/`,
+`probes/`, `fixtures/`, `src/lib/mocks/`, `tests/contract/`, `src/lib/adapters/` and
+`src/lib/seams/` — returns **12 files**: eight golden-prompt fixtures, the two seam adapters, and two
+seam contract tests. A Cipher Gate was required, is recorded in `DECISIONS.md`, and
+`npm run cipher:gate` exits 0 against it.
+
+No `contracts/` file and no seam `contract.ts` changed. `templateVersion` v4 → v5 is a value, not a
+schema; no field was added, removed or retyped; and no migration is implied, because
+`ColoringPageSpecSchema` requires `whitespaceScale` with no default and `CreationRecordSchema`
+validates `intent` against it, so every record that can load already carries both fields.
+
+### Open Assumptions, enumerated rather than summarised
+
+All **five** open entries in `DECISIONS.md` were read and each judged individually against what this
+change decides:
+
+| Open Assumption | Covers this change? |
+|---|---|
+| CSP font sources pending first deploy | No — head policy, not the image prompt |
+| `vercel.json` header rules | No — route headers; no route added |
+| Durable Upstash-backed rate-limit store | No — request throttling, untouched |
+| Live xAI image-**edit** call (`WigTryOnSeam`) | No — the try-on path, untouched |
+| Deployed full-payload path (`ProviderAdapterSeam` + four text seams) | No — that is the **chat** request *shape* |
+
+**A correction this run made against its own pull request.** PR #350's Risk section said
+"`ProviderAdapterSeam`'s live path is covered by an open Assumption and no live image call was made",
+which borrows a coverage claim that does not apply: that Assumption is about
+`POST /v1/chat/completions` and its `json_schema` response format — the **text** path. This change
+alters the content of a prompt string sent through `ImageGenerationSeam`. The accurate statement is
+narrower and no more comfortable: **no live image call was made because none can be made from this
+container, and no open Assumption speaks to the image prompt's content either way.** What backs the
+change instead is the drift seam now reporting either line's absence.
+
+### What the review rounds cost, and what they bought
+
+**Eleven review findings across two reviewers. Ten were correct and fixed; one was declined with a
+measurement.** Counted directly from the entries in the two close-outs above rather than from memory.
+
+- **Six** from SonarCloud and CodeQL, every one of them on the `e2e` job this run added: no
+  `permissions` block, `npm install` rather than `npm ci`, no `--ignore-scripts`, and `npx`
+  resolving packages on demand at an unpinned version. The Quality Gate went from **C Security
+  Rating on New Code** to **0 new issues, 0 security hotspots**.
+- **Five** from Codex, four fixed and one declined. **Two of the four were user-visible bugs in this
+  run's own feature**, not in code it inherited.
+- **Seven** advisory findings from Rosentic, all against an unrelated open branch, all measured and
+  none actionable.
+
+Every one of the eleven landed on a pull request whose automated checks were, at that moment, either
+already green or red only for the reason being reported. Not one was code failing to do what it was
+written to do.
+
+**Seven of this repository's runs recorded SonarCloud's findings as unidentifiable** because
+`sonarcloud.io` cannot be reached from this container. That is still true — `curl` to its API is
+refused. What changed is that the findings arrived as GitHub review comments through
+`github-advanced-security[bot]`, which needs no network access to SonarCloud at all. **A future run
+should look there first rather than re-recording the finding as unknowable.**
+
+### Three corrections this run made against itself, before any reviewer saw them
+
+Recorded because the fix-to-defect ratio is the honest measure, and because none of the three would
+have failed a gate:
+
+1. **"As this page has it"** — the controls' first option claimed provenance it cannot carry: on the
+   verdict surfaces no picture exists yet, and on the home studio that case is the *studio's* default
+   for the next page. **A false-provenance defect shipped into the panel that exists to prevent false
+   provenance.** Now "Page default".
+2. **`Record<number, string>`** on the two blank-space tables told the compiler every number had a
+   label, so the `??` fallbacks read as dead code while being the live path for the 35 and 45 this
+   app really builds.
+3. **`shell: true`** in `verify-outer.mjs` — the file written to close a carried-forward item — was
+   itself a security finding.
+
+Add the two Codex found in the feature, and **five of this run's own defects were in the parts of the
+diff it was most confident about**: the read-back argument, the restored-page handling, and the two
+files written to close carried-forward items.
+
+### Carried forward for the next run
+
+Re-measure everything below; do not inherit it.
+
+- **Eleven presentation fields are still unreachable by a reader** — `alignment`, `numberAlignment`,
+  `listGutter`, `fontStyle`, `textStrokeWidth`, `colorMode`, `decorations`, `illustrations`,
+  `shading`, `borderThickness`, `variations`. All eleven *work*, which is why they were not this
+  run's pick. `PageLookControls` is the shape a next run would extend, and **`textStrokeWidth` is the
+  strongest single candidate**: it is how thick the outlines are, which is the difference between a
+  page a child can colour inside and one they cannot.
+- **`ADVANCED_SPEC_FIELDS` has no importer.** Fourteen field names enumerated for a disclosure UI
+  nobody built. Wire it to whatever control set comes next, or delete it.
+- **`variations` is honoured but unsettable.** `describe-page.ts:244` already writes "This makes N
+  pictures, and costs N generations rather than one" for a value only the interpreter can produce.
+- **Page size and border are reader-owned on the home studio only.** The other thirteen surfaces
+  build `US_Letter` and a fixed border with no say.
+- **The quote/list whitespace ordering is an open owner question**, recorded in `DECISIONS.md`:
+  `tool-page-recipe.ts:527` gives a quote page 35 under a comment saying it has *more* whitespace
+  than the list page's 45. The numbers shipped unchanged and the comment was corrected to match them.
+- **Whether `AGENTS.md:L116` covers `scripts/`** is the other open owner question, recorded in
+  `DECISIONS.md` with the measurement: all thirteen automation scripts import `node:fs` or
+  `node:child_process` directly.
+- **`src/lib/core/meechie-quote-scoring.ts` has no production importer.** Run 23's item, untouched.
+- **`MeechieTools.svelte` is still in legacy (non-runes) mode** — worked around a **fifth** time this
+  run. Run 23's finding stands: three independent `runPackaging` implementations, and the legacy mode
+  explains only why the third cannot share the other two.
+- **`readJson` conflates a denied read with a damaged store.** Run 22's item, untouched.
+- **A `ConnectionSeam` is still the right home for the `navigator.onLine` read.** Unchanged.
+- **The try-on's `rejected` branch is still unreachable from the UI.** Run 21's item, untouched.
+- **`failure.detail` has one consumer, on one surface out of fourteen.** Run 23's item, untouched.
+- **Run 18 still has no merge close-out entry.** Carried for seven runs now.
