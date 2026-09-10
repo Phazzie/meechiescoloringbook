@@ -17619,7 +17619,7 @@ decided by a coin flip between two contradictory instructions, on the majority o
 | `fontStyle` | The line |
 |---|---|
 | `rounded` | `Font: rounded bubble letters with soft, even curves.` |
-| `block` | `Font: upright block capitals, straight-sided and squared off.` |
+| `block` | `Font: upright block letters, straight-sided and squared off.` |
 | `hand` | `Font: casual handwritten letters, uneven and flowing.` |
 
 The `'Bold bubble letters.'` constant is gone. `Bold` is not lost with it: letter *size* is
@@ -17710,4 +17710,88 @@ Re-measure everything below; do not inherit it.
 - **A `ConnectionSeam` is still the right home for the `navigator.onLine` read.** Unchanged.
 - **The try-on's `rejected` branch is still unreachable from the UI.** Run 21's item, untouched.
 - **`failure.detail` has one consumer, on one surface out of fourteen.** Run 23's item, untouched.
+- **The Page Controls panel reports a reopened page's *requested* look, not its drawn one.** Raised
+  by Codex on PR #354 for the letterform and true of all four look fields: a page saved under a
+  template version whose prompt contradicted itself could have been drawn either way. A record is
+  identifiable — `CreationRecordSchema` requires `assembledPrompt` — so a fix is available; it is
+  panel-wide, not one field's.
 - **Run 18 still has no merge close-out entry.** Carried for nine runs now.
+
+## Run 26, first close-out — 2026-09-10 — the Codex round on `ead1282`, and a case instruction I did not notice I was writing
+
+Three findings. **One correct and fixed; two correct observations declined with the measurement
+written on the thread.**
+
+### The one that was a real defect, and it was this run's own
+
+**P2 — "Keep block styling from overriding exact capitalization."** `fontStyleLine('block')` returned
+`Font: upright block capitals, straight-sided and squared off.` "Capitals" is a **case** instruction,
+and the same prompt's TEXT block says *"render these exact words and nothing else"* above the title.
+
+Measured rather than assumed. The studio and tool paths put titles through `normalizeSpecText`,
+which ends `.toUpperCase()` — so on those surfaces the two agree by accident. `/describe` does not:
+
+```
+$ grep -n "toUpperCase" src/lib/core/meechie-studio.ts
+532:		.toUpperCase();
+$ grep -n "title" tests/e2e/describe.spec.ts | head -1
+19:	title: 'Things I Am Not Doing Again',
+```
+
+`ChatInterpretationSeam` returns title-case titles and the pipeline sends them through unchanged. So
+a `/describe` reader would approve a title-case read-back and pay for a page lettered in capitals.
+
+**This is the defect class the run exists to remove, reintroduced on a different property, in the
+line that removes it.** Run 25 recorded the lesson that a contradiction reported on one line is a
+search rather than a repair; this is the sharper version — the repair can *write a new one*. The
+guard I had already added (`claims nothing that another line in the same prompt already sets`) listed
+weight, size and occupancy words. It did not list case words, because I was not thinking about case.
+
+Fixed: `Font: upright block letters, straight-sided and squared off.` The shape claim survives, the
+case claim is gone, and `capital`, `uppercase`, `lowercase` and `all caps` joined that test's list.
+
+### The two declined, with the measurement
+
+**P1 — "Probe the provider before exposing letter-shape choices."** Correct that the effect on a real
+generation is unproven, and that is exactly what the open Assumption says. It cannot be closed from
+this container: `api.x.ai` is unreachable under the network policy. `AGENTS.md:L127-159` allows
+shipping over an open Assumption on a stated reason, and the reason is that the state being merged
+away from is **strictly worse** — a live contradiction in every tool and mode page's prompt. The
+change narrows what the provider is told from two conflicting instructions to one. If the provider
+turns out not to distinguish the phrasings, the control is still honest, because it changes the
+stored spec and every sentence the app says about the page. Same posture Run 25 took, on the same
+container limit, for the same reason.
+
+**P2 — "Avoid asserting a legacy page's actual letter shape."** Correct observation, wrong stated
+obstacle, and declined on scope.
+
+Its premise is that a pre-v7 record carries nothing to identify a legacy prompt. It does:
+`CreationRecordSchema` requires `assembledPrompt`, so a legacy page is identifiable by whether that
+string contains `'Bold bubble letters.'` The obstacle named is not the real one.
+
+The concern under it is real: reopening a pre-v7 page seeds the control from `intent.fontStyle`, and
+for a page whose prompt contradicted itself the drawn result could have been either shape. But this
+is a property of the **whole panel**, not of this field: `textSize` and `whitespaceScale` were
+overruled by constants before v5, and `textStrokeWidth` before v6, and all three are seeded exactly
+the same way and shipped in Runs 24 and 25. And the alternative is worse — leaving the field `null`
+makes the panel name the *studio's* default over a page built as `block`, and the next rebuild then
+silently changes the letterform. The seeded value is what makes a rebuild reproduce the page.
+
+Carried forward as a panel-wide item rather than fixed for one field on a run about that field.
+
+### Re-proved after the fix
+
+| Command | Result |
+|---|---|
+| `npm run check` | 0 errors, 0 warnings |
+| `npm run lint` | exit 0 |
+| `npm test` | 2,049 passed, 1 skipped |
+| `npm run build` | exit 0 |
+| `npm run verify` | exit 0 |
+| `npm run cipher:gate` | exit 0 |
+| browser suite | 87 passed |
+
+### The honest count
+
+One defect found by a reviewer that was this run's own, in the very line the run is about. Zero found
+before the reviewer saw it.

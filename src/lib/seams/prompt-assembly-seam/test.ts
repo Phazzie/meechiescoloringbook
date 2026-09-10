@@ -192,7 +192,10 @@ describe('PromptAssemblySeam contract', () => {
 		expect(await promptFor('block')).not.toContain('bubble');
 		expect(await promptFor('hand')).not.toContain('bubble');
 		expect(await promptFor('rounded')).toContain('bubble letters');
-		expect(await promptFor('block')).toContain('block capitals');
+		expect(await promptFor('block')).toContain('block letters');
+		// Never a case instruction: it would contradict "render these exact words and nothing else"
+		// for the title-case titles `/describe` sends through unnormalized. Review of PR #354.
+		expect(await promptFor('block')).not.toContain('capitals');
 		expect(await promptFor('hand')).toContain('handwritten letters');
 	});
 
@@ -208,7 +211,7 @@ describe('PromptAssemblySeam contract', () => {
 	 * lettering.
 	 */
 	it('makes exactly one claim about what shape the letters are', async () => {
-		const SHAPE_CLAIM = /\b(bubble|block capitals|handwritten|serif|script|calligraphic)\b/;
+		const SHAPE_CLAIM = /\b(bubble|block letters|handwritten|serif|script|calligraphic)\b/;
 		for (const fontStyle of ['rounded', 'block', 'hand'] as const) {
 			const result = await promptAssemblyAdapter.assemble({
 				...promptAssemblySampleFixture.input,

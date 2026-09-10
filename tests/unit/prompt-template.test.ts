@@ -102,7 +102,7 @@ describe('prompt-template helpers', () => {
 				'Font: rounded bubble letters with soft, even curves.'
 			);
 			expect(fontStyleLine('block')).toBe(
-				'Font: upright block capitals, straight-sided and squared off.'
+				'Font: upright block letters, straight-sided and squared off.'
 			);
 			expect(fontStyleLine('hand')).toBe('Font: casual handwritten letters, uneven and flowing.');
 		});
@@ -138,7 +138,14 @@ describe('prompt-template helpers', () => {
 					'filling',
 					'large',
 					'small',
-					'%'
+					'%',
+					// Letter *case* is the TEXT block's, not this line's. 'Font: upright block capitals'
+					// contradicted "render these exact words and nothing else" for any title that was
+					// not already uppercase — which `/describe` routinely sends. Review of PR #354.
+					'capital',
+					'uppercase',
+					'lowercase',
+					'all caps'
 				]) {
 					expect(line).not.toContain(claim);
 				}

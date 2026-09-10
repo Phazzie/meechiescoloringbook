@@ -5,7 +5,7 @@ Info flow: evidence files -> summary -> review.
 -->
 # Proof Tape
 
-Generated at: 2026-09-10T18:53:17.229Z
+Generated at: 2026-09-10T19:14:27.378Z
 Evidence folder: docs/evidence/2026-09-10
 
 Files included (this tape's own outputs, proof-tape.json and proof-tape.md, are written
@@ -13,7 +13,7 @@ after this inventory is taken, so they are not listed; nor is
 verify-outer.txt, which the wrapper around this chain is still
 writing while this runs and would therefore always be listed short):
 
-- assumption-alarm.json (18387 bytes)
+- assumption-alarm.json (18402 bytes)
 - build.txt (15838 bytes) — PREDATES THIS VERIFY RUN
   Commands: meechies-coloringbook@0.1.0 build | vite build | Using @sveltejs/adapter-vercel
 - chamber-lock.json (35315 bytes)
@@ -31,8 +31,6 @@ writing while this runs and would therefore always be listed short):
 - shaolin-lint.json (519 bytes)
 - test.txt (3333 bytes)
   Commands: meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
-- verify-outer-tmp.txt (4313 bytes)
-  Commands: meechies-coloringbook@0.1.0 verify | node scripts/verify-outer.mjs | meechies-coloringbook@0.1.0 audit:gate | npm audit --audit-level=high | meechies-coloringbook@0.1.0 check | svelte-kit sync && svelte-check --tsconfig ./tsconfig.json | meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
 - verify.txt (3658 bytes)
   Commands: meechies-coloringbook@0.1.0 check | svelte-kit sync && svelte-check --tsconfig ./tsconfig.json | meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
 

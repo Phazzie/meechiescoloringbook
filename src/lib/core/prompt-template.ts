@@ -87,7 +87,15 @@ export const pageSizeLine = (pageSize: ColoringPageSpec['pageSize']): string =>
 export const fontStyleLine = (fontStyle: ColoringPageSpec['fontStyle']): string => {
 	switch (fontStyle) {
 		case 'block':
-			return 'Font: upright block capitals, straight-sided and squared off.';
+			// "block letters", never "block capitals". Caught in review of PR #354: "capitals" is a
+			// **case** instruction, and it contradicts the TEXT block's "render these exact words and
+			// nothing else" in the same prompt whenever the title is not already uppercase. The studio
+			// and tool paths run titles through `normalizeSpecText`, which uppercases — but `/describe`
+			// does not: `ChatInterpretationSeam` returns titles like `Things I Am Not Doing Again` and
+			// the pipeline sends them through unchanged. So a reader would approve a title-case
+			// read-back and pay for a page lettered in caps. That is exactly the two-instructions-one-
+			// property defect this line was rewritten to remove, reintroduced on a different property.
+			return 'Font: upright block letters, straight-sided and squared off.';
 		case 'hand':
 			return 'Font: casual handwritten letters, uneven and flowing.';
 		default:
