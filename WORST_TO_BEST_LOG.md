@@ -16299,10 +16299,29 @@ Re-measure everything below; do not inherit it.
   `'easter'` and `'cheap seats'` as evidence of wit.
 - **`MeechieTools.svelte` is still in legacy (non-runes) mode** — worked around a fourth time this
   run, with a plain `let isRebuildingDownloads` and a hand-rolled `advancePageToken` where the other
-  hosts use `$state`. Fourth run running, and it is now the reason every packaging change has to be
-  written twice.
-- **`traceFailureDetail` is the app's most-corrected function**, four rounds in a row. The next
-  change to it should start by enumerating the orderings rather than patching the one that was filed.
+  hosts use `$state`. Fourth run running. Corrected here: the first draft said this is why a
+  packaging change has to be written **twice**. It is **three times** — three independent
+  `runPackaging` implementations, one per host:
+
+  ```
+  $ grep -rn "runPackaging" src/ | grep -v "this.runPackaging\|await runPackaging"
+  src/lib/components/MeechieTools.svelte:448:  const runPackaging = async (
+  src/lib/components/page-artifact-state.svelte.ts:738:  private async runPackaging(
+  src/routes/studio-state.svelte.ts:2346:  private async runPackaging(
+  ```
+
+  The legacy mode explains only why the third cannot share the other two. **The other two are runes
+  hosts that duplicate each other for no reason at all**, which is the larger finding and the one
+  "twice" was hiding — a next run that de-legacies `MeechieTools` and stops there leaves two copies
+  in sync only by hand.
+- **`traceFailureDetail` has been corrected three times**, in the fourth, sixth and seventh
+  close-outs: wrong as a fallback, wrong in its ordering, wrong in what it stamps. Corrected here
+  from "four rounds in a row" — the fifth close-out sits between them and is about remedy
+  deduplication, not this field. The seventh close-out's own line calls the third finding "the
+  fourth finding in a row" while enumerating three directly beneath it, which is **the second
+  off-by-one in that one entry**, alongside its "eleven code findings" when twelve was the count.
+  Both are merged and append-only, so both are corrected forward here. The next change to this
+  function should start by enumerating the orderings rather than patching the one that was filed.
 - **`readJson` conflates a denied read with a damaged store**, and `writeJson` a denied write with a
   transient one. Run 22's item, untouched. Root fix is adapter codes: a seam change with a Cipher
   Gate.
@@ -16316,8 +16335,16 @@ Re-measure everything below; do not inherit it.
 
   ```
   $ grep -rln "SystemTrace" src/ | grep -v SystemTrace.svelte
+  src/lib/core/quality-report.ts
   src/routes/+page.svelte
   ```
+
+  **Both hits, not the one this entry first printed.** The first is not a renderer: `quality-report.ts`
+  names the component in its `Info flow:` header comment (`-> QualityReport -> SystemTrace.svelte /
+  VerdictPageStudio.svelte / MeechieTools.svelte.`) and imports nothing. Recording one line of a
+  two-line result is the same defect as every other finding in this entry, committed **in the command
+  offered as proof against it** — and had the second hit been a real renderer, the trimmed output
+  would have hidden it. The honest form is the full output plus the reason a hit does not count.
 
   Fourteen page-making surfaces — the home studio, the three standalone mode routes, the eight
   `/m/<slug>` pages, the eleven-tool hub and `/describe`, which reaches `PageExportRow` through
