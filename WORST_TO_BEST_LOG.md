@@ -17898,3 +17898,131 @@ Nothing in this repository's tests can catch that class, because no test reads p
 
 Three defects found by reviewers, all three this run's own, all three the same false promise in three
 different files. Zero found before a reviewer saw them, three times.
+
+## Run 26 — merge close-out — 2026-09-10 — PR #354 merged as `2c0365c`
+
+**Merged:** `2c0365c`, squashed from four commits on `claude/great-bell-du082z`.
+**Base at merge:** `main` at `89915a4`. 49 files, +1,606 / -333.
+
+### Re-measured at the merged commit, and the base measured too
+
+`git rev-parse` reports the same tree — `25ee06ed` — for `2c0365c` and for the PR head `857eccd`, so
+a re-run measures the merged content rather than a near-copy of it. The base figure is measured in a
+detached worktree at `89915a4` rather than quoted from Run 25's close-out.
+
+| Command | Result at `2c0365c` |
+|---|---|
+| `npm run check` | 0 errors, 0 warnings |
+| `npm run lint` | exit 0 |
+| `npm test` | **2,049** passed, 1 skipped (from **2,036** measured at `89915a4` — 13 net) |
+| `npm run build` | exit 0 |
+| `npm run verify` | exit 0 |
+| `npm run cipher:gate` | exit 0 |
+| `npm run test:e2e:local` | **87** passed (unchanged — this run added assertions to existing browser cases rather than new ones) |
+
+### All four merge conditions held
+
+`AGENTS.md:L127-159`. Each was checked against the current head before merging rather than asserted
+afterwards.
+
+1. **CI green on `857eccd`, both surfaces.** Twelve check runs — `verify` ×2, `e2e` ×2, CodeQL ×2 and
+   its rollup, SonarCloud ×2, Rosentic, Vercel Preview Comments — all `success`; `Sourcery review`
+   `skipped`, having exhausted its 250,000-character 7-day budget. Both commit statuses green
+   (Vercel `DEPLOYED`, CodeRabbit "Review skipped: manual review required for this OSS repository").
+2. **Every review comment addressed.** Five threads, all answered, all resolved: three fixed, two
+   declined with the measurement written on the thread.
+3. **`verify` and `npm test` green with committed evidence** under `docs/evidence/2026-09-10/`,
+   refreshed after each of the three pushes.
+4. **`mergeable_state: clean`**, nothing unpushed.
+
+The hold condition that applied is the same one Run 25 answered: **an open Assumption covers the
+behaviour being shipped.** It does, and it cannot be resolved from here — `api.x.ai` is unreachable
+under this container's network policy, so the probe is blocked rather than merely undone. The rule
+permits stating why the change is safe without it, and the reason is recorded on the PR, in
+`DECISIONS.md`, and in the reply to the reviewer who raised it: `fontStyle` reached the prompt before
+this change too, under a constant that contradicted it on thirteen of fourteen surfaces. This
+strictly narrows what the provider is told, from two conflicting instructions to one.
+
+The other open Assumptions were read individually and none covers this change: CSP font sources,
+`vercel.json` header rules, the durable rate-limit store, the live image-**edit** call for
+`WigTryOnSeam`, and Run 25's line-weight Assumption — which is this one's sibling and shares its
+validation method, not its subject.
+
+### Scope and the Cipher Gate
+
+`git diff --name-only 89915a4 2c0365c` against all seven governed paths returns **eight files**: six
+golden fixtures, one seam adapter, and one seam contract test. A Cipher Gate was required, is
+recorded in `DECISIONS.md`, and `npm run cipher:gate` exits 0 against it.
+
+**No `contracts/` file and no seam `contract.ts` changed.** `FontStyleSchema` was already
+`z.enum(['rounded', 'block', 'hand'])`; no field was added, removed or retyped; `templateVersion`
+v6 → v7 is a value, not a schema; and no stored record becomes unreadable.
+
+### The PR description was rewritten before merging, for the second run running
+
+Run 25's close-out recorded that a pull request description is not a historical artifact of what you
+first tried — it is the explanation the squashed commit carries. This run needed that rule and used
+it: the original body quoted `Font: upright block capitals…` and said the tool pages would ask for
+"block capitals", wording three review rounds removed. It now describes what shipped, carries a note
+saying it was rewritten and why, and summarises what review found.
+
+**That is the fourth place the retired sentence was living.** The prompt line, the control's help
+table, `DECISIONS.md`, and the pull request body. Three were caught by a reviewer; the fourth was
+caught only because a previous run wrote down a rule about pull request descriptions.
+
+### What the review rounds cost, and what they bought
+
+**Five Codex findings across four heads. Three correct defects, all this run's own; two correct
+observations declined with measurements. Nineteen advisory Rosentic findings re-measured and
+declined. SonarCloud at 0 new issues on every head.**
+
+The three defects were **one sentence in three files**, and each round found the next copy:
+
+| Round | Head | Where the false promise lived |
+|---|---|---|
+| 1 | `ead1282` | `fontStyleLine('block')` — the prompt itself |
+| 2 | `6a34ef3` | `LETTER_SHAPE_HELP.block` — what the reader is told |
+| 3 | `536359f` | `DECISIONS.md` and the Cipher Gate — what the next run will read |
+
+A green suite followed each of the first two fixes. Nothing in this repository can catch that class,
+because no test reads prose.
+
+### The honest count of this run's own defects
+
+**Three, all found by a reviewer, none found before one saw them.** All three were the same claim —
+that block lettering means capitals — which nothing in the application ever asked for and which
+contradicted the TEXT block's "render these exact words and nothing else".
+
+Against that: the feature removed a contradiction that had been in the prompt of every tool and mode
+page the application ever sent, and gave a reader the first control over the most visible property a
+page of lettering has.
+
+### Carried forward for the next run
+
+Re-measure everything below; do not inherit it.
+
+- **`'Glitter outline only (no shading).'` is the strongest single candidate**, for two measured
+  reasons: it contradicts `shading` whenever a spec asks for hatch or stippling, and it makes the
+  Glitter toggle's *off* position unreachable — the control is one of the seven Page Controls.
+  Commented at the line.
+- **Nine presentation fields are still unreachable by a reader** — `alignment`, `numberAlignment`,
+  `listGutter`, `colorMode`, `decorations`, `illustrations`, `shading`, `borderThickness` and
+  `variations`.
+- **Two blocked-probe Assumptions on the image prompt's content are open**, for line weight and for
+  the letterform. Both name the same validation. A run with provider access should close both.
+- **The Page Controls panel reports a reopened page's *requested* look, not its drawn one.** Raised
+  by Codex and true of all four look fields. `CreationRecordSchema` requires `assembledPrompt`, so a
+  legacy page is identifiable; the fix is panel-wide, not one field's.
+- **Nothing binds reader-facing prose to the prompt it describes.** Three rounds of this run were one
+  sentence disagreeing with itself across three files, each behind a green suite. A test asserting
+  that the help table and the prompt line make the same claims would have caught rounds two and
+  three.
+- **`ADVANCED_SPEC_FIELDS` has no importer.** Unchanged.
+- **`src/lib/core/meechie-quote-scoring.ts` has no production importer** and should probably be
+  deleted rather than wired.
+- **`MeechieTools.svelte` is still in legacy (non-runes) mode.**
+- **`readJson` conflates a denied read with a damaged store.** Run 22's item, untouched.
+- **A `ConnectionSeam` is still the right home for the `navigator.onLine` read.** Unchanged.
+- **The try-on's `rejected` branch is still unreachable from the UI.** Run 21's item, untouched.
+- **`failure.detail` has one consumer, on one surface out of fourteen.** Run 23's item, untouched.
+- **Run 18 still has no merge close-out entry.** Carried for nine runs now.

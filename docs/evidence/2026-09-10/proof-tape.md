@@ -5,7 +5,7 @@ Info flow: evidence files -> summary -> review.
 -->
 # Proof Tape
 
-Generated at: 2026-09-10T19:37:31.404Z
+Generated at: 2026-09-10T19:47:02.065Z
 Evidence folder: docs/evidence/2026-09-10
 
 Files included (this tape's own outputs, proof-tape.json and proof-tape.md, are written
