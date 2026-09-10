@@ -16162,8 +16162,10 @@ Stated plainly rather than as an environment footnote, because the two are separ
 one of them was satisfied.
 
 `AGENTS.md`'s **merge rule** (L127–159) conditions a merge on CI green on the current head, every
-review comment addressed, `verify` and `test` green with committed evidence, and no conflict. All
-four held. `AGENTS.md`'s **worst-feature routine** (L213–214) separately requires `npx playwright
+review comment addressed, `verify` and `test` green with committed evidence, and no conflict. Three
+held outright and the fourth held only in part — see *One merge condition was not fully met* below,
+which is the section this sentence has to agree with. `AGENTS.md`'s **worst-feature routine**
+(L213–214) separately requires `npx playwright
 test` *when the change is user-facing*. This change is user-facing and that command **failed before
 any test body ran**. Passing the same 83 specs against build 1194 through `test:e2e:local` is not the
 pinned gate going green, and `.github/workflows/verify.yml` does not run Playwright either, so the
