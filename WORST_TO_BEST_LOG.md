@@ -17544,3 +17544,357 @@ Re-measure everything below; do not inherit it.
 - **The try-on's `rejected` branch is still unreachable from the UI.** Run 21's item, untouched.
 - **`failure.detail` has one consumer, on one surface out of fourteen.** Run 23's item, untouched.
 - **Run 18 still has no merge close-out entry.** Carried for eight runs now.
+
+## Run 26 — 2026-09-10 — What shape the letters are
+
+The feature: **the letterform**. On this application it is not a typography preference — it is the
+subject of the picture. `ColoringPageSpec` has no field that can hold a subject, so `title`, `items`
+and `footerItem` *are* the drawing, and `fontStyle` is the field that says what that drawing looks
+like.
+
+Run 25 left a carried-forward list naming `fontStyle` as "the strongest candidate, and now for a
+measured reason". That recommendation is why this run looked here first. It is not why the feature
+was taken: the note describes the contradiction as reachable. Re-measured on `main` at `89915a4`,
+that is not the state. **It is the default on thirteen of the fourteen page-making surfaces.**
+
+### The case, measured on `main` at `89915a4`
+
+**1. The prompt gives two contradictory instructions about the letterform, one line apart.**
+
+```
+$ grep -n "Bold bubble letters\|fontStyleLine(spec" src/lib/adapters/prompt-assembly-seam/index.ts
+139:		'Bold bubble letters.',
+149:		`${fontStyleLine(spec.fontStyle)} ${textStrokeLine(spec.textStrokeWidth)} ${letteringLine(spec.textSize)}`,
+```
+
+`fontStyleLine` was `Font: ${fontStyle}.`, so a spec asking for `block` rendered:
+
+```
+TYPOGRAPHY:
+Bold bubble letters.
+Glitter outline only (no shading).
+Font: block. Stroke: ... Lettering: ...
+```
+
+Bubble letters are inflated and round. Block capitals are straight-sided and squared off. They are
+not two descriptions of one letterform; they are two different letterforms, demanded two lines
+apart, on a generation the reader has paid for.
+
+**2. `block` is what thirteen of the fourteen page-making surfaces build.** This is the measurement
+the carried-forward note did not have, and the one that made this the run's feature:
+
+```
+$ grep -rn "fontStyle: '" src/lib/core/
+src/lib/core/tool-page-recipe.ts:531:	fontStyle: 'block',
+src/lib/core/meechie-studio.ts:754:	fontStyle: input.presentation?.fontStyle ?? 'rounded',
+```
+
+`tool-page-recipe.ts` builds every page the eleven-tool hub, the three standalone mode routes and
+`/m/[mode]` produce. So the contradiction was never an edge case a rare spec could reach — it was in
+the prompt of **every tool and mode page the application has ever sent**, for its whole life. Only
+the home studio's `rounded` happens to agree with the constant.
+
+**3. `Font: hand.` handed an image model a variable name.** `rounded`, `block` and `hand` are the
+enum's own tokens. `hand` is not a letterform anyone draws; it is the app's internal label for one.
+This is the same defect Run 25 fixed for `Stroke: 6px.` — a value emitted as art direction without
+ever being turned into art direction.
+
+**4. No reader could set it, anywhere.** Fourteen page-making surfaces, no control on any of them.
+`StudioSettingsPanel.svelte` calls itself "the app's only say over what a coloring page looks like"
+and offered Lettering size, Room to colour and Line weight — not the shape of the letters.
+
+**5. Nothing in the app reported which letterform a page was made with.** Not
+`summarizePageLook`, not `summarizePageControls`, and not `readBackInterpretedPage` — the sentences
+a `/describe` reader checks *before* paying, which already named paper, border, lettering size,
+whitespace, line weight, illustrations and decorations. `ChatInterpretationSeam` may return any of
+the three.
+
+**The gap, in what it costs the user:** a paid generation whose single most visible property was
+decided by a coin flip between two contradictory instructions, on the majority of the app's pages.
+
+### What shipped
+
+**One voice in the prompt.** `fontStyleLine` now describes the letterform:
+
+| `fontStyle` | The line |
+|---|---|
+| `rounded` | `Font: rounded bubble letters with soft, even curves.` |
+| `block` | `Font: upright block letters, straight-sided and squared off.` |
+| `hand` | `Font: casual handwritten letters, uneven and flowing.` |
+
+The `'Bold bubble letters.'` constant is gone. `Bold` is not lost with it: letter *size* is
+`letteringLine`'s (`'large, bold letterforms.'`) and line *weight* is `textStrokeLine`'s, and both
+are emitted on the same physical line two rows down. `templateVersion` v6 → v7.
+
+Every one of the three says nothing about weight, size or page occupancy — the rule reviews of
+PR #350 and PR #352 each earned once, applied before a reviewer had to. A seam test asserts it.
+
+**A control on all fourteen surfaces.** `letterShape` joins `PageLookSelection`; the panel offers
+Bubble, Block and Handwritten, each with a help line naming the trade rather than only the virtue.
+Unlike Line weight and Room to colour the options are the *whole* contract enum rather than steps
+across a numeric range, so no page can carry a value the control cannot offer and no "this page's
+own" fallback option is needed. `LETTER_SHAPE_OPTIONS` is derived from the label table's keys, and a
+test drives `FontStyleSchema.options` against it.
+
+**Reported everywhere the app already describes a page.** `summarizePageLook` merges the two
+letter fields into one segment — `large block lettering`, not `large lettering · block letters` —
+and `/describe`'s read-back gains `Block letters.` A fact and never a caution: no letterform is a
+problem to colour, unlike a 4px outline.
+
+**`pageLookOf`, which is the cleanup this run owed.** Four surfaces host the control and each needs
+two `EffectivePageLook` values; each wrote the field list out by hand, in two Svelte dialects.
+Adding a fourth field would have been eight edits whose failure mode is silent — a copy that misses
+a field compiles and renders and just describes the page incompletely. It is one line now.
+
+### The deliberate behaviour change
+
+The thirteen tool and mode pages stop asking for bubble letters and ask only for the block capitals
+their spec has always named. Their lettering will look squarer and plainer. That is the field
+becoming real, and Bubble is one control away. Home studio pages are unchanged in intent.
+Recorded in `DECISIONS.md` rather than absorbed.
+
+### Evidence
+
+| Command | Result |
+|---|---|
+| `npm run check` | 0 errors, 0 warnings |
+| `npm run lint` | exit 0 |
+| `npm test` | **2,049** passed, 1 skipped (from **2,036** on `89915a4`) |
+| `npm run build` | exit 0 |
+| `npm run verify` | exit 0 |
+| `PLAYWRIGHT_CHROMIUM_PATH=… npm run test:e2e:local` | **87** passed |
+
+Red proof taken rather than asserted: restoring `'Bold bubble letters.'` to the adapter failed four
+seam tests — both golden fixture comparisons and both new letterform assertions — and removing it
+again returned 24 passed.
+
+### What was deliberately not fixed
+
+**`'Glitter outline only (no shading).'` is still emitted unconditionally.** It contradicts
+`Shading: hatch.` and `Shading: stippling.` in the DECORATIONS section of the same prompt, **and it
+demands glitter on a page whose reader left the Glitter control off** — one of the seven Page
+Controls, whose "off" position therefore does not reach the prompt at all. That is two defects, one
+`shading`'s and one the Glitter control's, and neither is the letterform's. Recorded, not ridden
+along on — the same treatment Run 25 gave this run's field.
+
+One correction to Run 25's carried-forward note, which said the NEGATIVE PROMPT "says 'no shading'
+as well, so a spec asking for shading is refused three times and granted once". Measured:
+`negativeLinesForSpec` pushes `'no shading'` only when `spec.shading === 'none'`. The refusal count
+is two, not three. The defect is real; the count in that note was not.
+
+### Carried forward for the next run
+
+Re-measure everything below; do not inherit it.
+
+- **`'Glitter outline only (no shading).'` is the strongest single candidate**, and for two measured
+  reasons rather than one: it contradicts `shading` whenever a spec asks for hatch or stippling, and
+  it makes the Glitter toggle's off position unreachable. Commented at the line.
+- **Nine presentation fields are still unreachable by a reader** — `alignment`, `numberAlignment`,
+  `listGutter`, `colorMode`, `decorations`, `illustrations`, `shading`, `borderThickness` and
+  `variations`.
+- **Two blocked-probe Assumptions on the image prompt's content are open**, one for line weight and
+  one for the letterform. Both name the same validation: generate one spec at each end of the field
+  and compare the returned drawing. A run with provider access should close both together.
+- **`ADVANCED_SPEC_FIELDS` has no importer.** Unchanged.
+- **`variations` is honoured and charged but unsettable outside `/describe`.** Re-verified this run:
+  `image-generation-pipeline.ts` passes it as the provider's `n` and charges that many units, and
+  every image that comes back is packaged — so it is not silently discarding paid pictures. It is
+  reachable only through the interpreter.
+- **`src/lib/core/meechie-quote-scoring.ts` has no production importer** and should probably be
+  deleted rather than wired.
+- **`MeechieTools.svelte` is still in legacy (non-runes) mode** — worked around again. The count is
+  deliberately gone: the comment in the file said "the fourth run" while Run 25's entry said "a
+  sixth time", neither had been counted, and incrementing one of them would have produced a third
+  wrong figure.
+- **`readJson` conflates a denied read with a damaged store.** Run 22's item, untouched.
+- **A `ConnectionSeam` is still the right home for the `navigator.onLine` read.** Unchanged.
+- **The try-on's `rejected` branch is still unreachable from the UI.** Run 21's item, untouched.
+- **`failure.detail` has one consumer, on one surface out of fourteen.** Run 23's item, untouched.
+- **The Page Controls panel reports a reopened page's *requested* look, not its drawn one.** Raised
+  by Codex on PR #354 for the letterform and true of all four look fields: a page saved under a
+  template version whose prompt contradicted itself could have been drawn either way. A record is
+  identifiable — `CreationRecordSchema` requires `assembledPrompt` — so a fix is available; it is
+  panel-wide, not one field's.
+- **Run 18 still has no merge close-out entry.** Carried for nine runs now.
+
+## Run 26, first close-out — 2026-09-10 — the Codex round on `ead1282`, and a case instruction I did not notice I was writing
+
+Three findings. **One correct and fixed; two correct observations declined with the measurement
+written on the thread.**
+
+### The one that was a real defect, and it was this run's own
+
+**P2 — "Keep block styling from overriding exact capitalization."** `fontStyleLine('block')` returned
+`Font: upright block capitals, straight-sided and squared off.` "Capitals" is a **case** instruction,
+and the same prompt's TEXT block says *"render these exact words and nothing else"* above the title.
+
+Measured rather than assumed. The studio and tool paths put titles through `normalizeSpecText`,
+which ends `.toUpperCase()` — so on those surfaces the two agree by accident. `/describe` does not:
+
+```
+$ grep -n "toUpperCase" src/lib/core/meechie-studio.ts
+532:		.toUpperCase();
+$ grep -n "title" tests/e2e/describe.spec.ts | head -1
+19:	title: 'Things I Am Not Doing Again',
+```
+
+`ChatInterpretationSeam` returns title-case titles and the pipeline sends them through unchanged. So
+a `/describe` reader would approve a title-case read-back and pay for a page lettered in capitals.
+
+**This is the defect class the run exists to remove, reintroduced on a different property, in the
+line that removes it.** Run 25 recorded the lesson that a contradiction reported on one line is a
+search rather than a repair; this is the sharper version — the repair can *write a new one*. The
+guard I had already added (`claims nothing that another line in the same prompt already sets`) listed
+weight, size and occupancy words. It did not list case words, because I was not thinking about case.
+
+Fixed: `Font: upright block letters, straight-sided and squared off.` The shape claim survives, the
+case claim is gone, and `capital`, `uppercase`, `lowercase` and `all caps` joined that test's list.
+
+### The two declined, with the measurement
+
+**P1 — "Probe the provider before exposing letter-shape choices."** Correct that the effect on a real
+generation is unproven, and that is exactly what the open Assumption says. It cannot be closed from
+this container: `api.x.ai` is unreachable under the network policy. `AGENTS.md:L127-159` allows
+shipping over an open Assumption on a stated reason, and the reason is that the state being merged
+away from is **strictly worse** — a live contradiction in every tool and mode page's prompt. The
+change narrows what the provider is told from two conflicting instructions to one. If the provider
+turns out not to distinguish the phrasings, the control is still honest, because it changes the
+stored spec and every sentence the app says about the page. Same posture Run 25 took, on the same
+container limit, for the same reason.
+
+**P2 — "Avoid asserting a legacy page's actual letter shape."** Correct observation, wrong stated
+obstacle, and declined on scope.
+
+Its premise is that a pre-v7 record carries nothing to identify a legacy prompt. It does:
+`CreationRecordSchema` requires `assembledPrompt`, so a legacy page is identifiable by whether that
+string contains `'Bold bubble letters.'` The obstacle named is not the real one.
+
+The concern under it is real: reopening a pre-v7 page seeds the control from `intent.fontStyle`, and
+for a page whose prompt contradicted itself the drawn result could have been either shape. But this
+is a property of the **whole panel**, not of this field: `textSize` and `whitespaceScale` were
+overruled by constants before v5, and `textStrokeWidth` before v6, and all three are seeded exactly
+the same way and shipped in Runs 24 and 25. And the alternative is worse — leaving the field `null`
+makes the panel name the *studio's* default over a page built as `block`, and the next rebuild then
+silently changes the letterform. The seeded value is what makes a rebuild reproduce the page.
+
+Carried forward as a panel-wide item rather than fixed for one field on a run about that field.
+
+### Re-proved after the fix
+
+| Command | Result |
+|---|---|
+| `npm run check` | 0 errors, 0 warnings |
+| `npm run lint` | exit 0 |
+| `npm test` | 2,049 passed, 1 skipped |
+| `npm run build` | exit 0 |
+| `npm run verify` | exit 0 |
+| `npm run cipher:gate` | exit 0 |
+| browser suite | 87 passed |
+
+### The honest count
+
+One defect found by a reviewer that was this run's own, in the very line the run is about. Zero found
+before the reviewer saw it.
+
+
+## Run 26, second close-out — 2026-09-10 — the same promise, one layer up
+
+Codex re-reviewed `6a34ef3` and found the *other half* of the finding it had just made. One P2, correct,
+fixed.
+
+**The prompt stopped asking for capitals. The control went on promising them.**
+
+```
+LETTER_SHAPE_HELP.block = 'Straight-sided capitals, squared off. …'
+```
+
+That is the reader-facing help under the Letter shape control, and it survived the first fix
+untouched because I was looking at the prompt.
+
+Its supporting measurement is the part worth keeping. Nothing uppercases a tool or mode page's
+title — `compactColoringPageTitle` normalizes characters and length and never touches case:
+
+```
+$ grep -n "toUpperCase" src/lib/core/coloring-page-title.ts
+$ # no output
+```
+
+And `TOOL_PAGE_FONT_STYLE` is `block`, so Block is the **default** on exactly the thirteen surfaces
+where casing is preserved. A reader picking it — or simply leaving it — was told they were choosing
+capitals and would be handed the provider's own title case.
+
+Fixed to `'Straight-sided letters, squared off. …'`, and the four user-facing `CHANGELOG` sentences
+that said "block capitals" now say "block letters", because a changelog that promises capitals is
+the same false promise in the place a reader is most likely to read it.
+
+**The lesson, and it is not the one I recorded an hour ago.** The first close-out said a repair can
+write a new contradiction. This says something narrower and more useful: **a wording fix has a
+blast radius, and the prompt is only one of the places the word appears.** The same claim lived in
+the prompt line, the control's help table and the changelog. Fixing one and re-running a green suite
+proves nothing about the other two, because no test asserts that the help text and the prompt agree
+about what the app will do.
+
+### Re-proved after the second fix
+
+| Command | Result |
+|---|---|
+| `npm run check` | 0 errors, 0 warnings |
+| `npm run lint` | exit 0 |
+| `npm test` | 2,049 passed, 1 skipped |
+| `npm run build` | exit 0 |
+| `npm run verify` | exit 0 |
+| browser suite | 87 passed |
+
+### The honest count, revised
+
+Two defects found by a reviewer, both this run's own, both about a case promise nothing in the app
+asked for. Zero found before a reviewer saw them, twice.
+
+
+## Run 26, third close-out — 2026-09-10 — the same promise, in the file that outlives the code
+
+Codex re-reviewed `536359f` and found the **third** copy of the same claim. One P2, correct, fixed.
+
+`DECISIONS.md` still said the thirteen tool and mode pages "ask for block capitals", in the decision's
+own context paragraph, in its deliberate-behaviour-change paragraph, and in the Cipher Gate's Risks
+field. `AGENTS.md` designates that file a source of truth, and `scripts/cipher-gate.mjs` copies its
+text verbatim into `docs/evidence/YYYY-MM-DD/cipher-gate.json`. So the retired wording was not just
+stale prose — it was the record a future prompt change would read, and the obvious way to "restore
+consistency" would have been to put `capitals` back into the line two review rounds took it out of.
+
+Fixed in all three places, and the evidence regenerated rather than hand-edited:
+
+```
+$ npm run cipher:gate && npm run assumption:alarm
+$ grep -c "block capitals" docs/evidence/2026-09-10/cipher-gate.json docs/evidence/2026-09-10/assumption-alarm.json
+docs/evidence/2026-09-10/cipher-gate.json:0
+docs/evidence/2026-09-10/assumption-alarm.json:0
+```
+
+The three remaining occurrences in `DECISIONS.md` are a **new alternative (b2)** added in the same
+edit: "Say 'block capitals' rather than 'block letters' — tried, and reverted in review", with the
+reason and the test that enforces it. An alternatives list is where a rejected option belongs, and
+recording *why* it was rejected is the only thing that stops the next run rediscovering it as an
+improvement.
+
+**The lesson, third variant of the same one.** Round one: a repair can write a new contradiction.
+Round two: a wording fix has a blast radius across the code. Round three: **it also reaches the
+governance files, and those are the ones that outlive the diff.** Three rounds, three copies of one
+sentence — prompt line, help table, decision record — and a green suite after each of the first two.
+Nothing in this repository's tests can catch that class, because no test reads prose.
+
+### Re-proved after the third fix
+
+| Command | Result |
+|---|---|
+| `npm run check` | 0 errors, 0 warnings |
+| `npm run lint` | exit 0 |
+| `npm test` | 2,049 passed, 1 skipped |
+| `npm run build` | exit 0 |
+| `npm run verify` | exit 0 |
+| `npm run cipher:gate` | exit 0 |
+
+### The honest count, final
+
+Three defects found by reviewers, all three this run's own, all three the same false promise in three
+different files. Zero found before a reviewer saw them, three times.

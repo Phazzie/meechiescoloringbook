@@ -624,7 +624,7 @@ export const derivesDenseDecorations = (styleHint: string): boolean =>
 	styleHint.includes('receipt');
 
 /**
- * What the home studio builds for the three look fields when the reader has chosen none of them.
+ * What the home studio builds for the four look fields when the reader has chosen none of them.
  *
  * The values it has always used, named once so the Page Controls panel can say what is in effect
  * without restating them. It can be a constant here — and the panel can trust it — only because
@@ -636,11 +636,18 @@ export const derivesDenseDecorations = (styleHint: string): boolean =>
  * step — a control whose default is not one of its own options shows the reader a phantom "this
  * page's own" entry for a page the app itself made. `tests/unit/page-style.test.ts` asserts the two
  * agree, so moving either one alone fails rather than drifts.
+ *
+ * `fontStyle: 'rounded'` is likewise the value the builder's `??` has always supplied, stated here
+ * now that it is a reader control. It needs no "is it one of the options?" guarantee the way the
+ * stroke width does — `LETTER_SHAPE_OPTIONS` is the whole of `FontStyleSchema`, so no value this
+ * field can legally hold is missing from the control. The test asserting it is in the list is there
+ * to catch a value being added to the seam's enum without the panel's tables following.
  */
 export const STUDIO_DEFAULT_PAGE_LOOK: EffectivePageLook = {
 	textSize: 'small',
 	whitespaceScale: 50,
-	textStrokeWidth: 6
+	textStrokeWidth: 6,
+	fontStyle: 'rounded'
 };
 
 export const buildColoringPageSpecFromMeechieText = (input: {
@@ -672,6 +679,12 @@ export const buildColoringPageSpecFromMeechieText = (input: {
 	 * the one that has to win.
 	 */
 	textStrokeWidth?: ColoringPageSpec['textStrokeWidth'];
+	/**
+	 * What shape the letters are. Top-level for the same reason as the three above, and it left
+	 * `presentation` on the same terms: a page's letterform is now the reader's live choice rather
+	 * than something carried forward from whatever was reopened.
+	 */
+	fontStyle?: ColoringPageSpec['fontStyle'];
 	styleHint: string;
 	dedication?: string;
 	/**
@@ -713,9 +726,10 @@ export const buildColoringPageSpecFromMeechieText = (input: {
 			// when they became reader controls: a field carried forward from a reopened page cannot
 			// also be settable, and of the two answers "the reader just chose this" is the one that
 			// has to win. Same treatment `pageSize` and `border` have always had.
-			| 'fontStyle'
+			//
 			// `textStrokeWidth` used to be carried here too, and left for the same reason
 			// `whitespaceScale` and `textSize` did: it became a reader control in Run 25.
+			// `fontStyle` left in Run 26, on the same terms.
 			| 'colorMode'
 			| 'decorations'
 			| 'illustrations'
@@ -751,7 +765,7 @@ export const buildColoringPageSpecFromMeechieText = (input: {
 	listGutter: input.presentation?.listGutter ?? 'normal',
 	whitespaceScale: input.whitespaceScale ?? STUDIO_DEFAULT_PAGE_LOOK.whitespaceScale,
 	textSize: input.textSize ?? STUDIO_DEFAULT_PAGE_LOOK.textSize,
-	fontStyle: input.presentation?.fontStyle ?? 'rounded',
+	fontStyle: input.fontStyle ?? STUDIO_DEFAULT_PAGE_LOOK.fontStyle,
 	textStrokeWidth: input.textStrokeWidth ?? STUDIO_DEFAULT_PAGE_LOOK.textStrokeWidth,
 	colorMode: input.presentation?.colorMode ?? 'black_and_white_only',
 	// Carried forward like the rest of the presentation, but the caller drops it when the reader

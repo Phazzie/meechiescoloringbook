@@ -97,7 +97,8 @@ Invariants: The quality report is rendered ONLY through `QualityReportPanel`, ne
 			     that unworkable rather than merely confusing. -->
 			<legend>How it colours</legend>
 			<p class="field-help">
-				How much of the sheet is words, how much is yours, and how thick the lines are.
+				What the letters look like, how much of the sheet is words, how much is yours, and how
+				thick the lines are.
 			</p>
 			<PageLookControls
 				look={studio.pageLook}

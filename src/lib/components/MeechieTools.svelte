@@ -35,7 +35,7 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 	import { packagePageVariant } from './page-packaging';
 	import PageExportRow from './PageExportRow.svelte';
 	import PageLookControls from './PageLookControls.svelte';
-	import { DEFAULT_PAGE_LOOK, type PageLookSelection } from '$lib/core/page-style';
+	import { DEFAULT_PAGE_LOOK, pageLookOf, type PageLookSelection } from '$lib/core/page-style';
 	import SharePageButton from './SharePageButton.svelte';
 	import QualityReportPanel from './QualityReportPanel.svelte';
 	import PrintPageButton from './PrintPageButton.svelte';
@@ -248,32 +248,28 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 	// button beneath them charges `image`. The hub reported neither until now.
 	const quota = new AiQuotaMeter();
 	let dedicatedTo = '';
-	// The reader's choice of lettering size and room to colour, `null` per field for the page's own.
+	// The reader's choice of lettering size, letter shape, room to colour and line weight, `null` per
+	// field for the page's own.
 	// A plain `let` rather than `$state` because this component is still in legacy (non-runes) mode,
-	// like `vaultSaveFailure` below — the fourth run to work around that, and still a carried-forward
-	// item rather than this one's.
+	// like `vaultSaveFailure` below — worked around by every run that has touched this component, and
+	// still a carried-forward item rather than this one's. It used to say "the fourth run" while
+	// `WORST_TO_BEST_LOG.md` said the sixth; neither had been counted, so the count is gone rather
+	// than incremented into a third figure.
 	let pageLook: PageLookSelection = { ...DEFAULT_PAGE_LOOK };
-	// What the two fields will actually be on the page the current verdict makes, read off the
-	// recipe so this hub and `makePage` cannot disagree. Null with no verdict: no page, nothing to
+	// What those fields will actually be on the page the current verdict makes, read off the recipe
+	// so this hub and `makePage` cannot disagree. Null with no verdict: no page, nothing to
 	// describe. `dedicatedTo` is deliberately not in this call — it changes the page but not these
-	// two fields, and including it would rebuild the recipe on every keystroke in that box.
-	$: effectivePageLook = output
-		? (({ textSize, whitespaceScale, textStrokeWidth }) => ({
-				textSize,
-				whitespaceScale,
-				textStrokeWidth
-			}))(buildToolPageRecipe(output, { look: pageLook }).spec)
-		: null;
+	// fields, and including it would rebuild the recipe on every keystroke in that box.
+	//
+	// `pageLookOf` rather than a destructure written out here: this hub and the three mode routes
+	// each need this pair, and four hand-written copies of the field list is four places to miss a
+	// field when one is added — which does not fail to compile, it just describes the page
+	// incompletely.
+	$: effectivePageLook = output ? pageLookOf(buildToolPageRecipe(output, { look: pageLook }).spec) : null;
 	// The same recipe with NO override — what "Page default" actually gets the reader. Labelling that
 	// option from `effectivePageLook` above made it rename itself to whatever the reader had just
 	// chosen while still delivering the recipe's own value. See `PageLookControls`' invariant 2b.
-	$: baselinePageLook = output
-		? (({ textSize, whitespaceScale, textStrokeWidth }) => ({
-				textSize,
-				whitespaceScale,
-				textStrokeWidth
-			}))(buildToolPageRecipe(output).spec)
-		: null;
+	$: baselinePageLook = output ? pageLookOf(buildToolPageRecipe(output).spec) : null;
 	let copyStatus = '';
 	let vaultStatus = '';
 	// The classified failure behind `vaultStatus`, where it is reporting one. This component is
@@ -1148,7 +1144,8 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 					<!-- See `VerdictPageStudio` for why this is not called "Room to colour". -->
 					<legend>How it colours</legend>
 					<p class="field-help">
-						How much of the sheet is words, how much is yours, and how thick the lines are.
+						What the letters look like, how much of the sheet is words, how much is yours, and how
+				thick the lines are.
 					</p>
 					<PageLookControls
 						look={pageLook}

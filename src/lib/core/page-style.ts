@@ -213,13 +213,24 @@ export type PageLookSelection = {
 	 * be a contract change for a vocabulary preference.
 	 */
 	lineWeight: ColoringPageSpec['textStrokeWidth'] | null;
+	/**
+	 * What shape the letters are, or `null` for the page's own.
+	 *
+	 * The `ColoringPageSpec` field is `fontStyle`; the reader-facing name is "Letter shape", because
+	 * "font style" names a thing a reader chooses in a word processor from a list of typeface names,
+	 * and this is not that — there are three shapes and the model draws them by hand. The spec field
+	 * keeps its name, for the same reason `textStrokeWidth` did: renaming it would be a contract
+	 * change for a vocabulary preference.
+	 */
+	letterShape: ColoringPageSpec['fontStyle'] | null;
 };
 
 /** No override. Every surface starts here, so every surface starts unchanged. */
 export const DEFAULT_PAGE_LOOK: PageLookSelection = {
 	textSize: null,
 	whitespaceScale: null,
-	lineWeight: null
+	lineWeight: null,
+	letterShape: null
 };
 
 /**
@@ -356,6 +367,90 @@ export const LINE_WEIGHT_HELP: Readonly<Record<number, string | undefined>> = {
 export const describeLineWeight = (strokeWidth: number): string =>
 	LINE_WEIGHT_LABELS[strokeWidth] ?? `${Math.round(strokeWidth)}px`;
 
+/* ------------------------------------------------------------------------------------------------
+ * What shape the letters are.
+ *
+ * Every page this application makes is a page of lettering — `ColoringPageSpec` has no field that
+ * can hold a subject, so the words *are* the drawing — which makes `fontStyle` the field that
+ * decides what the picture looks like. It reached the prompt as `Font: block.`, three bare enum
+ * tokens, under a constant that demanded `Bold bubble letters.` whatever the field said. `block` is
+ * what every one of the thirteen tool and mode pages builds, so that contradiction was not an edge
+ * case: it was in the prompt of every tool page the app ever sent. No reader could set the field on
+ * any of the fourteen page-making surfaces, and nothing in the application reported which letterform
+ * a page had been built with.
+ * ---------------------------------------------------------------------------------------------- */
+
+type FontStyle = ColoringPageSpec['fontStyle'];
+
+/**
+ * What each letterform looks like, in the reader's terms.
+ *
+ * Total `Record`s over the contract enum, so a value added to `FontStyleSchema` fails compilation
+ * here rather than rendering a blank line under a dropdown — the same rule every other table in
+ * this file follows.
+ *
+ * "Handwritten" rather than the enum's own `hand`, which is a variable name and not a thing anyone
+ * would recognise on a page.
+ */
+export const LETTER_SHAPE_LABELS: Record<FontStyle, string> = {
+	rounded: 'Bubble',
+	block: 'Block',
+	hand: 'Handwritten'
+};
+
+/**
+ * What each shape costs and buys, in the reader's terms.
+ *
+ * Each names the trade rather than only the virtue, for the reason `LINE_WEIGHT_HELP` does: a table
+ * that only listed what is good about each option would sell the reader the first one every time.
+ *
+ * None of them says how **heavy** the outlines are or how much of the **sheet** the words cover.
+ * Those are the Line weight and Room to colour controls sitting directly above, and a help line
+ * here that claimed either would tell the reader two different things about one property — the
+ * contradiction this whole run exists to remove from the prompt, reintroduced in the panel.
+ */
+export const LETTER_SHAPE_HELP: Record<FontStyle, string> = {
+	rounded: 'Inflated bubble letters with soft curves. Big open middles to colour in.',
+	/*
+	 * "letters", never "capitals". Caught in review of PR #354, one layer above the identical fix to
+	 * `fontStyleLine`: the prompt stopped asking for capitals, and this help line went on promising
+	 * them. Nothing uppercases a tool or mode page's title — `compactColoringPageTitle` preserves the
+	 * provider's own casing — and Block is the default on exactly those thirteen surfaces, so the
+	 * reader would have been told they were choosing capitals and handed title case.
+	 */
+	block: 'Straight-sided letters, squared off. The plainest shapes and the easiest to read.',
+	hand: 'Casual handwriting, uneven on purpose. Reads like a note rather than a printed page.'
+};
+
+/**
+ * The values the control offers, in the order it lists them.
+ *
+ * Derived from the label table's keys rather than restated, exactly as the voice controls are: the
+ * table is a `Record<FontStyle, string>`, so the *type* already forces it to be total and this list
+ * follows automatically. `tests/unit/page-style.test.ts` drives `FontStyleSchema.options` against
+ * it, so the seam and the panel are proved equal.
+ *
+ * Unlike `LINE_WEIGHT_OPTIONS` and `ROOM_TO_COLOUR_OPTIONS` this is the *whole* domain of the field,
+ * not a set of steps across a numeric range. So there is no value a page can carry that the control
+ * cannot offer, and `PageLookControls` needs no "this page's own" fallback option for it.
+ */
+export const LETTER_SHAPE_OPTIONS = Object.keys(LETTER_SHAPE_LABELS) as readonly FontStyle[];
+
+/**
+ * Name a letterform, for the summary and the read-back.
+ *
+ * No fallback branch, and that is the difference from `describeLineWeight` and
+ * `describeRoomToColour`: those describe numeric fields whose contracts admit values their controls
+ * do not offer, so both have to be able to name a value they have no word for. `fontStyle` is an
+ * enum and the table is total over it, so every value a spec can legally carry has a label here.
+ *
+ * Returns the label alone and never the word "letters". `summarizePageLook` appends it, and a
+ * value that carried it would render "block letters letters" there — the defect Run 25 shipped
+ * once in `describeLineWeight` and fixed before merge.
+ */
+export const describeLetterShape = (fontStyle: FontStyle): string =>
+	LETTER_SHAPE_LABELS[fontStyle];
+
 /**
  * The three look fields as a page will actually be made with them — concrete values, never `null`.
  *
@@ -372,13 +467,34 @@ export const describeLineWeight = (strokeWidth: number): string =>
  */
 export type EffectivePageLook = Pick<
 	ColoringPageSpec,
-	'textSize' | 'whitespaceScale' | 'textStrokeWidth'
+	'textSize' | 'whitespaceScale' | 'textStrokeWidth' | 'fontStyle'
 >;
+
+/**
+ * Read the look fields off a spec, and nothing else.
+ *
+ * The four surfaces that host `PageLookControls` each need two of these — what the page will
+ * actually be made with, and what it would be made with if the reader cleared their override — and
+ * every one of them wrote the same destructure-and-rebuild by hand. That was four copies of the
+ * field list before this run and would have been eight edits to add the fourth field, in two
+ * different Svelte dialects, with a silent wrong answer as the failure mode: a copy that missed a
+ * field does not fail to compile, it just makes the panel describe the page incompletely.
+ *
+ * Typed to take anything that *has* the look fields rather than a whole `ColoringPageSpec`, so a
+ * test can call it on a literal, and to return the exact `EffectivePageLook` shape so nothing else
+ * from a spec rides along into a control's props.
+ */
+export const pageLookOf = (spec: EffectivePageLook): EffectivePageLook => ({
+	textSize: spec.textSize,
+	whitespaceScale: spec.whitespaceScale,
+	textStrokeWidth: spec.textStrokeWidth,
+	fontStyle: spec.fontStyle
+});
 
 /**
  * Apply a reader's override to a spec, leaving every unset field exactly as the page built it.
  *
- * The one place the override is applied. Pure, and total over the three fields: nothing else in a
+ * The one place the override is applied. Pure, and total over the four fields: nothing else in a
  * spec is touched, so a caller cannot accidentally hand a page a different title or a different
  * border by routing it through here.
  */
@@ -389,7 +505,8 @@ export const applyPageLook = <T extends EffectivePageLook>(
 	...spec,
 	textSize: look.textSize ?? spec.textSize,
 	whitespaceScale: look.whitespaceScale ?? spec.whitespaceScale,
-	textStrokeWidth: look.lineWeight ?? spec.textStrokeWidth
+	textStrokeWidth: look.lineWeight ?? spec.textStrokeWidth,
+	fontStyle: look.letterShape ?? spec.fontStyle
 });
 
 /**
@@ -402,7 +519,9 @@ export const applyPageLook = <T extends EffectivePageLook>(
 export const summarizePageLook = (
 	look: EffectivePageLook
 ): string =>
-	`${TEXT_SIZE_LABELS[look.textSize].toLowerCase()} lettering · ${describeRoomToColour(
+	`${TEXT_SIZE_LABELS[look.textSize].toLowerCase()} ${describeLetterShape(
+		look.fontStyle
+	).toLowerCase()} lettering · ${describeRoomToColour(
 		look.whitespaceScale
 	).toLowerCase()} · ${describeLineWeight(look.textStrokeWidth).toLowerCase()} lines`;
 

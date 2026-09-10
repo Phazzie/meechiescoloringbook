@@ -402,7 +402,7 @@ describe('decoration density follows the caller, not the builder', () => {
 	});
 });
 
-describe('lettering and blank space are the reader’s, not the reopened page’s', () => {
+describe('the look fields are the reader’s, not the reopened page’s', () => {
 	// They used to live in `presentation`, which is the reopened page's look carried forward. A
 	// field carried forward cannot also be settable: whatever the Page Controls panel offered would
 	// have been overwritten by the restored page on the next rebuild. They are passed the way
@@ -419,23 +419,26 @@ describe('lettering and blank space are the reader’s, not the reopened page’
 		expect(spec.textSize).toBe(STUDIO_DEFAULT_PAGE_LOOK.textSize);
 		expect(spec.whitespaceScale).toBe(STUDIO_DEFAULT_PAGE_LOOK.whitespaceScale);
 		expect(spec.textStrokeWidth).toBe(STUDIO_DEFAULT_PAGE_LOOK.textStrokeWidth);
+		expect(spec.fontStyle).toBe(STUDIO_DEFAULT_PAGE_LOOK.fontStyle);
 	});
 
 	it("beats the reopened page's own presentation", () => {
 		const spec = buildColoringPageSpecFromMeechieText({
 			...base,
-			presentation: { alignment: 'center', fontStyle: 'block' },
+			presentation: { alignment: 'center', colorMode: 'grayscale' },
 			textSize: 'large',
 			whitespaceScale: 25,
-			textStrokeWidth: 12
+			textStrokeWidth: 12,
+			fontStyle: 'hand'
 		});
 		expect(spec.textSize).toBe('large');
 		expect(spec.whitespaceScale).toBe(25);
 		expect(spec.textStrokeWidth).toBe(12);
+		expect(spec.fontStyle).toBe('hand');
 		// And the rest of the reopened page's look is still carried forward, which is what
 		// `presentation` is for.
 		expect(spec.alignment).toBe('center');
-		expect(spec.fontStyle).toBe('block');
+		expect(spec.colorMode).toBe('grayscale');
 	});
 
 	it('takes each field on its own', () => {
@@ -446,6 +449,12 @@ describe('lettering and blank space are the reader’s, not the reopened page’
 		expect(buildColoringPageSpecFromMeechieText({ ...base, whitespaceScale: 75 })).toMatchObject({
 			textSize: STUDIO_DEFAULT_PAGE_LOOK.textSize,
 			whitespaceScale: 75
+		});
+		expect(
+			buildColoringPageSpecFromMeechieText({ ...base, fontStyle: 'block' })
+		).toMatchObject({
+			fontStyle: 'block',
+			textStrokeWidth: STUDIO_DEFAULT_PAGE_LOOK.textStrokeWidth
 		});
 	});
 

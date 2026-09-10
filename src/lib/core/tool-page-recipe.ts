@@ -520,6 +520,19 @@ const TOOL_PRESENTATION: Record<MeechieToolOutput['toolId'], ToolPresentation> =
 export const TOOL_PAGE_STROKE_WIDTH = 9;
 
 /**
+ * What shape the letters are on every one of the thirteen tool and mode pages.
+ *
+ * Named rather than left as a literal for the same reason `TOOL_PAGE_STROKE_WIDTH` is: the Page
+ * Controls panel offers this field now, and `tests/unit/page-style.test.ts` asserts the value these
+ * pages build is one the control can actually offer. It can only do that against a name.
+ *
+ * This is also the value the prompt used to contradict. `'Bold bubble letters.'` sat one line above
+ * `Font: block.` in every prompt these pages sent, so the letterform they asked for and the
+ * letterform they demanded were two different things on every generation. See `fontStyleLine`.
+ */
+export const TOOL_PAGE_FONT_STYLE = 'block' as const satisfies ColoringPageSpec['fontStyle'];
+
+/**
  * The house look every tool page shares: heavy outlined text, no fills for the user to fight,
  * a decorative border, and enough blank space left to actually colour.
  */
@@ -528,7 +541,7 @@ const BASE_SPEC = {
 	numberAlignment: 'strict',
 	listGutter: 'normal',
 	textSize: 'large',
-	fontStyle: 'block',
+	fontStyle: TOOL_PAGE_FONT_STYLE,
 	textStrokeWidth: TOOL_PAGE_STROKE_WIDTH,
 	colorMode: 'black_and_white_only',
 	decorations: 'dense',

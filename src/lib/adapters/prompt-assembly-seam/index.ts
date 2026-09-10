@@ -42,9 +42,15 @@ import { formatAlignmentLine } from '$lib/utils/alignment-line';
 // in two different terms, so it is identifiable as one whose stroke field the model could
 // legitimately have ignored.
 //
+// v7 gives `fontStyle` a single voice: `fontStyleLine` now describes the letterform in words, and
+// the `Bold bubble letters.` constant that contradicted it from the line above is gone. A page
+// recorded under v6 or earlier had its letterform asked for twice, in two incompatible terms, so it
+// is identifiable as one whose font field the model could legitimately have ignored — which on the
+// thirteen tool and mode pages, all of which build `block`, means every page they ever made.
+//
 // A value, not a schema. No field is added, removed or retyped anywhere, so no stored record
 // becomes unreadable and no migration is implied.
-const TEMPLATE_VERSION = 'v6';
+const TEMPLATE_VERSION = 'v7';
 const MAX_PROMPT_LENGTH = 8000;
 
 const includesReservedHeading = (styleHint: string): boolean => {
@@ -124,22 +130,26 @@ const buildPrompt = (input: PromptAssemblyInput): PromptAssemblyOutput => {
 		styleLine,
 		...textLines,
 		'TYPOGRAPHY:',
-		// Was 'Bold bubble letters; thick outlines.' The `thick outlines` half is
-		// `textStrokeWidth`'s answer, and it was stated here as a constant four lines above
-		// `textStrokeLine` — so a spec asking for the thinnest stroke the contract allows produced
-		// a prompt demanding thick outlines and then `Stroke: 4px.` Two instructions about one
-		// property; the model keeps one and drops the other, on a paid generation. Exactly the
-		// defect a review of PR #350 named for `whitespaceScale`, left live for line weight in the
-		// section that fix edited.
+		// This section used to open with two constants. The first was
+		// 'Bold bubble letters; thick outlines.'; Run 25 removed the `thick outlines` half, which
+		// was `textStrokeWidth`'s answer stated as a constant that overruled the field.
 		//
-		// `Bold bubble letters` is deliberately kept: letterform shape belongs to `fontStyleLine`,
-		// which this constant also contradicts (`Font: block.`, `Font: hand.`). That contradiction
-		// predates this change, is not line weight's, and is recorded as a carried-forward finding
-		// rather than ridden along on a run about line thickness.
-		'Bold bubble letters.',
+		// 'Bold bubble letters.' is now gone too, for the same reason and on the other half.
+		// Letterform shape is `fontStyleLine`'s answer, and the constant contradicted it: a spec
+		// asking for `block` got a prompt demanding bubble letters and then `Font: block.` Bubble
+		// letters are inflated and round, block capitals are straight-sided and squared off, and
+		// `block` is what every one of the thirteen tool and mode pages builds. So this was not an
+		// edge case a rare spec could reach — it was in the prompt of every tool page the app ever
+		// sent. The model satisfies one instruction and drops the other, on a paid generation.
+		//
+		// `Bold` is not lost with it: letter *size* is `letteringLine` ('large, bold letterforms.')
+		// and line *weight* is `textStrokeLine`, and both are emitted two lines below.
+		//
 		// Emitted unconditionally, and it contradicts `Shading: hatch.` and `Shading: stippling.`
-		// in the DECORATIONS section below whenever a spec asks for either. Same class of defect as
-		// the one removed above, and the same treatment: recorded, not fixed here.
+		// in the DECORATIONS section below whenever a spec asks for either — and it demands glitter
+		// on a page whose reader left the Glitter control off. Same class of defect as the two
+		// removed above, belonging to `shading` and to the Glitter control rather than to the
+		// letterform. Recorded as a carried-forward finding, not fixed here.
 		'Glitter outline only (no shading).',
 		// `letteringLine` joins the other two typography lines on one physical line, which is how
 		// `fontStyleLine` and `textStrokeLine` have always been emitted: the drift check tests each

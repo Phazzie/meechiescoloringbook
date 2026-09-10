@@ -29,7 +29,7 @@ import {
 } from './ai-quota';
 // One naming of a line weight for the whole application: the read-back a reader approves on
 // `/describe` and the option labels on the other thirteen surfaces are the same function.
-import { describeLineWeight } from './page-style';
+import { describeLetterShape, describeLineWeight } from './page-style';
 
 /** The one path this surface lives at. Imported by the nav so a rename cannot leave a dead link. */
 export const DESCRIBE_PATH = '/describe';
@@ -236,6 +236,24 @@ const lineWeightFact = (strokeWidth: ColoringPageSpec['textStrokeWidth']): strin
 	`${describeLineWeight(strokeWidth)} outlines.`;
 
 /**
+ * What shape the letters on the interpreted page will be.
+ *
+ * Here for exactly the reason `whitespaceFact` and `lineWeightFact` are. On a page whose words are
+ * the whole drawing, the letterform is the most visible thing about it, and `/describe` is the one
+ * surface with no control for it — the reader describes a page in a sentence and the interpreter
+ * chooses. This read-back is therefore the only place the choice is visible before a generation is
+ * paid for.
+ *
+ * Reads `describeLetterShape` rather than restating the words, so the sentence a reader approves
+ * here and the label they see in the Page Controls panel cannot drift apart.
+ *
+ * A fact and never a caution: none of the three letterforms is a problem to colour, unlike a 4px
+ * outline. There is nothing here for the reader to reconsider, only something for them to check.
+ */
+const letterShapeFact = (fontStyle: ColoringPageSpec['fontStyle']): string =>
+	`${describeLetterShape(fontStyle)} letters.`;
+
+/**
  * The thinnest outline this read-back will let past without saying something.
  *
  * `ColoringPageSpecSchema` allows 4, and 4px of line on a 1024px generation letterboxed onto US
@@ -276,6 +294,7 @@ export const readBackInterpretedPage = (
 		`${PAPER_NAMES[spec.pageSize]} paper.`,
 		BORDER_FACTS[spec.border],
 		TEXT_SIZE_FACTS[spec.textSize],
+		letterShapeFact(spec.fontStyle),
 		whitespaceFact(spec.whitespaceScale),
 		lineWeightFact(spec.textStrokeWidth),
 		ILLUSTRATION_FACTS[spec.illustrations],

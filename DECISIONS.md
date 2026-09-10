@@ -7,6 +7,73 @@ Info flow: Decision -> consequences -> future changes.
 
 Short, durable decisions with context and tradeoffs.
 
+## 2026-09-10 — Give the letterform one voice in the prompt, and give the reader the control
+
+- Decision: `fontStyleLine` describes the letterform in words instead of emitting the bare enum
+  token; the `'Bold bubble letters.'` constant is removed from the TYPOGRAPHY section in
+  `PromptAssemblySeam`; `fontStyle` becomes the fourth field of `PageLookSelection` and a control on
+  all fourteen page-making surfaces; and `/describe`'s read-back names it. Template version
+  v6 -> v7.
+- Context: every page this application makes is a page of lettering — `ColoringPageSpec` has no
+  field that can hold a subject, so `title`, `items` and `footerItem` *are* the drawing, and
+  `fontStyle` is the field that says what that drawing looks like. It reached the prompt as
+  `Font: block.`, under a constant on the line directly above demanding `Bold bubble letters.`
+  Bubble letters are inflated and round; block letters are straight-sided and squared off. Two
+  instructions about one property in one prompt, which is the same defect a review of PR #350 named
+  for `whitespaceScale` and Run 25 removed for `textStrokeWidth` — left standing on the
+  neighbouring field. **And `block` is what `tool-page-recipe.ts` builds**, so the contradiction was
+  not an edge case a rare spec could reach: it was in the prompt of every page the eleven-tool hub,
+  the three standalone mode routes and `/m/[mode]` have ever sent. Separately, `Font: hand.` handed
+  an image model a variable name as art direction, and no reader could set the field on any surface.
+- **The deliberate behaviour change, stated rather than absorbed.** With `Bold bubble letters.`
+  gone, a tool or mode page stops asking for bubble letters and asks only for the block letters its
+  spec has always named. Those thirteen surfaces will produce squarer, plainer lettering than
+  before. That is the field becoming real, and the reader now has a control that says Bubble if they
+  want it. Home studio pages are unchanged in intent: `fontStyleLine('rounded')` still asks for
+  bubble letters. The alternative — keeping the constant and letting the control be overruled by it
+  — would ship a control that does not work, which is the thing this run exists to stop.
+- Alternatives: (a) **Keep `Bold` by folding it into `fontStyleLine`.** Rejected: letter *size* is
+  `letteringLine`'s ('large, bold letterforms.') and line *weight* is `textStrokeLine`'s, and both
+  are emitted on the same physical line. A weight word here would rebuild the contradiction one
+  field over — the mistake reviews of PR #350 and PR #352 each caught once. (b) **Rename the spec
+  field to `letterShape`** to match the reader-facing control. Rejected: that is a contract change
+  for a vocabulary preference, and stored records carry the field name. The `PageLookSelection` key
+  is `letterShape`; the spec field stays `fontStyle`, exactly as `lineWeight` maps to
+  `textStrokeWidth`. **(b2) Say "block capitals" rather than "block letters".** Tried, and reverted
+  in review: "capitals" is a *case* instruction and the same prompt's TEXT block already says
+  "render these exact words and nothing else". Nothing uppercases a title on the surfaces where
+  `block` is the default — `compactColoringPageTitle` normalizes characters and length only — and
+  `ChatInterpretationSeam` returns title-case titles that `/describe` sends through unchanged. So the
+  reader would have approved a title-case read-back and paid for a page lettered in capitals. **This
+  wording is deliberately case-neutral and must stay so**; `tests/unit/prompt-template.test.ts`
+  fails on `capital`, `uppercase`, `lowercase` and `all caps` in this line. (c) **Fix the `'Glitter outline only (no shading).'` constant in the same
+  run.** It is emitted unconditionally, contradicts `Shading: hatch.` and `Shading: stippling.`, and
+  demands glitter on a page whose reader left the Glitter control off. Real, and not the
+  letterform's — recorded as carried-forward, the same treatment Run 25 gave this run's field.
+  (d) **Add a letter-shape control to `/describe`.** Not taken: that surface's control is its
+  read-back, and the read-back is the half of it this change fixes.
+- Consequences: `LETTER_SHAPE_OPTIONS` is the whole of `FontStyleSchema` rather than a set of steps,
+  so unlike Line weight and Room to colour this control has no value a page can carry that it cannot
+  offer — and `PageLookControls` needs no "this page's own" fallback option for it. A test binds the
+  list to `STUDIO_DEFAULT_PAGE_LOOK.fontStyle` and `TOOL_PAGE_FONT_STYLE` so a letterform added to
+  the seam enum without a label fails rather than drifts. `pageLookOf` is introduced in the same
+  change: the four surfaces that host the control each wrote the field list out by hand twice, and a
+  copy that misses a field does not fail to compile — it just describes the page incompletely.
+- Assumption:
+  - Date: 2026-09-10
+  - Seams: PromptAssemblySeam, ImageGenerationSeam, ProviderAdapterSeam
+  - Statement: A prompt line describing the letterform in words changes the lettering the image provider draws — and changes it in the direction the words name, so that `upright block letters` yields squared-off lettering where `rounded bubble letters` yields rounded lettering on the same spec. Nothing in this change verifies that. What is verified is deterministic and stops at the string: the assembled prompt carries exactly one instruction about letterform shape, that instruction is built from `fontStyle`, and `DriftDetectionSeam` reports its absence rather than passing it silently.
+  - Validation: **Blocked, and blocked in this container specifically.** No live image generation can be made from here: `api.x.ai` is not reachable under the network policy, and `docs/evidence/2026-09-10/` therefore contains no probe against a real generation. Validate by generating the same spec at `fontStyle: 'rounded'` and at `fontStyle: 'block'` against `grok-imagine-image-2.0` with a key present and comparing the returned lettering by eye. If the two come back indistinguishable, the words are not reaching the drawing and this line needs rewording or a different mechanism; the *control* would still be honest, because it changes the stored spec and every sentence the app says about the page, but the picture would not follow it and this log should say so.
+  - Status: Open. It does not block this change: `fontStyle` reached the prompt before this run too, and reached it under a constant that contradicted it on the thirteen surfaces that build `block`. The change strictly narrows what the provider is told, from two conflicting instructions to one. This entry records that the *effect* of that narrowing on a generated image is unproven, not that the narrowing is unsafe. It is the letterform twin of the line-weight Assumption opened on 2026-09-10 and shares its validation method.
+  - Scope note: This is the image **prompt's content**, deliberately not covered by the open Assumption on the deployed full-payload path, which is about `POST /v1/chat/completions` and its `json_schema` response format — the text path.
+
+- Cipher Gate:
+  - Date: 2026-09-10
+  - Seams: PromptAssemblySeam, DriftDetectionSeam
+  - Evidence: docs/evidence/2026-09-10/verify-outer.txt; docs/evidence/2026-09-10/check.txt; docs/evidence/2026-09-10/lint.txt; docs/evidence/2026-09-10/test.txt; docs/evidence/2026-09-10/build.txt; docs/evidence/2026-09-10/e2e.txt; src/lib/seams/prompt-assembly-seam/test.ts; tests/unit/prompt-template.test.ts; tests/unit/page-style.test.ts; tests/unit/describe-page.test.ts; docs/seams.md
+  - Summary: One `ColoringPageSpec` field that reached the prompt as a bare enum token under a constant that contradicted it now reaches it as a single described instruction, and becomes a reader control on every page-making surface. No contract schema, no probe and no seam type changes: `FontStyleSchema` already had the three values and every input shape is identical. What changed is the adapters' output text, with the golden `prompt-assembly` and `drift-detection` fixtures patched to match and re-proved against the adapters, and `templateVersion` moved v6 -> v7 so a page recorded earlier is identifiable as one whose letterform the model could legitimately have ignored.
+  - Risks: The prompt changes for **every** page the app makes, and the thirteen tool and mode pages will ask for block letters alone where they previously asked for block letters and bubble letters at once. This cannot be proven against a live provider here: no live image call can be made from this container, which is why the Assumption above is open. What backs the change instead is the drift seam still matching `fontStyleLine` exactly, plus three new seam tests — one asserting the prompt makes exactly one letterform-shape claim and that it is the font line, one asserting no spec but a `rounded` one mentions bubble letters, and one asserting the font clause claims nothing about weight or page occupancy. Red proof taken by restoring the old constant and watching the first two fail.
+
 ## 2026-09-10 — Give line weight one voice in the prompt, and give the reader the control
 
 - Decision: `textStrokeLine` states the outline weight in words and names what its pixel figure is

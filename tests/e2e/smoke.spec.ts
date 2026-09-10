@@ -2178,6 +2178,25 @@ test('a mode route lets the reader say how the page is drawn', async ({
 		'hard to stay inside with a crayon'
 	);
 
+	/*
+	 * Letter shape, on one of the thirteen surfaces whose prompt asked for block capitals and
+	 * demanded bubble letters one line above it, on every generation, for the app's whole life.
+	 *
+	 * "Page default — Block" is the assertion that matters here: the recipe really does build
+	 * `block`, and the control now says so on the surface that builds it.
+	 */
+	await expect(controls.locator('#verdict-page-look-letter-shape')).toContainText(
+		'Page default — Block'
+	);
+	await expect(controls.locator('#verdict-page-look-letter-shape-help')).toContainText(
+		'the easiest to read'
+	);
+
+	await controls.locator('#verdict-page-look-letter-shape').selectOption('hand');
+	await expect(controls.locator('#verdict-page-look-letter-shape-help')).toContainText(
+		'rather than a printed page'
+	);
+
 	// And the page still generates with the choice applied.
 	await page.getByTestId('verdict-page-generate').click();
 	await expect(page.locator('.preview-grid img')).toBeVisible();
@@ -2206,6 +2225,19 @@ test('the tools hub lets the reader say how the page is drawn', async ({
 	await controls.locator('#meechie-tool-look-line-weight').selectOption('12');
 	await expect(controls.locator('#meechie-tool-look-line-weight-help')).toContainText(
 		'the finest detail is lost'
+	);
+
+	// And over what shape its letters are. This hub builds `block` like every other tool page, so
+	// the option names Block and no phantom "this page's own" entry appears.
+	await expect(controls.locator('#meechie-tool-look-letter-shape')).toContainText(
+		'Page default — Block'
+	);
+	await expect(controls.locator('#meechie-tool-look-letter-shape')).not.toContainText(
+		"this page's own"
+	);
+	await controls.locator('#meechie-tool-look-letter-shape').selectOption('rounded');
+	await expect(controls.locator('#meechie-tool-look-letter-shape-help')).toContainText(
+		'Big open middles to colour in'
 	);
 
 	await page.getByTestId('meechie-tool-make-page').click();
