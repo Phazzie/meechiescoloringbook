@@ -5,7 +5,7 @@ Info flow: evidence files -> summary -> review.
 -->
 # Proof Tape
 
-Generated at: 2026-09-10T07:12:08.875Z
+Generated at: 2026-09-10T07:22:34.733Z
 Evidence folder: docs/evidence/2026-09-10
 
 Files included (this tape's own outputs, proof-tape.json and proof-tape.md, are written
@@ -17,7 +17,7 @@ after this inventory is taken, so they are not listed):
 - chamber-lock.json (35315 bytes)
 - check.txt (240 bytes) — PREDATES THIS VERIFY RUN
   Commands: meechies-coloringbook@0.1.0 check | svelte-kit sync && svelte-check --tsconfig ./tsconfig.json
-- cipher-gate.json (2329 bytes) — PREDATES THIS VERIFY RUN
+- cipher-gate.json (2330 bytes) — PREDATES THIS VERIFY RUN
 - clan-chain.json (3181 bytes)
 - clan-chain.md (1956 bytes)
 - e2e.txt (11466 bytes) — PREDATES THIS VERIFY RUN

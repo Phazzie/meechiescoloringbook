@@ -1,6 +1,6 @@
 {
   "tool": "cipher-gate",
-  "generatedAt": "2026-09-10T07:15:05.987Z",
+  "generatedAt": "2026-09-10T07:25:28.691Z",
   "cipher": {
     "date": "2026-09-10",
     "seams": "PromptAssemblySeam, DriftDetectionSeam",
@@ -49,6 +49,6 @@
     "summary": "Two required `ColoringPageSpec` fields that reached no consumer anywhere now reach the assembled prompt, and the drift check requires both. No contract schema, no probe and no seam type changes: the input shapes are identical and the new lines are built from fields the input already carried. What changed is the adapters' output text, and the golden prompt fixtures for `prompt-assembly`, `drift-detection` and `image-generation` regenerated to match.",
     "risks": "The prompt changes for **every** page the app makes, so any provider behaviour tuned to the old text changes with it — this cannot be proven here, because `ProviderAdapterSeam`'s live path is the subject of an open Assumption and no live image call was made. The 12% of the prompt that is now spec-derived was previously constant, so a spec carrying an extreme value (0 or 100 blank) reaches the model as an instruction it was never sent before. Mitigated by the drift seam now reporting either line's absence as `MISSING_OPTION_LINE` rather than passing it silently, which is the check that would have caught the original defect and did not exist."
   },
-  "latestChangeMs": 1789024219396.4312,
+  "latestChangeMs": 1789024599654.6167,
   "status": "ok"
 }

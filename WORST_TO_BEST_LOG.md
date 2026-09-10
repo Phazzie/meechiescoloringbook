@@ -16609,3 +16609,111 @@ Re-measure everything below; do not inherit it.
 - **`failure.detail` has one consumer, on one surface out of fourteen.** Run 23's item, untouched.
 - **SonarCloud still cannot be read from this container** (`sonarcloud.io`, CONNECT tunnel 403).
 - **Run 18 still has no merge close-out entry.** Carried for seven runs now.
+
+## Run 24, first close-out — 2026-09-10 — the SonarCloud round, and the gate that only existed because of it
+
+`a0ef632` and the commit after it. Two review rounds on PR #350, plus two findings this run caught
+by re-reading its own diff before either round landed.
+
+### SonarCloud finally said what was wrong, and every finding was in the CI job this run added
+
+Seven runs of this log record that `sonarcloud.io` cannot be read from this container
+(`CONNECT tunnel failed, response 403`) and that its findings were therefore never identified. That
+is still true — `curl` to its API is refused, and so is the dashboard. **What changed is that the
+findings arrived as GitHub review comments instead**, through `github-advanced-security[bot]`, which
+carries them into the PR without needing SonarCloud to be reachable. Five findings, plus one from
+CodeQL, and **all six were on `.github/workflows/verify.yml` — the e2e job this run added**:
+
+| Source | Finding | Line |
+|---|---|---|
+| CodeQL | Workflow does not limit `GITHUB_TOKEN` permissions | workflow |
+| SonarCloud | Dependencies should be locked to verified versions (`npm install`) | install step |
+| SonarCloud | Package manager scripts should not run during installation (no `--ignore-scripts`) | install step |
+| SonarCloud | `npx` can install packages on-demand and run their lifecycle scripts | browser install |
+| SonarCloud | Define exact package version to avoid unverified releases | browser install |
+| SonarCloud | Both of the above again | test step |
+
+**Quality Gate: C Security Rating on New Code, required ≥ A.** Not a style complaint — a failing
+gate, on the one job in the repository that downloads a browser.
+
+All six are fixed rather than waived:
+
+- `permissions: contents: read` at workflow level. Neither job does anything but read the checkout
+  and run npm; without the key both ran at whatever the repository's default token scope is.
+- `npm ci --ignore-scripts` in place of `npm install`. The lockfile resolves the versions, and no
+  lifecycle script runs during installation. `--ignore-scripts` skips `prepare` (`svelte-kit sync`),
+  which this job does not need — the Playwright web server runs `npm run dev` and the SvelteKit Vite
+  plugin syncs there — and skips Playwright's own postinstall browser download, which the next step
+  then does explicitly and pinned. **Reproduced locally before pushing**: `npm ci --ignore-scripts`
+  exits 0, leaves `node_modules/.bin/playwright` at 1.58.2, and all four gates plus 86 browser tests
+  still pass against that tree.
+- `npx` is gone. Both steps run the binary `npm ci` installed, through package scripts: a new
+  `playwright:install` script, and the `test:e2e` script that already existed.
+
+**The mandated command is now spelled `npm run test:e2e` in CI, not `npx playwright test`.** Same
+binary, same `playwright.config.ts`, same pinned browser build — `npx` is the part that was refused,
+and it is refused for a real reason on a job that installs software. Recorded here rather than left
+for a reader to notice the routine's wording and the workflow's disagree.
+
+### The first fix was itself a security finding
+
+`scripts/verify-outer.mjs` — this run's answer to Run 23's "the verify chain should write its own
+transcript" — passed the whole chain to `spawn` as one `&&`-joined string with `shell: true`. That is
+a plausible candidate for the C rating and was fixed on the same push, before the finding list
+arrived: each step is now an argv array with no shell at all.
+
+The string was a hardcoded constant with no interpolation, so it was **not** exploitable. It is fixed
+anyway, and the reason is worth stating: a script that spawns a shell is a shape that becomes
+exploitable the first time somebody interpolates anything into it, and refusing the shape costs less
+than reviewing every future edit of that file. Dropping the shell also turned out to be strictly
+better — the transcript now names which step ran and which one failed, which `&&` cannot.
+
+**Both paths proven, not asserted.** The chain exits 0 and writes `# npm run verify exited 0`; with
+`scripts/proof-tape.mjs` temporarily moved aside it stops, exits 1, and writes
+`# npm run verify exited 1`.
+
+### Two findings this run made against itself
+
+Both from re-reading the diff adversarially before pushing, which is worth recording because neither
+would have failed a gate:
+
+1. **The controls' first option said "As this page has it".** It now says "Page default". The old
+   wording claims provenance the option cannot always carry: on the verdict surfaces the picture has
+   not been drawn yet, and on the home studio the null case is the *studio's* default for the next
+   page, not the look of a page that was reopened. **Naming a page's own values while describing a
+   default is precisely the false provenance the Page Controls panel exists to prevent** — this run
+   shipped the defect that panel was rebuilt against, into the panel itself.
+2. **`ROOM_TO_COLOUR_LABELS` and `ROOM_TO_COLOUR_HELP` were typed `Record<number, string>`.** That
+   tells the compiler every number has a label, so the `??` fallbacks read as dead code while being
+   the live path for 35, 40 and 45 — values this app really builds. Now `string | undefined`, so a
+   future edit cannot "simplify" the fallback away and render `undefined` at a reader.
+
+### Rosentic: 7 findings, all against an unrelated branch, measured rather than inherited
+
+The check run was **green** (`conclusion: success`), so these are advisory. All seven compare against
+`claude/great-bell-k1i146` (PR #317), which changes the signatures of `makeToolkitVerdict`, `stampOf`
+and `newestFailure`. Runs 22 and 23 stood down on the same branch pair; this run re-measured rather
+than quoting them:
+
+```
+$ git show origin/main:tests/e2e/smoke.spec.ts | grep -n "const makeToolkitVerdict"
+134:const makeToolkitVerdict = async (page: Page): Promise<void> => {
+$ grep -n "const makeToolkitVerdict" tests/e2e/smoke.spec.ts
+134:const makeToolkitVerdict = async (page: Page): Promise<void> => {
+$ git diff origin/main...HEAD -- tests/e2e/smoke.spec.ts src/routes/studio-state.svelte.ts \
+    | grep -n "^[+-].*makeToolkitVerdict\|^[+-].*stampOf\|^[+-].*newestFailure"
+150:+	await makeToolkitVerdict(page);
+```
+
+All three signatures are **identical on `origin/main` and on this branch**, and this diff adds
+exactly **one** line touching any of them — a call in the new tools-hub test, matching main's
+signature. Six of the seven findings point at lines this diff does not touch at all. The
+incompatibility is real and belongs to whichever of the two branches merges second; it is not this
+one's to pre-emptively break itself for. Written on the pull request rather than merged past in
+silence.
+
+### The result worth carrying
+
+**`npx playwright test` ran green in CI for the first time.** Run 23 left it as the first item a next
+run should resolve. The `e2e` job passed on its first CI run at `674992a`, which means the routine's
+mandated browser gate now exists somewhere other than a sandbox that cannot satisfy it.

@@ -44,15 +44,29 @@ jobs:
         with:
           node-version-file: '.nvmrc'
           cache: npm
+      # `npm ci --ignore-scripts`, not `npm install`. SonarCloud failed this pull request's quality
+      # gate on the first draft of this job, which used `npm install` and then `npx`: dependencies
+      # resolved without the lockfile, lifecycle scripts run during installation, and `npx`
+      # fetching a package on demand at an unpinned version. All three are supply-chain surface on
+      # the one job that installs a browser, so all three are gone rather than waived.
+      #
+      # `--ignore-scripts` skips `prepare` (`svelte-kit sync`), which this job does not need: the
+      # Playwright web server runs `npm run dev`, and the SvelteKit Vite plugin syncs there. It also
+      # skips Playwright's own postinstall browser download, which the next step does explicitly and
+      # pinned.
       - name: Install dependencies
-        run: npm install
-      # The pinned build, from `playwright.config.ts` — not `playwright.local.config.ts`, whose
-      # whole purpose is to run against whatever Chromium a sandbox happens to have. Substituting
-      # that here would make CI agree with the sandbox instead of holding the line it exists to hold.
+        run: npm ci --ignore-scripts
+      # Both steps run the `playwright` binary `npm ci` just installed at the version the lockfile
+      # pins, through package scripts rather than `npx`, which resolves and can fetch on its own.
+      #
+      # `npm run test:e2e` is `playwright test` against `playwright.config.ts` — the pinned browser
+      # build — and deliberately not `playwright.local.config.ts`, whose whole purpose is to run
+      # against whatever Chromium a sandbox happens to have. Substituting that here would make CI
+      # agree with the sandbox instead of holding the line it exists to hold.
       - name: Install the pinned browser
-        run: npx playwright install --with-deps chromium
+        run: npm run playwright:install
       - name: End-to-end
-        run: npx playwright test
+        run: npm run test:e2e
       - if: failure()
         uses: actions/upload-artifact@v4
         with:

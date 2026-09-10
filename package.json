@@ -17,6 +17,7 @@
     "test:watch": "vitest",
     "test:unit": "vitest run",
     "test:integration": "vitest run --config vitest.integration.config.ts",
+    "playwright:install": "playwright install --with-deps chromium",
     "test:e2e": "playwright test",
     "test:e2e:local": "playwright test --config=playwright.local.config.ts",
     "chamber:lock": "node scripts/chamber-lock.mjs",
