@@ -1,6 +1,6 @@
 {
   "tool": "cipher-gate",
-  "generatedAt": "2026-09-10T13:38:57.019Z",
+  "generatedAt": "2026-09-10T13:53:50.899Z",
   "cipher": {
     "date": "2026-09-10",
     "seams": "PromptAssemblySeam, DriftDetectionSeam",
@@ -53,6 +53,6 @@
     "summary": "One `ColoringPageSpec` field that reached the prompt as an unreferenced number under a constant that contradicted it now reaches it as a single instruction, and becomes a reader control on every page-making surface. No contract schema, no probe and no seam type changes: `textStrokeWidth` was already `int().min(4).max(12)` and every input shape is identical. What changed is the adapters' output text, with the golden `prompt-assembly` and `drift-detection` fixtures patched to match and re-proved against the adapters.",
     "risks": "The prompt changes for **every** page the app makes, and pages built at the studio default will ask for thinner linework than the removed constant forced. This cannot be proven against a live provider here: no live image call can be made from this container, and no open Assumption speaks to the image prompt's content either way. What backs the change instead is the drift seam still matching `textStrokeLine` exactly, plus two new seam tests — one asserting that no weight word is applied to outlines anywhere in the prompt except on the stroke line, taken with a red proof by restoring the old constant and watching both fail."
   },
-  "latestChangeMs": 1789046915942.131,
+  "latestChangeMs": 1789048213925.7107,
   "status": "ok"
 }
