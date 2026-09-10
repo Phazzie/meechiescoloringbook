@@ -16152,29 +16152,74 @@ measured too — a detached worktree at `a87af7a` — rather than quoted from Ru
 | `npm run lint` | exit 0 |
 | `npm test` | **1,981** passed, 1 skipped, 112 files (from **1,927** in 110 files — 54 net) |
 | `npm run build` | exit 0 |
-| `npx playwright test` | **BLOCKED** — pinned build 1208 absent from this container |
+| `npm run verify` | exit 0 — outer transcript at `docs/evidence/2026-09-10/verify-outer.txt` |
+| `npx playwright test` | **NOT MET** — pinned build 1208 absent from this container |
 | `npm run test:e2e:local` | **83** passed against 1194 |
 
-The Playwright line is stated as blocked rather than green because of the seventh close-out's P1. The
-1194 run is the only browser evidence that exists for this change, and `.github/workflows/verify.yml`
-does not run Playwright at all.
+### The routine's browser gate was not met, and the merge did not wait for it
 
-`git diff --name-only a87af7a baf5cb5` against `contracts/`, `probes/`, `fixtures/`,
-`src/lib/mocks/`, `src/lib/seams/` and `src/lib/adapters/` returns **nothing**. No Cipher Gate was
-required and the merge rule's contract-change exclusion did not apply.
+Stated plainly rather than as an environment footnote, because the two are separate gates and only
+one of them was satisfied.
 
-The open Assumption entries in `DECISIONS.md` were read rather than assumed irrelevant. Those still
-open concern the CSP font sources pending first deploy, the `vercel.json` header rules, the durable
-Upstash-backed rate-limit store, and the live xAI image-edit call. **None of them covers what a
-failed download says to a reader or whether a rebuild is offered.** All twenty review threads were
-resolved. So the conditions in `AGENTS.md` were met and it was merged without asking, which is the
-rule.
+`AGENTS.md`'s **merge rule** (L127–159) conditions a merge on CI green on the current head, every
+review comment addressed, `verify` and `test` green with committed evidence, and no conflict. All
+four held. `AGENTS.md`'s **worst-feature routine** (L213–214) separately requires `npx playwright
+test` *when the change is user-facing*. This change is user-facing and that command **failed before
+any test body ran**. Passing the same 83 specs against build 1194 through `test:e2e:local` is not the
+pinned gate going green, and `.github/workflows/verify.yml` does not run Playwright either, so the
+pinned suite ran nowhere.
+
+So: the merge was legitimate under the rule that governs merging, and the run shipped with one of the
+routine's own verification requirements **unmet**. The 1194 run is real evidence — it is how the new
+browser test was written and verified — and it is not the required one. This is recorded as an open
+deficiency of Run 23 rather than as a note about the container, and it is the strongest form of the
+carried-forward item below.
+
+### Scope
+
+`git diff --name-only a87af7a baf5cb5` against **all seven** governed paths — `contracts/`,
+`probes/`, `fixtures/`, `src/lib/mocks/`, `tests/contract/`, `src/lib/adapters/` and
+`src/lib/seams/` — returns **nothing**. No Cipher Gate was required and the merge rule's
+contract-change exclusion did not apply.
+
+`tests/contract/` is named in `AGENTS.md:L102` alongside the others and this close-out first ran the
+audit without it. The conclusion did not change, but the command as originally recorded could not
+have established it, which is the same defect as a plan that describes a set instead of naming it.
+
+### Open Assumptions, enumerated rather than summarised
+
+All **five** open entries in `DECISIONS.md` were read and each was individually judged against what
+this change decides:
+
+| Open Assumption | Covers this change? |
+|---|---|
+| CSP font sources pending first deploy | No — head policy, not export packaging |
+| `vercel.json` header rules | No — route headers, not export packaging |
+| Durable Upstash-backed rate-limit store | No — request throttling, not export packaging |
+| Live xAI image-edit call | No — provider I/O, which packaging runs after |
+| **Deployed full-payload path** (2026-08-24; `ProviderAdapterSeam`, `AppConfigSeam`, `MeechieStudioTextSeam`, `MeechieToolSeam`, `ChatInterpretationSeam`) | No — a text-generation request shape; packaging never reaches a provider |
+
+The fifth was **omitted from the first draft of this entry**, which listed four and asserted that was
+all of them. It is open in `docs/evidence/2026-09-10/assumption-alarm.json` and Run 22's close-out
+listed the same four, so the omission was inherited rather than invented. Enumerating each and
+recording the determination is what makes the audit checkable; "none of them applies" is not.
+
+All twenty review threads were resolved. So the merge rule's conditions were met and it was merged
+without asking, which is that rule.
 
 ### What the review rounds actually cost, and what they bought
 
-Six review rounds, thirteen findings — **eleven in code, two in process** — and every one of the
-thirteen landed on a pull request whose gates were already green. Not one of them could have gone
+Six review rounds, **fourteen** findings — **twelve in code, two in process** — and every one of the
+fourteen landed on a pull request whose gates were already green. Not one of them could have gone
 red, because none of them was code failing to do what it was written to do.
+
+The count is stated from the entries above rather than from memory, because two earlier attempts at
+it were short. The sixth close-out records **eleven correct findings across five review rounds**, all
+in code. The seventh adds one P2 in code (the stamp that re-dated a failure that had not changed) and
+two P1s in process. Eleven plus one is twelve code findings; the seventh close-out's own line calling
+them "the eleven code findings" was already one behind when it was written, and the first draft of
+this entry repeated the eleven and totalled thirteen. Those entries are merged and append-only, so
+the correction is made here rather than in them.
 
 Every code finding was the same shape: **a mismatch between what the app said and what it did.** A
 rebuild button that could take away a download the reader already had. A sentence claiming the print
@@ -16232,8 +16277,18 @@ Re-measure everything below; do not inherit it.
 - **`npx playwright test` cannot run in this container and runs nowhere in CI.** The project pins
   build 1208; `/opt/pw-browsers` has 1194. `playwright.local.config.ts` and `npm run test:e2e:local`
   are committed this run so the substitute stops being rebuilt by hand each time, but **the
-  substitute is not the mandated gate**. Either a run treats it as the honest ceiling and says so, or
-  the owner is asked whether the pin should move.
+  substitute is not the mandated gate**. Run 23 shipped a user-facing change with this requirement
+  **unmet**, which is the first item a next run should resolve: either move the pin to a build the
+  environment has, add Playwright to `verify.yml` so the gate exists somewhere, or get an owner
+  ruling that the substitute is the accepted ceiling. Recording it as blocked is honest; leaving it
+  blocked for another run is not.
+- **`verify-outer.txt` is captured by hand and this run forgot it.** `docs/evidence/README.md:13-16`
+  makes it the only artifact carrying the `audit:gate` result and the chain's own exit status —
+  `verify.txt` is written by the inner runner and carries neither, despite the name. Runs on
+  2026-09-05, -06, -08 and -09 all committed one; `baf5cb5` does not, so the merged commit has no
+  committed proof that `npm run verify` itself exited 0. Nothing in `package.json` or `scripts/`
+  writes it, which is exactly why it is the artifact that goes missing. **A next run should make the
+  `verify` script emit it** rather than relying on whoever remembers the redirect.
 - **SonarCloud still cannot be read from this container** (`sonarcloud.io`, `CONNECT tunnel failed,
   response 403`). Its "2 New issues" on this pull request were never identified. `eslint-plugin-sonarjs`
   is a strict subset of the remote analyzer, so a null local result proves nothing — the over-sell
