@@ -8,6 +8,188 @@ Info flow: User request -> execution specs -> implementation -> review evidence.
 
 Current active plan is listed first. Older dated entries remain below as historical context and are not active unless explicitly reselected.
 
+## Run 26 (2026-09-10) — Worst-feature routine: what shape the letters are
+
+**Goal:** the letterform — `fontStyle`, the field that decides what the words on a quote coloring
+page actually look like — gets one voice in the image prompt instead of two that contradict each
+other on the app's majority path, becomes a control the reader can set on every page-making
+surface, and is named in every place the app already describes a page.
+
+### The measurement (taken on `main` at `89915a4`, not inherited from Run 25's carried-forward list)
+
+Run 25 left `fontStyle` named as "the strongest candidate" and commented the defect at the line.
+That recommendation is why this run looked here first. It is not why the feature was taken: the
+carried note describes the contradiction as reachable. Re-measured, it is not merely reachable —
+**it is the default on thirteen of the fourteen page-making surfaces.**
+
+**1. Every page in this app is a page of lettering.** `ColoringPageSpec` has no field that can hold a
+subject; `title`, `items` and `footerItem` are the drawing. `fontStyle` is the field that says what
+that drawing looks like.
+
+**2. The prompt gives two contradictory instructions about the letterform, one line apart.**
+
+```
+$ grep -n "Bold bubble letters\|fontStyleLine(spec" src/lib/adapters/prompt-assembly-seam/index.ts
+139:		'Bold bubble letters.',
+149:		`${fontStyleLine(spec.fontStyle)} ${textStrokeLine(spec.textStrokeWidth)} ${letteringLine(spec.textSize)}`,
+```
+
+`fontStyleLine` is `Font: ${fontStyle}.` — so a spec asking for `block` renders:
+
+```
+TYPOGRAPHY:
+Bold bubble letters.
+Glitter outline only (no shading).
+Font: block. Stroke: ... Lettering: ...
+```
+
+Bubble letters are inflated and round. Block capitals are straight-sided and squared off. They are
+not two descriptions of one letterform; they are two different letterforms, demanded two lines
+apart, on a generation the reader has paid for. `hand` is the same story.
+
+**3. `block` is what thirteen of the fourteen page-making surfaces build.**
+
+```
+$ grep -rn "fontStyle: '" src/lib/core/
+src/lib/core/tool-page-recipe.ts:531:	fontStyle: 'block',
+src/lib/core/meechie-studio.ts:754:	fontStyle: input.presentation?.fontStyle ?? 'rounded',
+```
+
+`tool-page-recipe.ts` builds every page the eleven-tool hub, the three standalone mode routes and
+`/m/[mode]` produce. So the contradiction is not an edge case reachable by an unusual spec: it is
+in the prompt of **every tool and mode page the application has ever sent**, and has been for the
+app's whole life. Only the home studio's `rounded` happens to agree with the constant.
+
+**4. No reader can set it, anywhere.** Fourteen page-making surfaces, none with a control. The Page
+Controls panel calls itself "the app's only say over what a coloring page looks like" and offers
+Lettering size, Room to colour and Line weight — not the shape of the letters themselves.
+
+**5. Nothing in the app reports which letterform a page was made with.**
+`summarizePageLook` names lettering size, room and line weight. `readBackInterpretedPage` — the
+sentences a `/describe` reader checks *before* paying — names paper, border, lettering size,
+whitespace, line weight, illustrations and decorations. Neither names the letterform, and
+`ChatInterpretationSeam` may return any of the three.
+
+**The gap, stated as the routine asks:** the field promises to decide what the words look like. On
+the majority path it is overruled by a constant one line above it, and on every path it is invisible
+and unsettable. Measured in what it costs the user: a paid generation whose single most visible
+property was decided by a coin flip between two contradictory instructions.
+
+### Seams
+
+`PromptAssemblySeam` and `DriftDetectionSeam` (both in `docs/seams.md`). Adapters, fixtures and
+seam tests change; **no contract and no schema changes** — `fontStyle` is already
+`FontStyleSchema.default('rounded')`, and `templateVersion` v6 -> v7 is a value, not a schema. Full
+Seam-Driven Development workflow with a Cipher Gate entry, per the worst-feature routine's rule.
+
+### Exact file inventory
+
+**The prompt**
+
+| Path | Action | Exact touch |
+|---|---|---|
+| `src/lib/core/prompt-template.ts` | `[MODIFY]` | `fontStyleLine` states the letterform in words; doc block on why it says nothing about weight or size |
+| `src/lib/adapters/prompt-assembly-seam/index.ts` | `[MODIFY]` | delete the `'Bold bubble letters.'` constant; `TEMPLATE_VERSION` v6 -> v7 |
+| `fixtures/prompt-assembly/sample.json` | `[MODIFY]` | golden prompt and `templateVersion` restated |
+| `fixtures/prompt-assembly/title-only.json` | `[MODIFY]` | golden prompt and `templateVersion` restated |
+| `fixtures/prompt-assembly/title-only-marker-fault.json` | `[MODIFY]` | golden prompt and `templateVersion` restated |
+| `fixtures/drift-detection/sample.json` | `[MODIFY]` | expected prompt restated |
+| `fixtures/drift-detection/fault.json` | `[MODIFY]` | expected prompt restated |
+| `fixtures/drift-detection/title-only.json` | `[MODIFY]` | expected prompt restated |
+| `src/lib/seams/prompt-assembly-seam/test.ts` | `[MODIFY]` | `fontStyle` added to the carries-into-prompt table; a one-claim-per-letterform assertion mirroring the line-weight one; the stale comment at L131 corrected |
+
+**The control**
+
+| Path | Action | Exact touch |
+|---|---|---|
+| `src/lib/core/page-style.ts` | `[MODIFY]` | `letterShape` on `PageLookSelection`; `LETTER_SHAPE_OPTIONS/LABELS/HELP`; `describeLetterShape`; `EffectivePageLook` gains `fontStyle`; `applyPageLook` and `summarizePageLook` extended |
+| `src/lib/components/PageLookControls.svelte` | `[MODIFY]` | fourth `<select>`, reading `baseline`/`effective` exactly as the other three |
+| `src/lib/core/meechie-studio.ts` | `[MODIFY]` | `STUDIO_DEFAULT_PAGE_LOOK` gains `fontStyle: 'rounded'`; builder takes `fontStyle` top-level and drops it from `presentation` |
+| `src/lib/core/tool-page-recipe.ts` | `[MODIFY]` | export `TOOL_PAGE_FONT_STYLE` and use it in `BASE_SPEC` |
+| `src/lib/core/describe-page.ts` | `[MODIFY]` | `letterShapeFact` in the read-back |
+| `src/routes/studio-state.svelte.ts` | `[MODIFY]` | destructure `fontStyle` out of carried presentation; pass `pageLook.letterShape`; seed it in `loadCreation` and the draft restore |
+| `src/lib/components/verdict-page-state.svelte.ts` | `[MODIFY]` | `effectivePageLook` and `baselinePageLook` carry the fourth field |
+| `src/lib/components/MeechieTools.svelte` | `[MODIFY]` | the same two derived values, in legacy reactive syntax |
+
+**Tests**
+
+| Path | Action | Exact touch |
+|---|---|---|
+| `tests/unit/prompt-template.test.ts` | `[MODIFY]` | `fontStyleLine` block widened: distinct per value, no weight or occupancy claim, no forbidden token |
+| `tests/unit/page-style.test.ts` | `[MODIFY]` | letter-shape tables, `describeLetterShape`, `applyPageLook`, `summarizePageLook`, both surfaces' defaults are offered options |
+| `tests/unit/describe-page.test.ts` | `[MODIFY]` | read-back fact per letterform |
+| `tests/unit/meechie-studio.test.ts` | `[MODIFY]` | default and override assertions |
+| `tests/unit/tool-page-recipe.test.ts` | `[MODIFY]` | look-override assertion |
+| `tests/unit/studio-state.test.ts` | `[MODIFY]` | reopened-page assertion updated to the control semantics |
+| `tests/e2e/page-controls.spec.ts` | `[MODIFY]` | control, help line, summary, default label |
+| `tests/e2e/smoke.spec.ts` | `[MODIFY]` | mode route and tools hub letter-shape coverage |
+| `tests/e2e/describe.spec.ts` | `[MODIFY]` | read-back fact |
+
+**Docs and evidence**
+
+| Path | Action | Exact touch |
+|---|---|---|
+| `DECISIONS.md` | `[MODIFY]` | decision entry, Cipher Gate, blocked-probe Assumption |
+| `LESSONS_LEARNED.md` | `[MODIFY]` | dated entries |
+| `CHANGELOG.md` | `[MODIFY]` | user-visible entry |
+| `WORST_TO_BEST_LOG.md` | `[MODIFY]` | this run's entry, appended |
+| `docs/seams.md` | `[MODIFY]` | both seam rows |
+| `plan.md` | `[MODIFY]` | this plan |
+| `docs/evidence/2026-09-10/` | `[MODIFY]` | rewritten by `npm run verify` and the gate commands |
+
+### Strict anti-goals (do not touch)
+
+- **Do not change `contracts/` or any seam `contract.ts`.** `FontStyleSchema` already has the three
+  values at the right type; nothing is added, removed or retyped.
+- **Do not touch the `'Glitter outline only (no shading).'` constant.** It is emitted
+  unconditionally and contradicts `Shading: hatch.` and `Shading: stippling.` in the same prompt,
+  and it demands glitter on a page whose reader left the Glitter control off. That is a real defect
+  and it is *shading's* and *glitter's*, not the letterform's. Recorded as carried-forward, not
+  ridden along on — the same treatment Run 25 gave this run's field.
+- **Do not touch `letteringLine` or `textStrokeLine`.** Size and weight are theirs. The new
+  letterform wording must claim neither.
+- **Do not add a letter-shape control to `/describe`.** That surface's control is its read-back.
+- **Do not touch `fixtures/image-generation/*.json`.** Those are captured provider requests, not
+  golden prompt-assembly output; Run 25 left them for the same reason.
+- **Do not alter localStorage key names or any stored record shape.**
+
+### The deliberate behaviour change, stated up front
+
+Deleting `'Bold bubble letters.'` means a tool or mode page stops asking for bubble letters and
+asks only for block capitals, which is what its spec has always said. Those pages will look
+different — squarer, plainer lettering — and that is the field becoming real rather than a
+regression. Home studio pages keep bubble letters, because `fontStyleLine('rounded')` says so.
+Recorded in `DECISIONS.md` rather than absorbed silently.
+
+### Self-critique
+
+- **Riskiest assumption:** that the new `fontStyleLine` wording introduces no second claim about
+  line weight or page occupancy — the exact defect reviews of PR #350 and PR #352 each caught once.
+  **Proof:** the existing `makes exactly one claim about how thick the linework is` assertion in
+  `src/lib/seams/prompt-assembly-seam/test.ts` runs over all three letterforms, plus a unit test
+  asserting the rendered line contains none of `PROMPT_FORBIDDEN_TOKENS` and none of the weight or
+  occupancy words.
+- **What could be wrong:** the drift check matches `prompt.includes(fontStyleLine(spec.fontStyle))`,
+  so a wording change that is not shared between the assembler and the checker turns every
+  generation into a `MISSING_OPTION_LINE` on the reader's own quality report. **Proof:** both read
+  the one exported helper, and the seam contract tests run the assembled prompt through the drift
+  adapter.
+- **The lesson Runs 24 and 25 each recorded, applied first not last:** when a change makes a field
+  effective, every place that describes the page is part of the change. Those places are
+  `summarizePageLook`, `summarizePageControls` and `readBackInterpretedPage`. All three are in the
+  file list above.
+- **A control whose default is not one of its own options shows a phantom entry.** Unlike line
+  weight and whitespace this cannot happen — `LETTER_SHAPE_OPTIONS` is the whole enum, so no
+  "this page's own" fallback option is needed. A test asserts both surfaces' defaults are in the
+  list anyway, so a future value added to `FontStyleSchema` fails rather than drifts.
+
+### Literal Definition of Done
+
+```sh
+npm run check && npm run lint && npm test && npm run build && npm run verify && npm run cipher:gate
+```
+
+
 ## Run 25 (2026-09-10) — Worst-feature routine: how thick the lines are
 
 **Goal:** line weight — `textStrokeWidth`, the field that decides whether a printed coloring page

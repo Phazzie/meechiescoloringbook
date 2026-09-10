@@ -259,6 +259,36 @@ describe('readBackInterpretedPage', () => {
 		}
 	});
 
+	/*
+	 * The letterform, which on a page whose words *are* the drawing is its most visible property.
+	 *
+	 * `/describe` has no letter-shape control by design — its control is this read-back — so this
+	 * sentence is the only thing between an interpreter that chose handwriting and a reader paying
+	 * for a page they expected in block capitals. Written with the control, for the reason recorded
+	 * above the line-weight case.
+	 *
+	 * A fact and never a caution: none of the three shapes is a problem to colour.
+	 */
+	it('names what shape the letters will be, for every letterform the contract allows', () => {
+		expect(readBackInterpretedPage(spec({ fontStyle: 'rounded' })).facts).toContain(
+			'Bubble letters.'
+		);
+		expect(readBackInterpretedPage(spec({ fontStyle: 'block' })).facts).toContain(
+			'Block letters.'
+		);
+		expect(readBackInterpretedPage(spec({ fontStyle: 'hand' })).facts).toContain(
+			'Handwritten letters.'
+		);
+	});
+
+	it('says nothing cautionary about any letterform', () => {
+		for (const fontStyle of ['rounded', 'block', 'hand'] as const) {
+			expect(readBackInterpretedPage(spec({ fontStyle })).cautions).toEqual(
+				readBackInterpretedPage(spec({})).cautions
+			);
+		}
+	});
+
 	it('shows the footer item where the prompt actually draws it: second, unnumbered', () => {
 		// `prompt-assembly-seam` L55 and L83-85 use `footerItem.label` as the unnumbered second line
 		// directly under the headline, and never use `footerItem.number` at all. Showing it numbered

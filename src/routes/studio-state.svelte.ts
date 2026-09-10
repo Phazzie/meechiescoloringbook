@@ -1703,13 +1703,14 @@ export class StudioState {
 		const derivesDense = derivesDenseDecorations(styleHint);
 		const derivationChanged = source === 'theme' || derivesDense !== this.lastDerivesDense;
 		this.lastDerivesDense = derivesDense;
-		// The reopened page's presentation, minus the three fields that are now reader controls. They
+		// The reopened page's presentation, minus the four fields that are now reader controls. They
 		// are passed separately below off `pageLook`, and leaving them in here as well would make the
 		// carried-forward copy win over the control the reader had just moved.
 		const {
 			textSize: _restoredTextSize,
 			whitespaceScale: _restoredWhitespace,
 			textStrokeWidth: _restoredStroke,
+			fontStyle: _restoredFontStyle,
 			...restoredPresentation
 		} = this.spec;
 		this.spec = buildColoringPageSpecFromMeechieText({
@@ -1745,7 +1746,7 @@ export class StudioState {
 					? { ...restoredPresentation, decorations: undefined }
 					: restoredPresentation
 				: undefined,
-			// Not in `presentation`, and not conditional on `restoredPageLayout`: these three are
+			// Not in `presentation`, and not conditional on `restoredPageLayout`: these four are
 			// reader controls now, exactly like `pageSize` and `border` two lines up. Carrying them
 			// forward from the reopened page instead would make the Page Controls panel unable to
 			// change them, which is the state they were already in for the app's whole life.
@@ -1753,7 +1754,8 @@ export class StudioState {
 			// is what answers that.
 			textSize: this.pageLook.textSize ?? undefined,
 			whitespaceScale: this.pageLook.whitespaceScale ?? undefined,
-			textStrokeWidth: this.pageLook.lineWeight ?? undefined
+			textStrokeWidth: this.pageLook.lineWeight ?? undefined,
+			fontStyle: this.pageLook.letterShape ?? undefined
 		});
 		// A rebuild describes the verdict, and a try-on page has no verdict on it. Without this the
 		// portrait would keep its place on the paper while the spec around it became a numbered list
@@ -3068,15 +3070,17 @@ export class StudioState {
 		this.dedication = creation.intent.dedication ?? '';
 		this.pageSize = creation.intent.pageSize;
 		this.border = creation.intent.border;
-		// The reopened page's own lettering and blank space become the reader's current choice, for
-		// the same reason page size and border above do: they are stored spec fields, they came back
-		// with the record, and the controls that show them have to show the page that is on screen.
-		// Left at `null` instead, the panel would report the studio's defaults over a page built at
-		// `large` and 35 — the false provenance the panel's second invariant exists to stop.
+		// The reopened page's own lettering, letterform, blank space and line weight become the
+		// reader's current choice, for the same reason page size and border above do: they are stored
+		// spec fields, they came back with the record, and the controls that show them have to show
+		// the page that is on screen. Left at `null` instead, the panel would report the studio's
+		// defaults over a page built at `large`, `block` and 35 — the false provenance the panel's
+		// second invariant exists to stop.
 		this.pageLook = {
 			textSize: creation.intent.textSize,
 			whitespaceScale: creation.intent.whitespaceScale,
-			lineWeight: creation.intent.textStrokeWidth
+			lineWeight: creation.intent.textStrokeWidth,
+			letterShape: creation.intent.fontStyle
 		};
 		this.restoreVerdict(restoredText, creation.studioText);
 		// A reopened page is a verdict the reader has not reworked in this session, and its rewrite
@@ -3237,7 +3241,8 @@ export class StudioState {
 			this.pageLook = {
 				textSize: draft.value.intent.textSize,
 				whitespaceScale: draft.value.intent.whitespaceScale,
-				lineWeight: draft.value.intent.textStrokeWidth
+				lineWeight: draft.value.intent.textStrokeWidth,
+				letterShape: draft.value.intent.fontStyle
 			};
 			// Two separate reasons a restored draft carries no verdict, and each is answered where
 			// it is actually knowable.

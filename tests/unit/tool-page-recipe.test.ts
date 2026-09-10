@@ -6,6 +6,7 @@
 import { describe, expect, it } from 'vitest';
 import {
 	MAX_TOOL_PAGE_ITEMS,
+	TOOL_PAGE_FONT_STYLE,
 	TOOL_PAGE_STROKE_WIDTH,
 	buildToolPageRecipe,
 	buildToolStudioText,
@@ -21,6 +22,7 @@ import {
 	MAX_TITLE_LENGTH
 } from '../../src/lib/seams/spec-validation-seam/contract';
 import { MeechieStudioTextOutputSchema } from '../../contracts/meechie-studio-text.contract';
+import { DEFAULT_PAGE_LOOK } from '../../src/lib/core/page-style';
 import {
 	DEFAULT_STUDIO_TEXT_OUTPUT,
 	buildColoringPageSpecFromMeechieText,
@@ -895,9 +897,7 @@ describe("the reader's look override", () => {
 			const list = output(toolId, 'Fault: he lied.\nConsequence: no access.\nMove: change the locks.');
 			for (const verdict of [quote, list]) {
 				expect(
-					buildToolPageRecipe(verdict, {
-						look: { textSize: null, whitespaceScale: null, lineWeight: null }
-					})
+					buildToolPageRecipe(verdict, { look: DEFAULT_PAGE_LOOK })
 				).toEqual(buildToolPageRecipe(verdict));
 			}
 		}
@@ -907,7 +907,7 @@ describe("the reader's look override", () => {
 		const verdict = output('wwmd', 'He had time to answer and chose not to.');
 		const housed = buildToolPageRecipe(verdict).spec;
 		const chosen = buildToolPageRecipe(verdict, {
-			look: { textSize: 'small', whitespaceScale: 75, lineWeight: 4 }
+			look: { textSize: 'small', whitespaceScale: 75, lineWeight: 4, letterShape: 'hand' }
 		}).spec;
 
 		expect(housed.textSize).toBe('large');
@@ -915,18 +915,21 @@ describe("the reader's look override", () => {
 		expect(chosen.whitespaceScale).toBe(75);
 		expect(housed.textStrokeWidth).toBe(TOOL_PAGE_STROKE_WIDTH);
 		expect(chosen.textStrokeWidth).toBe(4);
+		expect(housed.fontStyle).toBe(TOOL_PAGE_FONT_STYLE);
+		expect(chosen.fontStyle).toBe('hand');
 	});
 
 	it('overrides one field without disturbing the other', () => {
 		const verdict = output('wwmd', 'He had time to answer and chose not to.');
 		const housed = buildToolPageRecipe(verdict).spec;
 		const chosen = buildToolPageRecipe(verdict, {
-			look: { textSize: null, whitespaceScale: 25, lineWeight: null }
+			look: { ...DEFAULT_PAGE_LOOK, whitespaceScale: 25 }
 		}).spec;
 
 		expect(chosen.textSize).toBe(housed.textSize);
 		expect(chosen.whitespaceScale).toBe(25);
 		expect(chosen.textStrokeWidth).toBe(housed.textStrokeWidth);
+		expect(chosen.fontStyle).toBe(housed.fontStyle);
 	});
 
 	// The field this run made settable, on its own: the thirteen tool and mode pages hardcoded
@@ -935,7 +938,7 @@ describe("the reader's look override", () => {
 		const verdict = output('wwmd', 'He had time to answer and chose not to.');
 		const housed = buildToolPageRecipe(verdict).spec;
 		const chosen = buildToolPageRecipe(verdict, {
-			look: { textSize: null, whitespaceScale: null, lineWeight: 12 }
+			look: { ...DEFAULT_PAGE_LOOK, lineWeight: 12 }
 		}).spec;
 
 		expect(housed.textStrokeWidth).toBe(TOOL_PAGE_STROKE_WIDTH);
@@ -943,16 +946,35 @@ describe("the reader's look override", () => {
 		expect({ ...chosen, textStrokeWidth: housed.textStrokeWidth }).toEqual(housed);
 	});
 
+	/*
+	 * The field this run made settable, on its own.
+	 *
+	 * These thirteen pages have built `block` for the application's whole life while the prompt they
+	 * sent demanded bubble letters one line above it — so the letterform they asked for was never
+	 * the one they were guaranteed to get, and no reader could say otherwise on any of them.
+	 */
+	it('overrides the letter shape without disturbing anything else', () => {
+		const verdict = output('wwmd', 'He had time to answer and chose not to.');
+		const housed = buildToolPageRecipe(verdict).spec;
+		const chosen = buildToolPageRecipe(verdict, {
+			look: { ...DEFAULT_PAGE_LOOK, letterShape: 'rounded' }
+		}).spec;
+
+		expect(housed.fontStyle).toBe(TOOL_PAGE_FONT_STYLE);
+		expect(chosen.fontStyle).toBe('rounded');
+		expect({ ...chosen, fontStyle: housed.fontStyle }).toEqual(housed);
+	});
+
 	// An override must not be able to reach any other field, and must not be able to build a spec
 	// the generate contract would reject at the API boundary with the generation already paid for.
-	it('touches nothing but the three fields, and still passes the spec contract', () => {
+	it('touches nothing but the four fields, and still passes the spec contract', () => {
 		const verdict = output(
 			'rate_excuse',
 			'Fault: he lied.\nConsequence: no access.\nMove: change the locks.'
 		);
 		const housed = buildToolPageRecipe(verdict).spec;
 		const chosen = buildToolPageRecipe(verdict, {
-			look: { textSize: 'medium', whitespaceScale: 25, lineWeight: 6 }
+			look: { textSize: 'medium', whitespaceScale: 25, lineWeight: 6, letterShape: 'hand' }
 		}).spec;
 
 		expect(ColoringPageSpecSchema.safeParse(chosen).success).toBe(true);
@@ -960,7 +982,8 @@ describe("the reader's look override", () => {
 			...chosen,
 			textSize: housed.textSize,
 			whitespaceScale: housed.whitespaceScale,
-			textStrokeWidth: housed.textStrokeWidth
+			textStrokeWidth: housed.textStrokeWidth,
+			fontStyle: housed.fontStyle
 		}).toEqual(housed);
 	});
 });

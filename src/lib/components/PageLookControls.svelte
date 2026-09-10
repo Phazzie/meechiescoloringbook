@@ -1,11 +1,15 @@
 <!--
-Purpose: The **only** rendering in the app of the three controls that decide whether a coloring page
-         can actually be coloured — lettering size, room to colour, and line weight.
-Why: `textSize`, `whitespaceScale` and `textStrokeWidth` are `ColoringPageSpec` fields that no
-     reader could set anywhere, on any of the fourteen page-making surfaces. The first two reached
-     no prompt at all until `letteringLine` and `whitespaceLine` were written. The third reached one
-     — as `Stroke: 6px.`, a bare number with no stated reference, under a TYPOGRAPHY constant that
-     demanded "thick outlines" whatever that number said. `StudioSettingsPanel.svelte` calls itself
+Purpose: The **only** rendering in the app of the four controls that decide what a coloring page's
+         words look like and whether they can actually be coloured — lettering size, letter shape,
+         room to colour, and line weight.
+Why: `textSize`, `whitespaceScale`, `textStrokeWidth` and `fontStyle` are `ColoringPageSpec` fields
+     that no reader could set anywhere, on any of the fourteen page-making surfaces. The first two
+     reached no prompt at all until `letteringLine` and `whitespaceLine` were written. The third
+     reached one — as `Stroke: 6px.`, a bare number with no stated reference, under a TYPOGRAPHY
+     constant that demanded "thick outlines" whatever that number said. The fourth reached one as
+     `Font: block.`, under a constant on the next line up that demanded bubble letters whatever the
+     field said — on every page the thirteen tool and mode surfaces have ever made.
+     `StudioSettingsPanel.svelte` calls itself
      "the app's only say over what a coloring page looks like" and offered none of the three. This
      component is the other half of that fix, and it owns its CSS for the reason every shared piece
      in this app does:
@@ -45,6 +49,9 @@ Invariants:
 -->
 <script lang="ts">
 	import {
+		LETTER_SHAPE_HELP,
+		LETTER_SHAPE_LABELS,
+		LETTER_SHAPE_OPTIONS,
 		LINE_WEIGHT_HELP,
 		LINE_WEIGHT_LABELS,
 		LINE_WEIGHT_OPTIONS,
@@ -54,6 +61,7 @@ Invariants:
 		TEXT_SIZE_HELP,
 		TEXT_SIZE_LABELS,
 		TEXT_SIZE_OPTIONS,
+		describeLetterShape,
 		describeLineWeight,
 		describeRoomToColour,
 		type EffectivePageLook,
@@ -149,7 +157,17 @@ Invariants:
 			: null
 	);
 
+	/*
+	 * No `restoredLetterShapeOption` counterpart to the two above, and the absence is deliberate
+	 * rather than an omission. Those exist because `whitespaceScale` and `textStrokeWidth` are
+	 * numeric fields whose contracts admit values their controls do not list as steps, so a
+	 * `<select>` could be set to a value no `<option>` carried and render blank. `fontStyle` is an
+	 * enum and `LETTER_SHAPE_OPTIONS` is the whole of it, so that state is unreachable here.
+	 */
+	const letterShapeValue = $derived(look.letterShape ?? AS_BUILT);
+
 	const textSizeHelp = $derived(TEXT_SIZE_HELP[effective.textSize]);
+	const letterShapeHelp = $derived(LETTER_SHAPE_HELP[effective.fontStyle]);
 	const roomHelp = $derived(
 		ROOM_TO_COLOUR_HELP[effective.whitespaceScale] ??
 			`About ${Math.round(effective.whitespaceScale)}% of the sheet left blank.`
@@ -181,6 +199,27 @@ Invariants:
 		{/each}
 	</select>
 	<p class="page-look-help" id="{idPrefix}-lettering-help">{textSizeHelp}</p>
+
+	<label class="page-look-label" for="{idPrefix}-letter-shape">Letter shape</label>
+	<select
+		id="{idPrefix}-letter-shape"
+		aria-describedby="{idPrefix}-letter-shape-help"
+		value={letterShapeValue}
+		onchange={(event) =>
+			onChange({
+				...look,
+				letterShape:
+					event.currentTarget.value === AS_BUILT
+						? null
+						: (event.currentTarget.value as ColoringPageSpec['fontStyle'])
+			})}
+	>
+		<option value={AS_BUILT}>Page default — {describeLetterShape(baseline.fontStyle)}</option>
+		{#each LETTER_SHAPE_OPTIONS as value}
+			<option {value}>{LETTER_SHAPE_LABELS[value]}</option>
+		{/each}
+	</select>
+	<p class="page-look-help" id="{idPrefix}-letter-shape-help">{letterShapeHelp}</p>
 
 	<label class="page-look-label" for="{idPrefix}-room">Room to colour</label>
 	<select

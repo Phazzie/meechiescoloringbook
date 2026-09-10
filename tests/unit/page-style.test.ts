@@ -34,11 +34,15 @@ import {
 	LINE_WEIGHT_HELP,
 	LINE_WEIGHT_LABELS,
 	LINE_WEIGHT_OPTIONS,
+	LETTER_SHAPE_HELP,
+	LETTER_SHAPE_LABELS,
+	LETTER_SHAPE_OPTIONS,
 	TEXT_SIZE_HELP,
 	TEXT_SIZE_LABELS,
 	TEXT_SIZE_OPTIONS,
 	DEFAULT_PAGE_LOOK,
 	applyPageLook,
+	describeLetterShape,
 	describeLineWeight,
 	describeRoomToColour,
 	summarizePageLook,
@@ -56,11 +60,12 @@ import {
 	derivesDenseDecorations,
 	studioThemes
 } from '$lib/core/meechie-studio';
-import { TOOL_PAGE_STROKE_WIDTH } from '$lib/core/tool-page-recipe';
+import { TOOL_PAGE_FONT_STYLE, TOOL_PAGE_STROKE_WIDTH } from '$lib/core/tool-page-recipe';
 import { MeechieStudioVoiceSettingsSchema } from '$lib/seams/meechie-studio-text-seam/contract';
 import {
 	BorderStyleSchema,
 	ColoringPageSpecSchema,
+	FontStyleSchema,
 	PageSizeSchema,
 	TextSizeSchema
 } from '$lib/seams/spec-validation-seam/contract';
@@ -259,7 +264,12 @@ describe('summarizeStyleSelection', () => {
 	// changed Third Person and shut the panel watched the line they had just changed stay put.
 	it('moves when any one control moves', () => {
 		const paper: PaperSelection = { pageSize: 'US_Letter', border: 'decorative' };
-		const look = { textSize: 'small', whitespaceScale: 50, textStrokeWidth: 6 } as const;
+		const look = {
+			textSize: 'small',
+			whitespaceScale: 50,
+			textStrokeWidth: 6,
+			fontStyle: 'rounded'
+		} as const;
 		const base = summarizePageControls(summarizeStyleSelection(selection()), paper, look);
 		const moved = [
 			summarizePageControls(
@@ -271,7 +281,7 @@ describe('summarizeStyleSelection', () => {
 			),
 			summarizePageControls(summarizeStyleSelection(selection()), { ...paper, pageSize: 'A4' }, look),
 			summarizePageControls(summarizeStyleSelection(selection()), { ...paper, border: 'none' }, look),
-			// The three controls the panel gained. Added to this test rather than tested apart,
+			// The four controls the panel gained. Added to this test rather than tested apart,
 			// because the defect it pins is a summary that does not follow a control the panel
 			// holds, and it holds these now.
 			summarizePageControls(summarizeStyleSelection(selection()), paper, {
@@ -285,6 +295,10 @@ describe('summarizeStyleSelection', () => {
 			summarizePageControls(summarizeStyleSelection(selection()), paper, {
 				...look,
 				textStrokeWidth: 12
+			}),
+			summarizePageControls(summarizeStyleSelection(selection()), paper, {
+				...look,
+				fontStyle: 'block'
 			})
 		];
 		for (const summary of moved) {
@@ -334,10 +348,10 @@ describe('summarizePageControls', () => {
 			summarizePageControls(
 				summarizeStyleSelection(selection()),
 				{ pageSize: 'US_Letter', border: 'decorative' },
-				{ textSize: 'small', whitespaceScale: 50, textStrokeWidth: 6 }
+				{ textSize: 'small', whitespaceScale: 50, textStrokeWidth: 6, fontStyle: 'rounded' }
 			)
 		).toBe(
-			'Crown Energy · Receipts Out · Mild · sometimes in third person · US Letter · decorative border · small lettering · balanced · standard lines'
+			'Crown Energy · Receipts Out · Mild · sometimes in third person · US Letter · decorative border · small bubble lettering · balanced · standard lines'
 		);
 	});
 
@@ -348,16 +362,17 @@ describe('summarizePageControls', () => {
 			summarizePageControls(
 				"This page's style is not on file",
 				{ pageSize: 'A4', border: 'none' },
-				{ textSize: 'large', whitespaceScale: 35, textStrokeWidth: 9 }
+				{ textSize: 'large', whitespaceScale: 35, textStrokeWidth: 9, fontStyle: 'block' }
 			)
 		).toBe(
-			"This page's style is not on file · A4 · no border · large lettering · 35% blank · bold lines"
+			"This page's style is not on file · A4 · no border · large block lettering · 35% blank · bold lines"
 		);
 	});
 });
 
 /*
- * The three controls that decide whether a printed sheet can actually be coloured.
+ * The four controls that decide what a printed sheet's words look like and whether it can actually
+ * be coloured.
  *
  * Option coverage is driven off `TextSizeSchema` for the same reason the voice tables are driven off
  * their schema: a value added to the contract must arrive here as a failure about missing prose,
@@ -440,6 +455,36 @@ describe('the page-look controls', () => {
 		expect(Math.max(...LINE_WEIGHT_OPTIONS)).toBe(12);
 	});
 
+	it('has a label and a help line for every letterform the contract allows', () => {
+		for (const value of FontStyleSchema.options) {
+			expect(LETTER_SHAPE_LABELS[value]?.trim().length).toBeGreaterThan(0);
+			expect(LETTER_SHAPE_HELP[value]?.trim().length).toBeGreaterThan(0);
+		}
+		expect([...LETTER_SHAPE_OPTIONS].sort()).toEqual([...FontStyleSchema.options].sort());
+	});
+
+	/*
+	 * The two letterforms this application itself builds must both be values the control offers.
+	 *
+	 * Trivially true while `LETTER_SHAPE_OPTIONS` is the whole enum, and that is the point: unlike
+	 * line weight and blank space, which are steps across a numeric range, this control has no
+	 * value it cannot offer. The assertion is here so that a letterform added to `FontStyleSchema`
+	 * without a label fails as a missing option rather than as a `<select>` a reader finds blank.
+	 */
+	it('offers both letterforms this application actually builds', () => {
+		expect(LETTER_SHAPE_OPTIONS).toContain(STUDIO_DEFAULT_PAGE_LOOK.fontStyle);
+		expect(LETTER_SHAPE_OPTIONS).toContain(TOOL_PAGE_FONT_STYLE);
+	});
+
+	// `summarizePageLook` and `letterShapeFact` both append the word "letters", so a label carrying
+	// it would render "block letters letters" — the defect Run 25 shipped once in
+	// `describeLineWeight` and caught before merge.
+	it('never carries the word "letters" into the letterform it names', () => {
+		for (const value of FontStyleSchema.options) {
+			expect(describeLetterShape(value).toLowerCase()).not.toContain('letters');
+		}
+	});
+
 	// Same rule as `describeRoomToColour`: the interpreter can return 5, 7, 8, 10 or 11, and
 	// snapping those to the nearest named step would report a page as something it is not.
 	it('names a line weight it does not offer rather than rounding it to one it does', () => {
@@ -458,7 +503,12 @@ describe('the page-look controls', () => {
 	});
 
 	describe('applyPageLook', () => {
-		const spec = { textSize: 'large', whitespaceScale: 35, textStrokeWidth: 9 } as const;
+		const spec = {
+			textSize: 'large',
+			whitespaceScale: 35,
+			textStrokeWidth: 9,
+			fontStyle: 'block'
+		} as const;
 
 		it('is the identity when no field is chosen', () => {
 			expect(applyPageLook(spec, DEFAULT_PAGE_LOOK)).toEqual(spec);
@@ -466,25 +516,35 @@ describe('the page-look controls', () => {
 
 		it('applies each field independently', () => {
 			expect(
-				applyPageLook(spec, { textSize: 'small', whitespaceScale: null, lineWeight: null })
+				applyPageLook(spec, {
+					...DEFAULT_PAGE_LOOK,
+					textSize: 'small'
+				})
 			).toEqual({
 				textSize: 'small',
 				whitespaceScale: 35,
-				textStrokeWidth: 9
+				textStrokeWidth: 9,
+				fontStyle: 'block'
 			});
 			expect(
-				applyPageLook(spec, { textSize: null, whitespaceScale: 75, lineWeight: null })
+				applyPageLook(spec, { ...DEFAULT_PAGE_LOOK, whitespaceScale: 75 })
 			).toEqual({
 				textSize: 'large',
 				whitespaceScale: 75,
-				textStrokeWidth: 9
+				textStrokeWidth: 9,
+				fontStyle: 'block'
 			});
-			expect(
-				applyPageLook(spec, { textSize: null, whitespaceScale: null, lineWeight: 4 })
-			).toEqual({
+			expect(applyPageLook(spec, { ...DEFAULT_PAGE_LOOK, lineWeight: 4 })).toEqual({
 				textSize: 'large',
 				whitespaceScale: 35,
-				textStrokeWidth: 4
+				textStrokeWidth: 4,
+				fontStyle: 'block'
+			});
+			expect(applyPageLook(spec, { ...DEFAULT_PAGE_LOOK, letterShape: 'hand' })).toEqual({
+				textSize: 'large',
+				whitespaceScale: 35,
+				textStrokeWidth: 9,
+				fontStyle: 'hand'
 			});
 		});
 
@@ -492,8 +552,7 @@ describe('the page-look controls', () => {
 		// read as absence the way `||` would.
 		it('treats a zero scale as a choice, not as no choice', () => {
 			expect(
-				applyPageLook(spec, { textSize: null, whitespaceScale: 0, lineWeight: null })
-					.whitespaceScale
+				applyPageLook(spec, { ...DEFAULT_PAGE_LOOK, whitespaceScale: 0 }).whitespaceScale
 			).toBe(0);
 		});
 
@@ -502,41 +561,61 @@ describe('the page-look controls', () => {
 			const applied = applyPageLook(whole, {
 				textSize: 'medium',
 				whitespaceScale: 25,
-				lineWeight: 12
+				lineWeight: 12,
+				letterShape: 'hand'
 			});
 			expect({
 				...applied,
 				textSize: whole.textSize,
 				whitespaceScale: whole.whitespaceScale,
-				textStrokeWidth: whole.textStrokeWidth
+				textStrokeWidth: whole.textStrokeWidth,
+				fontStyle: whole.fontStyle
 			}).toEqual(whole);
 		});
 	});
 
 	describe('summarizePageLook', () => {
-		it('names all three controls for every text size', () => {
+		// Three segments, four controls: lettering size and letter shape share the first one, because
+		// "small bubble lettering" is one description of the letters and "small lettering · bubble
+		// letters" is the same thing said twice. Each of the four still moves the line, which is the
+		// property the panel's own summary test pins.
+		it('names all four controls for every combination of the two enum fields', () => {
 			for (const textSize of TextSizeSchema.options) {
-				const summary = summarizePageLook({
-					textSize,
-					whitespaceScale: 50,
-					textStrokeWidth: 6
-				});
-				expect(summary.split(' · ')).toHaveLength(3);
-				expect(summary).not.toContain('undefined');
+				for (const fontStyle of FontStyleSchema.options) {
+					const summary = summarizePageLook({
+						textSize,
+						whitespaceScale: 50,
+						textStrokeWidth: 6,
+						fontStyle
+					});
+					expect(summary.split(' · ')).toHaveLength(3);
+					expect(summary).not.toContain('undefined');
+					expect(summary).toContain(LETTER_SHAPE_LABELS[fontStyle].toLowerCase());
+				}
 			}
 		});
 
 		it('reads the effective value, so it says something before a control is ever touched', () => {
 			expect(
-				summarizePageLook({ textSize: 'large', whitespaceScale: 35, textStrokeWidth: 9 })
-			).toBe('large lettering · 35% blank · bold lines');
+				summarizePageLook({
+					textSize: 'large',
+					whitespaceScale: 35,
+					textStrokeWidth: 9,
+					fontStyle: 'block'
+				})
+			).toBe('large block lettering · 35% blank · bold lines');
 		});
 
 		// The fallback path, which is the live one for every weight the control has no word for.
 		it('names an off-step weight by its number', () => {
 			expect(
-				summarizePageLook({ textSize: 'small', whitespaceScale: 50, textStrokeWidth: 7 })
-			).toBe('small lettering · balanced · 7px lines');
+				summarizePageLook({
+					textSize: 'small',
+					whitespaceScale: 50,
+					textStrokeWidth: 7,
+					fontStyle: 'rounded'
+				})
+			).toBe('small bubble lettering · balanced · 7px lines');
 		});
 	});
 });

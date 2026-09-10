@@ -56,8 +56,44 @@ export const colorModeLine = (colorMode: ColoringPageSpec['colorMode']): string 
 export const pageSizeLine = (pageSize: ColoringPageSpec['pageSize']): string =>
 	pageSize === 'A4' ? 'A4 8.27x11.69 portrait.' : 'US Letter 8.5x11 portrait.';
 
-export const fontStyleLine = (fontStyle: ColoringPageSpec['fontStyle']): string =>
-	`Font: ${fontStyle}.`;
+/**
+ * What shape the drawn letters are.
+ *
+ * On this application every page is a page of lettering: `ColoringPageSpec` has no field that can
+ * hold a subject, so `title`, `items` and `footerItem` *are* the drawing. This is the line that says
+ * what that drawing looks like.
+ *
+ * This used to be `Font: ${fontStyle}.` — three bare enum tokens (`rounded`, `block`, `hand`) handed
+ * to an image model as if they were art direction, the same shape `Stroke: 6px.` was before Run 25.
+ * `hand` in particular is a variable name, not a letterform anyone draws.
+ *
+ * **And the TYPOGRAPHY section contradicted it from the line directly above.** The section opened
+ * with the constant `'Bold bubble letters.'`, so a spec asking for `block` produced a prompt
+ * demanding bubble letters and then `Font: block.` Bubble letters are inflated and round; block
+ * capitals are straight-sided and squared off. They are not two descriptions of one letterform, they
+ * are two different ones — and `block` is what `tool-page-recipe.ts` builds, which is every page the
+ * eleven-tool hub, the three standalone mode routes and `/m/[mode]` produce. Thirteen of the
+ * fourteen page-making surfaces sent that contradiction on every generation for the application's
+ * whole life. Contradictory instructions do not fail: the model satisfies one and quietly drops the
+ * other, on a page the reader has paid for. The constant is gone; this line is the only voice on
+ * letterform shape.
+ *
+ * Deliberately says nothing about how **heavy** the linework is or how **big** the letters are —
+ * those are `textStrokeLine` and `letteringLine`, sharing the same physical line. One field, one
+ * instruction, which is the rule two review rounds have now earned. That is why `rounded` reads
+ * "soft, even curves" rather than "soft, thick curves", and why none of the three mentions how much
+ * of the sheet the words cover.
+ */
+export const fontStyleLine = (fontStyle: ColoringPageSpec['fontStyle']): string => {
+	switch (fontStyle) {
+		case 'block':
+			return 'Font: upright block capitals, straight-sided and squared off.';
+		case 'hand':
+			return 'Font: casual handwritten letters, uneven and flowing.';
+		default:
+			return 'Font: rounded bubble letters with soft, even curves.';
+	}
+};
 
 /**
  * How thick the drawn outlines are — the one property that decides whether a printed page can be

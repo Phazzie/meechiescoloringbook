@@ -59,13 +59,15 @@ describe('PromptAssemblySeam contract', () => {
 		).not.toThrow();
 	});
 
-	// The two spec fields that reached no prompt at all until this seam learned to carry them. The
-	// assertion is that changing the field changes the prompt: a test that only checked the line was
-	// present would have passed against the constant sentences these replaced.
+	// The spec fields that reached no prompt at all, or reached one that a constant overruled, until
+	// this seam learned to carry them. The assertion is that changing the field changes the prompt: a
+	// test that only checked the line was present would have passed against the constant sentences
+	// these replaced.
 	it.each([
 		['textSize', 'small', 'large'],
 		['whitespaceScale', 20, 80],
-		['textStrokeWidth', 4, 12]
+		['textStrokeWidth', 4, 12],
+		['fontStyle', 'rounded', 'block']
 	] as const)('carries %s into the prompt', async (field, low, high) => {
 		const assemble = async (value: string | number) => {
 			const result = await promptAssemblyAdapter.assemble({
@@ -127,12 +129,12 @@ describe('PromptAssemblySeam contract', () => {
 	 * `illustrationLine` says "Illustrations: simple outlines" (a content claim), and neither tells
 	 * the model how heavy the linework is.
 	 *
-	 * "bold" is deliberately absent from the list. It appears in the TYPOGRAPHY constant
-	 * ('Bold bubble letters.') and in `letteringLine('large')` ('large, bold letterforms.'), and in
-	 * both it describes the letterform rather than the stroke around it — a distinction this
-	 * codebase already draws, since `letteringLine` is the size line. That the constant still
-	 * contradicts `Font: block.` and `Font: hand.` is a live defect, and it is `fontStyle`'s, not
-	 * this one's.
+	 * "bold" is deliberately absent from the list. It appears in `letteringLine('large')`
+	 * ('large, bold letterforms.'), where it describes the letterform rather than the stroke around
+	 * it — a distinction this codebase already draws, since `letteringLine` is the size line. It also
+	 * appeared in the TYPOGRAPHY constant 'Bold bubble letters.', which contradicted `Font: block.`
+	 * and `Font: hand.` on every one of the thirteen tool and mode pages; that constant is gone and
+	 * the assertion below is what keeps it gone.
 	 */
 	it('makes exactly one claim about how thick the linework is', async () => {
 		/*
@@ -162,6 +164,90 @@ describe('PromptAssemblySeam contract', () => {
 			// The spec's own value still reaches the prompt, now as the proportion of the page it
 			// asks for rather than as a raster width the provider was never asked to produce.
 			expect(claims[0]).toContain(`${((textStrokeWidth / 1024) * 100).toFixed(1)}% of the page width`);
+		}
+	});
+
+	/*
+	 * The letterform half of the same defect, and the reason this run exists.
+	 *
+	 * TYPOGRAPHY opened with the constant 'Bold bubble letters.' and then emitted `Font: block.` for
+	 * a spec asking for block capitals. Bubble letters are inflated and round; block capitals are
+	 * straight-sided and squared off. `block` is what `tool-page-recipe.ts` builds, so this was in
+	 * the prompt of every page the eleven-tool hub, the three standalone mode routes and `/m/[mode]`
+	 * ever sent — not an edge case a rare spec could reach.
+	 *
+	 * The assertion is deliberately about the *whole* prompt rather than about the font line, so
+	 * restoring the constant — or adding another one anywhere else — fails here.
+	 */
+	it('asks for bubble letters only when the spec asked for bubble letters', async () => {
+		const promptFor = async (fontStyle: 'rounded' | 'block' | 'hand') => {
+			const result = await promptAssemblyAdapter.assemble({
+				...promptAssemblySampleFixture.input,
+				spec: { ...promptAssemblySampleFixture.input.spec, fontStyle }
+			});
+			if (!result.ok) throw new Error(result.error.message);
+			return result.value.prompt.toLowerCase();
+		};
+
+		expect(await promptFor('block')).not.toContain('bubble');
+		expect(await promptFor('hand')).not.toContain('bubble');
+		expect(await promptFor('rounded')).toContain('bubble letters');
+		expect(await promptFor('block')).toContain('block capitals');
+		expect(await promptFor('hand')).toContain('handwritten letters');
+	});
+
+	/*
+	 * One field, one instruction — the letterform's turn at the assertion line weight already has.
+	 *
+	 * Counted across the whole prompt rather than asserted on the font line, because the defect being
+	 * pinned is a *second* place making the same claim.
+	 *
+	 * The words are letterform-shape words specifically, and each is a shape no other line in the
+	 * prompt describes. "rounded" is deliberately absent: `borderLine` and `decorationLine` could
+	 * legitimately describe a rounded frame or a rounded icon, and neither says anything about the
+	 * lettering.
+	 */
+	it('makes exactly one claim about what shape the letters are', async () => {
+		const SHAPE_CLAIM = /\b(bubble|block capitals|handwritten|serif|script|calligraphic)\b/;
+		for (const fontStyle of ['rounded', 'block', 'hand'] as const) {
+			const result = await promptAssemblyAdapter.assemble({
+				...promptAssemblySampleFixture.input,
+				spec: { ...promptAssemblySampleFixture.input.spec, fontStyle }
+			});
+			if (!result.ok) throw new Error(result.error.message);
+			const claims = result.value.prompt
+				.toLowerCase()
+				.split('\n')
+				.filter((line) => SHAPE_CLAIM.test(line));
+			expect(claims).toHaveLength(1);
+			expect(claims[0]).toContain('font:');
+		}
+	});
+
+	/*
+	 * The letterform line must say nothing about weight or page occupancy.
+	 *
+	 * Reviews of PR #350 and PR #352 each caught one line claiming a property another line owned.
+	 * This is the same guard, applied before a reviewer had to: how heavy the linework is belongs to
+	 * `textStrokeLine` and how much of the sheet the words cover belongs to `whitespaceLine`, and
+	 * both share the physical line this one is emitted on.
+	 */
+	it('says nothing about line weight or page occupancy on the letterform line', async () => {
+		for (const fontStyle of ['rounded', 'block', 'hand'] as const) {
+			const result = await promptAssemblyAdapter.assemble({
+				...promptAssemblySampleFixture.input,
+				spec: { ...promptAssemblySampleFixture.input.spec, fontStyle }
+			});
+			if (!result.ok) throw new Error(result.error.message);
+			const fontClause = result.value.prompt
+				.toLowerCase()
+				.split('\n')
+				.find((line) => line.startsWith('font:'))
+				?.split('stroke:')[0];
+			expect(fontClause).toBeDefined();
+			for (const banned of ['thick', 'thin', 'heavy', 'weight', 'outline', 'sheet', 'blank', '%']) {
+				expect(fontClause).not.toContain(banned);
+			}
 		}
 	});
 

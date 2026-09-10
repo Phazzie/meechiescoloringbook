@@ -17544,3 +17544,170 @@ Re-measure everything below; do not inherit it.
 - **The try-on's `rejected` branch is still unreachable from the UI.** Run 21's item, untouched.
 - **`failure.detail` has one consumer, on one surface out of fourteen.** Run 23's item, untouched.
 - **Run 18 still has no merge close-out entry.** Carried for eight runs now.
+
+## Run 26 — 2026-09-10 — What shape the letters are
+
+The feature: **the letterform**. On this application it is not a typography preference — it is the
+subject of the picture. `ColoringPageSpec` has no field that can hold a subject, so `title`, `items`
+and `footerItem` *are* the drawing, and `fontStyle` is the field that says what that drawing looks
+like.
+
+Run 25 left a carried-forward list naming `fontStyle` as "the strongest candidate, and now for a
+measured reason". That recommendation is why this run looked here first. It is not why the feature
+was taken: the note describes the contradiction as reachable. Re-measured on `main` at `89915a4`,
+that is not the state. **It is the default on thirteen of the fourteen page-making surfaces.**
+
+### The case, measured on `main` at `89915a4`
+
+**1. The prompt gives two contradictory instructions about the letterform, one line apart.**
+
+```
+$ grep -n "Bold bubble letters\|fontStyleLine(spec" src/lib/adapters/prompt-assembly-seam/index.ts
+139:		'Bold bubble letters.',
+149:		`${fontStyleLine(spec.fontStyle)} ${textStrokeLine(spec.textStrokeWidth)} ${letteringLine(spec.textSize)}`,
+```
+
+`fontStyleLine` was `Font: ${fontStyle}.`, so a spec asking for `block` rendered:
+
+```
+TYPOGRAPHY:
+Bold bubble letters.
+Glitter outline only (no shading).
+Font: block. Stroke: ... Lettering: ...
+```
+
+Bubble letters are inflated and round. Block capitals are straight-sided and squared off. They are
+not two descriptions of one letterform; they are two different letterforms, demanded two lines
+apart, on a generation the reader has paid for.
+
+**2. `block` is what thirteen of the fourteen page-making surfaces build.** This is the measurement
+the carried-forward note did not have, and the one that made this the run's feature:
+
+```
+$ grep -rn "fontStyle: '" src/lib/core/
+src/lib/core/tool-page-recipe.ts:531:	fontStyle: 'block',
+src/lib/core/meechie-studio.ts:754:	fontStyle: input.presentation?.fontStyle ?? 'rounded',
+```
+
+`tool-page-recipe.ts` builds every page the eleven-tool hub, the three standalone mode routes and
+`/m/[mode]` produce. So the contradiction was never an edge case a rare spec could reach — it was in
+the prompt of **every tool and mode page the application has ever sent**, for its whole life. Only
+the home studio's `rounded` happens to agree with the constant.
+
+**3. `Font: hand.` handed an image model a variable name.** `rounded`, `block` and `hand` are the
+enum's own tokens. `hand` is not a letterform anyone draws; it is the app's internal label for one.
+This is the same defect Run 25 fixed for `Stroke: 6px.` — a value emitted as art direction without
+ever being turned into art direction.
+
+**4. No reader could set it, anywhere.** Fourteen page-making surfaces, no control on any of them.
+`StudioSettingsPanel.svelte` calls itself "the app's only say over what a coloring page looks like"
+and offered Lettering size, Room to colour and Line weight — not the shape of the letters.
+
+**5. Nothing in the app reported which letterform a page was made with.** Not
+`summarizePageLook`, not `summarizePageControls`, and not `readBackInterpretedPage` — the sentences
+a `/describe` reader checks *before* paying, which already named paper, border, lettering size,
+whitespace, line weight, illustrations and decorations. `ChatInterpretationSeam` may return any of
+the three.
+
+**The gap, in what it costs the user:** a paid generation whose single most visible property was
+decided by a coin flip between two contradictory instructions, on the majority of the app's pages.
+
+### What shipped
+
+**One voice in the prompt.** `fontStyleLine` now describes the letterform:
+
+| `fontStyle` | The line |
+|---|---|
+| `rounded` | `Font: rounded bubble letters with soft, even curves.` |
+| `block` | `Font: upright block capitals, straight-sided and squared off.` |
+| `hand` | `Font: casual handwritten letters, uneven and flowing.` |
+
+The `'Bold bubble letters.'` constant is gone. `Bold` is not lost with it: letter *size* is
+`letteringLine`'s (`'large, bold letterforms.'`) and line *weight* is `textStrokeLine`'s, and both
+are emitted on the same physical line two rows down. `templateVersion` v6 → v7.
+
+Every one of the three says nothing about weight, size or page occupancy — the rule reviews of
+PR #350 and PR #352 each earned once, applied before a reviewer had to. A seam test asserts it.
+
+**A control on all fourteen surfaces.** `letterShape` joins `PageLookSelection`; the panel offers
+Bubble, Block and Handwritten, each with a help line naming the trade rather than only the virtue.
+Unlike Line weight and Room to colour the options are the *whole* contract enum rather than steps
+across a numeric range, so no page can carry a value the control cannot offer and no "this page's
+own" fallback option is needed. `LETTER_SHAPE_OPTIONS` is derived from the label table's keys, and a
+test drives `FontStyleSchema.options` against it.
+
+**Reported everywhere the app already describes a page.** `summarizePageLook` merges the two
+letter fields into one segment — `large block lettering`, not `large lettering · block letters` —
+and `/describe`'s read-back gains `Block letters.` A fact and never a caution: no letterform is a
+problem to colour, unlike a 4px outline.
+
+**`pageLookOf`, which is the cleanup this run owed.** Four surfaces host the control and each needs
+two `EffectivePageLook` values; each wrote the field list out by hand, in two Svelte dialects.
+Adding a fourth field would have been eight edits whose failure mode is silent — a copy that misses
+a field compiles and renders and just describes the page incompletely. It is one line now.
+
+### The deliberate behaviour change
+
+The thirteen tool and mode pages stop asking for bubble letters and ask only for the block capitals
+their spec has always named. Their lettering will look squarer and plainer. That is the field
+becoming real, and Bubble is one control away. Home studio pages are unchanged in intent.
+Recorded in `DECISIONS.md` rather than absorbed.
+
+### Evidence
+
+| Command | Result |
+|---|---|
+| `npm run check` | 0 errors, 0 warnings |
+| `npm run lint` | exit 0 |
+| `npm test` | **2,049** passed, 1 skipped (from **2,036** on `89915a4`) |
+| `npm run build` | exit 0 |
+| `npm run verify` | exit 0 |
+| `PLAYWRIGHT_CHROMIUM_PATH=… npm run test:e2e:local` | **87** passed |
+
+Red proof taken rather than asserted: restoring `'Bold bubble letters.'` to the adapter failed four
+seam tests — both golden fixture comparisons and both new letterform assertions — and removing it
+again returned 24 passed.
+
+### What was deliberately not fixed
+
+**`'Glitter outline only (no shading).'` is still emitted unconditionally.** It contradicts
+`Shading: hatch.` and `Shading: stippling.` in the DECORATIONS section of the same prompt, **and it
+demands glitter on a page whose reader left the Glitter control off** — one of the seven Page
+Controls, whose "off" position therefore does not reach the prompt at all. That is two defects, one
+`shading`'s and one the Glitter control's, and neither is the letterform's. Recorded, not ridden
+along on — the same treatment Run 25 gave this run's field.
+
+One correction to Run 25's carried-forward note, which said the NEGATIVE PROMPT "says 'no shading'
+as well, so a spec asking for shading is refused three times and granted once". Measured:
+`negativeLinesForSpec` pushes `'no shading'` only when `spec.shading === 'none'`. The refusal count
+is two, not three. The defect is real; the count in that note was not.
+
+### Carried forward for the next run
+
+Re-measure everything below; do not inherit it.
+
+- **`'Glitter outline only (no shading).'` is the strongest single candidate**, and for two measured
+  reasons rather than one: it contradicts `shading` whenever a spec asks for hatch or stippling, and
+  it makes the Glitter toggle's off position unreachable. Commented at the line.
+- **Nine presentation fields are still unreachable by a reader** — `alignment`, `numberAlignment`,
+  `listGutter`, `colorMode`, `decorations`, `illustrations`, `shading`, `borderThickness` and
+  `variations`.
+- **Two blocked-probe Assumptions on the image prompt's content are open**, one for line weight and
+  one for the letterform. Both name the same validation: generate one spec at each end of the field
+  and compare the returned drawing. A run with provider access should close both together.
+- **`ADVANCED_SPEC_FIELDS` has no importer.** Unchanged.
+- **`variations` is honoured and charged but unsettable outside `/describe`.** Re-verified this run:
+  `image-generation-pipeline.ts` passes it as the provider's `n` and charges that many units, and
+  every image that comes back is packaged — so it is not silently discarding paid pictures. It is
+  reachable only through the interpreter.
+- **`src/lib/core/meechie-quote-scoring.ts` has no production importer** and should probably be
+  deleted rather than wired.
+- **`MeechieTools.svelte` is still in legacy (non-runes) mode** — worked around again. The count is
+  deliberately gone: the comment in the file said "the fourth run" while Run 25's entry said "a
+  sixth time", neither had been counted, and incrementing one of them would have produced a third
+  wrong figure.
+- **`readJson` conflates a denied read with a damaged store.** Run 22's item, untouched.
+- **A `ConnectionSeam` is still the right home for the `navigator.onLine` read.** Unchanged.
+- **The try-on's `rejected` branch is still unreachable from the UI.** Run 21's item, untouched.
+- **`failure.detail` has one consumer, on one surface out of fourteen.** Run 23's item, untouched.
+- **Run 18 still has no merge close-out entry.** Carried for nine runs now.

@@ -27,6 +27,7 @@ import {
 	VECTOR_LINEWORK_PHRASE
 } from '../../src/lib/core/prompt-template';
 import { makeBaseSpec } from '../helpers/make-base-spec';
+import { FontStyleSchema } from '../../src/lib/seams/spec-validation-seam/contract';
 
 describe('prompt-template helpers', () => {
 	describe('formatListItems', () => {
@@ -86,11 +87,71 @@ describe('prompt-template helpers', () => {
 		});
 	});
 
+	/*
+	 * The letterform, which on this application's pages is the whole of the drawing — there is no
+	 * spec field that can hold a subject, so `title`, `items` and `footerItem` are what gets drawn.
+	 *
+	 * This used to be `Font: ${fontStyle}.`: three bare enum tokens handed to an image model as art
+	 * direction, `hand` among them, which is a variable name and not a letterform anyone draws. And
+	 * the TYPOGRAPHY section contradicted it from the line above with the constant
+	 * 'Bold bubble letters.' — on `block`, which is what all thirteen tool and mode pages build.
+	 */
 	describe('fontStyleLine', () => {
-		it('returns font style string', () => {
-			expect(fontStyleLine('rounded')).toContain('rounded');
-			expect(fontStyleLine('block')).toContain('block');
-			expect(fontStyleLine('hand')).toContain('hand');
+		it('describes a letterform rather than naming the enum value', () => {
+			expect(fontStyleLine('rounded')).toBe(
+				'Font: rounded bubble letters with soft, even curves.'
+			);
+			expect(fontStyleLine('block')).toBe(
+				'Font: upright block capitals, straight-sided and squared off.'
+			);
+			expect(fontStyleLine('hand')).toBe('Font: casual handwritten letters, uneven and flowing.');
+		});
+
+		// A test that only checked each line was non-empty would pass against three copies of one
+		// sentence, which is exactly the state the field was in when a constant overruled it.
+		it('gives every letterform a distinct instruction', () => {
+			const lines = FontStyleSchema.options.map((value) => fontStyleLine(value));
+			expect(new Set(lines).size).toBe(lines.length);
+			for (const line of lines) {
+				expect(line.trim().length).toBeGreaterThan(0);
+			}
+		});
+
+		/*
+		 * One field, one instruction — the rule reviews of PR #350 and PR #352 each earned once.
+		 * How heavy the linework is belongs to `textStrokeLine` and how much of the sheet the words
+		 * cover belongs to `whitespaceLine`, and both are emitted on the same physical line as this
+		 * one. `letteringLine` owns letter *size*, so this must not claim that either.
+		 */
+		it('claims nothing that another line in the same prompt already sets', () => {
+			for (const value of FontStyleSchema.options) {
+				const line = fontStyleLine(value).toLowerCase();
+				for (const claim of [
+					'thick',
+					'thin',
+					'heavy',
+					'weight',
+					'outline',
+					'stroke',
+					'blank',
+					'sheet',
+					'filling',
+					'large',
+					'small',
+					'%'
+				]) {
+					expect(line).not.toContain(claim);
+				}
+			}
+		});
+
+		it('carries no forbidden token', () => {
+			for (const value of FontStyleSchema.options) {
+				const lowered = fontStyleLine(value).toLowerCase();
+				for (const token of PROMPT_FORBIDDEN_TOKENS) {
+					expect(lowered).not.toContain(token);
+				}
+			}
 		});
 	});
 

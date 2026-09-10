@@ -125,7 +125,7 @@ Critical invariants — this panel describes a page, so it must never describe o
 					glitter
 				})
 	);
-	// What the next page will actually carry for the two look fields, which is the baseline with the
+	// What the next page will actually carry for the four look fields, which is the baseline with the
 	// reader's override laid over it. Both the summary and the controls read this, so the collapsed
 	// line and the open panel cannot disagree about what the page is set to.
 	const effectiveLook = $derived(applyPageLook(pageLookBaseline, pageLook));
@@ -250,7 +250,8 @@ Critical invariants — this panel describes a page, so it must never describe o
 			<!-- See `VerdictPageStudio` for why this is not called "Room to colour". -->
 			<legend>How it colours</legend>
 			<p class="field-help">
-				How much of the sheet is words, how much is yours, and how thick the lines are.
+				What the letters look like, how much of the sheet is words, how much is yours, and how
+				thick the lines are.
 			</p>
 			<PageLookControls
 				look={pageLook}

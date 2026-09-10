@@ -121,11 +121,15 @@ test('the read-back appears before anything is generated', async ({ page }) => {
 	 * pays for one that differs from it in a way nothing on screen named.
 	 *
 	 * Line weight was the field this was untrue of: `ChatInterpretationSeam` could return any weight
-	 * from 4 to 12, it reached the prompt, and no sentence anywhere mentioned it.
+	 * from 4 to 12, it reached the prompt, and no sentence anywhere mentioned it. The letterform was
+	 * the same story, and worse — the interpreter could choose handwriting for a reader expecting
+	 * block capitals, and on a page whose words are the whole drawing that is the most visible
+	 * property there is.
 	 */
 	await expect(page.getByTestId('describe-readback-facts')).toContainText(
 		'Standard outlines.'
 	);
+	await expect(page.getByTestId('describe-readback-facts')).toContainText('Bubble letters.');
 	expect(generateCalls).toBe(0);
 });
 

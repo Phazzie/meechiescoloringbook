@@ -2025,7 +2025,7 @@ describe('StudioState quote vault', () => {
 	});
 
 	it('keeps a reopened page looking like itself when a setting changes', async () => {
-		// A toolkit page is centered, large, stroke 9, loose gutter, 35 whitespace. Rebuilding
+		// A toolkit page is centered, large, block, stroke 9, loose gutter, 35 whitespace. Rebuilding
 		// dropped every one of those to the studio's own defaults, so changing something as narrow
 		// as page size handed back a visibly different page.
 		const studio = registerInitialized(new StudioState());
@@ -2040,6 +2040,7 @@ describe('StudioState quote vault', () => {
 			alignment: 'center' as const,
 			textSize: 'large' as const,
 			textStrokeWidth: 9,
+			fontStyle: 'block' as const,
 			listGutter: 'loose' as const,
 			whitespaceScale: 35
 		};
@@ -2056,6 +2057,7 @@ describe('StudioState quote vault', () => {
 		expect(studio.spec.alignment).toBe('center');
 		expect(studio.spec.textSize).toBe('large');
 		expect(studio.spec.textStrokeWidth).toBe(9);
+		expect(studio.spec.fontStyle).toBe('block');
 		expect(studio.spec.listGutter).toBe('loose');
 		expect(studio.spec.whitespaceScale).toBe(35);
 
@@ -2070,16 +2072,18 @@ describe('StudioState quote vault', () => {
 		//
 		// `loadCreation` seeds `pageLook` from the reopened page, so the Line weight control is
 		// showing Bold — and a control showing Bold over a page built at 6 is precisely the false
-		// provenance the Page Controls panel exists to prevent. The same is already true of the two
-		// fields beside it: `textSize` and `whitespaceScale` also survive a mode change, for the
-		// same reason and since the same run. `alignment` reverts because it is still carried
-		// `presentation`, which no control displays.
+		// provenance the Page Controls panel exists to prevent. The same is true of the three fields
+		// beside it: `textSize`, `whitespaceScale` and `fontStyle` also survive a mode change, for
+		// the same reason and each since the run that made it a control. `alignment` reverts because
+		// it is still carried in `presentation`, which no control displays.
 		expect(studio.spec.textStrokeWidth).toBe(9);
 		expect(studio.pageLook.lineWeight).toBe(9);
-		// The other two, asserted here rather than assumed, because this test is the one that pins
+		// The other three, asserted here rather than assumed, because this test is the one that pins
 		// which fields a mode change resets and which it does not.
 		expect(studio.spec.textSize).toBe('large');
 		expect(studio.spec.whitespaceScale).toBe(35);
+		expect(studio.spec.fontStyle).toBe('block');
+		expect(studio.pageLook.letterShape).toBe('block');
 	});
 
 	it('keeps a restored page dense until the reader actually picks a theme', async () => {

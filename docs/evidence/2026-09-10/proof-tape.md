@@ -5,7 +5,7 @@ Info flow: evidence files -> summary -> review.
 -->
 # Proof Tape
 
-Generated at: 2026-09-10T13:53:50.695Z
+Generated at: 2026-09-10T18:53:17.229Z
 Evidence folder: docs/evidence/2026-09-10
 
 Files included (this tape's own outputs, proof-tape.json and proof-tape.md, are written
@@ -13,16 +13,16 @@ after this inventory is taken, so they are not listed; nor is
 verify-outer.txt, which the wrapper around this chain is still
 writing while this runs and would therefore always be listed short):
 
-- assumption-alarm.json (16222 bytes)
+- assumption-alarm.json (18387 bytes)
 - build.txt (15838 bytes) — PREDATES THIS VERIFY RUN
   Commands: meechies-coloringbook@0.1.0 build | vite build | Using @sveltejs/adapter-vercel
 - chamber-lock.json (35315 bytes)
 - check.txt (240 bytes) — PREDATES THIS VERIFY RUN
   Commands: meechies-coloringbook@0.1.0 check | svelte-kit sync && svelte-check --tsconfig ./tsconfig.json
-- cipher-gate.json (2457 bytes) — PREDATES THIS VERIFY RUN
+- cipher-gate.json (2759 bytes) — PREDATES THIS VERIFY RUN
 - clan-chain.json (3181 bytes)
 - clan-chain.md (1956 bytes)
-- e2e.txt (11587 bytes) — PREDATES THIS VERIFY RUN
+- e2e.txt (11578 bytes) — PREDATES THIS VERIFY RUN
   Commands: meechies-coloringbook@0.1.0 test:e2e:local | playwright test --config=playwright.local.config.ts
 - lint.txt (48 bytes) — PREDATES THIS VERIFY RUN
   Commands: meechies-coloringbook@0.1.0 lint | eslint .
@@ -31,6 +31,8 @@ writing while this runs and would therefore always be listed short):
 - shaolin-lint.json (519 bytes)
 - test.txt (3333 bytes)
   Commands: meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
+- verify-outer-tmp.txt (4313 bytes)
+  Commands: meechies-coloringbook@0.1.0 verify | node scripts/verify-outer.mjs | meechies-coloringbook@0.1.0 audit:gate | npm audit --audit-level=high | meechies-coloringbook@0.1.0 check | svelte-kit sync && svelte-check --tsconfig ./tsconfig.json | meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
 - verify.txt (3658 bytes)
   Commands: meechies-coloringbook@0.1.0 check | svelte-kit sync && svelte-check --tsconfig ./tsconfig.json | meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
 
