@@ -2137,10 +2137,10 @@ test('a mode route lets the reader say how much of the sheet is left to colour',
 	await expect(controls).toBeVisible();
 
 	// The house look for a tool page is large lettering, and the control says so before it is
-	// touched — the "as this page has it" option names the value actually in effect rather than
-	// standing empty until the reader moves something.
+	// touched — the "Page default" option names the value actually in effect rather than standing
+	// empty until the reader moves something.
 	await expect(controls.locator('#verdict-page-look-lettering')).toContainText(
-		'As this page has it — Large'
+		'Page default — Large'
 	);
 	await expect(controls.locator('#verdict-page-look-lettering-help')).toContainText(
 		'The words are most of the page'
@@ -2169,7 +2169,7 @@ test('the tools hub lets the reader say how much of the sheet is left to colour'
 	const controls = page.getByTestId('meechie-tool-page-look');
 	await expect(controls).toBeVisible();
 	await expect(controls.locator('#meechie-tool-look-lettering')).toContainText(
-		'As this page has it — Large'
+		'Page default — Large'
 	);
 
 	await controls.locator('#meechie-tool-look-room').selectOption('25');

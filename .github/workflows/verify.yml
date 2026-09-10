@@ -14,6 +14,12 @@ on:
   push:
   pull_request:
 
+# Least privilege, stated rather than inherited. Without this key both jobs run with whatever the
+# repository's default token scope happens to be, which for many repositories is write. Neither job
+# does anything but read the checkout and run npm.
+permissions:
+  contents: read
+
 jobs:
   verify:
     runs-on: ubuntu-latest

@@ -1,6 +1,7 @@
 $ npm run verify
-# started 2026-09-10T06:54:33.290Z
+# started 2026-09-10T07:10:27.815Z
 
+$ npm run audit:gate
 
 > meechies-coloringbook@0.1.0 audit:gate
 > npm audit --audit-level=high
@@ -22,6 +23,10 @@ node_modules/@vitest/mocker
 To address all issues, run:
   npm audit fix
 
+$ /opt/node22/bin/node scripts/chamber-lock.mjs
+
+$ /opt/node22/bin/node scripts/verify-runner.mjs
+
 > meechies-coloringbook@0.1.0 check
 > svelte-kit sync && svelte-check --tsconfig ./tsconfig.json
 
@@ -39,8 +44,8 @@ svelte-check found 0 errors and 0 warnings
 
 [2m Test Files [22m [1m[32m112 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (113)[39m
 [2m      Tests [22m [1m[32m2011 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (2012)[39m
-[2m   Start at [22m 06:54:44
-[2m   Duration [22m 89.65s[2m (transform 3.42s, setup 885ms, import 7.09s, tests 8.43s, environment 56.54s)[22m
+[2m   Start at [22m 07:10:39
+[2m   Duration [22m 89.08s[2m (transform 3.36s, setup 863ms, import 7.04s, tests 8.32s, environment 56.33s)[22m
 
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
@@ -68,6 +73,16 @@ Not implemented: HTMLCanvasElement's getContext() method: without installing the
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+
+$ /opt/node22/bin/node scripts/shaolin-lint.mjs
+
+$ /opt/node22/bin/node scripts/assumption-alarm.mjs
+
+$ /opt/node22/bin/node scripts/seam-ledger.mjs
+
+$ /opt/node22/bin/node scripts/clan-chain.mjs
+
+$ /opt/node22/bin/node scripts/proof-tape.mjs
 
 # npm run verify exited 0
-# finished 2026-09-10T06:56:14.769Z
+# finished 2026-09-10T07:12:08.880Z

@@ -11,10 +11,19 @@ Why: `textSize` and `whitespaceScale` are `ColoringPageSpec` fields that reached
 Info flow: reader picks a value -> `look` (a `PageLookSelection`) -> `onChange` -> the host's spec
            builder -> `/api/generate`.
 Invariants:
-  1. "As this page has it" is a real value, not a placeholder. Each control is nullable on purpose:
-     the surfaces do not agree on a default and never did — the home studio builds `small` at 50, a
+  1. "Page default" is a real value, not a placeholder. Each control is nullable on purpose: the
+     surfaces do not agree on a default and never did — the home studio builds `small` at 50, a
      tools-hub quote page `large` at 35, a list page `large` at 45. Null means the page keeps
-     exactly what it builds today, so this control changes nothing until a reader moves it.
+     exactly what it builds today, so this control changes nothing until a reader moves it. The
+     option names that value rather than saying "Default", so the reader can see what leaving it
+     alone gets them.
+
+     Called "Page default" and deliberately **not** "As this page has it", which is what it said
+     first. That wording claims provenance the option cannot always carry: on the verdict surfaces
+     the picture has not been drawn yet, and on the home studio the null case is the *studio's*
+     default for the next page, not the look of a page that was reopened. Naming a page's own
+     values while describing a default is the false provenance the Page Controls panel exists to
+     prevent.
   2. `effective` is what the page will actually be made with, and is passed in rather than derived
      from `look` here. A control that displayed only the override would report nothing at all until
      it was touched, which is the exact "reports nothing" failure the Page Controls panel was rebuilt
@@ -88,7 +97,7 @@ Invariants:
 						: (event.currentTarget.value as ColoringPageSpec['textSize'])
 			})}
 	>
-		<option value={AS_BUILT}>As this page has it — {TEXT_SIZE_LABELS[effective.textSize]}</option>
+		<option value={AS_BUILT}>Page default — {TEXT_SIZE_LABELS[effective.textSize]}</option>
 		{#each TEXT_SIZE_OPTIONS as value}
 			<option {value}>{TEXT_SIZE_LABELS[value]}</option>
 		{/each}
@@ -108,7 +117,7 @@ Invariants:
 			})}
 	>
 		<option value={AS_BUILT}>
-			As this page has it — {describeRoomToColour(effective.whitespaceScale)}
+			Page default — {describeRoomToColour(effective.whitespaceScale)}
 		</option>
 		{#each ROOM_TO_COLOUR_OPTIONS as value}
 			<option value={String(value)}>{ROOM_TO_COLOUR_LABELS[value]}</option>

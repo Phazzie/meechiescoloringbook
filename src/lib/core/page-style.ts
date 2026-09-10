@@ -242,13 +242,21 @@ export const TEXT_SIZE_OPTIONS = Object.keys(TEXT_SIZE_LABELS) as readonly TextS
  */
 export const ROOM_TO_COLOUR_OPTIONS = [25, 50, 75] as const;
 
-export const ROOM_TO_COLOUR_LABELS: Record<number, string> = {
+/*
+ * Typed `string | undefined` rather than `Record<number, string>`, which is what these were first.
+ * A bare `Record<number, string>` tells the compiler that *every* number has a label, so the `??`
+ * fallbacks below and in `PageLookControls` read as dead code to the type checker while being the
+ * live path at runtime for every value that is not one of the three steps — and 35, 40 and 45 are
+ * all values this app really builds. Making the absence visible is what keeps a future edit from
+ * "simplifying" the fallback away and rendering `undefined` at a reader.
+ */
+export const ROOM_TO_COLOUR_LABELS: Readonly<Record<number, string | undefined>> = {
 	25: 'Packed',
 	50: 'Balanced',
 	75: 'Roomy'
 };
 
-export const ROOM_TO_COLOUR_HELP: Record<number, string> = {
+export const ROOM_TO_COLOUR_HELP: Readonly<Record<number, string | undefined>> = {
 	25: 'About a quarter of the sheet left blank. A full page with a little room around it.',
 	50: 'About half the sheet left blank.',
 	75: 'About three quarters of the sheet left blank. Lots of room to colour.'
