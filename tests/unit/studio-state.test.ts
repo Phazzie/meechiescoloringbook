@@ -627,6 +627,30 @@ describe('StudioState', () => {
 		expect(studio.isRebuildingDownloads).toBe(false);
 	});
 
+	it('feeds a packaging diagnostic to System Trace, where it is the only consumer', () => {
+		// `PageExportRow` never renders `failure.detail`, on purpose. So once packaging stopped
+		// writing its raw string onto the screen, the diagnostic had no consumer anywhere and
+		// disappeared entirely — a worse outcome than the defect being removed.
+		const studio = new StudioState();
+		vi.spyOn(outputPackagingAdapter, 'package').mockResolvedValue({
+			ok: false,
+			error: { code: 'CANVAS_UNAVAILABLE', message: 'Canvas context unavailable.' }
+		});
+
+		return studio
+			.loadCreation({
+				id: 'creation-trace-detail',
+				createdAtISO: '2026-09-03T00:00:00.000Z',
+				intent: buildSeedSpec(DEFAULT_STUDIO_TEXT_OUTPUT),
+				assembledPrompt: 'the saved prompt',
+				images: [{ b64: ONE_PIXEL_PNG_BASE64 }],
+				owner: { kind: 'anonymous', sessionId: 'session-1' }
+			})
+			.then(() => {
+				expect(studio.traceFailureDetail).toBe('Canvas context unavailable.');
+			});
+	});
+
 	it('applies the dedication input value before validation and schedules draft save', () => {
 		const studio = new StudioState();
 		const scheduleDraftSave = vi.fn();

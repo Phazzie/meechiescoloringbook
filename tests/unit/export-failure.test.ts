@@ -118,6 +118,26 @@ describe('classifyExportFailure', () => {
 		}
 	});
 
+	it('names the case where a rebuild cannot help, rather than promising one that can', () => {
+		// `PNG_ENCODING_FAILED` is emitted when `toDataURL()` returns an empty payload, and a canvas
+		// returns nothing for two unrelated reasons: memory, which a second attempt can get past, and
+		// a surface larger than the browser will rasterise, which is fixed. A print sheet is
+		// 2550 x 3300 at 300dpi and mobile Safari has capped canvas area below that, so the second is
+		// not exotic. The adapter reports both under one code, so this cannot narrow it — and an
+		// earlier draft promised only the first, leaving a reader pressing a button forever.
+		const failure = classifyExportFailure('print', {
+			code: 'PNG_ENCODING_FAILED',
+			message: 'Failed to encode PNG data.'
+		});
+
+		// The button stays, because it is free and the memory case is real.
+		expect(failure.retry.kind).toBe('now');
+		// And the sentence names the other case, with something the reader can actually do about it.
+		expect(failure.message).toContain('fails the same way twice');
+		expect(failure.message).toContain('larger than this browser will draw');
+		expect(failure.message).toContain('smaller page size');
+	});
+
 	it('offers no rebuild for a picture this step cannot read, and says whose fault it is', () => {
 		for (const code of [
 			'PNG_ENCODING_UNSUPPORTED',

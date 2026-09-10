@@ -36,6 +36,10 @@
  *     same canvas the share renderer needs. What survived is measured from the whole attempt set by
  *     `pageExportSurvivors` in `page-exports.ts`, which is the only place that can see it.
  *   - Nothing here claims the page failed. Packaging runs after the image exists, so it never can.
+ *   - `detail` is a promise, not a decoration: `pageExportFailureDetail` in `page-exports.ts` is its
+ *     consumer and `StudioState.traceFailureDetail` puts it under System Trace's "What Went Wrong
+ *     Underneath". Before that consumer existed the diagnostic vanished the moment it stopped being
+ *     written onto the screen, which is a worse outcome than the defect being fixed.
  */
 
 import type { OutputVariant } from '../seams/output-packaging-seam/contract';
@@ -156,8 +160,27 @@ const UNSUPPORTED_REMEDY =
 	'This browser will not let the app draw the file, so trying again here will not help — a ' +
 	'different browser will build it.';
 
-/** The rebuild's own promise, said once so every retryable cause says it identically. */
-const FREE_REBUILD = 'Building it again costs nothing and does not use another generation.';
+/**
+ * What a failed draw or encode can mean, in the order it is worth trying them.
+ *
+ * It cannot be narrowed to one, and an earlier draft promised only the first. `PNG_ENCODING_FAILED`
+ * is emitted by `svgToPngBase64` and `drawOnCanvas` when `toDataURL()` hands back an empty payload,
+ * and a canvas returns nothing for **two** unrelated reasons: it ran out of memory, which a second
+ * attempt against a freed heap can get past — or the surface exceeds what this browser will
+ * rasterise at all, which is a fixed property of the picture and the device. A print sheet is
+ * 2550 x 3300 at 300dpi, and mobile Safari has historically capped canvas area well below that, so
+ * the second case is not exotic.
+ *
+ * The adapter reports both under one code, so this module genuinely cannot tell them apart. The
+ * button stays, because it is free and the first case is real; the sentence names the second so a
+ * reader who presses twice to no effect knows why rather than pressing a third time. Same rule, and
+ * the same reason, as `UNREADABLE_REMEDY` in `storage-failure.ts`: telling the reader what this app
+ * cannot distinguish beats picking one and sounding certain.
+ */
+const FREE_REBUILD =
+	'Building it again costs nothing and does not use another generation. If it fails the same ' +
+	'way twice, this page is most likely larger than this browser will draw, and a different ' +
+	'browser or a smaller page size will build it.';
 
 /** The exception's own words, reduced to a string, for `detail` and never for `message`. */
 const detailOf = (error: unknown): string | null => {

@@ -15825,3 +15825,89 @@ for the owner ruling this log keeps circling.
 
 `check` 0/0, `lint`, **1,969** unit tests, `build`, the full `verify` chain, and **83** Playwright
 tests, all exit 0.
+
+## Run 23, fourth close-out — 2026-09-10 — the Codex round on `40d915f`, and a race my own fix opened
+
+Three P2s. **All three right.** One of them is a defect *this run introduced while fixing another
+one*, which is the most useful thing in the round and is why waiting for a review that was still
+running was worth the delay: the pull request was green and mergeable at the time.
+
+### P2 — a generation superseding a rebuild stranded the button, and my own fix caused it
+
+The third close-out made `rebuildDownloads`'s `finally` token-scoped, to stop a stale rebuild
+clearing a newer one's flag mid-flight. Correct in itself, and it opened this:
+
+1. A rebuild is in flight.
+2. The reader presses the page button instead of waiting. `generatePage` advances `pageToken`
+   **without** calling `resetPage` — deliberately, so a failed replacement cannot delete a good page.
+3. The rebuild returns stale, and the token-scoped `finally` therefore clears **nothing**.
+4. `isRebuildingDownloads` stays `true` forever, so the next page's failed download offers a rebuild
+   button disabled for the rest of the session — because the packaging adapter awaits
+   `image.onload`/`onerror` with no timeout, so a hung rebuild never settles either.
+
+The clear added to `resetPage` in the previous round does not cover this path, which is the whole
+point of the finding.
+
+**Fixed by removing the choice.** `pageToken` now moves in exactly one place —
+`advancePageToken()` — which increments it and ends the rebuild that belonged to the old page in the
+same call. `resetPage` and `generatePage` both go through it, and a third site cannot forget:
+retiring the page and ending its rebuild are one action because they are one fact.
+`MeechieTools.svelte` had the identical two-site shape and got the identical funnel.
+
+The elegant version — a `rebuildingToken` compared against the live token, so no clear exists at all
+— was written first and reverted: `pageToken` is a plain field rather than `$state`, so a `$derived`
+over it would never have updated. Worth recording because the reverted version *looks* better and
+would have been silently dead.
+
+**The lesson is about the shape of the previous fix.** Token-scoping a release makes the release
+conditional, and every path that advances the token without going through the reset then has to
+release it itself. The bug is not in either branch — it is in a flag whose lifetime is owned by two
+places. One writer, or the same defect returns.
+
+### P2 — the diagnostic had no consumer, so this run deleted it
+
+`PageExportRow` never renders `failure.detail`, on purpose — that is the invariant. But
+`StudioState.traceFailureDetail` read only `pageFailure`, `textFailure` and `tryOnFailure`. So once
+packaging stopped writing its raw string onto the screen, the adapter's own words had **no reader
+anywhere in the app** and vanished.
+
+That is worse than the defect being removed in one respect: the string used to be visible, badly.
+And `export-failure.ts`'s own header said `detail` was "kept for System Trace and a bug report" —
+a promise the code did not keep. **Third time this round that a sentence and a behaviour disagreed,
+and this time the sentence was one this run wrote.**
+
+`pageExportFailureDetail` in `page-exports.ts` is the consumer; System Trace shows it under "What
+Went Wrong Underneath", after the three stamped failures, because a packaging failure carries no
+stamp to join that ordering and a page that failed to generate has no packaging attempt anyway.
+
+### P2 — `PNG_ENCODING_FAILED` means two things and the sentence promised one
+
+The code is emitted when `toDataURL()` hands back an empty payload, and a canvas returns nothing for
+two unrelated reasons: **memory**, which a second attempt against a freed heap can get past, and **a
+surface larger than the browser will rasterise**, which is a fixed property of the picture and the
+device. A print sheet is 2550 x 3300 at 300dpi and mobile Safari has historically capped canvas area
+below that, so the second is not exotic.
+
+The adapter reports both under one code, so the classifier genuinely cannot narrow it. The button
+stays — it is free and the memory case is real — and the sentence now names the other case with
+something the reader can act on: a different browser, or a smaller page size. Exactly the
+`UNREADABLE_REMEDY` treatment `storage-failure.ts` gives `STORAGE_PARSE_FAILED`, for exactly the same
+reason: telling the reader what this app cannot distinguish beats picking one and sounding certain.
+
+### The new test was checked against the bug, not just written
+
+`git`-reverting `advancePageToken()` in the generate path and re-running makes the new race test fail
+with `expected true to be false`; restoring it passes. **A test that passes with and without the fix
+proves nothing**, and this log has recorded that failure mode before, so it was measured rather than
+assumed.
+
+### Evidence after this round
+
+`check` 0/0, `lint`, **1,974** unit tests, `build`, the full `verify` chain, and **83** Playwright
+tests, all exit 0.
+
+### The running tally, because the pattern has not changed
+
+Eight correct findings across four review rounds. Every single one was a **mismatch between what the
+app said and what it did** — never code failing to do what it was written to do. The gates were
+green on every head that carried one.

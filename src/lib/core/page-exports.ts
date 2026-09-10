@@ -341,6 +341,23 @@ export const pageExportSurvivors = (
 };
 
 /**
+ * The developer's string behind the first packaging failure, or `null`.
+ *
+ * The consumer that makes `ExportFailure.detail` a promise rather than a claim. `PageExportRow`
+ * deliberately never renders it — that is the whole invariant — so without a reader somewhere the
+ * diagnostic simply vanished, and it used to be visible: badly, as the reader's own sentence, but
+ * visible. "Kept for System Trace and a bug report" has to be true of something.
+ *
+ * The first rather than a joined list, because System Trace shows one line and the print variant is
+ * packaged first and is the product.
+ */
+export const pageExportFailureDetail = (
+	attempts: readonly PageExportAttempt[]
+): string | null =>
+	pageExportFailures(attempts).find((failure) => failure.detail !== null)?.detail ??
+	null;
+
+/**
  * The label on the rebuild control, or `null` where no control should be rendered.
  *
  * One control for the whole row rather than one per failed variant, because a rebuild re-runs

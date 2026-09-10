@@ -223,11 +223,13 @@ export class PageArtifactState {
 		return original ? [...packaged, original] : packaged;
 	});
 	/**
-	 * True while `rebuildDownloads` is running, so the control cannot be double-fired.
+	 * True while a rebuild is running for the page on screen.
 	 *
-	 * Its own flag rather than `isGenerating`: a rebuild buys no generation, and reusing that flag
+	 * Its own state rather than `isGenerating`: a rebuild buys no generation, and reusing that flag
 	 * would disable every paid button on the surface and put the page into the state a reader reads
 	 * as "it is making my page again".
+	 *
+	 * Cleared by `advancePageToken`, never by hand — see that method for why.
 	 */
 	isRebuildingDownloads = $state(false);
 	assembledPrompt = $state('');
@@ -314,6 +316,23 @@ export class PageArtifactState {
 	 */
 	protected lastAttemptedSource: PageSource | null = null;
 	protected pageToken = 0;
+	/**
+	 * Retire the page the current token names, and with it any rebuild that belonged to it.
+	 *
+	 * The one place `pageToken` moves, and that is the point. `isRebuildingDownloads` was cleared by
+	 * hand instead, and **every site that forgot left the rebuild button disabled for the rest of the
+	 * session** — because the packaging adapter awaits `image.onload`/`onerror` with no timeout, so a
+	 * rebuild that hangs never settles and its `finally` never runs. Review found two such sites one
+	 * after the other: `resetPage`, and then `generatePage`, which advances the token WITHOUT
+	 * resetting because it deliberately keeps the current page while its replacement loads.
+	 *
+	 * Both are now the same call, and a third site cannot forget: retiring the page and ending its
+	 * rebuild are one action because they are one fact.
+	 */
+	protected advancePageToken(): void {
+		this.pageToken += 1;
+		this.isRebuildingDownloads = false;
+	}
 	/**
 	 * The clock behind a saved page's `createdAtISO`. Injectable for the same reason `StudioState`
 	 * injects one: a test should be able to state the instant rather than observe it.
@@ -485,16 +504,11 @@ export class PageArtifactState {
 	 * to. Without this, resetting mid-generation left the button disabled until a reload.
 	 */
 	resetPage(): void {
-		this.pageToken += 1;
+		this.advancePageToken();
 		this.isGenerating = false;
 		this.failure = null;
 		this.imagePreviews = [];
 		this.packageAttempts = [];
-		// Cleared here as well as in `rebuildDownloads`'s own `finally`, because that `finally` may
-		// never run: the packaging adapter awaits `image.onload`/`onerror` with no timeout, so a
-		// rebuild that hangs never settles. Without this, the NEXT page's failed download would offer
-		// a rebuild button disabled forever by an operation nobody is waiting for.
-		this.isRebuildingDownloads = false;
 		this.pageOriginalImage = null;
 		this.pageFileBaseName = '';
 		this.assembledPrompt = '';
@@ -531,7 +545,7 @@ export class PageArtifactState {
 		// has actually arrived it is the best thing this class has. Calling `resetPage()` here meant
 		// a timeout, a provider error, an off-contract response or an undecodable image deleted a
 		// good page and left the reader with nothing.
-		this.pageToken += 1;
+		this.advancePageToken();
 		this.failure = null;
 		this.vaultStatus = '';
 		this.clearSourceStatus();
@@ -779,10 +793,10 @@ export class PageArtifactState {
 			if (rebuilt === null) return;
 			this.packageAttempts = mergeRebuiltAttempts(previous, rebuilt);
 		} finally {
-			// Only if this call still owns the page. A stale rebuild settling after `resetPage` has
-			// already cleared the flag would otherwise clear it a second time — and if a NEW rebuild
-			// were running by then, that second clear would re-enable the button mid-flight and let a
-			// second press race the first for `packageAttempts`.
+			// Only if this call still owns the page. A stale rebuild has already been cleared by
+			// `advancePageToken`, and a NEW rebuild may be running on the new page by now — clearing
+			// that one would re-enable its button mid-flight and let a second press race it for
+			// `packageAttempts`.
 			if (token === this.pageToken) this.isRebuildingDownloads = false;
 		}
 	}

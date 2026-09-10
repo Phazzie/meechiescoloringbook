@@ -433,6 +433,44 @@ describe('makePage', () => {
 		expect(state.generateError).toBe('');
 	});
 
+	it('does not strand the rebuild button when a generation supersedes a rebuild', async () => {
+		// The race the token-scoped `finally` introduced while closing another one. `generatePage`
+		// advances `pageToken` WITHOUT calling `resetPage`, deliberately, so a failed replacement
+		// cannot delete a good page. A rebuild in flight at that moment therefore returns stale, and
+		// a `finally` that only clears when it still owns the page clears nothing — leaving the NEXT
+		// page's rebuild button disabled for the rest of the session, because the packaging adapter
+		// awaits `image.onload`/`onerror` with no timeout and a hung rebuild never settles.
+		vi.mocked(outputPackagingAdapter.package).mockRejectedValue(
+			new Error('out of memory')
+		);
+		const state = await withPage();
+		expect(pageExportRetryLabel(state.packageAttempts)).toBe(
+			'Build the downloads again'
+		);
+
+		// A rebuild that never settles, started and left in flight.
+		vi.mocked(outputPackagingAdapter.package).mockReturnValue(
+			new Promise(() => {})
+		);
+		void state.rebuildDownloads();
+		// One turn, so the rebuild has actually reached the adapter and is holding the pending
+		// promise. Restoring the mock afterwards cannot retract a call already made.
+		await Promise.resolve();
+		expect(state.isRebuildingDownloads).toBe(true);
+
+		// The replacement generation packages normally; only the abandoned rebuild is still hanging.
+		vi.mocked(outputPackagingAdapter.package).mockResolvedValue({
+			ok: true,
+			value: { files: [printFile] }
+		});
+		routes.generate = okGenerate();
+
+		// The reader presses the still-enabled page button instead of waiting.
+		await state.makePage();
+
+		expect(state.isRebuildingDownloads).toBe(false);
+	});
+
 	it('rebuilds only what failed, and never re-runs a download the reader already has', async () => {
 		// The regression the merge exists to stop. The commonest packaging failure is memory on a
 		// print sheet that is megapixels at 300dpi, and its commonest shape is "the PDF built, the

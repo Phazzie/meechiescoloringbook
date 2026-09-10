@@ -19,6 +19,7 @@ import {
 	generatedImageByteLength,
 	rebuildableExportVariants,
 	mergeRebuiltAttempts,
+	pageExportFailureDetail,
 	pageExportFailures,
 	pageExportRetryLabel,
 	pageExportSurvivors,
@@ -674,5 +675,28 @@ describe('pageExportSurvivors', () => {
 		).toContain(
 			'the printable download, the square share image and the original image'
 		);
+	});
+});
+
+describe('pageExportFailureDetail', () => {
+	it('hands the adapter\u2019s own words to the one consumer that shows them', () => {
+		// Without a consumer, `detail` is a decoration and the diagnostic vanishes: `PageExportRow`
+		// never renders it, on purpose. It used to be visible - badly, as the reader's own sentence,
+		// but visible - so "kept for System Trace and a bug report" has to be true of something.
+		expect(
+			pageExportFailureDetail([
+				{ variant: 'print', files: [pdfFile('cGRm')], failure: null, pageSize: 'A4' },
+				{ variant: 'square', files: [], failure: canvasFailure('square'), pageSize: 'A4' }
+			])
+		).toBe('Canvas context unavailable for resizing.');
+	});
+
+	it('is null when nothing failed', () => {
+		expect(
+			pageExportFailureDetail([
+				{ variant: 'print', files: [pdfFile('cGRm')], failure: null, pageSize: 'A4' }
+			])
+		).toBeNull();
+		expect(pageExportFailureDetail([])).toBeNull();
 	});
 });

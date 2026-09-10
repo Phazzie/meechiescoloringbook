@@ -322,8 +322,23 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 			isOnline: readIsOnline()
 		});
 
-	const resetPage = (): void => {
+	/**
+	 * Retire the page the current token names, and with it any rebuild that belonged to it.
+	 *
+	 * The one place `pageToken` moves. `isRebuildingDownloads` was cleared by hand instead, and the
+	 * site that forgot was `makePageFor` — which advances the token WITHOUT resetting, on purpose,
+	 * so a failed replacement cannot delete a good page. A rebuild in flight when the reader pressed
+	 * Make The Page was therefore left owning a flag nobody would ever clear, because the packaging
+	 * adapter awaits `image.onload`/`onerror` with no timeout. Retiring the page and ending its
+	 * rebuild are one call because they are one fact.
+	 */
+	const advancePageToken = (): void => {
 		pageToken += 1;
+		isRebuildingDownloads = false;
+	};
+
+	const resetPage = (): void => {
+		advancePageToken();
 		// Only the page flag is released here. `isWorking` belongs to the verdict request and is
 		// released by `resetVerdict`; releasing it from a page-only action used to abandon a
 		// perfectly good verdict request that the reader had never cancelled.
@@ -332,10 +347,6 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 		lastPageVerdict = null;
 		imagePreviews = [];
 		packageAttempts = [];
-		// Cleared here as well as in `rebuildDownloads`'s own `finally`, because that `finally` may
-		// never run: the packaging adapter awaits `image.onload`/`onerror` with no timeout, so a
-		// rebuild that hangs never settles and would leave the next page's rebuild button disabled.
-		isRebuildingDownloads = false;
 		pageOriginalImage = null;
 		pageFileBaseName = '';
 		generatedImages = [];
@@ -516,7 +527,10 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 		// has actually arrived it is the best thing this component has. Calling `resetPage()` here
 		// meant a timeout, a provider error or an off-contract response deleted a good page and left
 		// the reader with nothing — the same defect as the verdict path, on the page path.
-		pageToken += 1;
+		//
+		// Through `advancePageToken` so a rebuild in flight for the page being superseded does not
+		// keep a flag nobody will clear: this path deliberately never calls `resetPage`.
+		advancePageToken();
 		pageFailure = null;
 		setVaultStatus('');
 		copyStatus = '';

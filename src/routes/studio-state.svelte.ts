@@ -72,6 +72,7 @@ import {
 import {
 	describeOriginalImageExport,
 	describePackagedExports,
+	pageExportFailureDetail,
 	rebuildableExportVariants,
 	mergeRebuiltAttempts,
 	type PageExport,
@@ -913,9 +914,19 @@ export class StudioState {
 	 * ignored. Ties go to the order listed, which only arises between failures that never went
 	 * through `recordFailure` and so carry no stamp at all.
 	 */
+	/**
+	 * The technical detail System Trace shows under "What Went Wrong Underneath".
+	 *
+	 * Packaging is included, and it was the gap: `PageExportRow` never renders `failure.detail`, on
+	 * purpose, so once packaging stopped writing its raw string onto the screen the diagnostic had
+	 * **no consumer anywhere** and disappeared entirely. It is read last because the three stamped
+	 * failures are ordered against each other by `newestFailure` and a packaging failure carries no
+	 * stamp to join that ordering — and because a page that failed to generate has no packaging
+	 * attempt to report, so the two are not in practice competing.
+	 */
 	traceFailureDetail = $derived(
 		newestFailure([this.pageFailure, this.textFailure, this.tryOnFailure])?.detail ??
-			null
+			pageExportFailureDetail(this.packageAttempts)
 	);
 	/**
 	 * Every portrait made from the current selfie, keyed by the wig it was made for.
