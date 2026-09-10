@@ -17,6 +17,17 @@ import type { PageSize } from '../../../contracts/spec-validation.contract';
 import type { ImageGenerationSeam } from '$lib/seams/image-generation-seam/contract';
 
 const RESPONSE_FORMAT = 'b64_json' as const;
+/*
+ * Deliberately NOT exported, and deliberately not referenced by the prompt.
+ *
+ * This value is handed to `ImageGenerationSeam` as `size`, and the xAI adapter's request body
+ * serializes only `model`, `prompt`, `n` and `response_format` — it never sends `size`, and echoes
+ * it back only as `rawModelInfo.requestedSize`. So this constant does not decide the raster the
+ * provider returns. It was briefly exported so `textStrokeLine` could name it as the reference for a
+ * pixel figure in the prompt; a review of PR #352 established the reference was never true, and the
+ * prompt now asks for a proportion of the page instead. Nothing outside this file should read it
+ * until it actually reaches the provider.
+ */
 const DEFAULT_IMAGE_SIZE = '1024x1024';
 const REQUIRED_PHRASES = SYSTEM_CONSTANTS.REQUIRED_PROMPT_PHRASES;
 

@@ -9,6 +9,10 @@ import {
 import type { CreationRecord, DraftRecord } from '$lib/seams/creation-store-seam/contract';
 import type { MeechieStudioTextAction, MeechieStudioTextOutput } from '$lib/seams/meechie-studio-text-seam/contract';
 import type { MeechieToolInput } from '../../../contracts/meechie-tool.contract';
+// `import type` deliberately: `page-style.ts` imports `studioThemes` from this file, so a value
+// import here would close a runtime cycle. A type-only import is erased entirely at build, which is
+// what lets the two files share the one name for the shape they both describe.
+import type { EffectivePageLook } from './page-style';
 
 /**
  * How many times the reader may rework one verdict before Meechie asks them for new facts instead.
@@ -620,19 +624,23 @@ export const derivesDenseDecorations = (styleHint: string): boolean =>
 	styleHint.includes('receipt');
 
 /**
- * What the home studio builds for the two look fields when the reader has chosen neither.
+ * What the home studio builds for the three look fields when the reader has chosen none of them.
  *
  * The values it has always used, named once so the Page Controls panel can say what is in effect
  * without restating them. It can be a constant here — and the panel can trust it — only because
- * these two fields left `presentation`: while they were carried forward from a reopened page, "what
+ * these fields left `presentation`: while they were carried forward from a reopened page, "what
  * would this build with no override?" had no fixed answer.
+ *
+ * `textStrokeWidth: 6` is the value the builder's `??` has always supplied. It is stated here now
+ * because it is a reader control, and because `LINE_WEIGHT_OPTIONS` offers exactly this number as a
+ * step — a control whose default is not one of its own options shows the reader a phantom "this
+ * page's own" entry for a page the app itself made. `tests/unit/page-style.test.ts` asserts the two
+ * agree, so moving either one alone fails rather than drifts.
  */
-export const STUDIO_DEFAULT_PAGE_LOOK: Pick<
-	ColoringPageSpec,
-	'textSize' | 'whitespaceScale'
-> = {
+export const STUDIO_DEFAULT_PAGE_LOOK: EffectivePageLook = {
 	textSize: 'small',
-	whitespaceScale: 50
+	whitespaceScale: 50,
+	textStrokeWidth: 6
 };
 
 export const buildColoringPageSpecFromMeechieText = (input: {
@@ -657,6 +665,13 @@ export const buildColoringPageSpecFromMeechieText = (input: {
 	 */
 	textSize?: ColoringPageSpec['textSize'];
 	whitespaceScale?: ColoringPageSpec['whitespaceScale'];
+	/**
+	 * How thick the outlines are. Top-level for the same reason as the two above, and it moved here
+	 * from `presentation` for the same reason they did: a value carried forward from a reopened page
+	 * cannot also be settable by a control, and of the two answers "the reader just chose this" is
+	 * the one that has to win.
+	 */
+	textStrokeWidth?: ColoringPageSpec['textStrokeWidth'];
 	styleHint: string;
 	dedication?: string;
 	/**
@@ -699,7 +714,8 @@ export const buildColoringPageSpecFromMeechieText = (input: {
 			// also be settable, and of the two answers "the reader just chose this" is the one that
 			// has to win. Same treatment `pageSize` and `border` have always had.
 			| 'fontStyle'
-			| 'textStrokeWidth'
+			// `textStrokeWidth` used to be carried here too, and left for the same reason
+			// `whitespaceScale` and `textSize` did: it became a reader control in Run 25.
 			| 'colorMode'
 			| 'decorations'
 			| 'illustrations'
@@ -736,7 +752,7 @@ export const buildColoringPageSpecFromMeechieText = (input: {
 	whitespaceScale: input.whitespaceScale ?? STUDIO_DEFAULT_PAGE_LOOK.whitespaceScale,
 	textSize: input.textSize ?? STUDIO_DEFAULT_PAGE_LOOK.textSize,
 	fontStyle: input.presentation?.fontStyle ?? 'rounded',
-	textStrokeWidth: input.presentation?.textStrokeWidth ?? 6,
+	textStrokeWidth: input.textStrokeWidth ?? STUDIO_DEFAULT_PAGE_LOOK.textStrokeWidth,
 	colorMode: input.presentation?.colorMode ?? 'black_and_white_only',
 	// Carried forward like the rest of the presentation, but the caller drops it when the reader
 	// picks a theme, because this one is *derived* from the theme rather than chosen directly.

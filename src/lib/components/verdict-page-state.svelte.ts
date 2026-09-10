@@ -104,10 +104,24 @@ export class VerdictPageState extends PageArtifactState {
 	 */
 	effectivePageLook = $derived.by(() => {
 		if (!this.verdict) return null;
-		const { textSize, whitespaceScale } = buildToolPageRecipe(this.verdict, {
+		const { textSize, whitespaceScale, textStrokeWidth } = buildToolPageRecipe(this.verdict, {
 			look: this.pageLook
 		}).spec;
-		return { textSize, whitespaceScale };
+		return { textSize, whitespaceScale, textStrokeWidth };
+	});
+
+	/**
+	 * What this recipe builds with **no** override — what "Page default" actually gets the reader.
+	 *
+	 * The same recipe as `effectivePageLook`, built without `look`. Separate because that one has the
+	 * override laid over it, so labelling the "Page default" option from it made the option rename
+	 * itself to whatever the reader had just chosen while still delivering the recipe's own values.
+	 * Caught in review of PR #352; see `PageLookControls`' invariant 2b.
+	 */
+	baselinePageLook = $derived.by(() => {
+		if (!this.verdict) return null;
+		const { textSize, whitespaceScale, textStrokeWidth } = buildToolPageRecipe(this.verdict).spec;
+		return { textSize, whitespaceScale, textStrokeWidth };
 	});
 
 	/** Record the reader's look choice. The next page built takes it; the one on screen keeps its own. */

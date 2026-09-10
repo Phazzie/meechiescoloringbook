@@ -8,6 +8,190 @@ Info flow: User request -> execution specs -> implementation -> review evidence.
 
 Current active plan is listed first. Older dated entries remain below as historical context and are not active unless explicitly reselected.
 
+## Run 25 (2026-09-10) — Worst-feature routine: how thick the lines are
+
+**Goal:** line weight — `textStrokeWidth`, the field that decides whether a printed coloring page
+can be coloured inside — gets one voice in the image prompt instead of two that contradict each
+other, becomes a control the reader can set on every page-making surface, and is named in every
+place the app already describes a page.
+
+### The measurement (taken on `main` at `5ab1e01`, not inherited from Run 24's carried-forward list)
+
+**1. The prompt gives two contradictory instructions about line weight, four lines apart.**
+
+`src/lib/adapters/prompt-assembly-seam/index.ts` builds the TYPOGRAPHY section as:
+
+```
+$ grep -n "thick outlines\|textStrokeLine(spec" src/lib/adapters/prompt-assembly-seam/index.ts
+118:		'Bold bubble letters; thick outlines.',
+125:		`${fontStyleLine(spec.fontStyle)} ${textStrokeLine(spec.textStrokeWidth)} ${letteringLine(spec.textSize)}`,
+```
+
+which renders, in `fixtures/prompt-assembly/sample.json`, as:
+
+```
+TYPOGRAPHY:
+Bold bubble letters; thick outlines.
+Glitter outline only (no shading).
+Font: rounded. Stroke: 6px. Lettering: small, compact letterforms.
+```
+
+A spec asking for `textStrokeWidth: 4` — the thinnest the contract allows — produces a prompt whose
+TYPOGRAPHY section says **"thick outlines"** first and `Stroke: 4px.` second. This is exactly the
+defect PR #350's review named for `whitespaceScale`: two instructions in one prompt each claiming
+to set the same property, which the model resolves by satisfying one and dropping the other, on a
+generation the reader has paid for. Run 24 fixed it for page occupancy and left it live for line
+weight, in the same section its own fix edited.
+
+**2. The number it emits has no referent.** `textStrokeLine` is
+`` `Stroke: ${strokeWidth}px.` `` (`src/lib/core/prompt-template.ts:62`). It is emitted against a
+`1024x1024` generation (`src/lib/core/image-generation-pipeline.ts:20`) that is then letterboxed
+onto US Letter at 300dpi. Nothing in the prompt says what those pixels are measured against. Every
+other line in TYPOGRAPHY, DECORATIONS and LAYOUT describes the thing — "Bold bubble letters",
+"Decorations: minimal outline icons.", "leave about 50% of the sheet blank". `Stroke:` is the only
+bare number in the prompt, on the one field whose number is the whole point.
+
+**3. No reader can set it, anywhere.**
+
+```
+$ grep -rn "textStrokeWidth" src/lib/components src/routes | wc -l
+0
+$ grep -rn "textStrokeWidth" src/lib/core/tool-page-recipe.ts src/lib/core/meechie-studio.ts
+src/lib/core/tool-page-recipe.ts:521:	textStrokeWidth: 9,
+src/lib/core/meechie-studio.ts:739:	textStrokeWidth: input.presentation?.textStrokeWidth ?? 6,
+```
+
+Fourteen page-making surfaces. The home studio hardcodes 6; the other thirteen hardcode 9. No
+control, on any of them.
+
+**4. The app never says which it built.** Not in `summarizePageLook`, not in
+`summarizePageControls`, and not in `readBackInterpretedPage` — the read-back on `/describe` that a
+reader approves *before* paying lists paper, border, lettering, whitespace, illustrations and
+decorations, and says nothing about how thick the lines will be. `ChatInterpretationSeam` can return
+any value in 4-12 and it reaches the picture unmentioned.
+
+That is the widest gap left: a property that decides whether the artifact does its job at all, with
+a self-contradicting prompt, an unreferenced number, no control and no report.
+
+### Exact seam names (all already in `docs/seams.md`)
+
+`PromptAssemblySeam`, `DriftDetectionSeam`. No contract file changes: `textStrokeWidth` is already
+`z.number().int().min(4).max(12).default(6)` in
+`src/lib/seams/spec-validation-seam/contract.ts:94`, so no schema, no migration, no stored record
+becomes unreadable.
+
+### Exact file paths
+
+Every path this change touches, with its explicit demarcation and its real mechanical edit. No
+wildcards and no grouped shorthand, which is what this table used to carry — a review of PR #352 was
+right that a plan with `tests/unit/*` in it cannot define or audit a scope. It also listed
+`src/routes/+page.svelte`, which this change does not touch at all, and promised a
+`LINE_WEIGHT_MIN`/`MAX` guard that was deliberately not built: `ColoringPageSpecSchema` already
+declares the field `int().min(4).max(12)`, so a clamp in the encoder would be unreachable code
+pretending to be a guard. That decision is recorded in `DECISIONS.md`; the promise is struck here.
+
+**Seam and prompt (`PromptAssemblySeam`, `DriftDetectionSeam`)**
+
+| Path | Action | Exact touch |
+|---|---|---|
+| `src/lib/core/prompt-template.ts` | `[MODIFY]` | `textStrokeLine` states the weight in words and the width as a proportion of the page; add private `NOMINAL_PAGE_WIDTH_PX`, `strokeWeightWord`, `strokeWidthPercent` |
+| `src/lib/adapters/prompt-assembly-seam/index.ts` | `[MODIFY]` | drop the `thick outlines` clause from the TYPOGRAPHY constant; `TEMPLATE_VERSION` v5 → v6 |
+| `src/lib/core/image-generation-pipeline.ts` | `[MODIFY]` | comment only on `DEFAULT_IMAGE_SIZE`, recording that it never reaches the provider payload; stays unexported |
+| `fixtures/prompt-assembly/sample.json` | `[MODIFY]` | golden prompt restated |
+| `fixtures/prompt-assembly/title-only.json` | `[MODIFY]` | golden prompt restated |
+| `fixtures/prompt-assembly/title-only-marker-fault.json` | `[MODIFY]` | golden prompt restated |
+| `fixtures/drift-detection/sample.json` | `[MODIFY]` | expected prompt restated |
+| `fixtures/drift-detection/fault.json` | `[MODIFY]` | expected prompt restated |
+| `fixtures/drift-detection/title-only.json` | `[MODIFY]` | expected prompt restated |
+| `src/lib/seams/prompt-assembly-seam/test.ts` | `[MODIFY]` | `textStrokeWidth` added to the carries-into-prompt table; two new assertions on the single weight claim |
+
+**The control**
+
+| Path | Action | Exact touch |
+|---|---|---|
+| `src/lib/core/page-style.ts` | `[MODIFY]` | `lineWeight` on `PageLookSelection`; `LINE_WEIGHT_OPTIONS/LABELS/HELP`; `describeLineWeight`; `EffectivePageLook` alias; `applyPageLook` and both summaries extended |
+| `src/lib/components/PageLookControls.svelte` | `[MODIFY]` | third `<select>`; new `baseline` prop; all three "Page default" options read it |
+| `src/lib/core/meechie-studio.ts` | `[MODIFY]` | `STUDIO_DEFAULT_PAGE_LOOK` gains `textStrokeWidth: 6`; builder takes `textStrokeWidth` top-level and drops it from `presentation` |
+| `src/lib/core/tool-page-recipe.ts` | `[MODIFY]` | export `TOOL_PAGE_STROKE_WIDTH` and use it in `BASE_SPEC` |
+| `src/lib/core/describe-page.ts` | `[MODIFY]` | `lineWeightFact` in the read-back; `THIN_LINE_CAUTION_MAX` and its caution |
+| `src/routes/studio-state.svelte.ts` | `[MODIFY]` | destructure `textStrokeWidth` out of carried presentation; pass `pageLook.lineWeight`; seed it in `loadCreation` and the draft restore |
+| `src/lib/components/studio/StudioSettingsPanel.svelte` | `[MODIFY]` | `pageLookBaseline` retyped; passed as `baseline`; legend renamed |
+| `src/lib/components/VerdictPageStudio.svelte` | `[MODIFY]` | pass `baseline`; guard on both derived values; legend renamed |
+| `src/lib/components/verdict-page-state.svelte.ts` | `[MODIFY]` | `effectivePageLook` carries the third field; new `baselinePageLook` |
+| `src/lib/components/MeechieTools.svelte` | `[MODIFY]` | same three, in legacy reactive syntax |
+
+**Tests**
+
+| Path | Action | Exact touch |
+|---|---|---|
+| `tests/unit/prompt-template.test.ts` | `[MODIFY]` | `textStrokeLine` block merged and widened |
+| `tests/unit/page-style.test.ts` | `[MODIFY]` | line-weight tables, `describeLineWeight`, `applyPageLook`, both summaries |
+| `tests/unit/describe-page.test.ts` | `[MODIFY]` | read-back fact and thin-line caution |
+| `tests/unit/meechie-studio.test.ts` | `[MODIFY]` | default and override assertions |
+| `tests/unit/tool-page-recipe.test.ts` | `[MODIFY]` | look-override assertions |
+| `tests/unit/studio-state.test.ts` | `[MODIFY]` | reopened-page assertion updated to the control semantics |
+| `tests/e2e/page-controls.spec.ts` | `[MODIFY]` | control, help lines, off-step select, summary, default-label regression |
+| `tests/e2e/smoke.spec.ts` | `[MODIFY]` | mode route and tools hub line-weight coverage |
+| `tests/e2e/describe.spec.ts` | `[MODIFY]` | read-back fact |
+
+**Docs, config and evidence**
+
+| Path | Action | Exact touch |
+|---|---|---|
+| `DECISIONS.md` | `[MODIFY]` | decision entry, Cipher Gate, blocked-probe Assumption |
+| `LESSONS_LEARNED.md` | `[MODIFY]` | two dated entries |
+| `CHANGELOG.md` | `[MODIFY]` | user-visible entry |
+| `WORST_TO_BEST_LOG.md` | `[MODIFY]` | this run's entry, appended |
+| `docs/seams.md` | `[MODIFY]` | both seam rows |
+| `plan.md` | `[MODIFY]` | this plan |
+| `playwright.local.config.ts` | `[MODIFY]` | comment only: the exact `PLAYWRIGHT_CHROMIUM_PATH` invocation |
+| `docs/evidence/2026-09-10/` (14 files) | `[MODIFY]` | rewritten by `npm run verify` and by the gate commands this run ran |
+
+### Strict anti-goals (do not touch)
+
+- **Do not change `contracts/` or any seam `contract.ts`.** `textStrokeWidth` already exists at the
+  right type and range.
+- **Do not touch `fontStyle`.** `'Bold bubble letters'` also contradicts `Font: block.` and
+  `Font: hand.`; that is `fontStyle`'s rebuild and is recorded as a carried-forward finding, not
+  fixed here. Only the `thick outlines` clause — unambiguously line weight — is removed.
+- **Do not touch the `'Glitter outline only (no shading).'` constant**, which contradicts
+  `Shading: hatch.` unconditionally. Same reason: recorded, not ridden along on.
+- **Do not add a line-weight control to `/describe`.** That surface's control is its read-back, and
+  the read-back is the part of it this run fixes.
+- **Do not alter localStorage key names or any stored record shape.**
+
+### The deliberate behaviour change, stated up front
+
+Removing `thick outlines` means a page built at the studio's default 6 asks for medium-weight
+outlines where it previously asked for "thick outlines" regardless of the field. Pages from the
+studio will have somewhat thinner lines than before. That is the field becoming real — and the
+reader now has a control that says Bold or Chunky. Recorded in `DECISIONS.md` rather than absorbed
+silently.
+
+### Self-critique
+
+- **Riskiest assumption:** that `textStrokeLine`'s new wording does not collide with a
+  `PROMPT_FORBIDDEN_TOKENS` entry (`size:`, `quality:`, `style:`) or with the drift check's
+  `prompt.includes(line)` test. **Proof:** a unit test asserting the rendered line contains none of
+  the forbidden tokens and none of "sheet", "page", "blank", "%" — the same guard Run 24 put on
+  `letteringLine` after review found it claiming page occupancy.
+- **What could be wrong:** the four steps (4/6/9/12) must include both values the app actually
+  builds, or every reader sees a phantom "this page's own" option on a page the app itself made.
+  **Proof:** a test asserting `LINE_WEIGHT_OPTIONS` contains the studio's 6 and the tool recipes' 9.
+- **Run 24's own lesson, applied first not last:** when a change makes a field effective, every
+  place that describes the page is part of the change. The places are `summarizePageLook`,
+  `summarizePageControls` and `readBackInterpretedPage`. All three are in the file list above.
+- **The restored-page defect Run 24 shipped:** a `<select>` set to a value no `<option>` carries
+  renders blank. **Proof:** a browser test that seeds an off-step weight and asserts the select's
+  own value, not the panel's summary text.
+
+### Literal Definition of Done
+
+```sh
+npm run check && npm run lint && npm test && npm run build && npm run verify && npm run cipher:gate
+```
+
+
 ## Run 24 (2026-09-10) — Worst-feature routine: how much room there is to colour
 
 **Goal:** the two `ColoringPageSpec` fields that decide whether a coloring page is actually

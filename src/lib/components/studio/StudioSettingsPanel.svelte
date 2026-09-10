@@ -36,6 +36,7 @@ Critical invariants — this panel describes a page, so it must never describe o
 		summarizePageControls,
 		summarizeStyleSelection,
 		applyPageLook,
+		type EffectivePageLook,
 		type PageLookSelection,
 		type StyleSelection
 	} from '$lib/core/page-style';
@@ -76,7 +77,7 @@ Critical invariants — this panel describes a page, so it must never describe o
 		 * Passed in rather than assumed, because it is the *studio's* default and this panel does not
 		 * build specs. See `PageLookControls`' second invariant.
 		 */
-		pageLookBaseline: Pick<ColoringPageSpec, 'textSize' | 'whitespaceScale'>;
+		pageLookBaseline: EffectivePageLook;
 		/** The page on screen was saved before styles were stored with pages. */
 		styleSelectionUnknown?: boolean;
 		/** A change whose check could not be run at all, reported beside the controls. */
@@ -246,11 +247,15 @@ Critical invariants — this panel describes a page, so it must never describe o
 		     so this panel could not have offered them honestly even if it had wanted to. They sit
 		     ahead of Paper because they describe the drawing; Paper describes the sheet. -->
 		<fieldset>
-			<legend>Room to colour</legend>
-			<p class="field-help">How much of the sheet is words, and how much is yours.</p>
+			<!-- See `VerdictPageStudio` for why this is not called "Room to colour". -->
+			<legend>How it colours</legend>
+			<p class="field-help">
+				How much of the sheet is words, how much is yours, and how thick the lines are.
+			</p>
 			<PageLookControls
 				look={pageLook}
 				effective={effectiveLook}
+				baseline={pageLookBaseline}
 				idPrefix="home-page-look"
 				onChange={async (next) => {
 					pageLook = next;

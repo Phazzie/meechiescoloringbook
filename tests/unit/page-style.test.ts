@@ -31,11 +31,15 @@ import {
 	ROOM_TO_COLOUR_HELP,
 	ROOM_TO_COLOUR_LABELS,
 	ROOM_TO_COLOUR_OPTIONS,
+	LINE_WEIGHT_HELP,
+	LINE_WEIGHT_LABELS,
+	LINE_WEIGHT_OPTIONS,
 	TEXT_SIZE_HELP,
 	TEXT_SIZE_LABELS,
 	TEXT_SIZE_OPTIONS,
 	DEFAULT_PAGE_LOOK,
 	applyPageLook,
+	describeLineWeight,
 	describeRoomToColour,
 	summarizePageLook,
 	buildStyleHint,
@@ -47,7 +51,12 @@ import {
 	type PaperSelection,
 	type StyleSelection
 } from '$lib/core/page-style';
-import { derivesDenseDecorations, studioThemes } from '$lib/core/meechie-studio';
+import {
+	STUDIO_DEFAULT_PAGE_LOOK,
+	derivesDenseDecorations,
+	studioThemes
+} from '$lib/core/meechie-studio';
+import { TOOL_PAGE_STROKE_WIDTH } from '$lib/core/tool-page-recipe';
 import { MeechieStudioVoiceSettingsSchema } from '$lib/seams/meechie-studio-text-seam/contract';
 import {
 	BorderStyleSchema,
@@ -250,7 +259,7 @@ describe('summarizeStyleSelection', () => {
 	// changed Third Person and shut the panel watched the line they had just changed stay put.
 	it('moves when any one control moves', () => {
 		const paper: PaperSelection = { pageSize: 'US_Letter', border: 'decorative' };
-		const look = { textSize: 'small', whitespaceScale: 50 } as const;
+		const look = { textSize: 'small', whitespaceScale: 50, textStrokeWidth: 6 } as const;
 		const base = summarizePageControls(summarizeStyleSelection(selection()), paper, look);
 		const moved = [
 			summarizePageControls(
@@ -262,7 +271,7 @@ describe('summarizeStyleSelection', () => {
 			),
 			summarizePageControls(summarizeStyleSelection(selection()), { ...paper, pageSize: 'A4' }, look),
 			summarizePageControls(summarizeStyleSelection(selection()), { ...paper, border: 'none' }, look),
-			// The two controls the panel gained. Added to this test rather than tested apart,
+			// The three controls the panel gained. Added to this test rather than tested apart,
 			// because the defect it pins is a summary that does not follow a control the panel
 			// holds, and it holds these now.
 			summarizePageControls(summarizeStyleSelection(selection()), paper, {
@@ -272,6 +281,10 @@ describe('summarizeStyleSelection', () => {
 			summarizePageControls(summarizeStyleSelection(selection()), paper, {
 				...look,
 				whitespaceScale: 75
+			}),
+			summarizePageControls(summarizeStyleSelection(selection()), paper, {
+				...look,
+				textStrokeWidth: 12
 			})
 		];
 		for (const summary of moved) {
@@ -321,10 +334,10 @@ describe('summarizePageControls', () => {
 			summarizePageControls(
 				summarizeStyleSelection(selection()),
 				{ pageSize: 'US_Letter', border: 'decorative' },
-				{ textSize: 'small', whitespaceScale: 50 }
+				{ textSize: 'small', whitespaceScale: 50, textStrokeWidth: 6 }
 			)
 		).toBe(
-			'Crown Energy · Receipts Out · Mild · sometimes in third person · US Letter · decorative border · small lettering · balanced'
+			'Crown Energy · Receipts Out · Mild · sometimes in third person · US Letter · decorative border · small lettering · balanced · standard lines'
 		);
 	});
 
@@ -335,20 +348,22 @@ describe('summarizePageControls', () => {
 			summarizePageControls(
 				"This page's style is not on file",
 				{ pageSize: 'A4', border: 'none' },
-				{ textSize: 'large', whitespaceScale: 35 }
+				{ textSize: 'large', whitespaceScale: 35, textStrokeWidth: 9 }
 			)
-		).toBe("This page's style is not on file · A4 · no border · large lettering · 35% blank");
+		).toBe(
+			"This page's style is not on file · A4 · no border · large lettering · 35% blank · bold lines"
+		);
 	});
 });
 
 /*
- * The two controls that decide how much of a printed sheet is left to colour.
+ * The three controls that decide whether a printed sheet can actually be coloured.
  *
  * Option coverage is driven off `TextSizeSchema` for the same reason the voice tables are driven off
  * their schema: a value added to the contract must arrive here as a failure about missing prose,
  * never as a silence that renders a blank line under a dropdown.
  */
-describe('the room-to-colour controls', () => {
+describe('the page-look controls', () => {
 	it('has a label and a help line for every text size the contract allows', () => {
 		for (const value of TextSizeSchema.options) {
 			expect(TEXT_SIZE_LABELS[value]?.trim().length).toBeGreaterThan(0);
@@ -387,54 +402,141 @@ describe('the room-to-colour controls', () => {
 		expect(describeRoomToColour(47.4)).toBe('47% blank');
 	});
 
-	describe('applyPageLook', () => {
-		const spec = { textSize: 'large', whitespaceScale: 35 } as const;
+	it('has a label and a help line for every line weight it offers', () => {
+		for (const value of LINE_WEIGHT_OPTIONS) {
+			expect(LINE_WEIGHT_LABELS[value]?.trim().length).toBeGreaterThan(0);
+			expect(LINE_WEIGHT_HELP[value]?.trim().length).toBeGreaterThan(0);
+		}
+	});
 
-		it('is the identity when neither field is chosen', () => {
+	it('offers only line weights the spec contract accepts', () => {
+		for (const value of LINE_WEIGHT_OPTIONS) {
+			expect(
+				ColoringPageSpecSchema.safeParse({
+					...VALID_SPEC,
+					textStrokeWidth: value
+				}).success
+			).toBe(true);
+		}
+	});
+
+	/*
+	 * The two values this application itself builds must both be steps the control offers.
+	 *
+	 * Not a stylistic preference. `PageLookControls` renders a reader's own value as an extra
+	 * "this page's own" option whenever it is not one of the steps, so if either of these drifted
+	 * out of `LINE_WEIGHT_OPTIONS` every reader opening a page the app had just made would be shown
+	 * a phantom option beside a "Page default" naming the identical number.
+	 */
+	it('offers both line weights this application actually builds', () => {
+		expect(LINE_WEIGHT_OPTIONS).toContain(STUDIO_DEFAULT_PAGE_LOOK.textStrokeWidth);
+		expect(LINE_WEIGHT_OPTIONS).toContain(TOOL_PAGE_STROKE_WIDTH);
+	});
+
+	// It spans the contract's whole range, so no legal spec value sits outside what a reader can ask
+	// for at the ends.
+	it('offers both ends of the range the contract allows', () => {
+		expect(Math.min(...LINE_WEIGHT_OPTIONS)).toBe(4);
+		expect(Math.max(...LINE_WEIGHT_OPTIONS)).toBe(12);
+	});
+
+	// Same rule as `describeRoomToColour`: the interpreter can return 5, 7, 8, 10 or 11, and
+	// snapping those to the nearest named step would report a page as something it is not.
+	it('names a line weight it does not offer rather than rounding it to one it does', () => {
+		expect(describeLineWeight(6)).toBe('Standard');
+		expect(describeLineWeight(9)).toBe('Bold');
+		expect(describeLineWeight(7)).toBe('7px');
+		expect(describeLineWeight(11)).toBe('11px');
+	});
+
+	// `summarizePageLook` appends the word "lines", so a fallback carrying it would render
+	// "7px lines lines" there.
+	it('never carries the word "lines" into the value it names', () => {
+		for (let width = 4; width <= 12; width += 1) {
+			expect(describeLineWeight(width)).not.toContain('lines');
+		}
+	});
+
+	describe('applyPageLook', () => {
+		const spec = { textSize: 'large', whitespaceScale: 35, textStrokeWidth: 9 } as const;
+
+		it('is the identity when no field is chosen', () => {
 			expect(applyPageLook(spec, DEFAULT_PAGE_LOOK)).toEqual(spec);
 		});
 
 		it('applies each field independently', () => {
-			expect(applyPageLook(spec, { textSize: 'small', whitespaceScale: null })).toEqual({
+			expect(
+				applyPageLook(spec, { textSize: 'small', whitespaceScale: null, lineWeight: null })
+			).toEqual({
 				textSize: 'small',
-				whitespaceScale: 35
+				whitespaceScale: 35,
+				textStrokeWidth: 9
 			});
-			expect(applyPageLook(spec, { textSize: null, whitespaceScale: 75 })).toEqual({
+			expect(
+				applyPageLook(spec, { textSize: null, whitespaceScale: 75, lineWeight: null })
+			).toEqual({
 				textSize: 'large',
-				whitespaceScale: 75
+				whitespaceScale: 75,
+				textStrokeWidth: 9
+			});
+			expect(
+				applyPageLook(spec, { textSize: null, whitespaceScale: null, lineWeight: 4 })
+			).toEqual({
+				textSize: 'large',
+				whitespaceScale: 35,
+				textStrokeWidth: 4
 			});
 		});
 
 		// A zero is a real choice — "leave none of it blank" — and `??` is what keeps it from being
 		// read as absence the way `||` would.
 		it('treats a zero scale as a choice, not as no choice', () => {
-			expect(applyPageLook(spec, { textSize: null, whitespaceScale: 0 }).whitespaceScale).toBe(0);
+			expect(
+				applyPageLook(spec, { textSize: null, whitespaceScale: 0, lineWeight: null })
+					.whitespaceScale
+			).toBe(0);
 		});
 
 		it('touches no other field of the spec it is given', () => {
 			const whole = { ...VALID_SPEC };
-			const applied = applyPageLook(whole, { textSize: 'medium', whitespaceScale: 25 });
+			const applied = applyPageLook(whole, {
+				textSize: 'medium',
+				whitespaceScale: 25,
+				lineWeight: 12
+			});
 			expect({
 				...applied,
 				textSize: whole.textSize,
-				whitespaceScale: whole.whitespaceScale
+				whitespaceScale: whole.whitespaceScale,
+				textStrokeWidth: whole.textStrokeWidth
 			}).toEqual(whole);
 		});
 	});
 
 	describe('summarizePageLook', () => {
-		it('names both controls for every text size', () => {
+		it('names all three controls for every text size', () => {
 			for (const textSize of TextSizeSchema.options) {
-				const summary = summarizePageLook({ textSize, whitespaceScale: 50 });
-				expect(summary.split(' · ')).toHaveLength(2);
+				const summary = summarizePageLook({
+					textSize,
+					whitespaceScale: 50,
+					textStrokeWidth: 6
+				});
+				expect(summary.split(' · ')).toHaveLength(3);
 				expect(summary).not.toContain('undefined');
 			}
 		});
 
 		it('reads the effective value, so it says something before a control is ever touched', () => {
-			expect(summarizePageLook({ textSize: 'large', whitespaceScale: 35 })).toBe(
-				'large lettering · 35% blank'
-			);
+			expect(
+				summarizePageLook({ textSize: 'large', whitespaceScale: 35, textStrokeWidth: 9 })
+			).toBe('large lettering · 35% blank · bold lines');
+		});
+
+		// The fallback path, which is the live one for every weight the control has no word for.
+		it('names an off-step weight by its number', () => {
+			expect(
+				summarizePageLook({ textSize: 'small', whitespaceScale: 50, textStrokeWidth: 7 })
+			).toBe('small lettering · balanced · 7px lines');
 		});
 	});
 });

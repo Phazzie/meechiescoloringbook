@@ -114,6 +114,18 @@ test('the read-back appears before anything is generated', async ({ page }) => {
 	await expect(page.getByTestId('describe-readback-source')).toContainText(
 		A_MESSAGE
 	);
+
+	/*
+	 * `/describe` has no look controls by design — the read-back *is* the control here. So every
+	 * field that reaches the picture has to reach these facts, or the reader approves a page and
+	 * pays for one that differs from it in a way nothing on screen named.
+	 *
+	 * Line weight was the field this was untrue of: `ChatInterpretationSeam` could return any weight
+	 * from 4 to 12, it reached the prompt, and no sentence anywhere mentioned it.
+	 */
+	await expect(page.getByTestId('describe-readback-facts')).toContainText(
+		'Standard outlines.'
+	);
 	expect(generateCalls).toBe(0);
 });
 

@@ -6,6 +6,7 @@
 import { describe, expect, it } from 'vitest';
 import {
 	MAX_TOOL_PAGE_ITEMS,
+	TOOL_PAGE_STROKE_WIDTH,
 	buildToolPageRecipe,
 	buildToolStudioText,
 	extractRankedEntries,
@@ -888,13 +889,15 @@ describe('closers nest', () => {
 describe("the reader's look override", () => {
 	// The whole feature is behaviour-preserving until a control moves, and this is what says so:
 	// every tool, both page shapes, no override, byte-identical spec.
-	it('changes nothing at all when neither field is set', () => {
+	it('changes nothing at all when no field is set', () => {
 		for (const toolId of MeechieToolIdSchema.options) {
 			const quote = output(toolId, 'He had time to answer and chose not to.');
 			const list = output(toolId, 'Fault: he lied.\nConsequence: no access.\nMove: change the locks.');
 			for (const verdict of [quote, list]) {
 				expect(
-					buildToolPageRecipe(verdict, { look: { textSize: null, whitespaceScale: null } })
+					buildToolPageRecipe(verdict, {
+						look: { textSize: null, whitespaceScale: null, lineWeight: null }
+					})
 				).toEqual(buildToolPageRecipe(verdict));
 			}
 		}
@@ -904,40 +907,60 @@ describe("the reader's look override", () => {
 		const verdict = output('wwmd', 'He had time to answer and chose not to.');
 		const housed = buildToolPageRecipe(verdict).spec;
 		const chosen = buildToolPageRecipe(verdict, {
-			look: { textSize: 'small', whitespaceScale: 75 }
+			look: { textSize: 'small', whitespaceScale: 75, lineWeight: 4 }
 		}).spec;
 
 		expect(housed.textSize).toBe('large');
 		expect(chosen.textSize).toBe('small');
 		expect(chosen.whitespaceScale).toBe(75);
+		expect(housed.textStrokeWidth).toBe(TOOL_PAGE_STROKE_WIDTH);
+		expect(chosen.textStrokeWidth).toBe(4);
 	});
 
 	it('overrides one field without disturbing the other', () => {
 		const verdict = output('wwmd', 'He had time to answer and chose not to.');
 		const housed = buildToolPageRecipe(verdict).spec;
 		const chosen = buildToolPageRecipe(verdict, {
-			look: { textSize: null, whitespaceScale: 25 }
+			look: { textSize: null, whitespaceScale: 25, lineWeight: null }
 		}).spec;
 
 		expect(chosen.textSize).toBe(housed.textSize);
 		expect(chosen.whitespaceScale).toBe(25);
+		expect(chosen.textStrokeWidth).toBe(housed.textStrokeWidth);
+	});
+
+	// The field this run made settable, on its own: the thirteen tool and mode pages hardcoded
+	// stroke 9 for the application's whole life and no reader could say otherwise on any of them.
+	it('overrides the line weight without disturbing anything else', () => {
+		const verdict = output('wwmd', 'He had time to answer and chose not to.');
+		const housed = buildToolPageRecipe(verdict).spec;
+		const chosen = buildToolPageRecipe(verdict, {
+			look: { textSize: null, whitespaceScale: null, lineWeight: 12 }
+		}).spec;
+
+		expect(housed.textStrokeWidth).toBe(TOOL_PAGE_STROKE_WIDTH);
+		expect(chosen.textStrokeWidth).toBe(12);
+		expect({ ...chosen, textStrokeWidth: housed.textStrokeWidth }).toEqual(housed);
 	});
 
 	// An override must not be able to reach any other field, and must not be able to build a spec
 	// the generate contract would reject at the API boundary with the generation already paid for.
-	it('touches nothing but the two fields, and still passes the spec contract', () => {
+	it('touches nothing but the three fields, and still passes the spec contract', () => {
 		const verdict = output(
 			'rate_excuse',
 			'Fault: he lied.\nConsequence: no access.\nMove: change the locks.'
 		);
 		const housed = buildToolPageRecipe(verdict).spec;
 		const chosen = buildToolPageRecipe(verdict, {
-			look: { textSize: 'medium', whitespaceScale: 25 }
+			look: { textSize: 'medium', whitespaceScale: 25, lineWeight: 6 }
 		}).spec;
 
 		expect(ColoringPageSpecSchema.safeParse(chosen).success).toBe(true);
-		expect({ ...chosen, textSize: housed.textSize, whitespaceScale: housed.whitespaceScale }).toEqual(
-			housed
-		);
+		expect({
+			...chosen,
+			textSize: housed.textSize,
+			whitespaceScale: housed.whitespaceScale,
+			textStrokeWidth: housed.textStrokeWidth
+		}).toEqual(housed);
 	});
 });

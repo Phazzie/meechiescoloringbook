@@ -1,19 +1,23 @@
 <!--
-Purpose: The **only** rendering in the app of the two controls that decide how much of a coloring
-         page is left to colour — lettering size and room to colour.
-Why: `textSize` and `whitespaceScale` are `ColoringPageSpec` fields that reached no prompt at all
-     until `letteringLine` and `whitespaceLine` were written, and that no reader could set anywhere,
-     on any of the fourteen page-making surfaces. `StudioSettingsPanel.svelte` calls itself "the
-     app's only say over what a coloring page looks like" and offered neither. This component is the
-     other half of that fix, and it owns its CSS for the reason every shared piece in this app does:
+Purpose: The **only** rendering in the app of the three controls that decide whether a coloring page
+         can actually be coloured — lettering size, room to colour, and line weight.
+Why: `textSize`, `whitespaceScale` and `textStrokeWidth` are `ColoringPageSpec` fields that no
+     reader could set anywhere, on any of the fourteen page-making surfaces. The first two reached
+     no prompt at all until `letteringLine` and `whitespaceLine` were written. The third reached one
+     — as `Stroke: 6px.`, a bare number with no stated reference, under a TYPOGRAPHY constant that
+     demanded "thick outlines" whatever that number said. `StudioSettingsPanel.svelte` calls itself
+     "the app's only say over what a coloring page looks like" and offered none of the three. This
+     component is the other half of that fix, and it owns its CSS for the reason every shared piece
+     in this app does:
      markup has always been reachable by copying and styling has not, which is how the export row and
      the vault each stayed on one surface for a dozen runs.
 Info flow: reader picks a value -> `look` (a `PageLookSelection`) -> `onChange` -> the host's spec
            builder -> `/api/generate`.
 Invariants:
   1. "Page default" is a real value, not a placeholder. Each control is nullable on purpose: the
-     surfaces do not agree on a default and never did — the home studio builds `small` at 50, a
-     tools-hub quote page `large` at 35, a list page `large` at 45. Null means the page keeps
+     surfaces do not agree on a default and never did — the home studio builds `small` at 50 with
+     stroke 6, a tools-hub quote page `large` at 35 with stroke 9, a list page `large` at 45 with
+     stroke 9. Null means the page keeps
      exactly what it builds today, so this control changes nothing until a reader moves it. The
      option names that value rather than saying "Default", so the reader can see what leaving it
      alone gets them.
@@ -28,6 +32,12 @@ Invariants:
      from `look` here. A control that displayed only the override would report nothing at all until
      it was touched, which is the exact "reports nothing" failure the Page Controls panel was rebuilt
      to stop.
+  2b. `baseline` is what the surface builds with **no** override, and it is what the "Page default"
+     option is labelled from. It is a separate prop from `effective` for the reason the option
+     exists: `effective` already carries the reader's override, so labelling the option from it made
+     the option rename itself to whatever the reader had just chosen while still delivering the
+     surface's own value. Caught in review of PR #352, and true of all three controls since the day
+     the first two shipped.
   3. The help line under a control describes the value that is *in effect*, including when that
      value is one this control does not offer — a page carrying 35 or 40 is named by its percentage
      rather than rounded to the nearest step it would fit, because rounding reports a page as
@@ -35,13 +45,18 @@ Invariants:
 -->
 <script lang="ts">
 	import {
+		LINE_WEIGHT_HELP,
+		LINE_WEIGHT_LABELS,
+		LINE_WEIGHT_OPTIONS,
 		ROOM_TO_COLOUR_HELP,
 		ROOM_TO_COLOUR_LABELS,
 		ROOM_TO_COLOUR_OPTIONS,
 		TEXT_SIZE_HELP,
 		TEXT_SIZE_LABELS,
 		TEXT_SIZE_OPTIONS,
+		describeLineWeight,
 		describeRoomToColour,
+		type EffectivePageLook,
 		type PageLookSelection
 	} from '$lib/core/page-style';
 	import type { ColoringPageSpec } from '../../../contracts/spec-validation.contract';
@@ -49,13 +64,30 @@ Invariants:
 	let {
 		look,
 		effective,
+		baseline,
 		idPrefix,
 		onChange
 	}: {
 		/** The reader's override. `null` on a field means "leave the page's own". */
 		look: PageLookSelection;
 		/** What the next page will actually be made with, once `look` is applied to it. */
-		effective: Pick<ColoringPageSpec, 'textSize' | 'whitespaceScale'>;
+		effective: EffectivePageLook;
+		/**
+		 * What this surface builds with **no** override — which is what selecting "Page default"
+		 * actually gets the reader.
+		 *
+		 * Separate from `effective`, and the distinction is a bug a review of PR #352 caught. Every
+		 * "Page default" option named `effective`, which already has the reader's override laid over
+		 * it: choose Chunky and the option relabelled itself "Page default — Chunky", while selecting
+		 * it clears `lineWeight` and returns the surface's own 6 or 9. The option promised the value
+		 * the reader had just picked and delivered a different one — the false provenance this
+		 * panel's first invariant exists to prevent, in the option that invariant is about.
+		 *
+		 * The defect was not this run's field alone: Lettering and Room to colour had it from the day
+		 * they shipped, and all three read this now. The help lines still read `effective`, which is
+		 * correct — they describe what is in effect, not what an unselected option would do.
+		 */
+		baseline: EffectivePageLook;
 		/**
 		 * Namespaces this instance's element ids.
 		 *
@@ -97,10 +129,34 @@ Invariants:
 			: null
 	);
 
+	const lineWeightValue = $derived(look.lineWeight === null ? AS_BUILT : String(look.lineWeight));
+
+	/**
+	 * The reader's own line weight, when it is one this control does not otherwise offer.
+	 *
+	 * Same mechanism, and the same defect it exists to stop, as `restoredRoomOption` above: a
+	 * `<select>` whose `value` matches no `<option>` renders **blank** in every browser, so a reader
+	 * reopening a page built at 7px would have been shown an empty control describing it.
+	 *
+	 * Rarer here than for blank space, because `LINE_WEIGHT_OPTIONS` deliberately contains both
+	 * values this app itself builds — 6 and 9. It is still reachable: `ChatInterpretationSeam` can
+	 * return any whole number from 4 to 12, and a page saved from `/describe` comes back carrying it.
+	 */
+	const restoredLineWeightOption = $derived(
+		look.lineWeight !== null &&
+			!LINE_WEIGHT_OPTIONS.includes(look.lineWeight as (typeof LINE_WEIGHT_OPTIONS)[number])
+			? look.lineWeight
+			: null
+	);
+
 	const textSizeHelp = $derived(TEXT_SIZE_HELP[effective.textSize]);
 	const roomHelp = $derived(
 		ROOM_TO_COLOUR_HELP[effective.whitespaceScale] ??
 			`About ${Math.round(effective.whitespaceScale)}% of the sheet left blank.`
+	);
+	const lineWeightHelp = $derived(
+		LINE_WEIGHT_HELP[effective.textStrokeWidth] ??
+			`Outlines about ${Math.round(effective.textStrokeWidth)}px wide — between the steps this control offers.`
 	);
 </script>
 
@@ -119,7 +175,7 @@ Invariants:
 						: (event.currentTarget.value as ColoringPageSpec['textSize'])
 			})}
 	>
-		<option value={AS_BUILT}>Page default — {TEXT_SIZE_LABELS[effective.textSize]}</option>
+		<option value={AS_BUILT}>Page default — {TEXT_SIZE_LABELS[baseline.textSize]}</option>
 		{#each TEXT_SIZE_OPTIONS as value}
 			<option {value}>{TEXT_SIZE_LABELS[value]}</option>
 		{/each}
@@ -139,7 +195,7 @@ Invariants:
 			})}
 	>
 		<option value={AS_BUILT}>
-			Page default — {describeRoomToColour(effective.whitespaceScale)}
+			Page default — {describeRoomToColour(baseline.whitespaceScale)}
 		</option>
 		{#if restoredRoomOption !== null}
 			<option value={String(restoredRoomOption)}>
@@ -151,6 +207,31 @@ Invariants:
 		{/each}
 	</select>
 	<p class="page-look-help" id="{idPrefix}-room-help">{roomHelp}</p>
+
+	<label class="page-look-label" for="{idPrefix}-line-weight">Line weight</label>
+	<select
+		id="{idPrefix}-line-weight"
+		aria-describedby="{idPrefix}-line-weight-help"
+		value={lineWeightValue}
+		onchange={(event) =>
+			onChange({
+				...look,
+				lineWeight: event.currentTarget.value === AS_BUILT ? null : Number(event.currentTarget.value)
+			})}
+	>
+		<option value={AS_BUILT}>
+			Page default — {describeLineWeight(baseline.textStrokeWidth)}
+		</option>
+		{#if restoredLineWeightOption !== null}
+			<option value={String(restoredLineWeightOption)}>
+				{describeLineWeight(restoredLineWeightOption)} — this page's own
+			</option>
+		{/if}
+		{#each LINE_WEIGHT_OPTIONS as value}
+			<option value={String(value)}>{LINE_WEIGHT_LABELS[value]}</option>
+		{/each}
+	</select>
+	<p class="page-look-help" id="{idPrefix}-line-weight-help">{lineWeightHelp}</p>
 </div>
 
 <style>

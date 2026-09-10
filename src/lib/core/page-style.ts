@@ -181,9 +181,9 @@ export const THIRD_PERSON_OPTIONS = Object.keys(THIRD_PERSON_LABELS) as readonly
  * reader still could not set either one anywhere in the application, on any of the fourteen
  * page-making surfaces. This is the other half.
  *
- * Deliberately only these two. Eleven further spec fields decide what the drawing looks like and are
- * equally unreachable by a reader; extending the panel to all of them is a separate change and is
- * recorded as one rather than folded in here.
+ * `textStrokeWidth` joined them in Run 25 — see the block above `LINE_WEIGHT_OPTIONS`. Ten further
+ * spec fields decide what the drawing looks like and are still unreachable by a reader; extending
+ * the panel to all of them is a separate change and is recorded as one rather than folded in here.
  * ---------------------------------------------------------------------------------------------- */
 
 type TextSize = ColoringPageSpec['textSize'];
@@ -204,12 +204,22 @@ type TextSize = ColoringPageSpec['textSize'];
 export type PageLookSelection = {
 	textSize: TextSize | null;
 	whitespaceScale: ColoringPageSpec['whitespaceScale'] | null;
+	/**
+	 * How thick the outlines are, or `null` for the page's own.
+	 *
+	 * The `ColoringPageSpec` field is `textStrokeWidth`; the reader-facing name is "Line weight",
+	 * because "stroke width" is a drawing-program word and the question a reader is actually asking
+	 * is whether they can stay inside the lines. The spec field keeps its name — renaming it would
+	 * be a contract change for a vocabulary preference.
+	 */
+	lineWeight: ColoringPageSpec['textStrokeWidth'] | null;
 };
 
 /** No override. Every surface starts here, so every surface starts unchanged. */
 export const DEFAULT_PAGE_LOOK: PageLookSelection = {
 	textSize: null,
-	whitespaceScale: null
+	whitespaceScale: null,
+	lineWeight: null
 };
 
 /**
@@ -273,20 +283,113 @@ export const ROOM_TO_COLOUR_HELP: Readonly<Record<number, string | undefined>> =
 export const describeRoomToColour = (whitespaceScale: number): string =>
 	ROOM_TO_COLOUR_LABELS[whitespaceScale] ?? `${Math.round(whitespaceScale)}% blank`;
 
+/* ------------------------------------------------------------------------------------------------
+ * How thick the lines are.
+ *
+ * `textStrokeWidth` reached the prompt, but as `Stroke: 6px.` — a bare number with no stated
+ * reference — under a constant that demanded "thick outlines" whatever the number said. No reader
+ * could set it on any of the fourteen page-making surfaces, and nothing in the application reported
+ * which value a page had been built with. It is the property that decides whether a printed page can
+ * be coloured inside at all, which is why it is the one this run took rather than one of the ten
+ * remaining presentation fields.
+ * ---------------------------------------------------------------------------------------------- */
+
+/**
+ * The line weights the control offers, thinnest first.
+ *
+ * Four steps rather than three, and **not** an arbitrary spread across the contract's 4-12: the two
+ * values this application actually builds are the home studio's 6 and the tool recipes' 9, and both
+ * are steps here on purpose. Had they not been, every reader opening a page the app itself made
+ * would have been shown a phantom "this page's own" option beside a "Page default" naming the same
+ * number — the control apologising for a value it should simply have offered.
+ *
+ * 4 and 12 are the contract's own ends, so the control spans everything a spec can legally ask for.
+ */
+export const LINE_WEIGHT_OPTIONS = [4, 6, 9, 12] as const;
+
+/*
+ * `string | undefined` rather than `Record<number, string>`, for the reason spelled out above
+ * `ROOM_TO_COLOUR_LABELS`: a total `Record<number, …>` tells the compiler every number has a label,
+ * which turns the `??` fallback into dead code to the type checker while it stays the live path at
+ * runtime. `ChatInterpretationSeam` can return 5, 7, 8, 10 or 11, and a reopened page carries
+ * whatever it was built with.
+ */
+export const LINE_WEIGHT_LABELS: Readonly<Record<number, string | undefined>> = {
+	4: 'Fine',
+	6: 'Standard',
+	9: 'Bold',
+	12: 'Chunky'
+};
+
+/**
+ * What each weight costs and buys, in the reader's terms.
+ *
+ * Each one names the trade rather than only the virtue. A thicker outline is easier to stay inside
+ * and swallows fine detail; a finer one keeps the detail and is unforgiving. A help line that only
+ * said "easiest to colour inside" would sell the reader the thickest option every time.
+ *
+ * None of them names which surface builds which weight, and the first draft of this table named
+ * both — "The studio default" on 6, "What every Meechie tool page is built with" on 9. The same
+ * component renders these on all fourteen surfaces, so on a mode route the reader would have been
+ * told the value in front of them was the *studio's* default. That is the false provenance the
+ * "Page default" option was already renamed to avoid, reintroduced one line below it. What the
+ * surface builds is already shown, correctly and per surface, by that option.
+ */
+export const LINE_WEIGHT_HELP: Readonly<Record<number, string | undefined>> = {
+	4: 'Thin outlines. Fine detail survives, but they are hard to stay inside with a crayon.',
+	6: 'Medium outlines. A fair trade between keeping detail and staying inside the lines.',
+	9: 'Thick outlines. Easy to colour inside, and small drawn details start to merge.',
+	12: 'Very thick outlines. The easiest to stay inside, and the finest detail is lost to them.'
+};
+
+/**
+ * Name a line weight the control did not offer.
+ *
+ * The interpreter can return any whole number from 4 to 12 and a reopened page carries whatever it
+ * was built with, so the panel has to describe a value that is not one of its four steps. Naming the
+ * number is the honest answer; snapping it to the nearest step would report a page as something it
+ * is not — the same rule `describeRoomToColour` follows and for the same reason.
+ *
+ * Returns the weight alone and never the word "lines". `summarizePageLook` appends it, and a
+ * fallback that carried it would render "7px lines lines" there.
+ */
+export const describeLineWeight = (strokeWidth: number): string =>
+	LINE_WEIGHT_LABELS[strokeWidth] ?? `${Math.round(strokeWidth)}px`;
+
+/**
+ * The three look fields as a page will actually be made with them — concrete values, never `null`.
+ *
+ * The counterpart to `PageLookSelection`, and the distinction is the whole design: a selection is
+ * what the reader *overrode* and is nullable per field; this is what the page *gets* once that
+ * selection has been applied to whatever the surface builds. Every control, summary and baseline in
+ * the app is typed against one or the other, and mixing them up is how a panel comes to report an
+ * override instead of an effect — the "reports nothing" failure `PageLookControls`' second invariant
+ * exists to prevent.
+ *
+ * Named because the same `Pick` was spelled out at six declarations across four files once
+ * `textStrokeWidth` joined it, and a repeated structural type is one edit away from six that
+ * disagree. Adding a fourth look field is now one line here.
+ */
+export type EffectivePageLook = Pick<
+	ColoringPageSpec,
+	'textSize' | 'whitespaceScale' | 'textStrokeWidth'
+>;
+
 /**
  * Apply a reader's override to a spec, leaving every unset field exactly as the page built it.
  *
- * The one place the override is applied. Pure, and total over the two fields: nothing else in a spec
- * is touched, so a caller cannot accidentally hand a page a different title or a different border by
- * routing it through here.
+ * The one place the override is applied. Pure, and total over the three fields: nothing else in a
+ * spec is touched, so a caller cannot accidentally hand a page a different title or a different
+ * border by routing it through here.
  */
-export const applyPageLook = <T extends Pick<ColoringPageSpec, 'textSize' | 'whitespaceScale'>>(
+export const applyPageLook = <T extends EffectivePageLook>(
 	spec: T,
 	look: PageLookSelection
 ): T => ({
 	...spec,
 	textSize: look.textSize ?? spec.textSize,
-	whitespaceScale: look.whitespaceScale ?? spec.whitespaceScale
+	whitespaceScale: look.whitespaceScale ?? spec.whitespaceScale,
+	textStrokeWidth: look.lineWeight ?? spec.textStrokeWidth
 });
 
 /**
@@ -297,11 +400,11 @@ export const applyPageLook = <T extends Pick<ColoringPageSpec, 'textSize' | 'whi
  * the "reports nothing" failure this whole panel was rebuilt to stop.
  */
 export const summarizePageLook = (
-	look: Pick<ColoringPageSpec, 'textSize' | 'whitespaceScale'>
+	look: EffectivePageLook
 ): string =>
 	`${TEXT_SIZE_LABELS[look.textSize].toLowerCase()} lettering · ${describeRoomToColour(
 		look.whitespaceScale
-	).toLowerCase()}`;
+	).toLowerCase()} · ${describeLineWeight(look.textStrokeWidth).toLowerCase()} lines`;
 
 /**
  * The phrasings the collapsed summary uses, where a bare label would not survive being read out of
@@ -373,5 +476,5 @@ export const summarizePaperSelection = (paper: PaperSelection): string =>
 export const summarizePageControls = (
 	styleSummary: string,
 	paper: PaperSelection,
-	look: Pick<ColoringPageSpec, 'textSize' | 'whitespaceScale'>
+	look: EffectivePageLook
 ): string => `${styleSummary} · ${summarizePaperSelection(paper)} · ${summarizePageLook(look)}`;

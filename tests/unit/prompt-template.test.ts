@@ -94,13 +94,6 @@ describe('prompt-template helpers', () => {
 		});
 	});
 
-	describe('textStrokeLine', () => {
-		it('returns stroke width string', () => {
-			expect(textStrokeLine(6)).toContain('6px');
-			expect(textStrokeLine(12)).toContain('12px');
-		});
-	});
-
 	describe('decorationLine', () => {
 		it('returns minimal decoration line', () => {
 			expect(decorationLine('minimal')).toContain('minimal');
@@ -289,6 +282,97 @@ describe('prompt-template helpers', () => {
 		it('carries no forbidden token', () => {
 			for (const size of ['small', 'medium', 'large'] as const) {
 				const lowered = letteringLine(size).toLowerCase();
+				for (const token of PROMPT_FORBIDDEN_TOKENS) {
+					expect(lowered).not.toContain(token);
+				}
+			}
+		});
+	});
+
+	/*
+	 * Line weight — how thick the outlines are, and the one property that decides whether a printed
+	 * page can be coloured inside at all.
+	 *
+	 * The defect these pin: `textStrokeLine` used to be `Stroke: ${n}px.` and nothing else, the only
+	 * bare number in the whole prompt, emitted four lines under a TYPOGRAPHY constant that demanded
+	 * "thick outlines" whatever that number said.
+	 */
+	describe('textStrokeLine', () => {
+		it('says something different for every weight the contract allows', () => {
+			const lines = [];
+			for (let width = 4; width <= 12; width += 1) {
+				lines.push(textStrokeLine(width));
+			}
+			expect(new Set(lines).size).toBe(lines.length);
+		});
+
+		// Was the whole of this seam's stroke coverage: `toContain('6px')` and `toContain('12px')`.
+		// Kept, widened to the contract's full range, and joined by the assertions below.
+		/*
+		 * A proportion of the page, not a pixel count — and this assertion is the second version of
+		 * itself. The first read `toContain(`${width}px`)` against a line that said
+		 * "about Npx wide on a 1024px sheet", naming `DEFAULT_IMAGE_SIZE` as the reference. A review
+		 * of PR #352 established that reference was never true: the xAI adapter's request body
+		 * serializes only `model`, `prompt`, `n` and `response_format`, so the requested size never
+		 * reaches the provider and the prompt was asserting a raster width nothing had asked for.
+		 *
+		 * A ratio needs no such promise. It holds at whatever size the provider returns, which is
+		 * exactly the property a pixel figure did not have.
+		 */
+		it('states the width as a proportion of the page, not as a raster measurement', () => {
+			expect(textStrokeLine(4)).toContain('0.4% of the page width');
+			expect(textStrokeLine(12)).toContain('1.2% of the page width');
+			for (let width = 4; width <= 12; width += 1) {
+				expect(textStrokeLine(width)).not.toContain('px');
+				expect(textStrokeLine(width)).not.toContain('sheet');
+			}
+		});
+
+		/*
+		 * One decimal, because the contract's whole range lands between 0.4% and 1.2%. Whole
+		 * percentages would collapse 4, 5 and 6 onto "1%" — the field would stop reaching the picture
+		 * at the thin end, which is the defect this run exists to fix, reintroduced by rounding.
+		 */
+		it('keeps every weight in the range distinguishable', () => {
+			const lines = [];
+			for (let width = 4; width <= 12; width += 1) {
+				lines.push(textStrokeLine(width));
+			}
+			expect(new Set(lines).size).toBe(lines.length);
+		});
+
+		// Words, not only a number, because the words are the part an image model can follow. A
+		// thinner spec must not describe itself in heavier terms than a thicker one.
+		it('names the weight in words, and orders them with the number', () => {
+			expect(textStrokeLine(4)).toContain('fine');
+			expect(textStrokeLine(6)).toContain('medium-weight');
+			expect(textStrokeLine(9)).toContain('bold');
+			expect(textStrokeLine(12)).toContain('very thick');
+		});
+
+		/*
+		 * One field, one instruction — the rule a review of PR #350 earned when `letteringLine`
+		 * claimed page occupancy that `whitespaceScale` already owned. Letterform shape is
+		 * `fontStyleLine`'s, letterform size is `letteringLine`'s, and how much of the sheet is
+		 * covered is `whitespaceLine`'s. This line speaks only about the weight of the linework.
+		 */
+		it('claims nothing that another line in the same prompt already sets', () => {
+			for (let width = 4; width <= 12; width += 1) {
+				const line = textStrokeLine(width).toLowerCase();
+				// '%' is deliberately not on this list, though it was until this line started
+				// expressing itself as a proportion. The percent sign is not the claim —
+				// `whitespaceLine` owns "% of the *sheet* left *blank*", which is page occupancy, and
+				// this owns "% of the page *width*", which is stroke weight. The words below are what
+				// separate them, so those are what this asserts.
+				for (const claim of ['blank', 'filling', 'sheet', 'font', 'rounded', 'block', 'hand']) {
+					expect(line).not.toContain(claim);
+				}
+			}
+		});
+
+		it('carries no forbidden token', () => {
+			for (let width = 4; width <= 12; width += 1) {
+				const lowered = textStrokeLine(width).toLowerCase();
 				for (const token of PROMPT_FORBIDDEN_TOKENS) {
 					expect(lowered).not.toContain(token);
 				}

@@ -258,9 +258,21 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 	// describe. `dedicatedTo` is deliberately not in this call — it changes the page but not these
 	// two fields, and including it would rebuild the recipe on every keystroke in that box.
 	$: effectivePageLook = output
-		? (({ textSize, whitespaceScale }) => ({ textSize, whitespaceScale }))(
-				buildToolPageRecipe(output, { look: pageLook }).spec
-			)
+		? (({ textSize, whitespaceScale, textStrokeWidth }) => ({
+				textSize,
+				whitespaceScale,
+				textStrokeWidth
+			}))(buildToolPageRecipe(output, { look: pageLook }).spec)
+		: null;
+	// The same recipe with NO override — what "Page default" actually gets the reader. Labelling that
+	// option from `effectivePageLook` above made it rename itself to whatever the reader had just
+	// chosen while still delivering the recipe's own value. See `PageLookControls`' invariant 2b.
+	$: baselinePageLook = output
+		? (({ textSize, whitespaceScale, textStrokeWidth }) => ({
+				textSize,
+				whitespaceScale,
+				textStrokeWidth
+			}))(buildToolPageRecipe(output).spec)
 		: null;
 	let copyStatus = '';
 	let vaultStatus = '';
@@ -1131,15 +1143,17 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 			     after the money is spent is not a control. The eleven-tool hub is the fourteenth
 			     page-making surface, and until now not one of them let a reader say how much of the
 			     sheet they wanted left to colour. -->
-			{#if effectivePageLook}
+			{#if effectivePageLook && baselinePageLook}
 				<fieldset class="page-look-field" data-testid="meechie-tool-page-look">
-					<legend>Room to colour</legend>
+					<!-- See `VerdictPageStudio` for why this is not called "Room to colour". -->
+					<legend>How it colours</legend>
 					<p class="field-help">
-						How much of the sheet is words, and how much is yours.
+						How much of the sheet is words, how much is yours, and how thick the lines are.
 					</p>
 					<PageLookControls
 						look={pageLook}
 						effective={effectivePageLook}
+						baseline={baselinePageLook}
 						idPrefix="meechie-tool-look"
 						onChange={(next) => (pageLook = next)}
 					/>
