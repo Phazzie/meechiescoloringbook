@@ -16246,11 +16246,21 @@ them "the eleven code findings" was already one behind when it was written, and 
 this entry repeated the eleven and totalled thirteen. Those entries are merged and append-only, so
 the correction is made here rather than in them.
 
+**The rule this run earned, from every count it got wrong:** a summary sentence written in the same
+breath as the enumeration beneath it does not get checked against that enumeration. The seventh
+close-out says "the eleven code findings" in an entry that had just added a twelfth, and calls a
+finding "the fourth in a row about the same field" one line above a sentence naming three. This entry
+then repeated both. Every number this run stated wrongly was a count **of things it had itself just
+listed**, in the same paragraph, and none of them survived a reader who added up the list. So the
+check is mechanical and cheap: before writing a total, count the items directly under it.
+
 Every code finding was the same shape: **a mismatch between what the app said and what it did.** A
 rebuild button that could take away a download the reader already had. A sentence claiming the print
 PDF was unaffected on a page where both variants had failed. A remedy printed twice, then a fix for
 that which threw away which download each remedy was about. A diagnostic field that answered "which
-failure is newest?" correctly for one more case on each of four consecutive rounds.
+failure is newest?" correctly for one more case on each of three separate rounds — three, per the
+correction in the carried-forward list; this sentence said four until the same review round caught
+both.
 
 The two process findings are the ones worth carrying. Both were **claims this run made about its own
 work** that did not survive being checked: a plan whose file inventory used a blanket statement, and
