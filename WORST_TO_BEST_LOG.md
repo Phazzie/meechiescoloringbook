@@ -16329,7 +16329,9 @@ Re-measure everything below; do not inherit it.
 
   The count is worth stating carefully because a denominator carried forward from before a surface
   existed is exactly how `/describe` got missed for its whole life — a seam that shipped complete
-  and had **zero callers** until Run 20 built it one.
+  and had **zero callers** until **Run 17** built it one — "The interpreter with no front door",
+  2026-09-08. First written here as Run 20, from memory, in the very paragraph warning against
+  claims carried without measurement. Checked against the entry heading and corrected before push.
 - **`npx playwright test` cannot run in this container and runs nowhere in CI.** The project pins
   build 1208; `/opt/pw-browsers` has 1194. `playwright.local.config.ts` and `npm run test:e2e:local`
   are committed this run so the substitute stops being rebuilt by hand each time, but **the
