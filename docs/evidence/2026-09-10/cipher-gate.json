@@ -1,6 +1,6 @@
 {
   "tool": "cipher-gate",
-  "generatedAt": "2026-09-10T19:11:43.626Z",
+  "generatedAt": "2026-09-10T19:37:31.620Z",
   "cipher": {
     "date": "2026-09-10",
     "seams": "PromptAssemblySeam, DriftDetectionSeam",
@@ -51,7 +51,7 @@
       }
     ],
     "summary": "One `ColoringPageSpec` field that reached the prompt as a bare enum token under a constant that contradicted it now reaches it as a single described instruction, and becomes a reader control on every page-making surface. No contract schema, no probe and no seam type changes: `FontStyleSchema` already had the three values and every input shape is identical. What changed is the adapters' output text, with the golden `prompt-assembly` and `drift-detection` fixtures patched to match and re-proved against the adapters, and `templateVersion` moved v6 -> v7 so a page recorded earlier is identifiable as one whose letterform the model could legitimately have ignored.",
-    "risks": "The prompt changes for **every** page the app makes, and the thirteen tool and mode pages will ask for block capitals alone where they previously asked for block capitals and bubble letters at once. This cannot be proven against a live provider here: no live image call can be made from this container, which is why the Assumption above is open. What backs the change instead is the drift seam still matching `fontStyleLine` exactly, plus three new seam tests — one asserting the prompt makes exactly one letterform-shape claim and that it is the font line, one asserting no spec but a `rounded` one mentions bubble letters, and one asserting the font clause claims nothing about weight or page occupancy. Red proof taken by restoring the old constant and watching the first two fail."
+    "risks": "The prompt changes for **every** page the app makes, and the thirteen tool and mode pages will ask for block letters alone where they previously asked for block letters and bubble letters at once. This cannot be proven against a live provider here: no live image call can be made from this container, which is why the Assumption above is open. What backs the change instead is the drift seam still matching `fontStyleLine` exactly, plus three new seam tests — one asserting the prompt makes exactly one letterform-shape claim and that it is the font line, one asserting no spec but a `rounded` one mentions bubble letters, and one asserting the font clause claims nothing about weight or page occupancy. Red proof taken by restoring the old constant and watching the first two fail."
   },
   "latestChangeMs": 1789066006664.3772,
   "status": "ok"

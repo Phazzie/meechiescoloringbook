@@ -18,7 +18,7 @@ Short, durable decisions with context and tradeoffs.
   field that can hold a subject, so `title`, `items` and `footerItem` *are* the drawing, and
   `fontStyle` is the field that says what that drawing looks like. It reached the prompt as
   `Font: block.`, under a constant on the line directly above demanding `Bold bubble letters.`
-  Bubble letters are inflated and round; block capitals are straight-sided and squared off. Two
+  Bubble letters are inflated and round; block letters are straight-sided and squared off. Two
   instructions about one property in one prompt, which is the same defect a review of PR #350 named
   for `whitespaceScale` and Run 25 removed for `textStrokeWidth` — left standing on the
   neighbouring field. **And `block` is what `tool-page-recipe.ts` builds**, so the contradiction was
@@ -26,7 +26,7 @@ Short, durable decisions with context and tradeoffs.
   the three standalone mode routes and `/m/[mode]` have ever sent. Separately, `Font: hand.` handed
   an image model a variable name as art direction, and no reader could set the field on any surface.
 - **The deliberate behaviour change, stated rather than absorbed.** With `Bold bubble letters.`
-  gone, a tool or mode page stops asking for bubble letters and asks only for the block capitals its
+  gone, a tool or mode page stops asking for bubble letters and asks only for the block letters its
   spec has always named. Those thirteen surfaces will produce squarer, plainer lettering than
   before. That is the field becoming real, and the reader now has a control that says Bubble if they
   want it. Home studio pages are unchanged in intent: `fontStyleLine('rounded')` still asks for
@@ -39,7 +39,14 @@ Short, durable decisions with context and tradeoffs.
   field to `letterShape`** to match the reader-facing control. Rejected: that is a contract change
   for a vocabulary preference, and stored records carry the field name. The `PageLookSelection` key
   is `letterShape`; the spec field stays `fontStyle`, exactly as `lineWeight` maps to
-  `textStrokeWidth`. (c) **Fix the `'Glitter outline only (no shading).'` constant in the same
+  `textStrokeWidth`. **(b2) Say "block capitals" rather than "block letters".** Tried, and reverted
+  in review: "capitals" is a *case* instruction and the same prompt's TEXT block already says
+  "render these exact words and nothing else". Nothing uppercases a title on the surfaces where
+  `block` is the default — `compactColoringPageTitle` normalizes characters and length only — and
+  `ChatInterpretationSeam` returns title-case titles that `/describe` sends through unchanged. So the
+  reader would have approved a title-case read-back and paid for a page lettered in capitals. **This
+  wording is deliberately case-neutral and must stay so**; `tests/unit/prompt-template.test.ts`
+  fails on `capital`, `uppercase`, `lowercase` and `all caps` in this line. (c) **Fix the `'Glitter outline only (no shading).'` constant in the same
   run.** It is emitted unconditionally, contradicts `Shading: hatch.` and `Shading: stippling.`, and
   demands glitter on a page whose reader left the Glitter control off. Real, and not the
   letterform's — recorded as carried-forward, the same treatment Run 25 gave this run's field.
@@ -65,7 +72,7 @@ Short, durable decisions with context and tradeoffs.
   - Seams: PromptAssemblySeam, DriftDetectionSeam
   - Evidence: docs/evidence/2026-09-10/verify-outer.txt; docs/evidence/2026-09-10/check.txt; docs/evidence/2026-09-10/lint.txt; docs/evidence/2026-09-10/test.txt; docs/evidence/2026-09-10/build.txt; docs/evidence/2026-09-10/e2e.txt; src/lib/seams/prompt-assembly-seam/test.ts; tests/unit/prompt-template.test.ts; tests/unit/page-style.test.ts; tests/unit/describe-page.test.ts; docs/seams.md
   - Summary: One `ColoringPageSpec` field that reached the prompt as a bare enum token under a constant that contradicted it now reaches it as a single described instruction, and becomes a reader control on every page-making surface. No contract schema, no probe and no seam type changes: `FontStyleSchema` already had the three values and every input shape is identical. What changed is the adapters' output text, with the golden `prompt-assembly` and `drift-detection` fixtures patched to match and re-proved against the adapters, and `templateVersion` moved v6 -> v7 so a page recorded earlier is identifiable as one whose letterform the model could legitimately have ignored.
-  - Risks: The prompt changes for **every** page the app makes, and the thirteen tool and mode pages will ask for block capitals alone where they previously asked for block capitals and bubble letters at once. This cannot be proven against a live provider here: no live image call can be made from this container, which is why the Assumption above is open. What backs the change instead is the drift seam still matching `fontStyleLine` exactly, plus three new seam tests — one asserting the prompt makes exactly one letterform-shape claim and that it is the font line, one asserting no spec but a `rounded` one mentions bubble letters, and one asserting the font clause claims nothing about weight or page occupancy. Red proof taken by restoring the old constant and watching the first two fail.
+  - Risks: The prompt changes for **every** page the app makes, and the thirteen tool and mode pages will ask for block letters alone where they previously asked for block letters and bubble letters at once. This cannot be proven against a live provider here: no live image call can be made from this container, which is why the Assumption above is open. What backs the change instead is the drift seam still matching `fontStyleLine` exactly, plus three new seam tests — one asserting the prompt makes exactly one letterform-shape claim and that it is the font line, one asserting no spec but a `rounded` one mentions bubble letters, and one asserting the font clause claims nothing about weight or page occupancy. Red proof taken by restoring the old constant and watching the first two fail.
 
 ## 2026-09-10 — Give line weight one voice in the prompt, and give the reader the control
 

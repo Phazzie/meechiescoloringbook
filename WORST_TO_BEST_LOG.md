@@ -17849,3 +17849,52 @@ about what the app will do.
 
 Two defects found by a reviewer, both this run's own, both about a case promise nothing in the app
 asked for. Zero found before a reviewer saw them, twice.
+
+
+## Run 26, third close-out — 2026-09-10 — the same promise, in the file that outlives the code
+
+Codex re-reviewed `536359f` and found the **third** copy of the same claim. One P2, correct, fixed.
+
+`DECISIONS.md` still said the thirteen tool and mode pages "ask for block capitals", in the decision's
+own context paragraph, in its deliberate-behaviour-change paragraph, and in the Cipher Gate's Risks
+field. `AGENTS.md` designates that file a source of truth, and `scripts/cipher-gate.mjs` copies its
+text verbatim into `docs/evidence/YYYY-MM-DD/cipher-gate.json`. So the retired wording was not just
+stale prose — it was the record a future prompt change would read, and the obvious way to "restore
+consistency" would have been to put `capitals` back into the line two review rounds took it out of.
+
+Fixed in all three places, and the evidence regenerated rather than hand-edited:
+
+```
+$ npm run cipher:gate && npm run assumption:alarm
+$ grep -c "block capitals" docs/evidence/2026-09-10/cipher-gate.json docs/evidence/2026-09-10/assumption-alarm.json
+docs/evidence/2026-09-10/cipher-gate.json:0
+docs/evidence/2026-09-10/assumption-alarm.json:0
+```
+
+The three remaining occurrences in `DECISIONS.md` are a **new alternative (b2)** added in the same
+edit: "Say 'block capitals' rather than 'block letters' — tried, and reverted in review", with the
+reason and the test that enforces it. An alternatives list is where a rejected option belongs, and
+recording *why* it was rejected is the only thing that stops the next run rediscovering it as an
+improvement.
+
+**The lesson, third variant of the same one.** Round one: a repair can write a new contradiction.
+Round two: a wording fix has a blast radius across the code. Round three: **it also reaches the
+governance files, and those are the ones that outlive the diff.** Three rounds, three copies of one
+sentence — prompt line, help table, decision record — and a green suite after each of the first two.
+Nothing in this repository's tests can catch that class, because no test reads prose.
+
+### Re-proved after the third fix
+
+| Command | Result |
+|---|---|
+| `npm run check` | 0 errors, 0 warnings |
+| `npm run lint` | exit 0 |
+| `npm test` | 2,049 passed, 1 skipped |
+| `npm run build` | exit 0 |
+| `npm run verify` | exit 0 |
+| `npm run cipher:gate` | exit 0 |
+
+### The honest count, final
+
+Three defects found by reviewers, all three this run's own, all three the same false promise in three
+different files. Zero found before a reviewer saw them, three times.
