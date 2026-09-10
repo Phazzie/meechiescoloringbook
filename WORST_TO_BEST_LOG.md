@@ -15966,3 +15966,80 @@ code was correct.
 
 `check` 0/0, `lint`, **1,978** unit tests, `build`, the full `verify` chain, and **83** Playwright
 tests, all exit 0.
+
+## Run 23, sixth close-out — 2026-09-10 — the Codex round on `0a0067d`, and a fix that undid a fix
+
+Three P2s. All three right. **One of them is a regression the previous close-out introduced forty
+minutes earlier**, which is the second time this run a fix has opened the next finding.
+
+### P2 — the remedy grouping threw away the association
+
+The fifth close-out stopped repeating the same forty-word remedy under every failed variant. With two
+variants failing for two *different* causes, that left two bare "could not be built" lines followed
+by two **unlabelled** remedies, and nothing said which download each one was about — under a button
+reading "Build the downloads again" that could only retry one of them.
+
+So the grouping fixed a duplication and created an ambiguity. Both are the same underlying question —
+**what is this sentence about?** — answered wrongly in opposite directions on consecutive commits.
+
+`pageExportRemedies` now returns `{ remedy, variants, subject }`, and the row labels each line only
+when there is more than one group, because a label that never varies is noise. One cause: bare
+sentence. Two causes: "For the printable download: …" / "For the square share image: …".
+
+### P2 — a hung variant withheld a download that had already succeeded
+
+`runPackaging` accumulated attempts and installed the whole array at the end. The adapter awaits
+`image.onload`/`onerror` with **no timeout**, so a rebuild whose PDF succeeded and whose share image
+then hung showed the reader the *old* state: both still failed, the finished PDF invisible, the
+button disabled, and nothing coming.
+
+Now each attempt installs the moment it lands — appended for a generation, merged for a rebuild.
+The rebuild merges against `this.packageAttempts` rather than the `previous` snapshot, so a variant
+that lands while a later one hangs is usable immediately.
+
+Note this exposure was **created by the rebuild feature**: before it, a hang during initial packaging
+just meant no downloads yet. Adding a control that can be pressed is what made "stuck holding a
+finished file" reachable.
+
+### P2 — the trace ordering was a fallback, not an ordering
+
+The fourth close-out gave `detail` a consumer by appending
+`?? pageExportFailureDetail(this.packageAttempts)`. That reasoning was written about `pageFailure` —
+"a page that failed to generate has no packaging attempt to report" — and then applied to
+`textFailure` and `tryOnFailure`, where it does not hold: **neither `handleGeneratePage` nor
+`resetGeneratedPage` clears a text failure**, so a stale one masked the packaging diagnostic for
+good, and System Trace showed the older problem beside the newer notice.
+
+Packaging is now stamped from the same counter the three classified failures use, so "most recent"
+means the same thing for all four. `installPackageAttempts` is the one writer that stamps.
+
+### Both new tests were checked against their bugs
+
+Reverting to the batched install makes the incremental test fail with `expected [] to deeply equal
+[ { filename: 'print.pdf' … } ]`. Reverting to the fallback ordering makes the trace test fail with
+`expected 'an older text problem' to be 'the newer packaging problem'`.
+
+The second one also had to be rewritten before it was worth anything: the first draft assigned
+`textFailure` directly, which leaves it **unstamped** — and an unstamped failure loses to everything,
+so the test would have passed whether or not packaging joined the ordering. It now drives
+`runTextAction` through a rejecting fetch, which stamps it exactly as a real failure is.
+
+`npm run check` caught that draft's `private` access, `npm test` did not — **the same gap this log
+recorded three close-outs ago**. Vitest transpiles without type checking. `check` belongs in every
+loop that adds a test.
+
+### Evidence
+
+`check` 0/0, `lint`, **1,980** unit tests, `build`, the full `verify` chain, and **83** Playwright
+tests, all exit 0.
+
+### The count, and what it says
+
+**Eleven correct findings across five review rounds.** Two of them were regressions introduced by the
+immediately preceding fix. Every gate was green on every head that carried one.
+
+The honest reading is not that the reviews are noise — every finding was real. It is that **this
+feature's surface is a set of sentences and a set of states that must agree**, and each fix moves
+that boundary slightly, which is exactly where the next disagreement appears. The tests that hold are
+the ones asserting a *relationship* (the retry label agrees with the rebuild list; no message
+contains another variant's claim), not the ones asserting a string.

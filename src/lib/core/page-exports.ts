@@ -340,26 +340,54 @@ export const pageExportSurvivors = (
 	return [haveSentence, printSentence].filter((part) => part.length > 0).join(' ');
 };
 
+/** One remedy, and every failed download it applies to. */
+export type PageExportRemedy = {
+	/** What the reader can do. */
+	remedy: string;
+	/** The variants this advice covers, in request order. */
+	variants: OutputVariant[];
+	/**
+	 * How to name those variants in a sentence, e.g. `the square share image`.
+	 *
+	 * Built here rather than in the component so the row renders text and decides nothing, and so
+	 * the joining is tested with everything else in this module.
+	 */
+	subject: string;
+};
+
 /**
- * What the reader can do, once per distinct cause, in the order the causes first appear.
+ * What the reader can do, grouped by advice rather than repeated per download.
  *
- * Per cause and not per variant, because the two have different scopes. Both variants share a
- * canvas, so both usually fail for the same reason — and with the remedy folded into each variant's
- * sentence, the commonest failure of all printed the same forty-word paragraph twice, burying the
- * one clause that actually differed between the two lines.
+ * Two forces, and both are review findings against earlier drafts of this notice.
  *
- * Deduplicated by the remedy text rather than by the cause, so two causes that happen to give the
- * same advice also collapse to one line. What the reader sees is the thing being deduplicated.
+ * Repeating the remedy under every failed variant was the first: both variants share a canvas, so
+ * both usually fail for the same reason, and the commonest failure of all printed the same
+ * forty-word paragraph twice — burying the one line that differed.
+ *
+ * Dropping the association entirely was the over-correction. With two variants failing for two
+ * different causes, the notice then showed two "could not be built" lines followed by two unlabelled
+ * remedies, and **nothing said which download each one was about** — while a rebuild button reading
+ * "Build the downloads again" implied it would help with both when only one could be retried.
+ *
+ * So each remedy carries the variants it covers. The caller labels the line when there is more than
+ * one group, and leaves it bare when there is only one, because a label that never varies is noise.
  */
 export const pageExportRemedies = (
 	attempts: readonly PageExportAttempt[]
-): string[] => [
-	...new Set(
-		pageExportFailures(attempts)
-			.map((failure) => failure.remedy)
-			.filter((remedy) => remedy.length > 0)
-	)
-];
+): PageExportRemedy[] => {
+	const grouped = new Map<string, OutputVariant[]>();
+	for (const failure of pageExportFailures(attempts)) {
+		if (failure.remedy.length === 0) continue;
+		const variants = grouped.get(failure.remedy);
+		if (variants) variants.push(failure.variant);
+		else grouped.set(failure.remedy, [failure.variant]);
+	}
+	return [...grouped].map(([remedy, variants]) => ({
+		remedy,
+		variants,
+		subject: asSentenceList(variants.map((variant) => SURVIVOR_NOUNS[variant]))
+	}));
+};
 
 /**
  * The developer's string behind the first packaging failure, or `null`.

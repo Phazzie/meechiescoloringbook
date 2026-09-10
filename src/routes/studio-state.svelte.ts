@@ -439,6 +439,15 @@ export class StudioState {
 	 */
 	private failureStamp = 0;
 	/**
+	 * The stamp the current packaging attempts were installed at, or `0` when none has failed.
+	 *
+	 * `$state` because `traceFailureDetail` derives from it. Ordering packaging against the three
+	 * classified failures is what stops a stale `textFailure` — which survives a page generation,
+	 * because neither `handleGeneratePage` nor `resetGeneratedPage` clears one — from masking the
+	 * packaging diagnostic beside the very notice reporting it.
+	 */
+	private packagingFailureStamp = $state(0);
+	/**
 	 * Which of the two page generators was last attempted, so a retry runs the same one.
 	 *
 	 * The studio makes pages two ways — from Meechie's words, and from a wig try-on portrait — and
@@ -924,10 +933,21 @@ export class StudioState {
 	 * stamp to join that ordering — and because a page that failed to generate has no packaging
 	 * attempt to report, so the two are not in practice competing.
 	 */
-	traceFailureDetail = $derived(
-		newestFailure([this.pageFailure, this.textFailure, this.tryOnFailure])?.detail ??
-			pageExportFailureDetail(this.packageAttempts)
-	);
+	traceFailureDetail = $derived.by((): string | null => {
+		const packaging = pageExportFailureDetail(this.packageAttempts);
+		const classified = newestFailure([
+			this.pageFailure,
+			this.textFailure,
+			this.tryOnFailure
+		]);
+		if (packaging === null) return classified?.detail ?? null;
+		if (classified === null) return packaging;
+		// Ordered, not preferred. A packaging failure is stamped from the same counter the three
+		// classified ones use, so "most recent" means the same thing for all four.
+		return this.packagingFailureStamp > stampOf(classified)
+			? packaging
+			: (classified.detail ?? packaging);
+	});
 	/**
 	 * Every portrait made from the current selfie, keyed by the wig it was made for.
 	 *
@@ -2305,15 +2325,14 @@ export class StudioState {
 		// a replaced page, because the only thing that makes an attempt stale is `resetGeneratedPage`,
 		// which clears this field on its way past.
 		this.pageFileBaseName = fileBaseName;
-		const attempts = await this.runPackaging(
+		await this.runPackaging(
 			STUDIO_EXPORT_VARIANTS,
 			images,
 			fileBaseName,
 			pageSize,
-			pageToken
+			pageToken,
+			(attempt) => this.installPackageAttempts([...this.packageAttempts, attempt])
 		);
-		if (attempts === null) return;
-		this.packageAttempts = attempts;
 	}
 
 	/**
@@ -2328,18 +2347,33 @@ export class StudioState {
 		images: GeneratedImage[],
 		fileBaseName: string,
 		pageSize: ColoringPageSpec['pageSize'],
-		pageToken: number
-	): Promise<PageExportAttempt[] | null> {
-		const attempts: PageExportAttempt[] = [];
+		pageToken: number,
+		install: (attempt: PageExportAttempt) => void
+	): Promise<void> {
 		for (const variant of variants) {
 			const attempt = await packagePageVariant(variant, images, fileBaseName, pageSize);
 			// Checked between variants, not only at the end: the square variant rasterises a fresh
 			// canvas, and starting that for a page the reader has already replaced spends time and
 			// memory on a result that is guaranteed to be thrown away.
-			if (pageToken !== this.pageLoadToken) return null;
-			attempts.push(attempt);
+			if (pageToken !== this.pageLoadToken) return;
+			install(attempt);
 		}
-		return attempts;
+	}
+
+	/**
+	 * Put packaging attempts on screen, and stamp them if any of them failed.
+	 *
+	 * The stamp is what lets `traceFailureDetail` order a packaging failure against the three
+	 * classified ones. Without it packaging was a bare fallback, so a `textFailure` left live by an
+	 * earlier action — neither `handleGeneratePage` nor `resetGeneratedPage` clears one — masked the
+	 * packaging diagnostic for good, and System Trace showed the older problem beside the newer
+	 * notice.
+	 */
+	private installPackageAttempts(attempts: PageExportAttempt[]): void {
+		this.packageAttempts = attempts;
+		if (pageExportFailureDetail(attempts) === null) return;
+		this.failureStamp += 1;
+		this.packagingFailureStamp = this.failureStamp;
 	}
 
 	/**
@@ -2372,15 +2406,19 @@ export class StudioState {
 		const token = this.pageLoadToken;
 		this.isRebuildingDownloads = true;
 		try {
-			const rebuilt = await this.runPackaging(
+			// Merged one at a time, against whatever the row currently holds rather than against the
+			// `previous` snapshot, so a variant that lands while a later one hangs is usable now.
+			await this.runPackaging(
 				variants,
 				images,
 				this.pageFileBaseName,
 				pageSize,
-				token
+				token,
+				(attempt) =>
+					this.installPackageAttempts(
+						mergeRebuiltAttempts(this.packageAttempts, [attempt])
+					)
 			);
-			if (rebuilt === null) return;
-			this.packageAttempts = mergeRebuiltAttempts(previous, rebuilt);
 		} finally {
 			// Only if this call still owns the paper — see `PageArtifactState.rebuildDownloads`.
 			if (token === this.pageLoadToken) this.isRebuildingDownloads = false;

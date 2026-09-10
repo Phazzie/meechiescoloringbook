@@ -702,30 +702,37 @@ export class PageArtifactState {
 		// after no page in particular. Cleared by `resetPage` on its way past, so a late attempt for
 		// a replaced page cannot revive it.
 		this.pageFileBaseName = fileBaseName;
-		const attempts = await this.runPackaging(
-			PAGE_EXPORT_VARIANTS,
-			images,
-			fileBaseName,
-			pageSize,
-			token
-		);
-		if (attempts === null) return;
 		// Recorded as attempts, and *not* into `generateError`. Both used to go there: a page that
 		// generated perfectly and then failed to become a square PNG rendered in the same crimson
 		// box, in the same place, as a page that never generated — directly above the button that
 		// buys another generation, for a failure in a free local render.
-		this.packageAttempts = attempts;
+		await this.runPackaging(
+			PAGE_EXPORT_VARIANTS,
+			images,
+			fileBaseName,
+			pageSize,
+			token,
+			(attempt) => {
+				this.packageAttempts = [...this.packageAttempts, attempt];
+			}
+		);
 	}
 
 	/**
-	 * Package the given variants, in order, and return the attempts — or `null` when the page was
-	 * replaced part-way and the late files belong to a page nobody is looking at.
+	 * Package the given variants, in order, installing each one **the moment it lands**.
 	 *
-	 * Returns rather than assigns, because the generation installs a whole new row and a rebuild
-	 * merges a subset back into the one on screen. Those are different installs of the same work.
+	 * Installing per attempt rather than returning the finished array is the difference between a
+	 * download the reader can use and one they cannot. The packaging adapter awaits
+	 * `image.onload`/`onerror` with no timeout, so a variant can hang forever — and with the whole
+	 * batch withheld until the last call returns, a rebuild whose PDF succeeded and whose share image
+	 * then hung showed the reader the **old** state: both still failed, the finished PDF invisible,
+	 * and the rebuild button disabled with nothing coming.
 	 *
-	 * One call per variant, never `variants: ['print', 'square']`: the seam returns on its first
-	 * error WITHOUT its accumulated files, so asking for both together loses the printable PDF
+	 * `install` differs by caller because the two installs differ: a generation appends to a row it
+	 * has just emptied, a rebuild merges a subset into the row on screen.
+	 *
+	 * One seam call per variant, never `variants: ['print', 'square']`: the adapter returns on its
+	 * first error WITHOUT its accumulated files, so asking for both together loses the printable PDF
 	 * whenever the square rasterisation is the thing that breaks. The PDF is the product.
 	 */
 	private async runPackaging(
@@ -733,9 +740,9 @@ export class PageArtifactState {
 		images: readonly GeneratedImage[],
 		fileBaseName: string,
 		pageSize: ToolPageRecipe['spec']['pageSize'],
-		token: number
-	): Promise<PageExportAttempt[] | null> {
-		const attempts: PageExportAttempt[] = [];
+		token: number,
+		install: (attempt: PageExportAttempt) => void
+	): Promise<void> {
 		for (const variant of variants) {
 			const attempt = await packagePageVariant(
 				variant,
@@ -746,10 +753,9 @@ export class PageArtifactState {
 			// Checked between variants, not only at the end: the square variant rasterises a 1080px
 			// canvas, and starting that for a page the reader has already replaced burns time and
 			// memory on a result that is guaranteed to be discarded.
-			if (token !== this.pageToken) return null;
-			attempts.push(attempt);
+			if (token !== this.pageToken) return;
+			install(attempt);
 		}
-		return attempts;
 	}
 
 	/**
@@ -783,15 +789,18 @@ export class PageArtifactState {
 		const token = this.pageToken;
 		this.isRebuildingDownloads = true;
 		try {
-			const rebuilt = await this.runPackaging(
+			// Merged one at a time, against whatever the row currently holds rather than against the
+			// `previous` snapshot, so a variant that lands while a later one hangs is usable now.
+			await this.runPackaging(
 				variants,
 				images,
 				this.pageFileBaseName,
 				pageSize,
-				token
+				token,
+				(attempt) => {
+					this.packageAttempts = mergeRebuiltAttempts(this.packageAttempts, [attempt]);
+				}
 			);
-			if (rebuilt === null) return;
-			this.packageAttempts = mergeRebuiltAttempts(previous, rebuilt);
 		} finally {
 			// Only if this call still owns the page. A stale rebuild has already been cleared by
 			// `advancePageToken`, and a NEW rebuild may be running on the new page by now — clearing

@@ -627,6 +627,41 @@ describe('StudioState', () => {
 		expect(studio.isRebuildingDownloads).toBe(false);
 	});
 
+	it('shows the packaging diagnostic even when an older text failure is still held', async () => {
+		// `textFailure` survives a page generation — neither `handleGeneratePage` nor
+		// `resetGeneratedPage` clears one — so an unconditional preference for the classified
+		// failures masked the packaging detail for good, and System Trace showed the older problem
+		// beside the newer export notice. Packaging is stamped from the same counter now, so
+		// "most recent" means the same thing for all four.
+		const studio = new StudioState();
+		// Through the public path, so the failure is stamped exactly as a real one is. Assigning the
+		// field directly would leave it unstamped, and an unstamped failure loses to everything —
+		// which would make this test pass whether or not packaging joined the ordering.
+		studio.evidence = 'He said the traffic was bad again.';
+		vi.stubGlobal(
+			'fetch',
+			vi.fn().mockRejectedValue(new Error('an older text problem'))
+		);
+		await studio.runTextAction('generate_text');
+		expect(studio.textFailure).not.toBeNull();
+		expect(studio.traceFailureDetail).toBe('an older text problem');
+
+		vi.spyOn(outputPackagingAdapter, 'package').mockResolvedValue({
+			ok: false,
+			error: { code: 'CANVAS_UNAVAILABLE', message: 'the newer packaging problem' }
+		});
+		await studio.loadCreation({
+			id: 'creation-trace-order',
+			createdAtISO: '2026-09-03T00:00:00.000Z',
+			intent: buildSeedSpec(DEFAULT_STUDIO_TEXT_OUTPUT),
+			assembledPrompt: 'the saved prompt',
+			images: [{ b64: ONE_PIXEL_PNG_BASE64 }],
+			owner: { kind: 'anonymous', sessionId: 'session-1' }
+		});
+
+		expect(studio.traceFailureDetail).toBe('the newer packaging problem');
+	});
+
 	it('feeds a packaging diagnostic to System Trace, where it is the only consumer', () => {
 		// `PageExportRow` never renders `failure.detail`, on purpose. So once packaging stopped
 		// writing its raw string onto the screen, the diagnostic had no consumer anywhere and

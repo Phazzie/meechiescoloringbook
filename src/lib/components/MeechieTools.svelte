@@ -450,9 +450,9 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 		images: readonly GeneratedImage[],
 		fileBaseName: string,
 		pageSize: ToolPageRecipe['spec']['pageSize'],
-		isStale: () => boolean
-	): Promise<PageExportAttempt[] | null> => {
-		const attempts: PageExportAttempt[] = [];
+		isStale: () => boolean,
+		install: (attempt: PageExportAttempt) => void
+	): Promise<void> => {
 		for (const variant of variants) {
 			const attempt = await packagePageVariant(
 				variant,
@@ -463,10 +463,9 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 			// Checked between variants, not only at the end: the square variant rasterises a fresh
 			// 1080px canvas, and starting that for a page the reader has already replaced spends time
 			// and memory on a result guaranteed to be thrown away.
-			if (isStale()) return null;
-			attempts.push(attempt);
+			if (isStale()) return;
+			install(attempt);
 		}
-		return attempts;
 	};
 
 	/**
@@ -496,15 +495,18 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 		const fileBaseName = pageFileBaseName;
 		isRebuildingDownloads = true;
 		try {
-			const rebuilt = await runPackaging(
+			// Merged one at a time, against whatever the row currently holds rather than against the
+			// `previous` snapshot, so a variant that lands while a later one hangs is usable now.
+			await runPackaging(
 				variants,
 				images,
 				fileBaseName,
 				pageSize,
-				() => token !== pageToken
+				() => token !== pageToken,
+				(attempt) => {
+					packageAttempts = mergeRebuiltAttempts(packageAttempts, [attempt]);
+				}
 			);
-			if (rebuilt === null) return;
-			packageAttempts = mergeRebuiltAttempts(previous, rebuilt);
 		} finally {
 			// Only if this call still owns the page — see `PageArtifactState.rebuildDownloads`.
 			if (token === pageToken) isRebuildingDownloads = false;
@@ -650,15 +652,16 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 			// generation has already succeeded, so a failure here never means the page failed —
 			// and reporting it in the field a failed generation uses, above the button that buys
 			// another one, is an invitation to pay again for a free local render.
-			const attempts = await runPackaging(
+			await runPackaging(
 				TOOL_EXPORT_VARIANTS,
 				images,
 				fileBaseName,
 				recipe.spec.pageSize,
-				isStale
+				isStale,
+				(attempt) => {
+					packageAttempts = [...packageAttempts, attempt];
+				}
 			);
-			if (attempts === null) return;
-			packageAttempts = attempts;
 		} catch (requestError) {
 			if (isStale()) return;
 			pageFailure = classifyPageFailure({ thrown: requestError });

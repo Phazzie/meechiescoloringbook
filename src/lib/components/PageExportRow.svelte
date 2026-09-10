@@ -77,9 +77,13 @@ Invariant: this component decides nothing. What each download is called, what it
 	const opening = $derived(summarisePageExportFailures(attempts));
 	const failures = $derived(pageExportFailures(attempts));
 	const rebuildLabel = $derived(pageExportRetryLabel(attempts));
-	// Once per distinct cause, not once per failed variant: both variants share a canvas, so both
+	// Grouped by advice, not repeated per failed variant: both variants share a canvas, so both
 	// usually fail for the same reason, and the remedy repeated verbatim buries the line that differs.
 	const remedies = $derived(pageExportRemedies(attempts));
+	// Labelled only when there is more than one, because a label that never varies is noise — and
+	// unlabelled when there are two was the over-correction: nothing then said which download each
+	// piece of advice was about.
+	const labelRemedies = $derived(remedies.length > 1);
 	// Measured from what this row is actually holding, never assumed. The claim used to live in the
 	// classifier as a per-variant constant, where "the printable download is unaffected" was a
 	// statement about an attempt that function never saw — and false whenever both variants failed.
@@ -133,9 +137,11 @@ Invariant: this component decides nothing. What each download is called, what it
 				</p>
 			{/each}
 			<!-- What to do about it, after everything that went wrong is named. -->
-			{#each remedies as remedy}
+			{#each remedies as entry}
 				<p class="export-notice-line" data-testid={`${testIdPrefix}-export-remedy`}>
-					{remedy}
+					{#if labelRemedies}<strong class="export-remedy-subject"
+							>For {entry.subject}:</strong
+						>{' '}{/if}{entry.remedy}
 				</p>
 			{/each}
 			{#if survivors}
@@ -268,6 +274,12 @@ Invariant: this component decides nothing. What each download is called, what it
 	.export-notice-line {
 		margin: 0;
 		line-height: 1.45;
+	}
+
+	/* The download a piece of advice is about, so two remedies cannot be read against the wrong one. */
+	.export-remedy-subject {
+		color: var(--gold-bright, #f0c44a);
+		font-weight: 700;
 	}
 
 	.export-rebuild {

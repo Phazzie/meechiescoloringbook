@@ -471,6 +471,36 @@ describe('makePage', () => {
 		expect(state.isRebuildingDownloads).toBe(false);
 	});
 
+	it('publishes a rebuilt download the moment it lands, without waiting for the next one', async () => {
+		// The packaging adapter awaits `image.onload`/`onerror` with no timeout, so a variant can hang
+		// forever. Holding the whole batch until the last call returned meant a rebuild whose PDF had
+		// already succeeded showed the reader the OLD state — both still failed, the finished PDF
+		// invisible, the button disabled and nothing coming.
+		vi.mocked(outputPackagingAdapter.package).mockRejectedValue(
+			new Error('out of memory')
+		);
+		const state = await withPage();
+		expect(state.packagedFiles).toEqual([]);
+
+		// Print resolves; square never settles.
+		vi.mocked(outputPackagingAdapter.package).mockImplementation(async (input) =>
+			input.variants?.includes('square')
+				? new Promise(() => {})
+				: { ok: true, value: { files: [printFile] } }
+		);
+		void state.rebuildDownloads();
+		// Two turns: one for the print call, one for its `.then`.
+		await Promise.resolve();
+		await Promise.resolve();
+		await Promise.resolve();
+
+		// The PDF is on screen and downloadable while the square is still hanging.
+		expect(state.packagedFiles).toEqual([printFile]);
+		expect(
+			pageExportFailures(state.packageAttempts).map((failure) => failure.variant)
+		).toEqual(['square']);
+	});
+
 	it('rebuilds only what failed, and never re-runs a download the reader already has', async () => {
 		// The regression the merge exists to stop. The commonest packaging failure is memory on a
 		// print sheet that is megapixels at 300dpi, and its commonest shape is "the PDF built, the

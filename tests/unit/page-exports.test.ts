@@ -713,7 +713,12 @@ describe('pageExportRemedies', () => {
 		]);
 
 		expect(remedies).toHaveLength(1);
-		expect(remedies[0]).toContain('costs nothing');
+		expect(remedies[0].remedy).toContain('costs nothing');
+		// And it names both downloads it covers, so grouping never costs the association.
+		expect(remedies[0].variants).toEqual(['print', 'square']);
+		expect(remedies[0].subject).toBe(
+			'the printable download and the square share image'
+		);
 	});
 
 	it('says both when the two variants failed for different reasons', () => {
@@ -723,8 +728,12 @@ describe('pageExportRemedies', () => {
 		]);
 
 		expect(remedies).toHaveLength(2);
-		expect(remedies[0]).toContain('costs nothing');
-		expect(remedies[1]).toContain('will not help');
+		expect(remedies[0].remedy).toContain('costs nothing');
+		expect(remedies[1].remedy).toContain('will not help');
+		// The association the first draft of the grouping threw away: with two remedies on screen,
+		// nothing said which download each one was about, under a button that could only retry one.
+		expect(remedies[0].subject).toBe('the printable download');
+		expect(remedies[1].subject).toBe('the square share image');
 	});
 
 	it('says nothing when nothing failed', () => {
@@ -743,7 +752,12 @@ describe('pageExportRemedies', () => {
 			{ variant: 'chat', files: [], failure: canvasFailure('chat'), pageSize: 'A4' }
 		]);
 
-		expect(new Set(remedies).size).toBe(remedies.length);
+		expect(new Set(remedies.map((entry) => entry.remedy)).size).toBe(
+			remedies.length
+		);
 		expect(remedies).toHaveLength(2);
+		// Grouped, so the two canvas failures share one line and name both their downloads.
+		expect(remedies[0].variants).toEqual(['print', 'chat']);
+		expect(remedies[1].variants).toEqual(['square']);
 	});
 });
