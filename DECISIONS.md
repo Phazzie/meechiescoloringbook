@@ -7,6 +7,35 @@ Info flow: Decision -> consequences -> future changes.
 
 Short, durable decisions with context and tradeoffs.
 
+## 2026-09-11 - The triage table's columns are addressed by name, and measured against `origin/main`
+
+- Date: 2026-09-11
+- Decision: `scripts/analyze-merge-conflicts.js` locates the cells it writes by header name
+  (`Merge status`, `Conflicting paths`), writes nothing else, measures with
+  `git merge-tree --write-tree --name-only origin/main <head>`, and guards `main()` with
+  `isEntryPoint`. `docs/triage-table.md` gains the conflicting-paths column so the status cell holds
+  exactly `CLEAN` or `CONFLICT`.
+- Context: the script addressed columns by fixed index - `parts[5]` was assumed to be a target
+  bucket and `parts[6]` was unconditionally replaced with a merge note. Refreshing the table after
+  its columns moved would therefore have destroyed every disposition in it, silently, which two
+  review bots caught on PR #356 before it could happen. Separately it built each test merge from
+  `git branch --show-current`, so the base was whatever was checked out while the table's own header
+  named `origin/main` at a specific commit; a stale local `main` produced statuses measured against
+  a base the table did not claim.
+- Alternatives: **(a) Restore the old column order.** Rejected: it preserves the coupling that
+  caused the defect, and the bucket vocabulary it encodes described a backlog triage that is over.
+  **(b) Keep the checkout-and-merge dance and document that it must run from a fresh `main`.**
+  Rejected: an unenforceable precondition on a script whose entire output is a factual claim.
+  `merge-tree` needs no checkout, no temporary branches and no clean worktree, so the precondition
+  disappears instead of being written down.
+- Consequences: the script is read-only against the working tree and can run from any branch. It
+  refuses to run at all if no `Merge status` column is found, rather than guessing which cells to
+  rewrite. The dropped clean-worktree check is no longer needed because nothing is checked out.
+  `tests/unit/analyze-merge-conflicts.test.ts` covers the helpers and reads the committed table, so
+  a future column change that breaks the writer fails a test instead of eating a disposition.
+- Revisit criteria: a table that needs the script to write a third column adds it to the two
+  exported column names, not to a position.
+
 ## 2026-09-11 - One safety keyword list, read by all three checks
 
 - Date: 2026-09-11
@@ -38,8 +67,8 @@ Short, durable decisions with context and tradeoffs.
 - Cipher Gate:
   - Date: 2026-09-11
   - Seams: SafetyPolicySeam
-  - Evidence: docs/evidence/2026-09-11/rewind-SafetyPolicySeam.txt; docs/evidence/2026-09-11/verify-outer.txt; docs/evidence/2026-09-11/verify.txt; docs/evidence/2026-09-11/test.txt; docs/evidence/2026-09-11/check.txt; docs/evidence/2026-09-11/lint.txt; docs/evidence/2026-09-11/build.txt; tests/unit/safety-keyword-parity.test.ts; tests/unit/constants.test.ts
-  - Summary: SafetyPolicySeam's 10 contract tests pass unchanged (rewind evidence above); the suite is 2064 passing across 113 files. The seam's contract, mock, fixtures, probe and contract tests are unchanged; only `policy.ts` changed, and only to delete the local keyword array so the implementation reads `SYSTEM_CONSTANTS.DISALLOWED_KEYWORDS` and nothing else. The two words it used to hold privately are now in that constant, which is what makes the other two routes enforce them. A new parity test drives both enforcement paths from the constant itself, so the next word added to one path and not the other fails a test.
+  - Evidence: docs/evidence/2026-09-11/rewind-SafetyPolicySeam.txt; docs/evidence/2026-09-11/redproof-safety-keyword-parity.txt; docs/evidence/2026-09-11/verify-outer.txt; docs/evidence/2026-09-11/verify.txt; docs/evidence/2026-09-11/test.txt; docs/evidence/2026-09-11/check.txt; docs/evidence/2026-09-11/lint.txt; docs/evidence/2026-09-11/build.txt; tests/unit/safety-keyword-parity.test.ts; tests/unit/constants.test.ts; tests/unit/analyze-merge-conflicts.test.ts
+  - Summary: SafetyPolicySeam's 10 contract tests pass unchanged (rewind evidence above); the suite is 2081 passing across 114 files. The seam's contract, mock, fixtures, probe and contract tests are unchanged; only `policy.ts` changed, and only to delete the local keyword array so the implementation reads `SYSTEM_CONSTANTS.DISALLOWED_KEYWORDS` and nothing else. The two words it used to hold privately are now in that constant, which is what makes the other two routes enforce them. A new parity test drives both enforcement paths from the constant itself, and `enforcedDisallowedKeywords` is exported so the test can assert **identity** with the shared array rather than equality of contents - reintroducing the original `[...SHARED, 'x']` shape fails it, proven by mutation in the red proof above.
   - Risks: The two newly-shared words widen what `/api/tools` and `/api/meechie-studio-text` refuse, so a request that worked yesterday can be refused today - intended, and the reason it is in `CHANGELOG.md`. Substring matching is unchanged and remains blunt: `'minors'` matches inside `'minorsuit'` and `'suicide'` inside a clinical phrase, and this change neither introduces nor fixes that. Widening the list widens that bluntness by two words, which is the cost of the parity being correct rather than a defect it adds.
 
 ## 2026-09-10 — Give the letterform one voice in the prompt, and give the reader the control

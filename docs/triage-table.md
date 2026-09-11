@@ -10,19 +10,22 @@ Info flow: `gh pr list` / merge tests against origin/main -> this table -> merge
 
 Last refreshed: **2026-09-11**, against `origin/main` at `f1a8c91`.
 
-Merge status is `git merge-tree --write-tree origin/main <head>`: **CLEAN** means git produced a
-tree, **CONFLICT** means it named conflicting paths. Every open PR below carries content `main` does
+Merge status and conflicting paths are written by `scripts/analyze-merge-conflicts.js`, which runs
+`git merge-tree --write-tree --name-only origin/main <head>` per row: **CLEAN** means git produced a
+tree, **CONFLICT** means it named files. Those two columns are the script's; the last two are a
+human's and the script never writes them. Re-running it refreshes the measurement without touching a
+disposition. Every open PR below carries content `main` does
 not have — none of them is a duplicate of something already merged, which is the thing worth
 checking first and the reason each row says what is missing rather than only that the PR is old.
 
-| PR | Title | Head | Merge status | Content `main` lacks | Disposition |
-| --- | --- | --- | --- | --- | --- |
-| #348 | chore(deps): bump @vitest/mocker 4.1.0 -> 4.1.11 | `dependabot/npm_and_yarn/npm_and_yarn-ea5d8ae93f` | CLEAN | The lockfile fix for GHSA-82fw-gwwq-j7x9 (`@vitest/mocker` path traversal, moderate). `npm audit` on `main` reports it. | **Superseded.** The same bump is on `claude/kind-volta-onychh`, regenerated against current `main` — dependabot's lockfile predates `52c5d7e`, which changed `package-lock.json`, so its lock would be a partial revert. Close once that lands. |
-| #338 | docs: record the Run 18 merge close-out | `claude/great-bell-iex3wp` | CONFLICT (`WORST_TO_BEST_LOG.md`, `plan.md`) | `main`'s log goes from `## Run 18` straight to `## Run 19` — Run 18 has no merge close-out entry. | **Port the log entry.** The log is append-only, so the conflict is a both-sides append, not a disagreement. |
-| #328 | Fix safety-keyword parity gap (closes #327) | `claude/trusting-volta-r7xqzl` | CONFLICT (docs and evidence only; the two source files are clean) | Nothing now. | **Superseded.** Ported to `claude/kind-volta-onychh` with the parity regression test this PR did not have. Close once that lands; #327 closes with it. |
-| #317 | feat(studio): bring back the question the draft's evidence was typed under | `claude/great-bell-k1i146` | CONFLICT | `DraftRecordSchema` on `main` still has no `modeId`, so a reopened draft's `chatMessage` is still restored under whichever mode the studio happens to open on. `src/lib/core/draft-restore.ts` does not exist on `main`. | **Port.** Real live defect, ~866 lines across 13 files including a seam contract — a full Seam-Driven Development port, not a cherry-pick. |
-| #308 | fix: a tracked evidence guard, and the eleven claims that needed one | `claude/great-bell-31hg5t` | CONFLICT | `scripts/evidence-guard.mjs`, `scripts/chain-intact.mjs` and their fixtures and tests are absent from `main`. | **Port.** Touches `.github/workflows/verify.yml` and `package.json`; 45 commits behind, so port the guard rather than merging the branch. |
-| #296 | Close out Run 4 of the worst-feature routine | `claude/great-bell-sntvn9` | CONFLICT | `main`'s log has Run 4's first and second close-outs and then jumps to Run 5 — `## Run 4, merged` and its six corrections are missing. | **Port the log entries.** Append-only, as #338. |
+| PR | Title | Head | Merge status | Conflicting paths | Content `main` lacks | Disposition |
+| --- | --- | --- | --- | --- | --- | --- |
+| #348 | chore(deps): bump @vitest/mocker 4.1.0 -> 4.1.11 | `dependabot/npm_and_yarn/npm_and_yarn-ea5d8ae93f` | CLEAN | — | The lockfile fix for GHSA-82fw-gwwq-j7x9 (`@vitest/mocker` path traversal, moderate). `npm audit` on `main` reports it. | **Superseded.** The same bump is on `claude/kind-volta-onychh`, regenerated against current `main` — dependabot's lockfile predates `52c5d7e`, which changed `package-lock.json`, so its lock would be a partial revert. Close once that lands. |
+| #338 | docs: record the Run 18 merge close-out | `claude/great-bell-iex3wp` | CONFLICT | plan.md, WORST_TO_BEST_LOG.md | `main`'s log goes from `## Run 18` straight to `## Run 19` — Run 18 has no merge close-out entry. | **Port the log entry.** The log is append-only, so the conflict is a both-sides append, not a disagreement. |
+| #328 | Fix safety-keyword parity gap (closes #327) | `claude/trusting-volta-r7xqzl` | CONFLICT | CHANGELOG.md, DECISIONS.md, docs/evidence/2026-09-07/* (11 files) | Nothing now. | **Superseded.** Ported to `claude/kind-volta-onychh` with the parity regression test this PR did not have. Close once that lands; #327 closes with it. |
+| #317 | feat(studio): bring back the question the draft's evidence was typed under | `claude/great-bell-k1i146` | CONFLICT | CHANGELOG.md, DECISIONS.md, LESSONS_LEARNED.md, plan.md, WORST_TO_BEST_LOG.md, docs/seams.md, docs/evidence/2026-09-07/* (14 files), src/lib/components/studio/StudioInputPanel.svelte | `DraftRecordSchema` on `main` still has no `modeId`, so a reopened draft's `chatMessage` is still restored under whichever mode the studio happens to open on. `src/lib/core/draft-restore.ts` does not exist on `main`. | **Port.** Real live defect, ~866 lines across 13 files including a seam contract — a full Seam-Driven Development port, not a cherry-pick. |
+| #308 | fix: a tracked evidence guard, and the eleven claims that needed one | `claude/great-bell-31hg5t` | CONFLICT | DECISIONS.md, WORST_TO_BEST_LOG.md, .github/workflows/verify.yml, docs/evidence/2026-09-06/* (15 files) | `scripts/evidence-guard.mjs`, `scripts/chain-intact.mjs` and their fixtures and tests are absent from `main`. | **Port.** Touches `.github/workflows/verify.yml` and `package.json`; 45 commits behind, so port the guard rather than merging the branch. |
+| #296 | Close out Run 4 of the worst-feature routine | `claude/great-bell-sntvn9` | CONFLICT | DECISIONS.md, plan.md, WORST_TO_BEST_LOG.md, docs/evidence/2026-09-05/* (19 files) | `main`'s log has Run 4's first and second close-outs and then jumps to Run 5 — `## Run 4, merged` and its six corrections are missing. | **Port the log entries.** Append-only, as #338. |
 
 ## What the previous version of this file said, and why it is gone
 
