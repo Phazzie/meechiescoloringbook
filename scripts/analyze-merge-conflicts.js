@@ -267,6 +267,42 @@ export const rewriteProvenance = (lines, { date, base }) => {
   return true;
 };
 
+/**
+ * Refresh every PR row, or none of them.
+ *
+ * All-or-nothing because the provenance line makes a claim about the **whole** table: measured on
+ * this date against this base. A run that skipped one unfetchable row and wrote the rest still
+ * rewrote that line, so the table presented a mixture of old and new measurements as one refresh and
+ * exited 0 — the reader has no way to tell which row is which. A partial refresh is not a refresh.
+ *
+ * The measurement is injected rather than called directly, so a test can drive the skip path without
+ * needing a PR that cannot be fetched.
+ *
+ * @param {string[]} lines
+ * @param {Record<string, number>} columns
+ * @param {{ pr: number, lineIndex: number }[]} prRows
+ * @param {(pr: number) => { status: 'CLEAN' | 'CONFLICT', conflictPaths: string[], failureNote?: string } | null} measure
+ * @returns {{ lines: string[] | null, skipped: number[], measured: { pr: number, status: string, fileCount: number }[] }}
+ *          `lines` is null when anything was skipped: there is nothing safe to write.
+ */
+export const refreshRows = (lines, columns, prRows, measure) => {
+  const next = [...lines];
+  /** @type {number[]} */
+  const skipped = [];
+  /** @type {{ pr: number, status: string, fileCount: number }[]} */
+  const measured = [];
+  for (const row of prRows) {
+    const result = measure(row.pr);
+    if (result === null) {
+      skipped.push(row.pr);
+      continue;
+    }
+    next[row.lineIndex] = rewriteRow(next[row.lineIndex], columns, result);
+    measured.push({ pr: row.pr, status: result.status, fileCount: result.conflictPaths.length });
+  }
+  return { lines: skipped.length > 0 ? null : next, skipped, measured };
+};
+
 async function main() {
   console.log(BANNER);
   console.log('PR Merge Conflict Analyzer');
@@ -307,26 +343,30 @@ async function main() {
   const baseSha = runCommand('git rev-parse --short origin/main').output;
   console.log(`Measuring ${prRows.length} PRs against origin/main (${baseSha}).\n`);
 
-  for (const row of prRows) {
-    const measured = measureAgainstMain(row.pr);
-    if (measured === null) {
-      console.warn(`[WARNING] Failed to fetch PR #${row.pr}. Leaving its row untouched.`);
-      continue;
-    }
-    lines[row.lineIndex] = rewriteRow(lines[row.lineIndex], columns, measured);
-    const fileCount = measured.conflictPaths.length;
-    const detail = fileCount > 0 ? ` (${fileCount} file(s))` : '';
-    console.log(`-> PR #${row.pr} is ${measured.status}${detail}.`);
+  const refreshed = refreshRows(lines, columns, prRows, measureAgainstMain);
+  for (const row of refreshed.measured) {
+    const detail = row.fileCount > 0 ? ` (${row.fileCount} file(s))` : '';
+    console.log(`-> PR #${row.pr} is ${row.status}${detail}.`);
   }
 
-  if (!rewriteProvenance(lines, { date: toDateFolder(new Date()), base: baseSha })) {
+  if (refreshed.lines === null) {
+    console.error(
+      `\n[ERROR] Could not measure PR(s) ${refreshed.skipped.map((pr) => `#${pr}`).join(', ')}. ` +
+        'Nothing written: the table is unchanged and still says which base it was measured against. ' +
+        'A refresh that skipped a row would present old and new measurements as one, with no way to ' +
+        'tell them apart. Fix the fetch, or remove a row that no longer names a fetchable PR.'
+    );
+    process.exit(1);
+  }
+
+  if (!rewriteProvenance(refreshed.lines, { date: toDateFolder(new Date()), base: baseSha })) {
     console.warn(
       `[WARNING] No line starting "${PROVENANCE_PREFIX}" to update; the table will not say which ` +
         'base these statuses were measured against.'
     );
   }
 
-  fs.writeFileSync(TRIAGE_TABLE_PATH, lines.join('\n'));
+  fs.writeFileSync(TRIAGE_TABLE_PATH, refreshed.lines.join('\n'));
   console.log(`\n${BANNER}`);
   console.log('Conflict analysis complete.');
   console.log(`Updated triage table: ${TRIAGE_TABLE_PATH}`);

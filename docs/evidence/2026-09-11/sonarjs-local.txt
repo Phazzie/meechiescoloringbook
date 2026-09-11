@@ -78,3 +78,26 @@ Sweep is recommended + S1192 over both scripts and every changed source file:
 
 Idempotence re-proved on this head: the analyzer run twice against the committed table left it
 byte-identical, dispositions, Dry-run answers and provenance line intact.
+
+SIXTH ROUND — after the Codex P2 on partial refreshes (one unfetchable row skipped, the rest
+written, provenance rewritten anyway, exit 0). The refresh is now all-or-nothing.
+
+Proof, run against the committed table with an extra row naming PR #999999, which cannot be
+fetched:
+  [ERROR] Could not measure PR(s) #999999. Nothing written: the table is unchanged and still says 
+  which base it was measured against. A refresh that skipped a row would present old and new 
+  measurements as one, with no way to tell them apart. Fix the fetch, or remove a row that no 
+  longer names a fetchable PR.
+  real exit status: 1
+  and every other row was byte-identical afterwards: nothing was written.
+
+Then the same run without that row: exit 0, table byte-identical, still idempotent.
+
+Sweep (recommended + S1192) on this head:
+
+/home/user/meechiescoloringbook/scripts/analyze-merge-conflicts.js
+  354:74  error  Refactor this code to not use nested template literals  sonarjs/no-nested-template-literals
+
+✖ 1 problem (1 error, 0 warnings)
+
+  (no output above this line: 0 problems, exit 1)

@@ -15,6 +15,7 @@ import {
 	parseConflictPaths,
 	parseTableColumns,
 	readTable,
+	refreshRows,
 	rewriteProvenance,
 	rewriteRow,
 	summarizeConflictPaths
@@ -276,6 +277,49 @@ describe('rewriteProvenance', () => {
 		const lines = ['# Title', ''];
 		expect(rewriteProvenance(lines, { date: '2026-09-11', base: 'f1a8c91' })).toBe(false);
 		expect(lines).toEqual(['# Title', '']);
+	});
+});
+
+describe('refreshRows', () => {
+	const lines = [HEADER, DIVIDER, CLEAN_ROW, '| #296 | t | h | CLEAN | — | yes | c | d |'];
+	const table = readTable(lines);
+	const prRows = table?.prRows ?? [];
+	const columns = table?.columns ?? {};
+
+	it('rewrites every row when every row could be measured', () => {
+		const refreshed = refreshRows(lines, columns, prRows, () => ({
+			status: 'CONFLICT',
+			conflictPaths: ['plan.md']
+		}));
+		expect(refreshed.skipped).toEqual([]);
+		expect(refreshed.lines?.[2].split('|')[4].trim()).toBe('CONFLICT');
+		expect(refreshed.lines?.[3].split('|')[4].trim()).toBe('CONFLICT');
+		expect(refreshed.measured.map((row) => row.pr)).toEqual([348, 296]);
+	});
+
+	// The defect: one unfetchable row was skipped, the rest were written, and the provenance line was
+	// rewritten anyway — so the table claimed one date and base for a mixture of old and new
+	// measurements, and exited 0. All-or-nothing is what makes that line's claim true.
+	it('writes nothing at all when any row could not be measured', () => {
+		const refreshed = refreshRows(lines, columns, prRows, (pr) =>
+			pr === 296 ? null : { status: 'CONFLICT', conflictPaths: ['plan.md'] }
+		);
+		expect(refreshed.lines).toBeNull();
+		expect(refreshed.skipped).toEqual([296]);
+	});
+
+	it('names every row it could not measure, not just the first', () => {
+		const refreshed = refreshRows(lines, columns, prRows, () => null);
+		expect(refreshed.skipped).toEqual([348, 296]);
+		expect(refreshed.lines).toBeNull();
+	});
+
+	it('leaves the caller\u2019s array untouched, so an aborted refresh cannot half-apply', () => {
+		const original = [...lines];
+		refreshRows(lines, columns, prRows, (pr) =>
+			pr === 296 ? null : { status: 'CONFLICT', conflictPaths: ['plan.md'] }
+		);
+		expect(lines).toEqual(original);
 	});
 });
 
