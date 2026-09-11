@@ -21,6 +21,11 @@ import {
 import { selectCleanCandidates } from '../../scripts/validate-pr-backlog.js';
 
 const HEADER = '| PR | Title | Head | Merge status | Conflicting paths | Content lacks | Disposition |';
+const DIVIDER = '| --- | --- | --- | --- | --- | --- | --- |';
+// Named because several tests need the same ones, and a fixture repeated verbatim is a fixture
+// nobody can change in one place.
+const CLEAN_ROW = '| #348 | t | h | CLEAN | — | c | d |';
+const CONFLICTED_LOG = 'WORST_TO_BEST_LOG.md';
 
 describe('parseTableColumns', () => {
 	it('maps header names to their index in the split parts', () => {
@@ -46,7 +51,7 @@ describe('rewriteRow', () => {
 		const row = '| #338 | docs: a title | `a-branch` | CLEAN | — | a gap | **Port it.** |';
 		const rewritten = rewriteRow(row, columns, {
 			status: 'CONFLICT',
-			conflictPaths: ['plan.md', 'WORST_TO_BEST_LOG.md']
+			conflictPaths: ['plan.md', CONFLICTED_LOG]
 		});
 		const cells = rewritten.split('|');
 		expect(cells[4].trim()).toBe('CONFLICT');
@@ -100,13 +105,13 @@ describe('parseConflictPaths', () => {
 	it('takes the filenames between the tree id and git’s own messages', () => {
 		const output = [
 			'96ac2bceb72a3f78cf42a038105be718a066297d',
-			'WORST_TO_BEST_LOG.md',
+			CONFLICTED_LOG,
 			'plan.md',
 			'',
 			'Auto-merging WORST_TO_BEST_LOG.md',
 			'CONFLICT (content): Merge conflict in WORST_TO_BEST_LOG.md'
 		].join('\n');
-		expect(parseConflictPaths(output)).toEqual(['WORST_TO_BEST_LOG.md', 'plan.md']);
+		expect(parseConflictPaths(output)).toEqual([CONFLICTED_LOG, 'plan.md']);
 	});
 
 	it('returns nothing for a clean merge, whose output is the tree id alone', () => {
@@ -141,8 +146,8 @@ describe('readTable', () => {
 			'# Live PR Triage Table',
 			'',
 			HEADER,
-			'| --- | --- | --- | --- | --- | --- | --- |',
-			'| #348 | t | h | CLEAN | — | c | d |',
+			DIVIDER,
+			CLEAN_ROW,
 			'| #296 | t | h | CONFLICT | a.md | c | d |',
 			'',
 			'## Prose that mentions #175 but is not a row'
@@ -160,7 +165,7 @@ describe('readTable', () => {
 	});
 
 	it('ignores PR-looking rows above the header', () => {
-		const table = readTable(['| #99 | a row in an example block |', HEADER, '| #348 | t | h | CLEAN | — | c | d |']);
+		const table = readTable(['| #99 | a row in an example block |', HEADER, CLEAN_ROW]);
 		expect(table?.prRows).toEqual([{ pr: 348, lineIndex: 2 }]);
 	});
 });
@@ -170,8 +175,8 @@ describe('selectCleanCandidates', () => {
 		expect(
 			selectCleanCandidates([
 				HEADER,
-				'| --- | --- | --- | --- | --- | --- | --- |',
-				'| #348 | t | h | CLEAN | — | c | d |',
+				DIVIDER,
+				CLEAN_ROW,
 				'| #338 | t | h | CONFLICT | plan.md | c | d |',
 				'| #296 | t | h | CLEAN | — | c | d |'
 			])

@@ -19,6 +19,9 @@ import { isEntryPoint } from './evidence-reporting.mjs';
 
 const TRIAGE_TABLE_PATH = path.resolve('docs/triage-table.md');
 
+/** The banner this tool prints around its own output, four times. */
+const BANNER = '='.repeat(50);
+
 /** The two columns this script writes. Everything else in a row belongs to whoever wrote it. */
 export const STATUS_COLUMN = 'merge status';
 export const CONFLICT_PATHS_COLUMN = 'conflicting paths';
@@ -210,9 +213,9 @@ export const measureAgainstMain = (pr) => {
 };
 
 async function main() {
-  console.log('==================================================');
+  console.log(BANNER);
   console.log('PR Merge Conflict Analyzer');
-  console.log('==================================================\n');
+  console.log(`${BANNER}\n`);
 
   if (!fs.existsSync(TRIAGE_TABLE_PATH)) {
     console.error(`Triage table not found at: ${TRIAGE_TABLE_PATH}`);
@@ -262,10 +265,10 @@ async function main() {
   }
 
   fs.writeFileSync(TRIAGE_TABLE_PATH, lines.join('\n'));
-  console.log('\n==================================================');
+  console.log(`\n${BANNER}`);
   console.log('Conflict analysis complete.');
   console.log(`Updated triage table: ${TRIAGE_TABLE_PATH}`);
-  console.log('==================================================');
+  console.log(BANNER);
 }
 
 // Guarded so a test can import the helpers above without running the analyzer and rewriting the

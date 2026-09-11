@@ -5,7 +5,7 @@ Info flow: evidence files -> summary -> review.
 -->
 # Proof Tape
 
-Generated at: 2026-09-11T22:26:54.990Z
+Generated at: 2026-09-11T22:35:10.042Z
 Evidence folder: docs/evidence/2026-09-11
 
 Files included (this tape's own outputs, proof-tape.json and proof-tape.md, are written
@@ -27,14 +27,14 @@ writing while this runs and would therefore always be listed short):
 - lint.txt (48 bytes) — PREDATES THIS VERIFY RUN
   Commands: meechies-coloringbook@0.1.0 lint | eslint .
 - redproof-safety-keyword-parity.txt (1936 bytes) — PREDATES THIS VERIFY RUN
-- rewind-SafetyPolicySeam.txt (400 bytes) — PREDATES THIS VERIFY RUN
+- rewind-SafetyPolicySeam.txt (401 bytes) — PREDATES THIS VERIFY RUN
 - seam-ledger.json (37511 bytes)
 - seam-ledger.md (2981 bytes)
-- shaolin-lint.json (517 bytes)
-- sonarjs-local.txt (1360 bytes) — PREDATES THIS VERIFY RUN
-- test.txt (3134 bytes)
+- shaolin-lint.json (519 bytes)
+- sonarjs-local.txt (3026 bytes) — PREDATES THIS VERIFY RUN
+- test.txt (3135 bytes)
   Commands: meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
-- verify.txt (3459 bytes)
+- verify.txt (3460 bytes)
   Commands: meechies-coloringbook@0.1.0 check | svelte-kit sync && svelte-check --tsconfig ./tsconfig.json | meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
 
 Older than this run's chamber-lock.json: build.txt, check.txt, cipher-gate-run.txt, cipher-gate.json, lint.txt, redproof-safety-keyword-parity.txt, rewind-SafetyPolicySeam.txt, sonarjs-local.txt.

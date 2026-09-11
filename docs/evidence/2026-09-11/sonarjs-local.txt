@@ -23,3 +23,35 @@ selection defect and clears that pre-existing finding as well.
 
 AFTER — both scripts, same rule set:
   (no output above this line: 0 problems, exit 0)
+
+THIRD ROUND — SonarCloud still reported "2 New issues" on 4f53dba and dbe25fa while the
+recommended-rule sweep was clean, so the sweep was widened: every rule the plugin ships (279)
+rather than the 217 that recommended enables. The check run carries no annotations and
+sonarcloud.io is refused by this container, so which two Sonar means cannot be read directly.
+
+Most of the extra 62 rules are project-wide style the repo violates everywhere (file-header,
+no-tab, arrow-function-convention, cyclomatic-complexity at 10) — Sonar reports 2, not hundreds,
+so those are not in its profile. One extra rule is squarely in Sonar way and fires only on this
+PR's changed files: S1192 / sonarjs/no-duplicate-string.
+
+  tests/unit/analyze-merge-conflicts.test.ts  'WORST_TO_BEST_LOG.md' x3, the CLEAN row x3
+  scripts/analyze-merge-conflicts.js          the 50-char banner x4
+
+Fixed by naming each: CONFLICTED_LOG, CLEAN_ROW, DIVIDER, BANNER. This is a hypothesis about
+Sonar's count, not a reading of it — the next analysis is what confirms or refutes it.
+
+S1192 across this PR's changed code files, after:
+  (no output above this line: 0 problems, exit 0)
+
+And the recommended set, still clean:
+  (no output above this line: 0 problems, exit 0)
+
+End-to-end proof that neither fix broke the writer: node scripts/analyze-merge-conflicts.js
+run against the committed table reproduced it byte-for-byte (git diff empty), with all six
+dispositions intact:
+  -> PR #348 is CLEAN.
+  -> PR #338 is CONFLICT (2 file(s)).
+  -> PR #328 is CONFLICT (13 file(s)).
+  -> PR #317 is CONFLICT (21 file(s)).
+  -> PR #308 is CONFLICT (18 file(s)).
+  -> PR #296 is CONFLICT (22 file(s)).
