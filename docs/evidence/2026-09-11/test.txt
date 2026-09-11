@@ -12,9 +12,9 @@ $ npm test -- --pool=forks --maxWorkers=1
 
 
  Test Files  114 passed | 1 skipped (115)
-      Tests  2095 passed | 1 skipped (2096)
-   Start at  22:41:45
-   Duration  97.63s (transform 3.97s, setup 994ms, import 8.00s, tests 8.61s, environment 62.09s)
+      Tests  2099 passed | 1 skipped (2100)
+   Start at  22:48:24
+   Duration  97.78s (transform 3.96s, setup 938ms, import 7.96s, tests 8.61s, environment 62.49s)
 
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package

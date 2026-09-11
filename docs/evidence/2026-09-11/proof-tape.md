@@ -5,7 +5,7 @@ Info flow: evidence files -> summary -> review.
 -->
 # Proof Tape
 
-Generated at: 2026-09-11T22:43:23.388Z
+Generated at: 2026-09-11T22:50:02.276Z
 Evidence folder: docs/evidence/2026-09-11
 
 Files included (this tape's own outputs, proof-tape.json and proof-tape.md, are written
@@ -27,11 +27,11 @@ writing while this runs and would therefore always be listed short):
 - lint.txt (48 bytes) — PREDATES THIS VERIFY RUN
   Commands: meechies-coloringbook@0.1.0 lint | eslint .
 - redproof-safety-keyword-parity.txt (1936 bytes) — PREDATES THIS VERIFY RUN
-- rewind-SafetyPolicySeam.txt (400 bytes) — PREDATES THIS VERIFY RUN
+- rewind-SafetyPolicySeam.txt (399 bytes) — PREDATES THIS VERIFY RUN
 - seam-ledger.json (37511 bytes)
 - seam-ledger.md (2981 bytes)
 - shaolin-lint.json (519 bytes)
-- sonarjs-local.txt (3530 bytes) — PREDATES THIS VERIFY RUN
+- sonarjs-local.txt (4432 bytes) — PREDATES THIS VERIFY RUN
 - test.txt (3134 bytes)
   Commands: meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
 - verify.txt (3459 bytes)

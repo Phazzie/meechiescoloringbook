@@ -40,21 +40,32 @@ export const CONFLICT_PATHS_COLUMN = 'conflicting paths';
 /**
  * Run a git command, returning its output either way rather than throwing.
  *
+ * `stdout` and `stderr` are kept apart as well as combined. That is not tidiness: `output` used to be
+ * the only field, and on an operational failure - an invalid ref, an option this git does not know -
+ * it began with an empty line where stdout would have been, so `parseConflictPaths` dropped that line
+ * as if it were the tree id and read the *stderr message* as a conflicting filename. The table then
+ * recorded `CONFLICT` with an error string under conflicting paths, which is a measurement the
+ * command never made.
+ *
  * @param {string} command
- * @returns {{ success: boolean, output: string }}
+ * @returns {{ success: boolean, output: string, stdout: string, stderr: string }}
  */
 export function runCommand(command) {
   try {
     const stdout = execSync(command, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
-    return { success: true, output: stdout.trim() };
+    return { success: true, output: stdout.trim(), stdout: stdout.trim(), stderr: '' };
   } catch (error) {
     // execSync throws an Error carrying the child's captured streams. Narrowed here rather than
     // dereferenced off `unknown`, which is what the typechecker reported once a test imported this
     // file and pulled it into the checked graph.
     const failure = /** @type {{ stdout?: string, stderr?: string, message?: string }} */ (error);
+    const stdout = (failure.stdout ?? '').trim();
+    const stderr = (failure.stderr ?? '').trim();
     return {
       success: false,
-      output: `${failure.stdout ?? ''}\n${failure.stderr ?? ''}\n${failure.message ?? ''}`
+      output: `${failure.stdout ?? ''}\n${failure.stderr ?? ''}\n${failure.message ?? ''}`,
+      stdout,
+      stderr: stderr.length > 0 ? stderr : (failure.message ?? '')
     };
   }
 }
@@ -109,16 +120,24 @@ export const rewriteRow = (originalLine, columns, measured) => {
 };
 
 /**
- * Parse `git merge-tree --write-tree --name-only` output for a conflicted merge.
+ * Parse the **stdout** of `git merge-tree --write-tree --name-only` for a conflicted merge.
  *
  * The first line is the tree object id; the conflicted paths follow, one per line, until the blank
- * line that separates them from git's own messages.
+ * line separating them from git's own messages.
  *
- * @param {string} output
- * @returns {string[]}
+ * Returns `null` rather than `[]` when the first line is not a tree id, because the two mean opposite
+ * things and this function used to conflate them. A clean merge and a conflicted one both print an id;
+ * a command that failed operationally prints nothing on stdout, and treating that as "a conflicted
+ * merge with no files named" is how an invalid ref got recorded as a real CONFLICT measurement.
+ *
+ * @param {string} stdout the command's stdout alone - never stdout and stderr combined
+ * @returns {string[] | null} the conflicted paths, or null if this is not a merge-tree result
  */
-export const parseConflictPaths = (output) => {
-  const [, ...rest] = output.split('\n');
+export const parseConflictPaths = (stdout) => {
+  const [treeId, ...rest] = stdout.split('\n');
+  if (!/^[0-9a-f]{40}$/.test(treeId.trim())) {
+    return null;
+  }
   /** @type {string[]} */
   const paths = [];
   for (const line of rest) {
@@ -211,14 +230,23 @@ export const measureAgainstMain = (pr) => {
   if (merge.success) {
     return { status: 'CLEAN', conflictPaths: [] };
   }
-  const conflictPaths = parseConflictPaths(merge.output);
-  const collapsed = merge.output.replaceAll(/\s+/g, ' ').trim();
+  // Non-zero from merge-tree means either "conflicts" or "this did not run". Only the first prints a
+  // tree id on stdout, and only the first is a measurement worth writing into the table.
+  const conflictPaths = parseConflictPaths(merge.stdout);
+  if (conflictPaths === null) {
+    const collapsed = merge.stderr.replaceAll(/\s+/g, ' ').trim();
+    return {
+      status: 'CONFLICT',
+      conflictPaths: [],
+      failureNote: `merge-tree did not run: ${collapsed}`
+    };
+  }
   return {
     status: 'CONFLICT',
     conflictPaths,
     failureNote:
       conflictPaths.length === 0
-        ? `merge-tree failed without naming files: ${collapsed}`
+        ? 'merge-tree reported a conflict but named no files'
         : undefined
   };
 };

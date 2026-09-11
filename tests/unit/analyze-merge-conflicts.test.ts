@@ -90,9 +90,12 @@ describe('rewriteRow', () => {
 		const cells = rewriteRow(row, columns, {
 			status: 'CONFLICT',
 			conflictPaths: [],
-			failureNote: 'merge-tree failed without naming files: fatal: not a valid object'
+			failureNote: 'merge-tree did not run: not something we can merge'
 		}).split('|');
-		expect(cells[5].trim()).toMatch(/^merge-tree failed without naming files:/);
+		expect(cells[5].trim()).toBe('merge-tree did not run: not something we can merge');
+		// The note replaces the path list rather than joining it, so no error text can be mistaken
+		// for a filename in the column a reader scans for filenames.
+		expect(cells[5]).not.toContain('—');
 	});
 
 	it('never emits a pipe inside a cell, which would split the row', () => {
@@ -121,6 +124,29 @@ describe('parseConflictPaths', () => {
 
 	it('returns nothing for a clean merge, whose output is the tree id alone', () => {
 		expect(parseConflictPaths('d2c0f80fd6a2e9f062fa9a16982605b3b9ef66df')).toEqual([]);
+	});
+
+	// The defect: `runCommand` used to expose only stdout and stderr combined, so an operational
+	// failure — an invalid ref, an unknown option — produced an empty first line where the tree id
+	// belonged. This function dropped that line and read git's error message as a filename, and the
+	// table recorded CONFLICT with an error string under conflicting paths. Reproduced on git 2.43.
+	it('refuses output whose first line is not a tree id, rather than reading an error as a filename', () => {
+		const combined =
+			'\nmerge-tree: refs/does-not-exist - not something we can merge\n\nCommand failed: git merge-tree';
+		expect(parseConflictPaths(combined)).toBeNull();
+	});
+
+	it('refuses a stderr message on its own', () => {
+		expect(parseConflictPaths('merge-tree: refs/nope - not something we can merge')).toBeNull();
+	});
+
+	it('refuses empty stdout, which is what a command that never ran leaves behind', () => {
+		expect(parseConflictPaths('')).toBeNull();
+	});
+
+	it('distinguishes null from an empty list, because they mean opposite things', () => {
+		// [] is "a conflicted merge that named no files"; null is "this was not a merge-tree result".
+		expect(parseConflictPaths('d2c0f80fd6a2e9f062fa9a16982605b3b9ef66df')).not.toBeNull();
 	});
 });
 

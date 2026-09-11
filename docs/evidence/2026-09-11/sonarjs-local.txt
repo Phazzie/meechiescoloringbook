@@ -64,3 +64,17 @@ every changed source file:
 Idempotence proof for the writer, run twice against the committed table: the second run
 produced a byte-identical file (diff empty), so neither the six dispositions, the six Dry-run
 answers, nor the provenance line drift on a refresh.
+
+FIFTH ROUND — after the Codex P2 on merge-tree operational failures (stderr read as a
+conflicting filename). Reproduced here on git 2.43 before the fix:
+  runCommand('git merge-tree --write-tree --name-only origin/main refs/does-not-exist')
+  output: "\nmerge-tree: refs/does-not-exist - not something we can merge\n\nCommand failed: ..."
+  parseConflictPaths(output) -> ["merge-tree: refs/does-not-exist - not something we can merge"]
+  so the cell read that error string and failureNote never fired.
+After: stdout is kept separate and is empty, parseConflictPaths returns null, and the note fires.
+
+Sweep is recommended + S1192 over both scripts and every changed source file:
+  (no output above this line: 0 problems, exit 0)
+
+Idempotence re-proved on this head: the analyzer run twice against the committed table left it
+byte-identical, dispositions, Dry-run answers and provenance line intact.
