@@ -78,13 +78,36 @@ export function runCommand(command) {
  * Head cell as the status and found no candidates, and `rewriteRow` wrote `CONFLICT` **into the Head
  * column**, silently corrupting the row it was asked to refresh.
  *
- * Round-trips: the pieces keep their `\|` sequences, so `parts.join('|')` reproduces the input
- * exactly, which is what lets `rewriteRow` replace two cells and leave the rest byte-identical.
+ * **Escaping is decided by the parity of the backslash run**, not by the single character before the
+ * pipe. A lookbehind for one backslash was wrong for a cell ending in a literal backslash: in
+ * `| a\\| b |` the `\\` is an *escaped backslash*, so that pipe is a delimiter - and the lookbehind
+ * suppressed it, merging two cells. An odd run escapes the pipe; an even run does not.
+ *
+ * Round-trips: cell contents are preserved verbatim and each delimiter contributed exactly one `|`, so
+ * `parts.join('|')` reproduces the input exactly - which is what lets `rewriteRow` replace two cells
+ * and leave the rest byte-identical.
  *
  * @param {string} line
  * @returns {string[]}
  */
-export const splitRow = (line) => line.split(/(?<!\\)\|/);
+export const splitRow = (line) => {
+  /** @type {string[]} */
+  const cells = [];
+  let current = '';
+  let backslashes = 0;
+  for (const char of line) {
+    if (char === '|' && backslashes % 2 === 0) {
+      cells.push(current);
+      current = '';
+      backslashes = 0;
+      continue;
+    }
+    backslashes = char === '\\' ? backslashes + 1 : 0;
+    current += char;
+  }
+  cells.push(current);
+  return cells;
+};
 
 /**
  * Make text safe to put in a table cell, without altering what it says.

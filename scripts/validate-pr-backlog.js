@@ -6,7 +6,13 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { STATUS_COLUMN, readTable, runCommand, splitRow } from './analyze-merge-conflicts.js';
+import {
+  STATUS_COLUMN,
+  findMalformedRows,
+  readTable,
+  runCommand,
+  splitRow
+} from './analyze-merge-conflicts.js';
 import { isEntryPoint } from './evidence-reporting.mjs';
 
 // Configuration
@@ -47,6 +53,20 @@ export const selectCleanCandidates = (lines) => {
   const table = readTable(lines);
   if (table === null) {
     return { candidates: [], reason: `no "${STATUS_COLUMN}" column in the triage table` };
+  }
+  // The analyzer rejects a row whose width does not match the header; this reader must too. It is the
+  // *same* malformed row, and a row of the wrong width shifts every index — so without this the
+  // selection reads the wrong cells, finds nothing, returns no reason, and `main` exits 0 as though
+  // the backlog were legitimately empty. A rule a parser gains belongs to every reader of the format.
+  const malformed = findMalformedRows(lines, table.headerIndex, table.prRows);
+  if (malformed.length > 0) {
+    const named = malformed.map((row) => `#${row.pr} (${row.cells} cells)`).join(', ');
+    return {
+      candidates: [],
+      reason:
+        `these rows are not the header's width: ${named}. Every column index comes from the header, ` +
+        'so their cells cannot be read in the right places'
+    };
   }
   const dryRunIndex = table.columns[DRY_RUN_COLUMN];
   if (dryRunIndex === undefined) {

@@ -59,6 +59,30 @@ describe('splitRow', () => {
 	// The defect: a PR title may contain an escaped pipe, and split('|') treated it as a separator —
 	// shifting every cell after it. The selection then read the Head cell as the merge status and
 	// found no candidates, and rewriteRow wrote CONFLICT into the Head column.
+	// The defect: escaping was decided by a lookbehind for one backslash. A cell ending in a literal
+	// backslash puts an EVEN run before the delimiter — `| a\\\\| b |` is "a\\" then a real delimiter —
+	// and the lookbehind suppressed it, merging two cells. Parity of the run is the rule.
+	it('treats a pipe after an even backslash run as a delimiter', () => {
+		expect(splitRow('| a \\\\| b |')).toHaveLength(4);
+	});
+
+	it('treats a pipe after an odd backslash run as escaped', () => {
+		expect(splitRow('| a \\| b |')).toHaveLength(3);
+		expect(splitRow('| a \\\\\\| b |')).toHaveLength(3);
+	});
+
+	it('round-trips every escaping shape through join', () => {
+		for (const line of [
+			'| a | b |',
+			'| a \\| b |',
+			'| a \\\\| b |',
+			'| a \\\\\\| b |',
+			'| plan.md, WORST_TO_BEST_LOG.md |'
+		]) {
+			expect(splitRow(line).join('|')).toBe(line);
+		}
+	});
+
 	it('keeps an escaped pipe inside its cell', () => {
 		expect(splitRow('| #400 | fix parser \\| safely | CLEAN |')).toEqual([
 			'',
@@ -445,6 +469,25 @@ describe('an escaped pipe in a title', () => {
 		expect(cells[4].trim()).toBe('CONFLICT');
 		expect(cells[5].trim()).toBe('x.md');
 		expect(cells[2].trim()).toBe('fix parser \\| safely');
+	});
+});
+
+describe('selectCleanCandidates on a malformed table', () => {
+	// The rule this PR wrote down and then failed to apply to its own second reader: a rule a parser
+	// gains belongs to every reader of the format. The analyzer rejected this row; the validator read
+	// shifted cells, found nothing, returned no reason, and main exited 0 as if the backlog were empty.
+	it('gives a reason for a row that is not the header\u2019s width', () => {
+		const result = selectCleanCandidates([
+			HEADER,
+			'| #348 | title | CLEAN | — | yes | content | disposition |'
+		]);
+		expect(result.candidates).toEqual([]);
+		expect(result.reason).toContain('#348');
+		expect(result.reason).toContain('9 cells');
+	});
+
+	it('still selects a well-formed row beside none', () => {
+		expect(selectCleanCandidates([HEADER, CLEAN_ROW]).candidates).toEqual([348]);
 	});
 });
 

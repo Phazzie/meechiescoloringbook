@@ -199,3 +199,35 @@ Sweep (recommended + S1192) on this head:
 ✖ 3 problems (3 errors, 0 warnings)
 
   (no output above this line: 0 problems, exit 1)
+
+ELEVENTH ROUND — two Codex P2s on df01aff.
+
+A. splitRow decided escaping with a lookbehind for ONE backslash, which is wrong for a cell ending
+   in a literal backslash: in '| a \\\\| b |' the '\\\\' is an escaped backslash, so that pipe IS a
+   delimiter. Before: 3 cells (two merged). After, by backslash-run parity: 4 cells.
+   All four shapes round-trip through join('|'):
+     '| a | b |'          -> 4 cells
+     '| a \\\\| b |'       -> 4 cells   (even run: delimiter)
+     '| a \\| b |'         -> 3 cells   (odd run: escaped)
+     '| a \\\\\\| b |'     -> 3 cells   (odd run: escaped)
+
+B. validate-pr-backlog.js never called findMalformedRows, so the row the analyzer now rejects was
+   still accepted by the second reader — it read shifted cells, found nothing, returned NO reason,
+   and main exited 0 as though the backlog were legitimately empty. This is a direct instance of the
+   rule written in DECISIONS.md the round before (a rule a parser gains belongs to every reader of
+   the format), not applied to this PR's own second reader.
+   before: selectCleanCandidates -> {"candidates":[]}                   (no reason; exit 0)
+   after:  selectCleanCandidates -> reason naming '#348 (9 cells)'      (exit 1)
+
+Sweep (recommended + S1192) on this head:
+
+/home/user/meechiescoloringbook/scripts/analyze-merge-conflicts.js
+  397:16  error  Refactor this function to reduce its Cognitive Complexity from 16 to the 15 allowed  sonarjs/cognitive-complexity
+
+/home/user/meechiescoloringbook/tests/unit/analyze-merge-conflicts.test.ts
+  113:32  error  Define a constant instead of duplicating this literal 3 times  sonarjs/no-duplicate-string
+  385:28  error  Define a constant instead of duplicating this literal 5 times  sonarjs/no-duplicate-string
+
+✖ 3 problems (3 errors, 0 warnings)
+
+  (no output above this line: 0 problems, exit 1)
