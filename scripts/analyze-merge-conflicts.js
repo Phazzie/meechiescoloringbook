@@ -87,6 +87,19 @@ export function runCommand(command) {
 export const splitRow = (line) => line.split(/(?<!\\)\|/);
 
 /**
+ * Make text safe to put in a table cell, without altering what it says.
+ *
+ * A conflicted filename may legitimately contain a pipe. This used to replace it with `/`, which
+ * records `a/b.md` for `a|b.md` — a different file, in the column a reader trusts to name files.
+ * Escaping keeps the name and `splitRow` reads it back as one cell. Backslashes are escaped first, so
+ * escaping cannot be undone by a backslash already in the name.
+ *
+ * @param {string} text
+ * @returns {string}
+ */
+export const escapeCell = (text) => text.replaceAll('\\', '\\\\').replaceAll('|', '\\|');
+
+/**
  * Map the table's header names to their index in `splitRow(line)`.
  *
  * By name rather than by position, because the previous version hard-coded positions and a later
@@ -130,7 +143,7 @@ export const rewriteRow = (originalLine, columns, measured) => {
   const pathsIndex = columns[CONFLICT_PATHS_COLUMN];
   if (pathsIndex !== undefined && pathsIndex < parts.length) {
     const detail = measured.failureNote ?? summarizeConflictPaths(measured.conflictPaths);
-    parts[pathsIndex] = ` ${detail.replaceAll('|', '/')} `;
+    parts[pathsIndex] = ` ${escapeCell(detail)} `;
   }
   return parts.join('|');
 };
@@ -236,28 +249,30 @@ export const readTable = (lines) => {
 };
 
 /**
- * Which PR rows are too short to hold the cells this script writes.
+ * Which PR rows are not exactly as wide as the header.
  *
- * `rewriteRow` guards against an out-of-range index and therefore does nothing for a truncated row -
- * quietly. `refreshRows` counted such a row as measured, so a table containing `| #317 | title |`
- * after a careless edit would be written, have its provenance line rewritten, and exit 0 with that row
- * unmeasured. Checked here, before any measurement, so a malformed table costs no git work.
+ * **Width equality, not "long enough".** The first version of this checked only that the columns this
+ * script writes were in range, which missed a deleted *interior* cell: remove `Head` and the row still
+ * has cells at indexes 4 and 5, so nothing was rejected - but they are now the *wrong* cells, and
+ * `rewriteRow` wrote the status into the old conflicting-paths cell and the paths over a human's
+ * `Dry-run` answer. Every index in the map is derived from the header, so any width but the header's
+ * makes all of them wrong at once; there is no useful weaker check.
+ *
+ * A trailing-truncated row (`| #317 | title |`) is the same defect, and is caught by the same rule:
+ * `rewriteRow` guards an out-of-range index and therefore does nothing, quietly, while `refreshRows`
+ * counted the row as measured. Checked before any measurement, so a malformed table costs no git work.
  *
  * @param {string[]} lines
- * @param {Record<string, number>} columns
+ * @param {number} headerIndex
  * @param {{ pr: number, lineIndex: number }[]} prRows
- * @param {string[]} requiredColumns
- * @returns {{ pr: number, cells: number }[]}
+ * @returns {{ pr: number, cells: number, expected: number }[]}
  */
-export const findTruncatedRows = (lines, columns, prRows, requiredColumns) =>
-  prRows
-    .map((row) => ({ pr: row.pr, cells: splitRow(lines[row.lineIndex]).length }))
-    .filter(({ cells }) =>
-      requiredColumns.some((name) => {
-        const index = columns[name];
-        return index === undefined || index >= cells;
-      })
-    );
+export const findMalformedRows = (lines, headerIndex, prRows) => {
+  const expected = splitRow(lines[headerIndex]).length;
+  return prRows
+    .map((row) => ({ pr: row.pr, cells: splitRow(lines[row.lineIndex]).length, expected }))
+    .filter(({ cells }) => cells !== expected);
+};
 
 /**
  * Measure one PR's head against `origin/main`, without touching the working tree.
@@ -387,18 +402,16 @@ async function main() {
     );
     process.exit(1);
   }
-  const truncated = findTruncatedRows(lines, columns, prRows, [
-    STATUS_COLUMN,
-    CONFLICT_PATHS_COLUMN
-  ]);
-  if (truncated.length > 0) {
-    console.error('These PR rows are too short to hold the cells this script writes:');
-    for (const row of truncated) {
-      console.error(`  #${row.pr}: ${row.cells} cell(s)`);
+  const malformed = findMalformedRows(lines, table.headerIndex, prRows);
+  if (malformed.length > 0) {
+    console.error('These PR rows do not have the same number of cells as the header:');
+    for (const row of malformed) {
+      console.error(`  #${row.pr}: ${row.cells} cell(s), header has ${row.expected}`);
     }
     console.error(
-      'A refresh would count them as measured and leave them unchanged, so the table would claim a ' +
-        'complete refresh it did not perform. Nothing measured, nothing written — repair the rows.'
+      'Every column index comes from the header, so a row of a different width puts every cell in ' +
+        'the wrong place — the status into another column, the paths over a human\'s decision — or ' +
+        'silently nowhere. Nothing measured, nothing written; repair the rows.'
     );
     process.exit(1);
   }

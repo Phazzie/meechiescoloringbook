@@ -11,7 +11,8 @@ import { describe, expect, it } from 'vitest';
 
 import {
 	CONFLICT_PATHS_COLUMN,
-	findTruncatedRows,
+	escapeCell,
+	findMalformedRows,
 	STATUS_COLUMN,
 	parseConflictPaths,
 	parseTableColumns,
@@ -125,14 +126,41 @@ describe('rewriteRow', () => {
 		expect(cells[5]).not.toContain('—');
 	});
 
-	it('never emits a pipe inside a cell, which would split the row', () => {
-		const cells = rewriteRow('| #1 | t | h | CLEAN | — | no | c | d |', columns, {
+	// A pipe in a note or a filename must not split the row. This used to assert the pipe was replaced
+	// with a slash, which does not split the row but renames the file — so the assertion is now that it
+	// is escaped and read back intact, which satisfies both.
+	it('escapes a pipe in a note rather than splitting the row or rewriting the text', () => {
+		const written = rewriteRow('| #1 | t | h | CLEAN | — | no | c | d |', columns, {
 			status: 'CONFLICT',
 			conflictPaths: [],
 			failureNote: 'error: a | b'
-		}).split('|');
+		});
+		const cells = splitRow(written);
 		expect(cells).toHaveLength(10);
-		expect(cells[5]).toContain('a / b');
+		expect(cells[5].trim()).toBe('error: a \\| b');
+	});
+});
+
+describe('escapeCell', () => {
+	// The defect: a conflicted filename may legitimately contain a pipe, and this used to replace it
+	// with `/` — recording a/b.md for a|b.md, a different file, in the column a reader trusts to name
+	// files. splitRow already reads the escape, so the name survives and the row still parses.
+	it('escapes a pipe rather than changing the filename', () => {
+		expect(escapeCell('a|b.md')).toBe('a\\|b.md');
+	});
+
+	it('round-trips through splitRow as one cell', () => {
+		const row = `| #1 | t | ${escapeCell('a|b.md')} | d |`;
+		expect(splitRow(row)[3].trim()).toBe('a\\|b.md');
+		expect(splitRow(row)).toHaveLength(6);
+	});
+
+	it('escapes backslashes first, so the escape cannot be undone by one already there', () => {
+		expect(escapeCell('a\\|b.md')).toBe('a\\\\\\|b.md');
+	});
+
+	it('leaves text with nothing to escape alone', () => {
+		expect(escapeCell('plan.md, WORST_TO_BEST_LOG.md')).toBe('plan.md, WORST_TO_BEST_LOG.md');
 	});
 });
 
@@ -367,30 +395,37 @@ describe('refreshRows', () => {
 	});
 });
 
-describe('findTruncatedRows', () => {
-	const required = [STATUS_COLUMN, CONFLICT_PATHS_COLUMN];
-
-	// The defect: rewriteRow guards against an out-of-range index and so does nothing for a short row,
-	// quietly — while refreshRows counted it as measured. The table would be written, its provenance
-	// rewritten, and the run would exit 0 with that row unmeasured.
-	it('names a row too short to hold the cells the script writes', () => {
-		const lines = [HEADER, CLEAN_ROW, '| #317 | title |'];
+describe('findMalformedRows', () => {
+	const malformed = (lines: string[]) => {
 		const table = readTable(lines);
-		expect(findTruncatedRows(lines, table?.columns ?? {}, table?.prRows ?? [], required)).toEqual([
-			{ pr: 317, cells: 4 }
+		return findMalformedRows(lines, table?.headerIndex ?? 0, table?.prRows ?? []);
+	};
+
+	// rewriteRow guards against an out-of-range index and so does nothing for a short row, quietly —
+	// while refreshRows counted it as measured. The table would be written, its provenance rewritten,
+	// and the run would exit 0 with that row unmeasured.
+	it('names a row truncated at the end', () => {
+		expect(malformed([HEADER, CLEAN_ROW, '| #317 | title |'])).toEqual([
+			{ pr: 317, cells: 4, expected: 10 }
 		]);
 	});
 
-	it('accepts rows that are long enough', () => {
-		const lines = [HEADER, CLEAN_ROW];
-		const table = readTable(lines);
-		expect(findTruncatedRows(lines, table?.columns ?? {}, table?.prRows ?? [], required)).toEqual([]);
+	// The reason this checks width equality rather than "are the owned columns in range": delete an
+	// interior cell and the row still has cells at those indexes, so a range check passes — but they
+	// are the wrong cells, and rewriteRow writes the status into the old paths column and the paths
+	// over a human's Dry-run answer.
+	it('names a row with an interior cell deleted, which a range check would accept', () => {
+		expect(malformed([HEADER, '| #2 | t | CLEAN | — | no | c | d |'])).toEqual([
+			{ pr: 2, cells: 9, expected: 10 }
+		]);
+	});
+
+	it('accepts a row of exactly the header\u2019s width', () => {
+		expect(malformed([HEADER, CLEAN_ROW])).toEqual([]);
 	});
 
 	it('counts an escaped pipe as one cell, not two', () => {
-		const lines = [HEADER, '| #400 | a \\| b | h | CLEAN | — | yes | c | d |'];
-		const table = readTable(lines);
-		expect(findTruncatedRows(lines, table?.columns ?? {}, table?.prRows ?? [], required)).toEqual([]);
+		expect(malformed([HEADER, '| #400 | a \\| b | h | CLEAN | — | yes | c | d |'])).toEqual([]);
 	});
 });
 
@@ -422,6 +457,17 @@ describe('the committed triage table', () => {
 		expect(parseTableColumns(header ?? '')[CONFLICT_PATHS_COLUMN]).toBeDefined();
 	});
 
+	it('has every PR row exactly as wide as its header', () => {
+		const headerIndex = table.findIndex(
+			(line) => parseTableColumns(line)[STATUS_COLUMN] !== undefined
+		);
+		const prRows = table
+			.map((line, lineIndex) => ({ line, lineIndex }))
+			.filter(({ line }) => /^\|\s*#\d+\s*\|/.test(line))
+			.map(({ lineIndex }) => ({ pr: 0, lineIndex }));
+		expect(findMalformedRows(table, headerIndex, prRows)).toEqual([]);
+	});
+
 	it('carries a provenance line the analyzer can rewrite', () => {
 		const provenance = table.filter((line) => line.startsWith('Last refreshed:'));
 		expect(provenance).toHaveLength(1);
@@ -435,7 +481,9 @@ describe('the committed triage table', () => {
 		const dryRunIndex = parseTableColumns(header)[DRY_RUN_COLUMN];
 		expect(dryRunIndex).toBeDefined();
 		for (const row of table.filter((line) => /^\|\s*#\d+\s*\|/.test(line))) {
-			expect(row.split('|')[dryRunIndex].trim()).toMatch(/^(yes|no)$/i);
+			// splitRow, not split('|'): production deliberately supports an escaped pipe in a title, and a
+			// raw split here would read the wrong cell and fail the suite over a legitimate title.
+			expect(splitRow(row)[dryRunIndex].trim()).toMatch(/^(yes|no)$/i);
 		}
 	});
 
@@ -445,7 +493,7 @@ describe('the committed triage table', () => {
 		const prRows = table.filter((line) => /^\|\s*#\d+\s*\|/.test(line));
 		expect(prRows.length).toBeGreaterThan(0);
 		for (const row of prRows) {
-			expect(row.split('|')[statusIndex].trim()).toMatch(/^(CLEAN|CONFLICT)$/);
+			expect(splitRow(row)[statusIndex].trim()).toMatch(/^(CLEAN|CONFLICT)$/);
 		}
 	});
 });

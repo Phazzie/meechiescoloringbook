@@ -167,3 +167,35 @@ Sweep (recommended + S1192) on this head:
 ✖ 2 problems (2 errors, 0 warnings)
 
   (no output above this line: 0 problems, exit 1)
+
+TENTH ROUND — three Codex P2s on af639f4, all consequences of the escaped-pipe fix itself.
+
+A. A conflicted filename may legitimately contain a pipe, and rewriteRow replaced it with '/'.
+   before: conflictPaths ['a|b.md'] -> cell 'a/b.md'   (a different file)
+   after:  escapeCell           -> cell 'a\|b.md', read back by splitRow as 'a\|b.md'
+
+B. findTruncatedRows checked only that the owned columns were in range, so a deleted INTERIOR
+   cell passed while every index became wrong:
+   before: '| #2 | t | CLEAN | — | no | c | d |' -> findTruncatedRows [] and rewriteRow produced
+           '| #2 | t | CLEAN | CONFLICT | x.md | c | d |' — status into the old paths cell, paths
+           over the human-owned Dry-run answer
+   after:  findMalformedRows requires width equality with the header -> [{pr:2,cells:9,expected:10}]
+   proved on the real file: delete #348's Head cell -> exit 1, '#348: 9 cell(s), header has 10',
+   table byte-identical afterwards
+
+C. The committed-table assertions used a raw split('|'), so a legitimate escaped pipe in a PR
+   title would have failed npm test rather than being parsed the way production parses it.
+   Now splitRow, plus a new assertion that every row is exactly the header's width.
+
+Sweep (recommended + S1192) on this head:
+
+/home/user/meechiescoloringbook/scripts/analyze-merge-conflicts.js
+  374:16  error  Refactor this function to reduce its Cognitive Complexity from 16 to the 15 allowed  sonarjs/cognitive-complexity
+
+/home/user/meechiescoloringbook/tests/unit/analyze-merge-conflicts.test.ts
+   89:32  error  Define a constant instead of duplicating this literal 3 times  sonarjs/no-duplicate-string
+  361:28  error  Define a constant instead of duplicating this literal 5 times  sonarjs/no-duplicate-string
+
+✖ 3 problems (3 errors, 0 warnings)
+
+  (no output above this line: 0 problems, exit 1)
