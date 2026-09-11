@@ -5,7 +5,7 @@ Info flow: evidence files -> summary -> review.
 -->
 # Proof Tape
 
-Generated at: 2026-09-11T23:44:10.473Z
+Generated at: 2026-09-11T23:59:13.946Z
 Evidence folder: docs/evidence/2026-09-11
 
 Files included (this tape's own outputs, proof-tape.json and proof-tape.md, are written
@@ -31,7 +31,7 @@ writing while this runs and would therefore always be listed short):
 - seam-ledger.json (37511 bytes)
 - seam-ledger.md (2981 bytes)
 - shaolin-lint.json (517 bytes)
-- sonarjs-local.txt (12811 bytes) — PREDATES THIS VERIFY RUN
+- sonarjs-local.txt (15033 bytes) — PREDATES THIS VERIFY RUN
 - test.txt (3134 bytes)
   Commands: meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
 - verify.txt (3459 bytes)

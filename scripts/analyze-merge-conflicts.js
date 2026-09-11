@@ -38,6 +38,16 @@ export const STATUS_COLUMN = 'merge status';
 export const CONFLICT_PATHS_COLUMN = 'conflicting paths';
 
 /**
+ * The column naming the PR. Read by name like the rest, not by position.
+ *
+ * A row used to be recognised by `/^\|\s*#(\d+)\s*\|/` - the first cell - while every other column was
+ * resolved from the header. Reorder the table and the anchor finds no rows at all, so the analyzer
+ * exits 0 saying "No PR rows found" and the validator reports an empty backlog: both tools silently
+ * off, for a table that is perfectly well formed.
+ */
+export const PR_COLUMN = 'pr';
+
+/**
  * Run a git command, returning its output either way rather than throwing.
  *
  * `stdout` and `stderr` are kept apart as well as combined. That is not tidiness: `output` used to be
@@ -144,6 +154,32 @@ export const parseTableColumns = (headerLine) => {
   return columns;
 };
 
+/** The columns this script writes, plus the one it reads to identify a row. */
+export const REQUIRED_COLUMNS = [PR_COLUMN, STATUS_COLUMN, CONFLICT_PATHS_COLUMN];
+
+/**
+ * Header names that appear more than once among the ones this script needs.
+ *
+ * `parseTableColumns` keeps the first index for a repeated name, which is a silent choice: a table
+ * with two `Merge status` columns would have the first refreshed and the second left stale, under one
+ * provenance line claiming both were measured. Row-width validation cannot see it, because the width
+ * is right. Treated as a parse error so the ambiguity is never resolved by luck of ordering.
+ *
+ * @param {string} headerLine
+ * @returns {string[]}
+ */
+export const findDuplicateColumns = (headerLine) => {
+  /** @type {Map<string, number>} */
+  const counts = new Map();
+  for (const cell of splitRow(headerLine)) {
+    const name = cell.trim().replace(/`/g, '').toLowerCase();
+    if (name.length > 0) {
+      counts.set(name, (counts.get(name) ?? 0) + 1);
+    }
+  }
+  return REQUIRED_COLUMNS.filter((name) => (counts.get(name) ?? 0) > 1);
+};
+
 /**
  * Rewrite one PR row's measured columns, leaving every other cell byte-identical.
  *
@@ -193,10 +229,14 @@ export const parseConflictPaths = (stdout) => {
   /** @type {string[]} */
   const paths = [];
   for (const line of rest) {
-    if (line.trim().length === 0) {
+    // Only a trailing CR is stripped. A filename may legitimately begin or end with a space, and git
+    // emits it verbatim - trimming recorded ` leadtrail ` as `leadtrail`, a different file, in the
+    // column a reader trusts to name files. The blank-line terminator is tested on a trimmed copy.
+    const path = line.replace(/\r$/, '');
+    if (path.trim().length === 0) {
       break;
     }
-    paths.push(line.trim());
+    paths.push(path);
   }
   return paths;
 };
@@ -260,15 +300,18 @@ export const readTable = (lines) => {
   if (headerIndex === -1) {
     return null;
   }
+  const columns = parseTableColumns(lines[headerIndex]);
+  const prIndex = columns[PR_COLUMN];
   /** @type {{ pr: number, lineIndex: number }[]} */
   const prRows = [];
   for (let index = headerIndex + 1; index < lines.length; index += 1) {
-    const match = lines[index].match(/^\|\s*#(\d+)\s*\|/);
+    const cell = prIndex === undefined ? undefined : splitRow(lines[index])[prIndex];
+    const match = cell?.trim().match(/^#(\d+)$/);
     if (match) {
       prRows.push({ pr: Number.parseInt(match[1], 10), lineIndex: index });
     }
   }
-  return { headerIndex, columns: parseTableColumns(lines[headerIndex]), prRows };
+  return { headerIndex, columns, prRows };
 };
 
 /**
@@ -413,7 +456,24 @@ async function main() {
     );
     process.exit(1);
   }
+  const duplicated = findDuplicateColumns(lines[table.headerIndex]);
+  if (duplicated.length > 0) {
+    console.error(
+      `These columns appear more than once in the header: ${duplicated.join(', ')}. Which copy this ` +
+        'script should write is ambiguous, and refreshing one while leaving the other stale would ' +
+        'put contradictory measurements under one provenance line. Nothing measured, nothing written.'
+    );
+    process.exit(1);
+  }
   const { columns, prRows } = table;
+  if (columns[PR_COLUMN] === undefined) {
+    console.error(
+      `No "${PR_COLUMN}" column found in the triage table header. Rows are identified by that cell, ` +
+        'so without it no row can be recognised — and reporting "no PR rows" for a well-formed table ' +
+        'would read as an empty backlog. Nothing measured, nothing written.'
+    );
+    process.exit(1);
+  }
   // Required, not optional. Warning and continuing would update every status and the provenance line
   // while leaving the old path cells in place — statuses measured against the new base sitting beside
   // conflict details from an older refresh, with nothing to mark them stale.

@@ -231,3 +231,42 @@ Sweep (recommended + S1192) on this head:
 ✖ 3 problems (3 errors, 0 warnings)
 
   (no output above this line: 0 problems, exit 1)
+
+TWELFTH ROUND — four Codex P2s on 1528562. Each reproduced before fixing:
+
+A. The PR number was read by a regex anchored to the FIRST cell while every other column came from
+   the header. Reorder the table and readTable found no rows at all:
+     before: reordered header -> prRows []      (analyzer exits 0 'No PR rows found')
+     after:  read from the 'pr' column         -> prRows [{pr:348,lineIndex:1}]
+   The column is now required, and a cell that is not exactly '#<digits>' is not a row.
+
+B. parseTableColumns keeps the FIRST index for a repeated header, silently. A table with two
+   'Merge status' columns would have the first refreshed and the second left stale under one
+   provenance line. Row-width validation cannot see it — the width is right.
+     findDuplicateColumns -> ['merge status'], and main aborts.
+   Proved on the real file: duplicate the header -> exit 1, 'These columns appear more than once in
+   the header: merge status.', table byte-identical afterwards.
+
+C. parseConflictPaths trimmed each path, so a filename that legitimately begins or ends with a space
+   was recorded as a different file:
+     before: ' leadtrail ' -> 'leadtrail'
+     after:  ' leadtrail ' -> ' leadtrail '   (only a trailing CR is stripped)
+
+D. A mistyped dry-run answer read as a deliberate 'no'. 'yse' != 'yes', so the row was skipped and,
+   as the only candidate, the tool reported an empty backlog and exited 0 — the SAME silence this
+   file has now been fixed for three times by three different routes.
+     before: {"candidates":[]}
+     after:  reason naming '#348 ("yse")'
+
+Sweep (recommended + S1192) on this head:
+
+/home/user/meechiescoloringbook/scripts/analyze-merge-conflicts.js
+  440:16  error  Refactor this function to reduce its Cognitive Complexity from 18 to the 15 allowed  sonarjs/cognitive-complexity
+
+/home/user/meechiescoloringbook/tests/unit/analyze-merge-conflicts.test.ts
+  114:32  error  Define a constant instead of duplicating this literal 3 times  sonarjs/no-duplicate-string
+  400:28  error  Define a constant instead of duplicating this literal 5 times  sonarjs/no-duplicate-string
+
+✖ 3 problems (3 errors, 0 warnings)
+
+  (no output above this line: 0 problems, exit 1)

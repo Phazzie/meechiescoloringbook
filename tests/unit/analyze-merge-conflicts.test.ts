@@ -11,6 +11,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
 	CONFLICT_PATHS_COLUMN,
+	findDuplicateColumns,
 	escapeCell,
 	findMalformedRows,
 	STATUS_COLUMN,
@@ -199,6 +200,20 @@ describe('parseConflictPaths', () => {
 			'CONFLICT (content): Merge conflict in WORST_TO_BEST_LOG.md'
 		].join('\n');
 		expect(parseConflictPaths(output)).toEqual([CONFLICTED_LOG, 'plan.md']);
+	});
+
+	// A filename may legitimately begin or end with a space and git emits it verbatim; trimming recorded
+	// ` leadtrail ` as `leadtrail`, a different file, in the column a reader trusts to name files.
+	it('keeps whitespace that belongs to the filename', () => {
+		expect(
+			parseConflictPaths('d2c0f80fd6a2e9f062fa9a16982605b3b9ef66df\n leadtrail \n')
+		).toEqual([' leadtrail ']);
+	});
+
+	it('still strips a trailing carriage return, which belongs to the line not the name', () => {
+		expect(
+			parseConflictPaths('d2c0f80fd6a2e9f062fa9a16982605b3b9ef66df\nplan.md\r\n')
+		).toEqual(['plan.md']);
 	});
 
 	it('returns nothing for a clean merge, whose output is the tree id alone', () => {
@@ -419,6 +434,49 @@ describe('refreshRows', () => {
 	});
 });
 
+describe('findDuplicateColumns', () => {
+	// parseTableColumns keeps the first index for a repeated name, which is a silent choice: a table
+	// with two `Merge status` columns has the first refreshed and the second left stale, under one
+	// provenance line claiming both were measured. Row width cannot reveal it — the width is right.
+	it('names a duplicated column this script writes', () => {
+		expect(
+			findDuplicateColumns('| PR | Title | Merge status | Merge status | Conflicting paths | d |')
+		).toEqual([STATUS_COLUMN]);
+	});
+
+	it('ignores a duplicated column this script does not write', () => {
+		expect(findDuplicateColumns(`| PR | Title | Title | ${'Merge status'} | Conflicting paths |`)).toEqual(
+			[]
+		);
+	});
+
+	it('accepts the committed header', () => {
+		expect(findDuplicateColumns(HEADER)).toEqual([]);
+	});
+});
+
+describe('readTable finding rows by the PR column', () => {
+	// A row used to be recognised by a regex anchored to the first cell, while every other column came
+	// from the header. Reorder the table and it found no rows at all — so the analyzer exited 0 saying
+	// "No PR rows found" and the validator reported an empty backlog, both silently off.
+	it('finds rows when the PR column is not first', () => {
+		const reordered = [
+			'| Merge status | PR | Title | Head | Conflicting paths | Dry-run | Content | Disposition |',
+			'| CLEAN | #348 | t | h | — | yes | c | d |'
+		];
+		expect(readTable(reordered)?.prRows).toEqual([{ pr: 348, lineIndex: 1 }]);
+	});
+
+	it('finds no rows when there is no PR column, rather than guessing the first cell', () => {
+		const noPr = ['| Ticket | Title | Merge status | Conflicting paths |', '| #348 | t | CLEAN | — |'];
+		expect(readTable(noPr)?.prRows).toEqual([]);
+	});
+
+	it('ignores a cell that is not exactly a PR reference', () => {
+		expect(readTable([HEADER, '| see #348 | t | h | CLEAN | — | no | c | d |'])?.prRows).toEqual([]);
+	});
+});
+
 describe('findMalformedRows', () => {
 	const malformed = (lines: string[]) => {
 		const table = readTable(lines);
@@ -488,6 +546,25 @@ describe('selectCleanCandidates on a malformed table', () => {
 
 	it('still selects a well-formed row beside none', () => {
 		expect(selectCleanCandidates([HEADER, CLEAN_ROW]).candidates).toEqual([348]);
+	});
+
+	// A mistyped answer is not an answer. `yse` compared unequal to 'yes' and so read as a deliberate
+	// `no`; if it were the only candidate the tool reported an empty backlog and exited 0 — the same
+	// silence this file was fixed for twice already, by other routes.
+	it('gives a reason for a dry-run cell that is neither yes nor no', () => {
+		const result = selectCleanCandidates([
+			HEADER,
+			'| #348 | t | h | CLEAN | — | yse | c | d |'
+		]);
+		expect(result.candidates).toEqual([]);
+		expect(result.reason).toContain('yse');
+		expect(result.reason).toContain('#348');
+	});
+
+	it('accepts no as an answer, which selects nothing without a reason', () => {
+		const result = selectCleanCandidates([HEADER, '| #348 | t | h | CLEAN | — | no | c | d |']);
+		expect(result.candidates).toEqual([]);
+		expect(result.reason).toBeUndefined();
 	});
 });
 

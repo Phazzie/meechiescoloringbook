@@ -132,6 +132,23 @@ Short, durable decisions with context and tradeoffs.
   lookbehind for one backslash, which is wrong for a cell ending in a literal backslash - in
   `| a\\| b |` the `\\` is an *escaped backslash*, so that pipe is a delimiter. Escaping is the parity
   of the backslash run, and all four shapes are now asserted to round-trip through `join`.
+- **A tenth round, four findings, and the recurring one is worth counting.** (1) The PR number was read
+  by a regex anchored to the first cell while every other column came from the header; reorder the table
+  and no rows are found at all, so both tools go silently off for a well-formed table. The `PR` column is
+  now required and read by name. (2) `parseTableColumns` keeps the first index for a repeated header, so
+  a duplicated `Merge status` would have one copy refreshed and one left stale under a single provenance
+  line - invisible to width validation, because the width is right. Duplicated owned headers are now a
+  parse error. (3) `parseConflictPaths` trimmed each path, recording ` leadtrail ` as `leadtrail` - a
+  different file. Only a trailing CR is stripped now. (4) A mistyped `Dry-run` answer read as a
+  deliberate `no`.
+- **"Empty result, no reason, exit 0" has now been fixed four times on the same two scripts**, by four
+  unrelated causes: a retired literal phrase, a `readTable` null collapsing into an empty array, a
+  malformed row shifting the cells, and a typo in a human's answer. The lesson is not about any of those
+  causes. **A tool whose empty answer is indistinguishable from its healthy answer will keep finding new
+  ways to go quiet**, so the fix belongs in the *shape* of the return - a reason alongside the result,
+  and a caller that exits non-zero on one - rather than in the individual guards. That is what the
+  `{ candidates, reason }` pair is for, and each of the four was cheap to fix only because the shape was
+  already there by the second one.
 - Revisit criteria: a table that needs the script to write a third column adds it to the exported
   column names, not to a position. A third reader of the table imports `readTable` rather than
   scanning for a phrase. A second fact about a row gets its own column rather than being encoded in
@@ -169,7 +186,7 @@ Short, durable decisions with context and tradeoffs.
   - Date: 2026-09-11
   - Seams: SafetyPolicySeam
   - Evidence: docs/evidence/2026-09-11/rewind-SafetyPolicySeam.txt; docs/evidence/2026-09-11/redproof-safety-keyword-parity.txt; docs/evidence/2026-09-11/sonarjs-local.txt; docs/evidence/2026-09-11/verify-outer.txt; docs/evidence/2026-09-11/verify.txt; docs/evidence/2026-09-11/test.txt; docs/evidence/2026-09-11/check.txt; docs/evidence/2026-09-11/lint.txt; docs/evidence/2026-09-11/build.txt; tests/unit/safety-keyword-parity.test.ts; tests/unit/constants.test.ts; tests/unit/analyze-merge-conflicts.test.ts
-  - Summary: SafetyPolicySeam's 10 contract tests pass unchanged (rewind evidence above); the suite is 2122 passing across 114 files. The seam's contract, mock, fixtures, probe and contract tests are unchanged; only `policy.ts` changed, and only to delete the local keyword array so the implementation reads `SYSTEM_CONSTANTS.DISALLOWED_KEYWORDS` and nothing else. The two words it used to hold privately are now in that constant, which is what makes the other two routes enforce them. A new parity test drives both enforcement paths from the constant itself, and `enforcedDisallowedKeywords` is exported so the test can assert **identity** with the shared array rather than equality of contents - reintroducing the original `[...SHARED, 'x']` shape fails it, proven by mutation in the red proof above.
+  - Summary: SafetyPolicySeam's 10 contract tests pass unchanged (rewind evidence above); the suite is 2132 passing across 114 files. The seam's contract, mock, fixtures, probe and contract tests are unchanged; only `policy.ts` changed, and only to delete the local keyword array so the implementation reads `SYSTEM_CONSTANTS.DISALLOWED_KEYWORDS` and nothing else. The two words it used to hold privately are now in that constant, which is what makes the other two routes enforce them. A new parity test drives both enforcement paths from the constant itself, and `enforcedDisallowedKeywords` is exported so the test can assert **identity** with the shared array rather than equality of contents - reintroducing the original `[...SHARED, 'x']` shape fails it, proven by mutation in the red proof above.
   - Risks: The two newly-shared words widen what `/api/tools` and `/api/meechie-studio-text` refuse, so a request that worked yesterday can be refused today - intended, and the reason it is in `CHANGELOG.md`. Substring matching is unchanged and remains blunt: `'minors'` matches inside `'minorsuit'` and `'suicide'` inside a clinical phrase, and this change neither introduces nor fixes that. Widening the list widens that bluntness by two words, which is the cost of the parity being correct rather than a defect it adds.
 
 ## 2026-09-10 — Give the letterform one voice in the prompt, and give the reader the control

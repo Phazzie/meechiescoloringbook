@@ -81,6 +81,24 @@ export const selectCleanCandidates = (lines) => {
   // this reads the Head column as the merge status.
   const cellAt = (/** @type {number} */ lineIndex, /** @type {number} */ column) =>
     splitRow(lines[lineIndex])[column]?.trim().toLowerCase();
+
+  // A mistyped answer is not an answer. `yse` compared unequal to 'yes' and therefore read as a
+  // deliberate `no` — and if it were the only candidate the tool reported an empty backlog and exited
+  // 0, which is the same silence this file has now been fixed for twice by other routes. This column
+  // is a human's decision, so the one thing it must not do is guess which decision a typo meant.
+  const unanswered = table.prRows
+    .map((row) => ({ pr: row.pr, answer: cellAt(row.lineIndex, dryRunIndex) }))
+    .filter(({ answer }) => answer !== 'yes' && answer !== 'no');
+  if (unanswered.length > 0) {
+    const named = unanswered.map((row) => `#${row.pr} ("${row.answer ?? ''}")`).join(', ');
+    return {
+      candidates: [],
+      reason:
+        `these rows do not answer "${DRY_RUN_COLUMN}" with yes or no: ${named}. That column is a ` +
+        'decision, and a value that is neither cannot be read as either'
+    };
+  }
+
   const candidates = table.prRows
     .filter(
       (row) =>
