@@ -55,3 +55,12 @@ dispositions intact:
   -> PR #317 is CONFLICT (21 file(s)).
   -> PR #308 is CONFLICT (18 file(s)).
   -> PR #296 is CONFLICT (22 file(s)).
+
+FOURTH ROUND — after two more Codex P2s on dbe25fa (the Dry-run eligibility column and the
+provenance line the analyzer never rewrote). Sweep is recommended + S1192, over both scripts and
+every changed source file:
+  (no output above this line: 0 problems, exit 0)
+
+Idempotence proof for the writer, run twice against the committed table: the second run
+produced a byte-identical file (diff empty), so neither the six dispositions, the six Dry-run
+answers, nor the provenance line drift on a refresh.

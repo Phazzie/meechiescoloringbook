@@ -15,16 +15,18 @@ import {
 	parseConflictPaths,
 	parseTableColumns,
 	readTable,
+	rewriteProvenance,
 	rewriteRow,
 	summarizeConflictPaths
 } from '../../scripts/analyze-merge-conflicts.js';
-import { selectCleanCandidates } from '../../scripts/validate-pr-backlog.js';
+import { DRY_RUN_COLUMN, selectCleanCandidates } from '../../scripts/validate-pr-backlog.js';
 
-const HEADER = '| PR | Title | Head | Merge status | Conflicting paths | Content lacks | Disposition |';
-const DIVIDER = '| --- | --- | --- | --- | --- | --- | --- |';
+const HEADER =
+	'| PR | Title | Head | Merge status | Conflicting paths | Dry-run | Content lacks | Disposition |';
+const DIVIDER = '| --- | --- | --- | --- | --- | --- | --- | --- |';
 // Named because several tests need the same ones, and a fixture repeated verbatim is a fixture
 // nobody can change in one place.
-const CLEAN_ROW = '| #348 | t | h | CLEAN | — | c | d |';
+const CLEAN_ROW = '| #348 | t | h | CLEAN | — | yes | c | d |';
 const CONFLICTED_LOG = 'WORST_TO_BEST_LOG.md';
 
 describe('parseTableColumns', () => {
@@ -32,7 +34,8 @@ describe('parseTableColumns', () => {
 		const columns = parseTableColumns(HEADER);
 		expect(columns[STATUS_COLUMN]).toBe(4);
 		expect(columns[CONFLICT_PATHS_COLUMN]).toBe(5);
-		expect(columns.disposition).toBe(7);
+		expect(columns[DRY_RUN_COLUMN]).toBe(6);
+		expect(columns.disposition).toBe(8);
 	});
 
 	it('ignores backticks and case, so a header may be written as prose or code', () => {
@@ -48,7 +51,7 @@ describe('rewriteRow', () => {
 	const columns = parseTableColumns(HEADER);
 
 	it('writes only the two measured columns and leaves the rest byte-identical', () => {
-		const row = '| #338 | docs: a title | `a-branch` | CLEAN | — | a gap | **Port it.** |';
+		const row = '| #338 | docs: a title | `a-branch` | CLEAN | — | no | a gap | **Port it.** |';
 		const rewritten = rewriteRow(row, columns, {
 			status: 'CONFLICT',
 			conflictPaths: ['plan.md', CONFLICTED_LOG]
@@ -58,13 +61,15 @@ describe('rewriteRow', () => {
 		expect(cells[5].trim()).toBe('plan.md, WORST_TO_BEST_LOG.md');
 		// The disposition is a human's decision. Losing it on a refresh is the defect these tests exist
 		// for, so it is asserted rather than assumed.
-		expect(cells[7].trim()).toBe('**Port it.**');
-		expect(cells[6].trim()).toBe('a gap');
+		expect(cells[8].trim()).toBe('**Port it.**');
+		expect(cells[7].trim()).toBe('a gap');
+		// The human's dry-run answer is not the script's either.
+		expect(cells[6].trim()).toBe('no');
 		expect(cells[1].trim()).toBe('#338');
 	});
 
 	it('keeps the status cell to exactly CLEAN or CONFLICT, never a decorated value', () => {
-		const row = '| #348 | t | h | CONFLICT | a.md | c | d |';
+		const row = '| #348 | t | h | CONFLICT | a.md | no | c | d |';
 		const cells = rewriteRow(row, columns, { status: 'CLEAN', conflictPaths: [] }).split('|');
 		expect(cells[4].trim()).toBe('CLEAN');
 		expect(cells[5].trim()).toBe('—');
@@ -81,7 +86,7 @@ describe('rewriteRow', () => {
 	});
 
 	it('records a non-conflict merge failure instead of naming files it does not have', () => {
-		const row = '| #1 | t | h | CLEAN | — | c | d |';
+		const row = '| #1 | t | h | CLEAN | — | no | c | d |';
 		const cells = rewriteRow(row, columns, {
 			status: 'CONFLICT',
 			conflictPaths: [],
@@ -91,12 +96,12 @@ describe('rewriteRow', () => {
 	});
 
 	it('never emits a pipe inside a cell, which would split the row', () => {
-		const cells = rewriteRow('| #1 | t | h | CLEAN | — | c | d |', columns, {
+		const cells = rewriteRow('| #1 | t | h | CLEAN | — | no | c | d |', columns, {
 			status: 'CONFLICT',
 			conflictPaths: [],
 			failureNote: 'error: a | b'
 		}).split('|');
-		expect(cells).toHaveLength(9);
+		expect(cells).toHaveLength(10);
 		expect(cells[5]).toContain('a / b');
 	});
 });
@@ -148,7 +153,7 @@ describe('readTable', () => {
 			HEADER,
 			DIVIDER,
 			CLEAN_ROW,
-			'| #296 | t | h | CONFLICT | a.md | c | d |',
+			'| #296 | t | h | CONFLICT | a.md | no | c | d |',
 			'',
 			'## Prose that mentions #175 but is not a row'
 		]);
@@ -171,29 +176,80 @@ describe('readTable', () => {
 });
 
 describe('selectCleanCandidates', () => {
-	it('picks the rows the status column marks CLEAN', () => {
+	it('needs both a CLEAN status and a dry-run yes', () => {
 		expect(
 			selectCleanCandidates([
 				HEADER,
 				DIVIDER,
 				CLEAN_ROW,
-				'| #338 | t | h | CONFLICT | plan.md | c | d |',
-				'| #296 | t | h | CLEAN | — | c | d |'
-			])
+				'| #338 | t | h | CONFLICT | plan.md | yes | c | d |',
+				'| #296 | t | h | CLEAN | — | yes | c | d |'
+			]).candidates
 		).toEqual([348, 296]);
 	});
 
-	// The defect this replaced: the selection searched every line for the literal
-	// "1. Safe candidate for dry-run", so a table that stopped using the phrase reported no
-	// candidates and exited 0 — indistinguishable from a drained backlog.
-	it('does not depend on the retired bucket vocabulary appearing anywhere in the row', () => {
+	// The defect: a PR can merge cleanly and still be one the table says not to merge. #348 was
+	// exactly that — CLEAN, and superseded by the branch that measured it. Selecting on the status
+	// alone would have checked it out and reported "Ready to merge."
+	it('leaves a CLEAN row alone when the dry-run column says no', () => {
 		expect(
-			selectCleanCandidates([HEADER, '| #348 | t | h | CLEAN | — | c | **Superseded.** |'])
+			selectCleanCandidates([
+				HEADER,
+				'| #348 | t | h | CLEAN | — | no | c | **Superseded.** |'
+			]).candidates
+		).toEqual([]);
+	});
+
+	it('reads the answer case-insensitively, since a human types it', () => {
+		expect(
+			selectCleanCandidates([HEADER, '| #348 | t | h | Clean | — | YES | c | d |']).candidates
 		).toEqual([348]);
 	});
 
-	it('returns nothing for a table it cannot read, rather than guessing', () => {
-		expect(selectCleanCandidates(['| PR | Title | Disposition |', '| #348 | t | d |'])).toEqual([]);
+	// The previous defect, kept as a test: the selection searched every line for the literal
+	// "1. Safe candidate for dry-run", so a table that stopped using the phrase reported no
+	// candidates and exited 0 — indistinguishable from a drained backlog.
+	it('does not depend on the retired bucket vocabulary appearing anywhere in the row', () => {
+		expect(selectCleanCandidates([HEADER, CLEAN_ROW]).candidates).toEqual([348]);
+	});
+
+	it('gives a reason rather than an empty backlog when it cannot read the table', () => {
+		const unreadable = selectCleanCandidates(['| PR | Title | Disposition |', '| #348 | t | d |']);
+		expect(unreadable.candidates).toEqual([]);
+		expect(unreadable.reason).toContain(STATUS_COLUMN);
+	});
+
+	// Falling back to the status alone here is what the finding above is about, so a table missing
+	// the column selects nothing and says why — the caller exits non-zero on a reason.
+	it('gives a reason rather than falling back when the dry-run column is missing', () => {
+		const noColumn = selectCleanCandidates([
+			'| PR | Title | Head | Merge status | Conflicting paths | Disposition |',
+			'| #348 | t | h | CLEAN | — | d |'
+		]);
+		expect(noColumn.candidates).toEqual([]);
+		expect(noColumn.reason).toContain(DRY_RUN_COLUMN);
+	});
+});
+
+describe('rewriteProvenance', () => {
+	it('rewrites the refresh line with the date and base actually measured', () => {
+		const lines = ['# Title', '', 'Last refreshed: **2026-01-01**, against `origin/main` at `old`.'];
+		expect(rewriteProvenance(lines, { date: '2026-09-11', base: 'f1a8c91' })).toBe(true);
+		expect(lines[2]).toBe('Last refreshed: **2026-09-11**, against `origin/main` at `f1a8c91`.');
+	});
+
+	// The finding: the script rewrote the measured cells and left this line saying an older base, so
+	// a refresh after main advanced produced a table whose provenance contradicted its own contents.
+	it('rewrites the line it produced, so a second refresh is idempotent in shape', () => {
+		const lines = ['Last refreshed: **2026-09-11**, against `origin/main` at `f1a8c91`.'];
+		rewriteProvenance(lines, { date: '2026-09-12', base: 'abc1234' });
+		expect(lines[0]).toBe('Last refreshed: **2026-09-12**, against `origin/main` at `abc1234`.');
+	});
+
+	it('reports that there was no line to rewrite rather than inventing one', () => {
+		const lines = ['# Title', ''];
+		expect(rewriteProvenance(lines, { date: '2026-09-11', base: 'f1a8c91' })).toBe(false);
+		expect(lines).toEqual(['# Title', '']);
 	});
 });
 
@@ -204,6 +260,23 @@ describe('the committed triage table', () => {
 		const header = table.find((line) => parseTableColumns(line)[STATUS_COLUMN] !== undefined);
 		expect(header).toBeDefined();
 		expect(parseTableColumns(header ?? '')[CONFLICT_PATHS_COLUMN]).toBeDefined();
+	});
+
+	it('carries a provenance line the analyzer can rewrite', () => {
+		const provenance = table.filter((line) => line.startsWith('Last refreshed:'));
+		expect(provenance).toHaveLength(1);
+		expect(provenance[0]).toMatch(
+			/^Last refreshed: \*\*\d{4}-\d{2}-\d{2}\*\*, against `origin\/main` at `[0-9a-f]{7,40}`\.$/
+		);
+	});
+
+	it('answers the dry-run column with yes or no in every PR row', () => {
+		const header = table.find((line) => parseTableColumns(line)[STATUS_COLUMN] !== undefined) ?? '';
+		const dryRunIndex = parseTableColumns(header)[DRY_RUN_COLUMN];
+		expect(dryRunIndex).toBeDefined();
+		for (const row of table.filter((line) => /^\|\s*#\d+\s*\|/.test(line))) {
+			expect(row.split('|')[dryRunIndex].trim()).toMatch(/^(yes|no)$/i);
+		}
 	});
 
 	it('holds exactly CLEAN or CONFLICT in the status cell of every PR row', () => {

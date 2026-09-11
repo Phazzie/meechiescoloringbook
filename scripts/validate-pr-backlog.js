@@ -21,28 +21,52 @@ function getTodayString() {
   return `${yyyy}-${mm}-${dd}`;
 }
 
+/** The column a human uses to say whether a PR should be dry-run validated at all. */
+export const DRY_RUN_COLUMN = 'dry-run';
+
 /**
  * Which PRs in the triage table are worth checking out and validating locally.
  *
- * Read from the `Merge status` column, by name, rather than by searching every line for the literal
- * `1. Safe candidate for dry-run`. That bucket vocabulary described a backlog triage that is over,
- * and the search was silent about its own obsolescence: once the table stopped using the phrase this
- * tool reported "No PR candidates found" and exited 0, which looks exactly like a clean backlog.
+ * **Two conditions, because they are two different facts and the retired bucket vocabulary conflated
+ * them.** "1. Safe candidate for dry-run" meant *both* "merges cleanly" and "we want this validated",
+ * and the first version of this function kept only the mechanical half — so a PR that merges cleanly
+ * but is marked **Superseded** was still selected, and `dryRunPr` would report "All checks green.
+ * Ready to merge." about a row that says do not merge it. #348 was exactly that case.
  *
- * `CLEAN` is the same claim the bucket made — the PR merges against origin/main, so it can be
- * checked out and run — but it is measured by `analyze-merge-conflicts.js` rather than typed.
+ * - `Merge status` is `CLEAN`: measured by `analyze-merge-conflicts.js`, never typed.
+ * - `Dry-run` is `yes`: a human's decision, which no script writes.
+ *
+ * Searching the disposition prose for "Superseded" would work today and is the same
+ * literal-matching that broke this function in the first place. An explicit column is the signal.
  *
  * @param {string[]} lines
- * @returns {number[]}
+ * @returns {{ candidates: number[], reason?: string }} `reason` is set when the table could not be
+ *          read at all, so the caller can say why rather than report an empty backlog.
  */
 export const selectCleanCandidates = (lines) => {
   const table = readTable(lines);
   if (table === null) {
-    return [];
+    return { candidates: [], reason: `no "${STATUS_COLUMN}" column in the triage table` };
   }
-  return table.prRows
-    .filter((row) => lines[row.lineIndex].split('|')[table.columns[STATUS_COLUMN]]?.trim() === 'CLEAN')
+  const dryRunIndex = table.columns[DRY_RUN_COLUMN];
+  if (dryRunIndex === undefined) {
+    return {
+      candidates: [],
+      reason:
+        `no "${DRY_RUN_COLUMN}" column in the triage table. Selecting on ${STATUS_COLUMN} alone ` +
+        'would validate PRs the table says not to merge, so nothing is selected'
+    };
+  }
+  const cellAt = (/** @type {number} */ lineIndex, /** @type {number} */ column) =>
+    lines[lineIndex].split('|')[column]?.trim().toLowerCase();
+  const candidates = table.prRows
+    .filter(
+      (row) =>
+        cellAt(row.lineIndex, table.columns[STATUS_COLUMN]) === 'clean' &&
+        cellAt(row.lineIndex, dryRunIndex) === 'yes'
+    )
     .map((row) => row.pr);
+  return { candidates };
 };
 
 /**
@@ -137,12 +161,20 @@ async function main() {
     process.exit(1);
   }
 
-  const candidates = selectCleanCandidates(
+  const { candidates, reason } = selectCleanCandidates(
     fs.readFileSync(TRIAGE_TABLE_PATH, 'utf8').split('\n')
   );
 
+  // A table this tool cannot read is an error, not an empty backlog. Exiting 0 on one is how the
+  // previous version of this selection went quiet for a whole schema change without anybody noticing.
+  if (reason !== undefined) {
+    console.error(`ERROR: ${reason}.`);
+    process.exit(1);
+  }
   if (candidates.length === 0) {
-    console.log('No PR in the triage table is currently CLEAN against origin/main. Exiting.');
+    console.log(
+      `No PR is both CLEAN against origin/main and marked "${DRY_RUN_COLUMN}: yes". Exiting.`
+    );
     process.exit(0);
   }
 

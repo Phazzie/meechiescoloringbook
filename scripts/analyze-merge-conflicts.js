@@ -15,9 +15,20 @@ import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { execSync } from 'node:child_process';
-import { isEntryPoint } from './evidence-reporting.mjs';
+import { isEntryPoint, toDateFolder } from './evidence-reporting.mjs';
 
 const TRIAGE_TABLE_PATH = path.resolve('docs/triage-table.md');
+
+/**
+ * The table's provenance line, which this script also owns.
+ *
+ * It claims a date and a base commit, and until a review caught it the script rewrote the measured
+ * cells without touching this line — so a refresh after `origin/main` advanced left a table whose
+ * statuses were measured against one commit while its own header named an older one. A provenance
+ * line that can go stale is worse than none, because it is read as the thing that makes the
+ * measurement reproducible.
+ */
+const PROVENANCE_PREFIX = 'Last refreshed:';
 
 /** The banner this tool prints around its own output, four times. */
 const BANNER = '='.repeat(50);
@@ -212,6 +223,22 @@ export const measureAgainstMain = (pr) => {
   };
 };
 
+/**
+ * Rewrite the table's provenance line to the date and base this run actually measured against.
+ *
+ * @param {string[]} lines mutated in place, as the row rewrites already are
+ * @param {{ date: string, base: string }} measured
+ * @returns {boolean} whether a provenance line was found to rewrite
+ */
+export const rewriteProvenance = (lines, { date, base }) => {
+  const index = lines.findIndex((line) => line.startsWith(PROVENANCE_PREFIX));
+  if (index === -1) {
+    return false;
+  }
+  lines[index] = `${PROVENANCE_PREFIX} **${date}**, against \`origin/main\` at \`${base}\`.`;
+  return true;
+};
+
 async function main() {
   console.log(BANNER);
   console.log('PR Merge Conflict Analyzer');
@@ -249,8 +276,8 @@ async function main() {
     console.error(`[ERROR] Could not fetch origin/main:\n${fetched.output}`);
     process.exit(1);
   }
-  const base = runCommand('git rev-parse --short origin/main');
-  console.log(`Measuring ${prRows.length} PRs against origin/main (${base.output}).\n`);
+  const baseSha = runCommand('git rev-parse --short origin/main').output;
+  console.log(`Measuring ${prRows.length} PRs against origin/main (${baseSha}).\n`);
 
   for (const row of prRows) {
     const measured = measureAgainstMain(row.pr);
@@ -262,6 +289,13 @@ async function main() {
     const fileCount = measured.conflictPaths.length;
     const detail = fileCount > 0 ? ` (${fileCount} file(s))` : '';
     console.log(`-> PR #${row.pr} is ${measured.status}${detail}.`);
+  }
+
+  if (!rewriteProvenance(lines, { date: toDateFolder(new Date()), base: baseSha })) {
+    console.warn(
+      `[WARNING] No line starting "${PROVENANCE_PREFIX}" to update; the table will not say which ` +
+        'base these statuses were measured against.'
+    );
   }
 
   fs.writeFileSync(TRIAGE_TABLE_PATH, lines.join('\n'));
