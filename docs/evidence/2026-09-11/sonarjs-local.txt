@@ -101,3 +101,25 @@ Sweep (recommended + S1192) on this head:
 ✖ 1 problem (1 error, 0 warnings)
 
   (no output above this line: 0 problems, exit 1)
+
+SEVENTH ROUND — after two Codex P2s on 819b400: escaped pipes in a row, and docs/AGENTS.md
+still defining the table through the retired Target Bucket categories.
+
+The escaped-pipe symptom was worse than reported. Before, for the row
+  | #400 | fix parser \\| safely | `h` | CLEAN | — | yes | c | d |
+  split('|') cells:  ['', '#400', 'fix parser \\', 'safely', '`h`', 'CLEAN', ...]
+  selectCleanCandidates -> {"candidates":[]}      (the reported symptom)
+  rewriteRow           -> | #400 | fix parser \\| safely | CONFLICT | x.md | — | yes | c | d |
+                          i.e. CONFLICT written into the Head column. Not reported; worse.
+After, via splitRow:
+  selectCleanCandidates -> {"candidates":[400]}
+  rewriteRow           -> | #400 | fix parser \\| safely | `h` | CONFLICT | x.md | yes | c | d |
+
+Sweep (recommended + S1192) on this head:
+
+/home/user/meechiescoloringbook/scripts/analyze-merge-conflicts.js
+  370:74  error  Refactor this code to not use nested template literals  sonarjs/no-nested-template-literals
+
+✖ 1 problem (1 error, 0 warnings)
+
+  (no output above this line: 0 problems, exit 1)

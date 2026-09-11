@@ -75,6 +75,18 @@ Short, durable decisions with context and tradeoffs.
   nothing and exits 1 naming the rows. A permanently unfetchable row therefore blocks refreshes until
   a human removes it, which is the right pressure - a row naming a PR nobody can fetch has no business
   in a table read as current.
+- **A fifth finding, and the one with the widest blast radius.** Rows were split on every `|`, so a
+  PR title containing a markdown-escaped `\|` shifted every cell after it. The reported symptom was
+  the selection finding no candidates; the unreported and worse one is that `rewriteRow` then wrote
+  `CONFLICT` **into the Head column**, corrupting the row it was refreshing. `splitRow` splits on
+  unescaped pipes only and round-trips through `join('|')`, which is what lets a rewrite leave the
+  other cells byte-identical. Every reader of a row goes through it.
+- **`docs/AGENTS.md` was still governing the old schema**, defining the table through the five
+  `Target Bucket` categories - so the file a future agent is required to follow contradicted the file
+  it describes. Rewritten around the two kinds of column: what only the script writes (status,
+  conflicting paths, the provenance line) and what only a human writes (`Dry-run`, the content column,
+  the disposition), plus the rules that follow - by header name never position, unescaped pipes only,
+  all-or-nothing refresh, and a second fact gets its own column.
 - Revisit criteria: a table that needs the script to write a third column adds it to the exported
   column names, not to a position. A third reader of the table imports `readTable` rather than
   scanning for a phrase. A second fact about a row gets its own column rather than being encoded in
@@ -112,7 +124,7 @@ Short, durable decisions with context and tradeoffs.
   - Date: 2026-09-11
   - Seams: SafetyPolicySeam
   - Evidence: docs/evidence/2026-09-11/rewind-SafetyPolicySeam.txt; docs/evidence/2026-09-11/redproof-safety-keyword-parity.txt; docs/evidence/2026-09-11/sonarjs-local.txt; docs/evidence/2026-09-11/verify-outer.txt; docs/evidence/2026-09-11/verify.txt; docs/evidence/2026-09-11/test.txt; docs/evidence/2026-09-11/check.txt; docs/evidence/2026-09-11/lint.txt; docs/evidence/2026-09-11/build.txt; tests/unit/safety-keyword-parity.test.ts; tests/unit/constants.test.ts; tests/unit/analyze-merge-conflicts.test.ts
-  - Summary: SafetyPolicySeam's 10 contract tests pass unchanged (rewind evidence above); the suite is 2103 passing across 114 files. The seam's contract, mock, fixtures, probe and contract tests are unchanged; only `policy.ts` changed, and only to delete the local keyword array so the implementation reads `SYSTEM_CONSTANTS.DISALLOWED_KEYWORDS` and nothing else. The two words it used to hold privately are now in that constant, which is what makes the other two routes enforce them. A new parity test drives both enforcement paths from the constant itself, and `enforcedDisallowedKeywords` is exported so the test can assert **identity** with the shared array rather than equality of contents - reintroducing the original `[...SHARED, 'x']` shape fails it, proven by mutation in the red proof above.
+  - Summary: SafetyPolicySeam's 10 contract tests pass unchanged (rewind evidence above); the suite is 2108 passing across 114 files. The seam's contract, mock, fixtures, probe and contract tests are unchanged; only `policy.ts` changed, and only to delete the local keyword array so the implementation reads `SYSTEM_CONSTANTS.DISALLOWED_KEYWORDS` and nothing else. The two words it used to hold privately are now in that constant, which is what makes the other two routes enforce them. A new parity test drives both enforcement paths from the constant itself, and `enforcedDisallowedKeywords` is exported so the test can assert **identity** with the shared array rather than equality of contents - reintroducing the original `[...SHARED, 'x']` shape fails it, proven by mutation in the red proof above.
   - Risks: The two newly-shared words widen what `/api/tools` and `/api/meechie-studio-text` refuse, so a request that worked yesterday can be refused today - intended, and the reason it is in `CHANGELOG.md`. Substring matching is unchanged and remains blunt: `'minors'` matches inside `'minorsuit'` and `'suicide'` inside a clinical phrase, and this change neither introduces nor fixes that. Widening the list widens that bluntness by two words, which is the cost of the parity being correct rather than a defect it adds.
 
 ## 2026-09-10 — Give the letterform one voice in the prompt, and give the reader the control

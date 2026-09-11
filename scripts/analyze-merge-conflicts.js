@@ -71,7 +71,23 @@ export function runCommand(command) {
 }
 
 /**
- * Map the table's header names to their index in `line.split('|')`.
+ * Split a markdown table row into its cells, honouring `\|` escapes.
+ *
+ * A pipe inside a cell must be written `\|`, and a plain `split('|')` treats it as a separator - so
+ * one PR title containing an escaped pipe shifted every cell after it. The selection then read the
+ * Head cell as the status and found no candidates, and `rewriteRow` wrote `CONFLICT` **into the Head
+ * column**, silently corrupting the row it was asked to refresh.
+ *
+ * Round-trips: the pieces keep their `\|` sequences, so `parts.join('|')` reproduces the input
+ * exactly, which is what lets `rewriteRow` replace two cells and leave the rest byte-identical.
+ *
+ * @param {string} line
+ * @returns {string[]}
+ */
+export const splitRow = (line) => line.split(/(?<!\\)\|/);
+
+/**
+ * Map the table's header names to their index in `splitRow(line)`.
  *
  * By name rather than by position, because the previous version hard-coded positions and a later
  * edit to the table's columns therefore rewrote the wrong cells without failing. A header this
@@ -83,7 +99,7 @@ export function runCommand(command) {
 export const parseTableColumns = (headerLine) => {
   /** @type {Record<string, number>} */
   const columns = {};
-  headerLine.split('|').forEach((cell, index) => {
+  splitRow(headerLine).forEach((cell, index) => {
     const name = cell.trim().replace(/`/g, '').toLowerCase();
     if (name.length > 0 && !(name in columns)) {
       columns[name] = index;
@@ -106,7 +122,7 @@ export const parseTableColumns = (headerLine) => {
  * @returns {string}
  */
 export const rewriteRow = (originalLine, columns, measured) => {
-  const parts = originalLine.split('|');
+  const parts = splitRow(originalLine);
   const statusIndex = columns[STATUS_COLUMN];
   if (statusIndex !== undefined && statusIndex < parts.length) {
     parts[statusIndex] = ` ${measured.status} `;

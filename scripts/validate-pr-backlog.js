@@ -6,7 +6,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { STATUS_COLUMN, readTable, runCommand } from './analyze-merge-conflicts.js';
+import { STATUS_COLUMN, readTable, runCommand, splitRow } from './analyze-merge-conflicts.js';
 import { isEntryPoint } from './evidence-reporting.mjs';
 
 // Configuration
@@ -57,8 +57,10 @@ export const selectCleanCandidates = (lines) => {
         'would validate PRs the table says not to merge, so nothing is selected'
     };
   }
+  // splitRow, not split('|'): an escaped pipe in a PR title otherwise shifts every cell after it and
+  // this reads the Head column as the merge status.
   const cellAt = (/** @type {number} */ lineIndex, /** @type {number} */ column) =>
-    lines[lineIndex].split('|')[column]?.trim().toLowerCase();
+    splitRow(lines[lineIndex])[column]?.trim().toLowerCase();
   const candidates = table.prRows
     .filter(
       (row) =>

@@ -18,6 +18,7 @@ import {
 	refreshRows,
 	rewriteProvenance,
 	rewriteRow,
+	splitRow,
 	summarizeConflictPaths
 } from '../../scripts/analyze-merge-conflicts.js';
 import { DRY_RUN_COLUMN, selectCleanCandidates } from '../../scripts/validate-pr-backlog.js';
@@ -45,6 +46,30 @@ describe('parseTableColumns', () => {
 
 	it('reports no status column for a row that is not a header', () => {
 		expect(parseTableColumns('| #348 | a title | a head | CLEAN |')[STATUS_COLUMN]).toBeUndefined();
+	});
+});
+
+describe('splitRow', () => {
+	it('splits on plain pipes', () => {
+		expect(splitRow('| a | b |')).toEqual(['', ' a ', ' b ', '']);
+	});
+
+	// The defect: a PR title may contain an escaped pipe, and split('|') treated it as a separator —
+	// shifting every cell after it. The selection then read the Head cell as the merge status and
+	// found no candidates, and rewriteRow wrote CONFLICT into the Head column.
+	it('keeps an escaped pipe inside its cell', () => {
+		expect(splitRow('| #400 | fix parser \\| safely | CLEAN |')).toEqual([
+			'',
+			' #400 ',
+			' fix parser \\| safely ',
+			' CLEAN ',
+			''
+		]);
+	});
+
+	it('round-trips, which is what lets rewriteRow leave other cells byte-identical', () => {
+		const row = '| #400 | fix parser \\| safely | `h` | CLEAN | — | yes | c | d |';
+		expect(splitRow(row).join('|')).toBe(row);
 	});
 });
 
@@ -320,6 +345,25 @@ describe('refreshRows', () => {
 			pr === 296 ? null : { status: 'CONFLICT', conflictPaths: ['plan.md'] }
 		);
 		expect(lines).toEqual(original);
+	});
+});
+
+describe('an escaped pipe in a title', () => {
+	const ESCAPED = '| #400 | fix parser \\| safely | `h` | CLEAN | — | yes | c | d |';
+
+	it('does not stop the row being selected for a dry run', () => {
+		expect(selectCleanCandidates([HEADER, ESCAPED]).candidates).toEqual([400]);
+	});
+
+	it('does not let rewriteRow write the status into the wrong column', () => {
+		const columns = parseTableColumns(HEADER);
+		const cells = splitRow(
+			rewriteRow(ESCAPED, columns, { status: 'CONFLICT', conflictPaths: ['x.md'] })
+		);
+		expect(cells[3].trim()).toBe('`h`');
+		expect(cells[4].trim()).toBe('CONFLICT');
+		expect(cells[5].trim()).toBe('x.md');
+		expect(cells[2].trim()).toBe('fix parser \\| safely');
 	});
 });
 
