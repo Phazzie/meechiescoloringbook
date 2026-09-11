@@ -199,6 +199,14 @@ export const summarizeConflictPaths = (paths) => {
 };
 
 /**
+ * Squash a multi-line git error into one line, so it fits a table cell or a log line.
+ *
+ * @param {string} text
+ * @returns {string}
+ */
+const collapse = (text) => text.replaceAll(/\s+/g, ' ').trim();
+
+/**
  * Locate the table's header, its column map, and every PR row beneath it.
  *
  * Separated from `main` so it can be tested against a table without running git, and because the
@@ -230,34 +238,37 @@ export const readTable = (lines) => {
 /**
  * Measure one PR's head against `origin/main`, without touching the working tree.
  *
+ * Returns a *reason* on failure rather than a bare null, and `CONFLICT` only when git actually
+ * performed a merge and refused it. An earlier version turned "merge-tree did not run" into a
+ * `CONFLICT` carrying the error as a note, which `refreshRows` then counted as a measured row: the
+ * table would have recorded a conflict, rewritten the provenance line and exited 0 for a command that
+ * never compared anything. `CONFLICT` in this table means git named conflicting files.
+ *
  * @param {number} pr
- * @returns {{ status: 'CLEAN' | 'CONFLICT', conflictPaths: string[], failureNote?: string } | null}
- *          null when the PR's head could not be fetched, so its row is left alone.
+ * @returns {{ ok: true, status: 'CLEAN' | 'CONFLICT', conflictPaths: string[], failureNote?: string }
+ *          | { ok: false, reason: string }}
  */
 export const measureAgainstMain = (pr) => {
   const head = `refs/pr-analysis/${pr}`;
-  if (!runCommand(`git fetch --force origin pull/${pr}/head:${head}`).success) {
-    return null;
+  const fetched = runCommand(`git fetch --force origin pull/${pr}/head:${head}`);
+  if (!fetched.success) {
+    return { ok: false, reason: `could not fetch its head: ${collapse(fetched.stderr)}` };
   }
   // merge-tree is read-only: no checkout, no temporary branch, no clean-worktree requirement.
   const merge = runCommand(`git merge-tree --write-tree --name-only origin/main ${head}`);
   runCommand(`git update-ref -d ${head}`);
 
   if (merge.success) {
-    return { status: 'CLEAN', conflictPaths: [] };
+    return { ok: true, status: 'CLEAN', conflictPaths: [] };
   }
   // Non-zero from merge-tree means either "conflicts" or "this did not run". Only the first prints a
   // tree id on stdout, and only the first is a measurement worth writing into the table.
   const conflictPaths = parseConflictPaths(merge.stdout);
   if (conflictPaths === null) {
-    const collapsed = merge.stderr.replaceAll(/\s+/g, ' ').trim();
-    return {
-      status: 'CONFLICT',
-      conflictPaths: [],
-      failureNote: `merge-tree did not run: ${collapsed}`
-    };
+    return { ok: false, reason: `merge-tree did not run: ${collapse(merge.stderr)}` };
   }
   return {
+    ok: true,
     status: 'CONFLICT',
     conflictPaths,
     failureNote:
@@ -297,20 +308,22 @@ export const rewriteProvenance = (lines, { date, base }) => {
  * @param {string[]} lines
  * @param {Record<string, number>} columns
  * @param {{ pr: number, lineIndex: number }[]} prRows
- * @param {(pr: number) => { status: 'CLEAN' | 'CONFLICT', conflictPaths: string[], failureNote?: string } | null} measure
- * @returns {{ lines: string[] | null, skipped: number[], measured: { pr: number, status: string, fileCount: number }[] }}
- *          `lines` is null when anything was skipped: there is nothing safe to write.
+ * @param {(pr: number) => ReturnType<typeof measureAgainstMain>} measure
+ * @returns {{ lines: string[] | null, skipped: { pr: number, reason: string }[], measured: { pr: number, status: string, fileCount: number }[] }}
+ *          `lines` is null when anything was skipped: there is nothing safe to write. Each skip keeps
+ *          its reason, because "could not measure #348" without saying why sends the next reader back
+ *          to run the command by hand.
  */
 export const refreshRows = (lines, columns, prRows, measure) => {
   const next = [...lines];
-  /** @type {number[]} */
+  /** @type {{ pr: number, reason: string }[]} */
   const skipped = [];
   /** @type {{ pr: number, status: string, fileCount: number }[]} */
   const measured = [];
   for (const row of prRows) {
     const result = measure(row.pr);
-    if (result === null) {
-      skipped.push(row.pr);
+    if (!result.ok) {
+      skipped.push({ pr: row.pr, reason: result.reason });
       continue;
     }
     next[row.lineIndex] = rewriteRow(next[row.lineIndex], columns, result);
@@ -339,10 +352,24 @@ async function main() {
     process.exit(1);
   }
   const { columns, prRows } = table;
+  // Required, not optional. Warning and continuing would update every status and the provenance line
+  // while leaving the old path cells in place — statuses measured against the new base sitting beside
+  // conflict details from an older refresh, with nothing to mark them stale.
   if (columns[CONFLICT_PATHS_COLUMN] === undefined) {
-    console.warn(
-      `[WARNING] No "${CONFLICT_PATHS_COLUMN}" column; conflicting files will not be recorded.`
+    console.error(
+      `No "${CONFLICT_PATHS_COLUMN}" column found in the triage table header. This column is the ` +
+        "analyzer's to write, so a refresh without it would leave stale path cells beside fresh " +
+        'statuses. Nothing measured, nothing written — add the column or fix its spelling.'
     );
+    process.exit(1);
+  }
+  if (lines.findIndex((line) => line.startsWith(PROVENANCE_PREFIX)) === -1) {
+    console.error(
+      `No line starting "${PROVENANCE_PREFIX}" found. Without it the table would carry fresh ` +
+        'statuses and no record of the date or base they were measured against, which is the ' +
+        'reproducibility this refresh exists to provide. Nothing measured, nothing written.'
+    );
+    process.exit(1);
   }
   if (prRows.length === 0) {
     console.log('No PR rows found in triage table.');
@@ -366,20 +393,26 @@ async function main() {
   }
 
   if (refreshed.lines === null) {
+    console.error(`\n[ERROR] Could not measure ${refreshed.skipped.length} PR(s):`);
+    for (const skip of refreshed.skipped) {
+      console.error(`  #${skip.pr}: ${skip.reason}`);
+    }
     console.error(
-      `\n[ERROR] Could not measure PR(s) ${refreshed.skipped.map((pr) => `#${pr}`).join(', ')}. ` +
-        'Nothing written: the table is unchanged and still says which base it was measured against. ' +
+      'Nothing written: the table is unchanged and still says which base it was measured against. ' +
         'A refresh that skipped a row would present old and new measurements as one, with no way to ' +
-        'tell them apart. Fix the fetch, or remove a row that no longer names a fetchable PR.'
+        'tell them apart. Fix the cause above, or remove a row that no longer names a fetchable PR.'
     );
     process.exit(1);
   }
 
+  // Checked before measuring too, so this cannot normally fire. Kept as a guard rather than a warning
+  // because writing rows without it is the one outcome this whole refresh must not produce.
   if (!rewriteProvenance(refreshed.lines, { date: toDateFolder(new Date()), base: baseSha })) {
-    console.warn(
-      `[WARNING] No line starting "${PROVENANCE_PREFIX}" to update; the table will not say which ` +
-        'base these statuses were measured against.'
+    console.error(
+      `No line starting "${PROVENANCE_PREFIX}" to update. Nothing written: fresh statuses with no ` +
+        'record of the base they were measured against are worse than none.'
     );
+    process.exit(1);
   }
 
   fs.writeFileSync(TRIAGE_TABLE_PATH, refreshed.lines.join('\n'));

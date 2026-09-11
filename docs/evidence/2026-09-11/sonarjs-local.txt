@@ -123,3 +123,26 @@ Sweep (recommended + S1192) on this head:
 ✖ 1 problem (1 error, 0 warnings)
 
   (no output above this line: 0 problems, exit 1)
+
+EIGHTH ROUND — three Codex P2s on cbd25dd, all the same class: a path that warned and wrote
+instead of aborting. Every analyzer-owned column and the provenance line are now required.
+
+Proved against the real file, each abort in turn:
+  Conflicting paths header renamed -> exit 1, 'No "conflicting paths" column found...', nothing written
+  Last refreshed line renamed      -> exit 1, 'No line starting "Last refreshed:" found...', nothing written
+  neither broken                   -> exit 0, table byte-identical (idempotent)
+
+ALSO: the SonarCloud count moved 2 -> 3 on cbd25dd and stayed 3 on 20a8e95. That REFUTES the
+S1192 hypothesis recorded in the fourth round: the count is not stuck, it tracks something, and it
+rose as code was added. Whatever the three are, they are not the three duplicated literals named
+there, which were fixed in 98abb60 while the count stayed at 2. Recorded so the next session does
+not re-derive a hypothesis this run already disproved.
+
+Sweep (recommended + S1192) on this head:
+
+/home/user/meechiescoloringbook/tests/unit/analyze-merge-conflicts.test.ts
+  332:28  error  Define a constant instead of duplicating this literal 5 times  sonarjs/no-duplicate-string
+
+✖ 1 problem (1 error, 0 warnings)
+
+  (no output above this line: 0 problems, exit 1)

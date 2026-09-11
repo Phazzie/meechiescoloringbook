@@ -313,6 +313,7 @@ describe('refreshRows', () => {
 
 	it('rewrites every row when every row could be measured', () => {
 		const refreshed = refreshRows(lines, columns, prRows, () => ({
+			ok: true,
 			status: 'CONFLICT',
 			conflictPaths: ['plan.md']
 		}));
@@ -327,22 +328,39 @@ describe('refreshRows', () => {
 	// measurements, and exited 0. All-or-nothing is what makes that line's claim true.
 	it('writes nothing at all when any row could not be measured', () => {
 		const refreshed = refreshRows(lines, columns, prRows, (pr) =>
-			pr === 296 ? null : { status: 'CONFLICT', conflictPaths: ['plan.md'] }
+			pr === 296
+				? { ok: false, reason: 'could not fetch its head' }
+				: { ok: true, status: 'CONFLICT', conflictPaths: ['plan.md'] }
 		);
 		expect(refreshed.lines).toBeNull();
-		expect(refreshed.skipped).toEqual([296]);
+		expect(refreshed.skipped).toEqual([{ pr: 296, reason: 'could not fetch its head' }]);
 	});
 
-	it('names every row it could not measure, not just the first', () => {
-		const refreshed = refreshRows(lines, columns, prRows, () => null);
-		expect(refreshed.skipped).toEqual([348, 296]);
+	// `measureAgainstMain` itself is not unit-tested: every path in it runs `git fetch` against the
+	// remote, and a unit suite that reaches the network fails on an egress-restricted runner and
+	// depends on a PR ref outliving this test. The injected `measure` here is the seam that exists so
+	// its two outcomes can be driven without it.
+	//
+	// Each skip keeps its own reason: two rows can fail for different causes, and "could not measure
+	// #348, #296" without saying why sends the next reader back to run the commands by hand.
+	it('keeps a reason per skipped row, not one for the batch', () => {
+		const refreshed = refreshRows(lines, columns, prRows, (pr) => ({
+			ok: false,
+			reason: pr === 348 ? 'could not fetch its head' : 'merge-tree did not run'
+		}));
+		expect(refreshed.skipped).toEqual([
+			{ pr: 348, reason: 'could not fetch its head' },
+			{ pr: 296, reason: 'merge-tree did not run' }
+		]);
 		expect(refreshed.lines).toBeNull();
 	});
 
 	it('leaves the caller\u2019s array untouched, so an aborted refresh cannot half-apply', () => {
 		const original = [...lines];
 		refreshRows(lines, columns, prRows, (pr) =>
-			pr === 296 ? null : { status: 'CONFLICT', conflictPaths: ['plan.md'] }
+			pr === 296
+				? { ok: false, reason: 'could not fetch its head' }
+				: { ok: true, status: 'CONFLICT', conflictPaths: ['plan.md'] }
 		);
 		expect(lines).toEqual(original);
 	});
