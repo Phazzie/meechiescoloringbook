@@ -6,20 +6,12 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { execSync } from 'node:child_process';
+import { STATUS_COLUMN, readTable, runCommand } from './analyze-merge-conflicts.js';
+import { isEntryPoint } from './evidence-reporting.mjs';
 
 // Configuration
 const TRIAGE_TABLE_PATH = path.resolve('docs/triage-table.md');
 const EVIDENCE_BASE_DIR = path.resolve('docs/evidence');
-
-function runCommand(command) {
-  try {
-    const stdout = execSync(command, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
-    return { success: true, output: stdout.trim() };
-  } catch (error) {
-    return { success: false, output: (error.stdout || '') + '\n' + (error.stderr || '') + '\n' + error.message };
-  }
-}
 
 function getTodayString() {
   const date = new Date();
@@ -28,6 +20,94 @@ function getTodayString() {
   const dd = String(date.getDate()).padStart(2, '0');
   return `${yyyy}-${mm}-${dd}`;
 }
+
+/**
+ * Which PRs in the triage table are worth checking out and validating locally.
+ *
+ * Read from the `Merge status` column, by name, rather than by searching every line for the literal
+ * `1. Safe candidate for dry-run`. That bucket vocabulary described a backlog triage that is over,
+ * and the search was silent about its own obsolescence: once the table stopped using the phrase this
+ * tool reported "No PR candidates found" and exited 0, which looks exactly like a clean backlog.
+ *
+ * `CLEAN` is the same claim the bucket made — the PR merges against origin/main, so it can be
+ * checked out and run — but it is measured by `analyze-merge-conflicts.js` rather than typed.
+ *
+ * @param {string[]} lines
+ * @returns {number[]}
+ */
+export const selectCleanCandidates = (lines) => {
+  const table = readTable(lines);
+  if (table === null) {
+    return [];
+  }
+  return table.prRows
+    .filter((row) => lines[row.lineIndex].split('|')[table.columns[STATUS_COLUMN]]?.trim() === 'CLEAN')
+    .map((row) => row.pr);
+};
+
+/**
+ * Check out one PR, run the suite and the verify chain against it, and return its report row.
+ *
+ * @param {number} pr
+ * @param {{ evidenceDir: string, originalBranch: string }} context
+ * @returns {string} one markdown table row
+ */
+const dryRunPr = (pr, { evidenceDir, originalBranch }) => {
+  console.log('\n--------------------------------------------------');
+  console.log(`PR #${pr}: Fetching and checking out...`);
+  console.log('--------------------------------------------------');
+
+  const tempBranch = `pr-${pr}-dryrun-temp`;
+  // Clean up if the temp branch survived a past run.
+  runCommand(`git branch -D ${tempBranch}`);
+
+  const fetchResult = runCommand(`git fetch origin pull/${pr}/head:${tempBranch}`);
+  if (!fetchResult.success) {
+    console.error(`[FAIL] Fetch failed for PR #${pr}.`);
+    const detail = fetchResult.output.replaceAll('\n', '<br>');
+    return `| #${pr} | ❌ Fetch Failed | - | - | ❌ FAILED | Fetch output: ${detail} |\n`;
+  }
+
+  const checkoutResult = runCommand(`git checkout ${tempBranch}`);
+  if (!checkoutResult.success) {
+    console.error(`[FAIL] Checkout failed for PR #${pr}.`);
+    runCommand(`git branch -D ${tempBranch}`);
+    const detail = checkoutResult.output.replaceAll('\n', '<br>');
+    return `| #${pr} | ❌ Checkout Failed | - | - | ❌ FAILED | Checkout output: ${detail} |\n`;
+  }
+
+  console.log(`PR #${pr}: Running npm test...`);
+  const testResult = runCommand('npm test');
+  console.log(`PR #${pr}: Running npm run verify...`);
+  const verifyResult = runCommand('npm run verify');
+  const green = testResult.success && verifyResult.success;
+
+  if (green) {
+    console.log(`[PASS] PR #${pr} passed all validation tests!`);
+  } else {
+    console.error(`[FAIL] PR #${pr} failed validation tests.`);
+  }
+
+  const notes = [];
+  if (!testResult.success) {
+    notes.push('Test failures logged.');
+    fs.writeFileSync(path.join(evidenceDir, `pr-${pr}-npm-test-fail.log`), testResult.output);
+  }
+  if (!verifyResult.success) {
+    notes.push('Verify checks failed.');
+    fs.writeFileSync(path.join(evidenceDir, `pr-${pr}-npm-verify-fail.log`), verifyResult.output);
+  }
+
+  console.log(`PR #${pr}: Cleaning up...`);
+  runCommand(`git checkout ${originalBranch}`);
+  runCommand(`git branch -D ${tempBranch}`);
+
+  const testStatus = testResult.success ? '✅ PASS' : '❌ FAIL';
+  const verifyStatus = verifyResult.success ? '✅ PASS' : '❌ FAIL';
+  const finalResult = green ? '✅ VERIFIED' : '❌ FAILED';
+  const noteText = green ? 'All checks green. Ready to merge.' : notes.join(' ');
+  return `| #${pr} | ✅ Success | ${testStatus} | ${verifyStatus} | **${finalResult}** | ${noteText} |\n`;
+};
 
 async function main() {
   console.log('==================================================');
@@ -57,21 +137,12 @@ async function main() {
     process.exit(1);
   }
 
-  const tableContent = fs.readFileSync(TRIAGE_TABLE_PATH, 'utf8');
-  const lines = tableContent.split('\n');
-  const candidates = [];
-
-  for (const line of lines) {
-    if (line.includes('1. Safe candidate for dry-run')) {
-      const match = line.match(/\|\s*#(\d+)\s*\|/);
-      if (match) {
-        candidates.push(parseInt(match[1], 10));
-      }
-    }
-  }
+  const candidates = selectCleanCandidates(
+    fs.readFileSync(TRIAGE_TABLE_PATH, 'utf8').split('\n')
+  );
 
   if (candidates.length === 0) {
-    console.log('No PR candidates found in "1. Safe candidate for dry-run" bucket. Exiting.');
+    console.log('No PR in the triage table is currently CLEAN against origin/main. Exiting.');
     process.exit(0);
   }
 
@@ -96,70 +167,7 @@ async function main() {
   // 3. Process each candidate
   console.log('[Step 3] Commencing dry-run loop...');
   for (const pr of candidates) {
-    console.log(`\n--------------------------------------------------`);
-    console.log(`PR #${pr}: Fetching and checking out...`);
-    console.log(`--------------------------------------------------`);
-
-    const tempBranch = `pr-${pr}-dryrun-temp`;
-
-    // Clean up if temp branch exists from a past run
-    runCommand(`git branch -D ${tempBranch}`);
-
-    // Fetch and create temp branch
-    const fetchCmd = `git fetch origin pull/${pr}/head:${tempBranch}`;
-    const fetchResult = runCommand(fetchCmd);
-
-    if (!fetchResult.success) {
-      console.error(`[FAIL] Fetch failed for PR #${pr}.`);
-      reportMarkdown += `| #${pr} | ❌ Fetch Failed | - | - | ❌ FAILED | Fetch output: ${fetchResult.output.replace(/\n/g, '<br>')} |\n`;
-      continue;
-    }
-
-    // Checkout
-    const checkoutResult = runCommand(`git checkout ${tempBranch}`);
-    if (!checkoutResult.success) {
-      console.error(`[FAIL] Checkout failed for PR #${pr}.`);
-      reportMarkdown += `| #${pr} | ❌ Checkout Failed | - | - | ❌ FAILED | Checkout output: ${checkoutResult.output.replace(/\n/g, '<br>')} |\n`;
-      runCommand(`git branch -D ${tempBranch}`);
-      continue;
-    }
-
-    console.log(`PR #${pr}: Running npm test...`);
-    const testResult = runCommand('npm test');
-    const testStatus = testResult.success ? '✅ PASS' : '❌ FAIL';
-
-    console.log(`PR #${pr}: Running npm run verify...`);
-    const verifyResult = runCommand('npm run verify');
-    const verifyStatus = verifyResult.success ? '✅ PASS' : '❌ FAIL';
-
-    const finalResult = (testResult.success && verifyResult.success) ? '✅ VERIFIED' : '❌ FAILED';
-
-    if (testResult.success && verifyResult.success) {
-      console.log(`[PASS] PR #${pr} passed all validation tests!`);
-    } else {
-      console.error(`[FAIL] PR #${pr} failed validation tests.`);
-    }
-
-    // Capture logs if failed
-    let notes = '';
-    if (!testResult.success) {
-      notes += 'Test failures logged. ';
-      fs.writeFileSync(path.join(evidenceDir, `pr-${pr}-npm-test-fail.log`), testResult.output);
-    }
-    if (!verifyResult.success) {
-      notes += 'Verify checks failed. ';
-      fs.writeFileSync(path.join(evidenceDir, `pr-${pr}-npm-verify-fail.log`), verifyResult.output);
-    }
-    if (testResult.success && verifyResult.success) {
-      notes = 'All checks green. Ready to merge.';
-    }
-
-    reportMarkdown += `| #${pr} | ✅ Success | ${testStatus} | ${verifyStatus} | **${finalResult}** | ${notes} |\n`;
-
-    // Reset and clean up
-    console.log(`PR #${pr}: Cleaning up...`);
-    runCommand(`git checkout ${originalBranch}`);
-    runCommand(`git branch -D ${tempBranch}`);
+    reportMarkdown += dryRunPr(pr, { evidenceDir, originalBranch });
   }
 
   // Write final report
@@ -170,4 +178,8 @@ async function main() {
   console.log(`==================================================`);
 }
 
-main().catch(console.error);
+// Guarded so a test can import `selectCleanCandidates` without checking out pull requests and
+// running the whole suite against each of them as a side effect of the suite.
+if (isEntryPoint(import.meta.url)) {
+  main().catch(console.error);
+}

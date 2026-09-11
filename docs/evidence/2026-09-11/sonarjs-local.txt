@@ -13,3 +13,13 @@ FIX: main() split into readTable() and measureAgainstMain(), both exported and n
 
 AFTER — same command, same rule set, same files:
   (no output above this line: 0 problems, exit 0)
+
+SECOND ROUND — after the Codex P2 on scripts/validate-pr-backlog.js (head 4f53dba).
+That file was not in the first sweep. Baseline before touching it:
+    32:16  sonarjs/cognitive-complexity  main() at 34, limit 15   [pre-existing on main]
+
+Extracting selectCleanCandidates() and dryRunPr() out of main() fixes the reported
+selection defect and clears that pre-existing finding as well.
+
+AFTER — both scripts, same rule set:
+  (no output above this line: 0 problems, exit 0)

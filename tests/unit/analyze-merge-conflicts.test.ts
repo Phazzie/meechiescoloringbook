@@ -1,9 +1,10 @@
-// Purpose: Cover the triage-table writer's column mapping, row rewriting and conflict summarising.
-// Why: The analyzer is the only writer of docs/triage-table.md. It addressed columns by fixed index
-//      (`parts[5]`, `parts[6]`), so when the table's columns changed it silently overwrote a human's
-//      disposition with a merge note. These tests are the guard: the last one reads the real table
-//      and fails if the two ever drift apart again.
-// Info flow: header line -> column map -> rewritten row; merge-tree output -> conflict paths -> cell.
+// Purpose: Cover the two scripts that read and write docs/triage-table.md — the analyzer's column
+//          mapping, row rewriting and conflict summarising, and the backlog validator's selection.
+// Why: Both were coupled to the table by position or by a literal phrase, and both failed silently
+//      when it changed: the analyzer overwrote a human's disposition with a merge note, and the
+//      validator reported an empty backlog that looked exactly like a drained one. These tests are
+//      the guard, and the last two read the real table so the three cannot drift apart again.
+// Info flow: header line -> column map -> rewritten row or selected candidates.
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -17,6 +18,7 @@ import {
 	rewriteRow,
 	summarizeConflictPaths
 } from '../../scripts/analyze-merge-conflicts.js';
+import { selectCleanCandidates } from '../../scripts/validate-pr-backlog.js';
 
 const HEADER = '| PR | Title | Head | Merge status | Conflicting paths | Content lacks | Disposition |';
 
@@ -160,6 +162,33 @@ describe('readTable', () => {
 	it('ignores PR-looking rows above the header', () => {
 		const table = readTable(['| #99 | a row in an example block |', HEADER, '| #348 | t | h | CLEAN | — | c | d |']);
 		expect(table?.prRows).toEqual([{ pr: 348, lineIndex: 2 }]);
+	});
+});
+
+describe('selectCleanCandidates', () => {
+	it('picks the rows the status column marks CLEAN', () => {
+		expect(
+			selectCleanCandidates([
+				HEADER,
+				'| --- | --- | --- | --- | --- | --- | --- |',
+				'| #348 | t | h | CLEAN | — | c | d |',
+				'| #338 | t | h | CONFLICT | plan.md | c | d |',
+				'| #296 | t | h | CLEAN | — | c | d |'
+			])
+		).toEqual([348, 296]);
+	});
+
+	// The defect this replaced: the selection searched every line for the literal
+	// "1. Safe candidate for dry-run", so a table that stopped using the phrase reported no
+	// candidates and exited 0 — indistinguishable from a drained backlog.
+	it('does not depend on the retired bucket vocabulary appearing anywhere in the row', () => {
+		expect(
+			selectCleanCandidates([HEADER, '| #348 | t | h | CLEAN | — | c | **Superseded.** |'])
+		).toEqual([348]);
+	});
+
+	it('returns nothing for a table it cannot read, rather than guessing', () => {
+		expect(selectCleanCandidates(['| PR | Title | Disposition |', '| #348 | t | d |'])).toEqual([]);
 	});
 });
 

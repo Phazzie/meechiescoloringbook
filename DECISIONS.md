@@ -33,8 +33,18 @@ Short, durable decisions with context and tradeoffs.
   rewrite. The dropped clean-worktree check is no longer needed because nothing is checked out.
   `tests/unit/analyze-merge-conflicts.test.ts` covers the helpers and reads the committed table, so
   a future column change that breaks the writer fails a test instead of eating a disposition.
+- The second reader, found by review after the first fix. `scripts/validate-pr-backlog.js` selected
+  the PRs it checks out and validates by searching every line for the literal
+  `1. Safe candidate for dry-run`. With the bucket vocabulary gone it would have reported
+  "No PR candidates found" and exited 0 - which is indistinguishable from a drained backlog, so the
+  tool would have quietly stopped doing its job. It now selects on the measured `Merge status`
+  column being `CLEAN`, which is the same claim the bucket made and is measured rather than typed.
+  Its `runCommand` copy is gone in favour of the analyzer's, and `selectCleanCandidates` and
+  `dryRunPr` are lifted out of `main` - which also cleared a pre-existing cognitive-complexity
+  finding of 34 on that function.
 - Revisit criteria: a table that needs the script to write a third column adds it to the two
-  exported column names, not to a position.
+  exported column names, not to a position. A third reader of the table imports `readTable` rather
+  than scanning for a phrase.
 
 ## 2026-09-11 - One safety keyword list, read by all three checks
 
@@ -68,7 +78,7 @@ Short, durable decisions with context and tradeoffs.
   - Date: 2026-09-11
   - Seams: SafetyPolicySeam
   - Evidence: docs/evidence/2026-09-11/rewind-SafetyPolicySeam.txt; docs/evidence/2026-09-11/redproof-safety-keyword-parity.txt; docs/evidence/2026-09-11/sonarjs-local.txt; docs/evidence/2026-09-11/verify-outer.txt; docs/evidence/2026-09-11/verify.txt; docs/evidence/2026-09-11/test.txt; docs/evidence/2026-09-11/check.txt; docs/evidence/2026-09-11/lint.txt; docs/evidence/2026-09-11/build.txt; tests/unit/safety-keyword-parity.test.ts; tests/unit/constants.test.ts; tests/unit/analyze-merge-conflicts.test.ts
-  - Summary: SafetyPolicySeam's 10 contract tests pass unchanged (rewind evidence above); the suite is 2084 passing across 114 files. The seam's contract, mock, fixtures, probe and contract tests are unchanged; only `policy.ts` changed, and only to delete the local keyword array so the implementation reads `SYSTEM_CONSTANTS.DISALLOWED_KEYWORDS` and nothing else. The two words it used to hold privately are now in that constant, which is what makes the other two routes enforce them. A new parity test drives both enforcement paths from the constant itself, and `enforcedDisallowedKeywords` is exported so the test can assert **identity** with the shared array rather than equality of contents - reintroducing the original `[...SHARED, 'x']` shape fails it, proven by mutation in the red proof above.
+  - Summary: SafetyPolicySeam's 10 contract tests pass unchanged (rewind evidence above); the suite is 2087 passing across 114 files. The seam's contract, mock, fixtures, probe and contract tests are unchanged; only `policy.ts` changed, and only to delete the local keyword array so the implementation reads `SYSTEM_CONSTANTS.DISALLOWED_KEYWORDS` and nothing else. The two words it used to hold privately are now in that constant, which is what makes the other two routes enforce them. A new parity test drives both enforcement paths from the constant itself, and `enforcedDisallowedKeywords` is exported so the test can assert **identity** with the shared array rather than equality of contents - reintroducing the original `[...SHARED, 'x']` shape fails it, proven by mutation in the red proof above.
   - Risks: The two newly-shared words widen what `/api/tools` and `/api/meechie-studio-text` refuse, so a request that worked yesterday can be refused today - intended, and the reason it is in `CHANGELOG.md`. Substring matching is unchanged and remains blunt: `'minors'` matches inside `'minorsuit'` and `'suicide'` inside a clinical phrase, and this change neither introduces nor fixes that. Widening the list widens that bluntness by two words, which is the cost of the parity being correct rather than a defect it adds.
 
 ## 2026-09-10 — Give the letterform one voice in the prompt, and give the reader the control
