@@ -14,10 +14,12 @@ type TextSegment = {
   text: unknown;
 };
 
-const disallowedKeywords = [...SYSTEM_CONSTANTS.DISALLOWED_KEYWORDS, 'suicide', 'extremist'];
-
+// The shared constant is the whole list, with nothing added here. This used to append 'suicide' and
+// 'extremist' locally, which meant this seam refused content that `findDisallowedKeywords` — the
+// check behind /api/tools and /api/meechie-studio-text — waved through. A local addition to a policy
+// two other routes read from a different function is a silent split, not a stricter seam.
 const hasDisallowedContent = (text: string) =>
-  disallowedKeywords.some((keyword) => text.toLowerCase().includes(keyword));
+  SYSTEM_CONSTANTS.DISALLOWED_KEYWORDS.some((keyword) => text.toLowerCase().includes(keyword));
 
 const disallowedContent = (message: string, field: string): SafetyPolicyResult => ({
   ok: false,

@@ -7,6 +7,41 @@ Info flow: Decision -> consequences -> future changes.
 
 Short, durable decisions with context and tradeoffs.
 
+## 2026-09-11 - One safety keyword list, read by all three checks
+
+- Date: 2026-09-11
+- Decision: `'suicide'` and `'extremist'` move into `SYSTEM_CONSTANTS.DISALLOWED_KEYWORDS`, and
+  `src/lib/seams/safety-policy-seam/policy.ts` scans that constant directly instead of spreading it
+  into a local array and appending to it. Ports the fix from the stale PR #328 onto current `main`
+  and closes issue #327, adding the parity test that PR did not have.
+- Context: the constant held two words; the seam's local copy held four. `findDisallowedKeywords`,
+  the shared helper, reads the constant — and it is what `tools-pipeline.ts` and
+  `meechie-studio-text-pipeline.ts` call, so `/api/tools` and `/api/meechie-studio-text` accepted
+  requests describing suicide or extremist material that `/api/generate` refused. The words were in
+  the tree, in the refusal message a reader sees (`'Remove content involving minors, self-harm,
+  suicide, or extremist material.'`), and in three of the seam's own fixtures. Only the one list two
+  of the three routes actually consult was missing them.
+- Alternatives: **(a) Add the two words to `findDisallowedKeywords` as well.** Rejected: that is the
+  same mistake a second time, and leaves two lists to keep in step. **(b) Give the seam a
+  contract-level policy input so each caller declares its own list.** Rejected as the wrong shape for
+  this defect: the three routes are not meant to differ. A per-caller list makes divergence
+  expressible, and the whole finding is that divergence happened by accident and nobody noticed.
+- Consequences: `/api/tools` and `/api/meechie-studio-text` now refuse two categories of request they
+  previously accepted. That is the point of the change and it is a behaviour change, recorded in
+  `CHANGELOG.md` rather than absorbed. `findDisallowedKeywords` already lowercases both sides, and
+  the seam already lowercased the text, so no case behaviour changes. The four words are matched as
+  substrings, exactly as before - this change does not alter how matching works, only which words are
+  matched.
+- Revisit criteria: if any route ever needs a list the other two do not, that is alternative (b) and
+  it needs the contract in scope. Adding a word to the shared constant does not.
+
+- Cipher Gate:
+  - Date: 2026-09-11
+  - Seams: SafetyPolicySeam
+  - Evidence: docs/evidence/2026-09-11/rewind-SafetyPolicySeam.txt; docs/evidence/2026-09-11/verify-outer.txt; docs/evidence/2026-09-11/verify.txt; docs/evidence/2026-09-11/test.txt; docs/evidence/2026-09-11/check.txt; docs/evidence/2026-09-11/lint.txt; docs/evidence/2026-09-11/build.txt; tests/unit/safety-keyword-parity.test.ts; tests/unit/constants.test.ts
+  - Summary: SafetyPolicySeam's 10 contract tests pass unchanged (rewind evidence above); the suite is 2064 passing across 113 files. The seam's contract, mock, fixtures, probe and contract tests are unchanged; only `policy.ts` changed, and only to delete the local keyword array so the implementation reads `SYSTEM_CONSTANTS.DISALLOWED_KEYWORDS` and nothing else. The two words it used to hold privately are now in that constant, which is what makes the other two routes enforce them. A new parity test drives both enforcement paths from the constant itself, so the next word added to one path and not the other fails a test.
+  - Risks: The two newly-shared words widen what `/api/tools` and `/api/meechie-studio-text` refuse, so a request that worked yesterday can be refused today - intended, and the reason it is in `CHANGELOG.md`. Substring matching is unchanged and remains blunt: `'minors'` matches inside `'minorsuit'` and `'suicide'` inside a clinical phrase, and this change neither introduces nor fixes that. Widening the list widens that bluntness by two words, which is the cost of the parity being correct rather than a defect it adds.
+
 ## 2026-09-10 — Give the letterform one voice in the prompt, and give the reader the control
 
 - Decision: `fontStyleLine` describes the letterform in words instead of emitting the bare enum

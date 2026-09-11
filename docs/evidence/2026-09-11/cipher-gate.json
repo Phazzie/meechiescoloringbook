@@ -1,0 +1,50 @@
+{
+  "tool": "cipher-gate",
+  "generatedAt": "2026-09-11T20:48:26.617Z",
+  "cipher": {
+    "date": "2026-09-11",
+    "seams": "SafetyPolicySeam",
+    "evidence": [
+      {
+        "path": "docs/evidence/2026-09-11/rewind-SafetyPolicySeam.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-09-11/verify-outer.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-09-11/verify.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-09-11/test.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-09-11/check.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-09-11/lint.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-09-11/build.txt",
+        "exists": true
+      },
+      {
+        "path": "tests/unit/safety-keyword-parity.test.ts",
+        "exists": true
+      },
+      {
+        "path": "tests/unit/constants.test.ts",
+        "exists": true
+      }
+    ],
+    "summary": "SafetyPolicySeam's 10 contract tests pass unchanged (rewind evidence above); the suite is 2064 passing across 113 files. The seam's contract, mock, fixtures, probe and contract tests are unchanged; only `policy.ts` changed, and only to delete the local keyword array so the implementation reads `SYSTEM_CONSTANTS.DISALLOWED_KEYWORDS` and nothing else. The two words it used to hold privately are now in that constant, which is what makes the other two routes enforce them. A new parity test drives both enforcement paths from the constant itself, so the next word added to one path and not the other fails a test.",
+    "risks": "The two newly-shared words widen what `/api/tools` and `/api/meechie-studio-text` refuse, so a request that worked yesterday can be refused today - intended, and the reason it is in `CHANGELOG.md`. Substring matching is unchanged and remains blunt: `'minors'` matches inside `'minorsuit'` and `'suicide'` inside a clinical phrase, and this change neither introduces nor fixes that. Widening the list widens that bluntness by two words, which is the cost of the parity being correct rather than a defect it adds."
+  },
+  "latestChangeMs": 1789159054691.623,
+  "status": "ok"
+}

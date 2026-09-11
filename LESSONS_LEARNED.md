@@ -7,6 +7,12 @@ Info flow: Experience -> lesson -> action applied to future changes.
 
 Short, dated entries capturing pitfalls, surprises, and fixes.
 
+## 2026-09-11
+- Date: 2026-09-11
+- Context: `SYSTEM_CONSTANTS.DISALLOWED_KEYWORDS` held `['minors', 'self-harm']`. `safety-policy-seam/policy.ts` spread that constant into a local array and appended `'suicide'` and `'extremist'`. Somebody had correctly decided the policy needed those two words — and then added them one layer below the constant every other caller reads, so `findDisallowedKeywords`, which is what `/api/tools` and `/api/meechie-studio-text` call, never saw them. The split sat in the tree long enough for issue #327 to be filed against it, for PR #218 to be closed, and for PR #328 to be opened and then go stale for four days, while `main` kept the gap.
+- Lesson: **Widening a shared policy inside one of its readers narrows the policy everywhere else.** The local spread reads as additive and is, locally: this seam does refuse more than it used to. What it silently establishes is that the shared constant is no longer the policy — it is one caller's subset of it — and the two callers that still trust it are now weaker than the code implies. A guardrail that is stricter in one file than in the constant it imports is not a stricter guardrail, it is two guardrails.
+- Action: When a check needs another entry in a shared list, the entry goes in the list. If it genuinely belongs to one caller only, that caller needs its own named constant and a comment saying why the shared one is insufficient — never a spread-and-append, which looks like the shared list and is not. `tests/unit/safety-keyword-parity.test.ts` now drives both enforcement paths from `SYSTEM_CONSTANTS.DISALLOWED_KEYWORDS` itself, so a word added to one path and not the other fails a test instead of shipping.
+
 ## 2026-09-10
 - Date: 2026-09-10
 - Context: Run 25 recorded, as its own lesson, that a contradiction reported on one line is a search rather than a repair — and named the two remaining members of the class it had found. This run took the first of them, `'Bold bubble letters.'` against `Font: block.`, and the measurement that mattered was not in that note. The constant does not merely *contradict* `block`; `block` is what `tool-page-recipe.ts` builds, so the contradiction was in the prompt of every page the eleven-tool hub, the three standalone mode routes and `/m/[mode]` have ever sent. A carried-forward finding said "reachable". The truth was "the default on thirteen of fourteen surfaces".
