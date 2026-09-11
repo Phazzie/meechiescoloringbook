@@ -5,7 +5,7 @@ Info flow: evidence files -> summary -> review.
 -->
 # Proof Tape
 
-Generated at: 2026-09-11T22:08:04.034Z
+Generated at: 2026-09-11T22:18:46.397Z
 Evidence folder: docs/evidence/2026-09-11
 
 Files included (this tape's own outputs, proof-tape.json and proof-tape.md, are written
@@ -21,22 +21,23 @@ writing while this runs and would therefore always be listed short):
   Commands: meechies-coloringbook@0.1.0 check | svelte-kit sync && svelte-check --tsconfig ./tsconfig.json
 - cipher-gate-run.txt (75 bytes) — PREDATES THIS VERIFY RUN
   Commands: meechies-coloringbook@0.1.0 cipher:gate | node scripts/cipher-gate.mjs
-- cipher-gate.json (2658 bytes) — PREDATES THIS VERIFY RUN
+- cipher-gate.json (2761 bytes) — PREDATES THIS VERIFY RUN
 - clan-chain.json (3181 bytes)
 - clan-chain.md (1956 bytes)
 - lint.txt (48 bytes) — PREDATES THIS VERIFY RUN
   Commands: meechies-coloringbook@0.1.0 lint | eslint .
 - redproof-safety-keyword-parity.txt (1936 bytes) — PREDATES THIS VERIFY RUN
-- rewind-SafetyPolicySeam.txt (400 bytes) — PREDATES THIS VERIFY RUN
+- rewind-SafetyPolicySeam.txt (401 bytes) — PREDATES THIS VERIFY RUN
 - seam-ledger.json (37511 bytes)
 - seam-ledger.md (2981 bytes)
-- shaolin-lint.json (518 bytes)
-- test.txt (3135 bytes)
+- shaolin-lint.json (519 bytes)
+- sonarjs-local.txt (880 bytes) — PREDATES THIS VERIFY RUN
+- test.txt (3134 bytes)
   Commands: meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
-- verify.txt (3460 bytes)
+- verify.txt (3459 bytes)
   Commands: meechies-coloringbook@0.1.0 check | svelte-kit sync && svelte-check --tsconfig ./tsconfig.json | meechies-coloringbook@0.1.0 test | vitest run --pool=forks --maxWorkers=1
 
-Older than this run's chamber-lock.json: build.txt, check.txt, cipher-gate-run.txt, cipher-gate.json, lint.txt, redproof-safety-keyword-parity.txt, rewind-SafetyPolicySeam.txt.
+Older than this run's chamber-lock.json: build.txt, check.txt, cipher-gate-run.txt, cipher-gate.json, lint.txt, redproof-safety-keyword-parity.txt, rewind-SafetyPolicySeam.txt, sonarjs-local.txt.
 These files were written by an earlier run, so they describe a different run than
 the one this tape summarizes. Regenerate them or read them as history, not as proof
 of the current change.

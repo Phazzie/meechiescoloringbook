@@ -149,6 +149,66 @@ export const summarizeConflictPaths = (paths) => {
     .join(', ');
 };
 
+/**
+ * Locate the table's header, its column map, and every PR row beneath it.
+ *
+ * Separated from `main` so it can be tested against a table without running git, and because the
+ * cost of getting it wrong is a rewritten disposition rather than a visible error.
+ *
+ * @param {string[]} lines
+ * @returns {{ headerIndex: number, columns: Record<string, number>, prRows: { pr: number, lineIndex: number }[] } | null}
+ *          null when no `Merge status` column exists, which is the one case where guessing is worse
+ *          than refusing.
+ */
+export const readTable = (lines) => {
+  const headerIndex = lines.findIndex(
+    (line) => parseTableColumns(line)[STATUS_COLUMN] !== undefined
+  );
+  if (headerIndex === -1) {
+    return null;
+  }
+  /** @type {{ pr: number, lineIndex: number }[]} */
+  const prRows = [];
+  for (let index = headerIndex + 1; index < lines.length; index += 1) {
+    const match = lines[index].match(/^\|\s*#(\d+)\s*\|/);
+    if (match) {
+      prRows.push({ pr: Number.parseInt(match[1], 10), lineIndex: index });
+    }
+  }
+  return { headerIndex, columns: parseTableColumns(lines[headerIndex]), prRows };
+};
+
+/**
+ * Measure one PR's head against `origin/main`, without touching the working tree.
+ *
+ * @param {number} pr
+ * @returns {{ status: 'CLEAN' | 'CONFLICT', conflictPaths: string[], failureNote?: string } | null}
+ *          null when the PR's head could not be fetched, so its row is left alone.
+ */
+export const measureAgainstMain = (pr) => {
+  const head = `refs/pr-analysis/${pr}`;
+  if (!runCommand(`git fetch --force origin pull/${pr}/head:${head}`).success) {
+    return null;
+  }
+  // merge-tree is read-only: no checkout, no temporary branch, no clean-worktree requirement.
+  const merge = runCommand(`git merge-tree --write-tree --name-only origin/main ${head}`);
+  runCommand(`git update-ref -d ${head}`);
+
+  if (merge.success) {
+    return { status: 'CLEAN', conflictPaths: [] };
+  }
+  const conflictPaths = parseConflictPaths(merge.output);
+  const collapsed = merge.output.replaceAll(/\s+/g, ' ').trim();
+  return {
+    status: 'CONFLICT',
+    conflictPaths,
+    failureNote:
+      conflictPaths.length === 0
+        ? `merge-tree failed without naming files: ${collapsed}`
+        : undefined
+  };
+};
+
 async function main() {
   console.log('==================================================');
   console.log('PR Merge Conflict Analyzer');
@@ -160,29 +220,19 @@ async function main() {
   }
 
   const lines = fs.readFileSync(TRIAGE_TABLE_PATH, 'utf8').split('\n');
-
-  const headerIndex = lines.findIndex((line) => parseTableColumns(line)[STATUS_COLUMN] !== undefined);
-  if (headerIndex === -1) {
+  const table = readTable(lines);
+  if (table === null) {
     console.error(
       `No "${STATUS_COLUMN}" column found in the triage table header. Refusing to guess which ` +
         'cells to rewrite — add the column or fix its spelling.'
     );
     process.exit(1);
   }
-  const columns = parseTableColumns(lines[headerIndex]);
+  const { columns, prRows } = table;
   if (columns[CONFLICT_PATHS_COLUMN] === undefined) {
     console.warn(
       `[WARNING] No "${CONFLICT_PATHS_COLUMN}" column; conflicting files will not be recorded.`
     );
-  }
-
-  /** @type {{ pr: number, lineIndex: number }[]} */
-  const prRows = [];
-  for (let index = headerIndex + 1; index < lines.length; index += 1) {
-    const match = lines[index].match(/^\|\s*#(\d+)\s*\|/);
-    if (match) {
-      prRows.push({ pr: Number.parseInt(match[1], 10), lineIndex: index });
-    }
   }
   if (prRows.length === 0) {
     console.log('No PR rows found in triage table.');
@@ -200,32 +250,15 @@ async function main() {
   console.log(`Measuring ${prRows.length} PRs against origin/main (${base.output}).\n`);
 
   for (const row of prRows) {
-    const { pr } = row;
-    const head = `refs/pr-analysis/${pr}`;
-    const fetchResult = runCommand(`git fetch --force origin pull/${pr}/head:${head}`);
-    if (!fetchResult.success) {
-      console.warn(`[WARNING] Failed to fetch PR #${pr}. Leaving its row untouched.`);
+    const measured = measureAgainstMain(row.pr);
+    if (measured === null) {
+      console.warn(`[WARNING] Failed to fetch PR #${row.pr}. Leaving its row untouched.`);
       continue;
     }
-
-    // merge-tree is read-only: no checkout, no temporary branch, no clean-worktree requirement.
-    const merge = runCommand(`git merge-tree --write-tree --name-only origin/main ${head}`);
-    runCommand(`git update-ref -d ${head}`);
-
-    const conflictPaths = merge.success ? [] : parseConflictPaths(merge.output);
-    const measured = {
-      status: /** @type {'CLEAN' | 'CONFLICT'} */ (merge.success ? 'CLEAN' : 'CONFLICT'),
-      conflictPaths,
-      failureNote:
-        !merge.success && conflictPaths.length === 0
-          ? `merge-tree failed without naming files: ${merge.output.replaceAll(/\s+/g, ' ').trim()}`
-          : undefined
-    };
-
     lines[row.lineIndex] = rewriteRow(lines[row.lineIndex], columns, measured);
-    console.log(
-      `-> PR #${pr} is ${measured.status}${conflictPaths.length > 0 ? ` (${conflictPaths.length} file(s))` : ''}.`
-    );
+    const fileCount = measured.conflictPaths.length;
+    const detail = fileCount > 0 ? ` (${fileCount} file(s))` : '';
+    console.log(`-> PR #${row.pr} is ${measured.status}${detail}.`);
   }
 
   fs.writeFileSync(TRIAGE_TABLE_PATH, lines.join('\n'));

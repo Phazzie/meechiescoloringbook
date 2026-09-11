@@ -8,6 +8,6 @@
 
  Test Files  1 passed (1)
       Tests  10 passed (10)
-   Start at  22:02:58
-   Duration  913ms (transform 108ms, setup 48ms, import 95ms, tests 13ms, environment 583ms)
+   Start at  22:13:52
+   Duration  907ms (transform 111ms, setup 49ms, import 101ms, tests 13ms, environment 577ms)
 

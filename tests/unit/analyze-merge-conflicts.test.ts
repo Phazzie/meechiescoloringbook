@@ -13,6 +13,7 @@ import {
 	STATUS_COLUMN,
 	parseConflictPaths,
 	parseTableColumns,
+	readTable,
 	rewriteRow,
 	summarizeConflictPaths
 } from '../../scripts/analyze-merge-conflicts.js';
@@ -129,6 +130,36 @@ describe('summarizeConflictPaths', () => {
 
 	it('says so when there is nothing to name', () => {
 		expect(summarizeConflictPaths([])).toBe('—');
+	});
+});
+
+describe('readTable', () => {
+	it('finds the header, its columns and every PR row beneath it', () => {
+		const table = readTable([
+			'# Live PR Triage Table',
+			'',
+			HEADER,
+			'| --- | --- | --- | --- | --- | --- | --- |',
+			'| #348 | t | h | CLEAN | — | c | d |',
+			'| #296 | t | h | CONFLICT | a.md | c | d |',
+			'',
+			'## Prose that mentions #175 but is not a row'
+		]);
+		expect(table?.headerIndex).toBe(2);
+		expect(table?.columns[STATUS_COLUMN]).toBe(4);
+		expect(table?.prRows).toEqual([
+			{ pr: 348, lineIndex: 4 },
+			{ pr: 296, lineIndex: 5 }
+		]);
+	});
+
+	it('refuses the table rather than guessing when no status column exists', () => {
+		expect(readTable(['| PR | Title | Disposition |', '| #348 | t | d |'])).toBeNull();
+	});
+
+	it('ignores PR-looking rows above the header', () => {
+		const table = readTable(['| #99 | a row in an example block |', HEADER, '| #348 | t | h | CLEAN | — | c | d |']);
+		expect(table?.prRows).toEqual([{ pr: 348, lineIndex: 2 }]);
 	});
 });
 

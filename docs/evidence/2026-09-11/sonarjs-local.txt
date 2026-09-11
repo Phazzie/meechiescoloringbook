@@ -1,0 +1,15 @@
+SonarJS sweep over this PR's changed source, run per the method recorded in WORST_TO_BEST_LOG.md
+(Run 25 close-out): npm i --no-save eslint-plugin-sonarjs, run its recommended rules with the
+repo's own @typescript-eslint/parser, then remove it. sonarcloud.io itself is refused by this
+container's network policy, so the dashboard's findings are not readable here.
+
+BEFORE (head 44b7bc0) — matched SonarCloud's "2 New issues" exactly:
+  scripts/analyze-merge-conflicts.js
+    152:16  sonarjs/cognitive-complexity        main() at 20, limit 15
+    227:71  sonarjs/no-nested-template-literals  the per-PR progress line
+
+FIX: main() split into readTable() and measureAgainstMain(), both exported and now tested;
+     the progress line computes its suffix before interpolating it.
+
+AFTER — same command, same rule set, same files:
+  (no output above this line: 0 problems, exit 0)
