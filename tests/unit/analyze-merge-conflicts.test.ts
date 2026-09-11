@@ -11,6 +11,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
 	CONFLICT_PATHS_COLUMN,
+	findTruncatedRows,
 	STATUS_COLUMN,
 	parseConflictPaths,
 	parseTableColumns,
@@ -363,6 +364,33 @@ describe('refreshRows', () => {
 				: { ok: true, status: 'CONFLICT', conflictPaths: ['plan.md'] }
 		);
 		expect(lines).toEqual(original);
+	});
+});
+
+describe('findTruncatedRows', () => {
+	const required = [STATUS_COLUMN, CONFLICT_PATHS_COLUMN];
+
+	// The defect: rewriteRow guards against an out-of-range index and so does nothing for a short row,
+	// quietly — while refreshRows counted it as measured. The table would be written, its provenance
+	// rewritten, and the run would exit 0 with that row unmeasured.
+	it('names a row too short to hold the cells the script writes', () => {
+		const lines = [HEADER, CLEAN_ROW, '| #317 | title |'];
+		const table = readTable(lines);
+		expect(findTruncatedRows(lines, table?.columns ?? {}, table?.prRows ?? [], required)).toEqual([
+			{ pr: 317, cells: 4 }
+		]);
+	});
+
+	it('accepts rows that are long enough', () => {
+		const lines = [HEADER, CLEAN_ROW];
+		const table = readTable(lines);
+		expect(findTruncatedRows(lines, table?.columns ?? {}, table?.prRows ?? [], required)).toEqual([]);
+	});
+
+	it('counts an escaped pipe as one cell, not two', () => {
+		const lines = [HEADER, '| #400 | a \\| b | h | CLEAN | — | yes | c | d |'];
+		const table = readTable(lines);
+		expect(findTruncatedRows(lines, table?.columns ?? {}, table?.prRows ?? [], required)).toEqual([]);
 	});
 });
 

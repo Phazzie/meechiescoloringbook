@@ -146,3 +146,24 @@ Sweep (recommended + S1192) on this head:
 ✖ 1 problem (1 error, 0 warnings)
 
   (no output above this line: 0 problems, exit 1)
+
+NINTH ROUND — Codex P2 on 20a8e95: a structurally short PR row was counted as measured.
+rewriteRow guards an out-of-range index and so does nothing, quietly; refreshRows still counted
+the row. Reproduced before the fix, for '| #317 | title |' against a full header:
+  readTable prRows: [{"pr":317,"lineIndex":1}]
+  refreshRows skipped: []   measured: [{"pr":317,"status":"CONFLICT","fileCount":1}]
+  row after the rewrite: '| #317 | title |'  (unchanged)
+findTruncatedRows now rejects such rows before any measurement. Proved against the real file:
+  exit 1, 'These PR rows are too short...  #317: 4 cell(s)', table byte-identical afterwards.
+
+Sweep (recommended + S1192) on this head:
+
+/home/user/meechiescoloringbook/scripts/analyze-merge-conflicts.js
+  359:16  error  Refactor this function to reduce its Cognitive Complexity from 16 to the 15 allowed  sonarjs/cognitive-complexity
+
+/home/user/meechiescoloringbook/tests/unit/analyze-merge-conflicts.test.ts
+  333:28  error  Define a constant instead of duplicating this literal 5 times  sonarjs/no-duplicate-string
+
+✖ 2 problems (2 errors, 0 warnings)
+
+  (no output above this line: 0 problems, exit 1)

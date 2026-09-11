@@ -236,6 +236,30 @@ export const readTable = (lines) => {
 };
 
 /**
+ * Which PR rows are too short to hold the cells this script writes.
+ *
+ * `rewriteRow` guards against an out-of-range index and therefore does nothing for a truncated row -
+ * quietly. `refreshRows` counted such a row as measured, so a table containing `| #317 | title |`
+ * after a careless edit would be written, have its provenance line rewritten, and exit 0 with that row
+ * unmeasured. Checked here, before any measurement, so a malformed table costs no git work.
+ *
+ * @param {string[]} lines
+ * @param {Record<string, number>} columns
+ * @param {{ pr: number, lineIndex: number }[]} prRows
+ * @param {string[]} requiredColumns
+ * @returns {{ pr: number, cells: number }[]}
+ */
+export const findTruncatedRows = (lines, columns, prRows, requiredColumns) =>
+  prRows
+    .map((row) => ({ pr: row.pr, cells: splitRow(lines[row.lineIndex]).length }))
+    .filter(({ cells }) =>
+      requiredColumns.some((name) => {
+        const index = columns[name];
+        return index === undefined || index >= cells;
+      })
+    );
+
+/**
  * Measure one PR's head against `origin/main`, without touching the working tree.
  *
  * Returns a *reason* on failure rather than a bare null, and `CONFLICT` only when git actually
@@ -360,6 +384,21 @@ async function main() {
       `No "${CONFLICT_PATHS_COLUMN}" column found in the triage table header. This column is the ` +
         "analyzer's to write, so a refresh without it would leave stale path cells beside fresh " +
         'statuses. Nothing measured, nothing written — add the column or fix its spelling.'
+    );
+    process.exit(1);
+  }
+  const truncated = findTruncatedRows(lines, columns, prRows, [
+    STATUS_COLUMN,
+    CONFLICT_PATHS_COLUMN
+  ]);
+  if (truncated.length > 0) {
+    console.error('These PR rows are too short to hold the cells this script writes:');
+    for (const row of truncated) {
+      console.error(`  #${row.pr}: ${row.cells} cell(s)`);
+    }
+    console.error(
+      'A refresh would count them as measured and leave them unchanged, so the table would claim a ' +
+        'complete refresh it did not perform. Nothing measured, nothing written — repair the rows.'
     );
     process.exit(1);
   }
