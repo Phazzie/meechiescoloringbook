@@ -149,6 +149,15 @@ Short, durable decisions with context and tradeoffs.
   and a caller that exits non-zero on one - rather than in the individual guards. That is what the
   `{ candidates, reason }` pair is for, and each of the four was cheap to fix only because the shape was
   already there by the second one.
+- **A cell's formatting is never allowed to change what the cell says.** Three findings on this PR were
+  the same mistake: a pipe in a conflicted filename replaced with `/` (recording `a/b.md` for `a|b.md`),
+  a filename's own leading and trailing spaces trimmed away (` leadtrail` recorded as `leadtrail`), and
+  before those, an error string joined into the column that names files. In each case the value was
+  altered so it would sit quietly in a markdown cell, and in each case the column a reader trusts to
+  name files then named a different file. Escaping, not substitution; preserving, not normalising. Where
+  a value genuinely cannot be represented unambiguously, say so next to the code rather than rounding
+  the value off - `parseConflictPaths` carries that note about a filename's edge whitespace, and names
+  the one consumer (a person reading the column) that makes preserving the better trade.
 - Revisit criteria: a table that needs the script to write a third column adds it to the exported
   column names, not to a position. A third reader of the table imports `readTable` rather than
   scanning for a phrase. A second fact about a row gets its own column rather than being encoded in
