@@ -368,3 +368,30 @@ round 11) was about a *cell*. These are about the document. The fix is the same 
 cases and worth stating once: **structure is recognised only where structure can legally be** — rows
 only inside the contiguous table, markers only outside a fence, the terminator only on a line with
 nothing in it.
+
+================================================================================
+Round 16 — two faults in one row, and a table whose bytes depended on the machine
+================================================================================
+
+Same substitute, same config (recommended + S1192). This round's own changes introduced four findings,
+all fixed before commit:
+
+  scripts/analyze-merge-conflicts.js
+    275:44  Extract this nested ternary operation                  sonarjs/no-nested-conditional
+    821:64  Refactor this code to not use nested template literals  sonarjs/no-nested-template-literals
+  scripts/validate-pr-backlog.js
+    102:72  Refactor this code to not use nested template literals  sonarjs/no-nested-template-literals
+  tests/unit/analyze-merge-conflicts.test.ts
+     766:21  Define a constant instead of duplicating this literal 4 times  sonarjs/no-duplicate-string
+
+After: 0 problems on all three files.
+
+The two nested-template findings were the same expression in both readers — `${row.pr === null ? '' :
+` (#${row.pr})`}` — which is the round's own theme showing up in its own fix: one fact written twice.
+Extracted to an exported `malformedRowLabel`, so both messages name a malformed row the same way.
+
+NOTE on the locale finding, recorded because it changed committed bytes: `summarizeConflictPaths` now
+orders by UTF-16 code unit, so the committed table's cells changed order — `WORST_TO_BEST_LOG.md` now
+sorts before `plan.md`, and before `docs/` too, because `W` is below both. That is `LC_ALL=C` order.
+Measured on this host, `localeCompare` with no locale put `ä.md` before `z.md`; `sv-SE` puts it after.
+The analyzer was re-run and the table regenerated, and a second run is byte-identical.

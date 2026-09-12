@@ -1,0 +1,86 @@
+Red-proof: round 15's four findings on caba989, each reintroduced and each caught
+=================================================================================
+
+Findings, in substance:
+
+  1. Reject malformed rows before parsing their PR cells. A row with BOTH faults at once —
+     `| 348 | title |`, too narrow AND missing its `#` — passed every guard. `findRowsWithBadPrCell`
+     skipped it (it only judges full-width rows), `readTable` left it out of prRows (the cell does not
+     parse), and `findMalformedRows` only inspected prRows. Two checks that each catch one fault, and
+     a row carrying both fell between them: the analyzer advanced the provenance line having never
+     measured that PR, and the validator reported an empty backlog. Reproduced before the fix:
+
+         prRows            [{"pr":348,"lineIndex":3}]
+         badPrCell         []
+         malformed         []
+         validateTable     {"ok":true}
+
+  2. Honor adaptive fence lengths in the conflict-block assertion. The test helper that reads the
+     committed block back toggled its own `/^`{3,}/` flag, which a file named exactly ``` satisfies —
+     so it read the surrounding markup as paths and would have failed `npm test` on a valid refresh.
+     The production reader had been fixed for that one round earlier; the reader that checks it had not.
+
+  3. Sort conflict summaries independently of host locale. `summarizeConflictPaths` used
+     `localeCompare` with no locale, so the same git measurement wrote a different committed table
+     depending on the machine: `sv-SE` orders `ä` after `z`, `en-US` before it. A file whose bytes
+     depend on where they were generated is not evidence, and the idempotence this script is proved to
+     have held only per machine.
+
+  4. Resolve PR rows by column name in committed-table tests. Those assertions used
+     `/^\|\s*#\d+\s*\|/` — the first-column assumption the production parser was fixed for two rounds
+     earlier — so moving the `PR` column would leave them finding no rows and failing, blocking a
+     schema change the readers support.
+
+Fixes: width is now checked over every non-divider row of the contiguous table and checked FIRST,
+because it needs no parsing (`findMalformedRows(lines, headerIndex)`); `fencedLines` returns a
+classification (`outside` / `open` / `inside` / `close`) so the marker scan and the block reader share
+one implementation of the CommonMark rule; ordering is by UTF-16 code unit; and the committed-table
+assertions resolve rows through `readTable`.
+
+Each mutation below reintroduces one defect and runs
+`npx vitest run tests/unit/analyze-merge-conflicts.test.ts`.
+
+=================================================================
+MUTATION: the width check judges only rows whose PR cell parses (a row with both faults falls through)
+=================================================================
+     × is named by the width check even though its PR cell does not parse 15ms
+     × stops the analyzer before it measures anything 2ms
+     × stops the validator too, with a reason rather than an empty backlog 1ms
+ FAIL  tests/unit/analyze-merge-conflicts.test.ts > a row carrying two faults at once > is named by the width check even though its PR cell does not parse
+AssertionError: expected [] to deeply equal [ { pr: null, lineIndex: 4, …(2) } ]
+ FAIL  tests/unit/analyze-merge-conflicts.test.ts > a row carrying two faults at once > stops the analyzer before it measures anything
+AssertionError: expected true to be false // Object.is equality
+ FAIL  tests/unit/analyze-merge-conflicts.test.ts > a row carrying two faults at once > stops the validator too, with a reason rather than an empty backlog
+AssertionError: expected [ 348 ] to deeply equal []
+      Tests  3 failed | 125 passed (128)
+
+=================================================================
+MUTATION: the block reader gets its own three-or-more-backticks rule back
+=================================================================
+     × is read back as a path, not as a delimiter 16ms
+ FAIL  tests/unit/analyze-merge-conflicts.test.ts > a conflicted filename that is itself a code fence > is read back as a path, not as a delimiter
+AssertionError: expected [ '', '</details>', '', …(1) ] to deeply equal [ '```', 'plan.md' ]
+      Tests  1 failed | 127 passed (128)
+
+=================================================================
+MUTATION: ordering goes back to the host's own collation
+=================================================================
+     × writes only the two measured columns and leaves the rest byte-identical 15ms
+     × orders by code unit, so the same measurement writes the same table anywhere 1ms
+     × expands every abbreviated cell into the same files the block names 1ms
+ FAIL  tests/unit/analyze-merge-conflicts.test.ts > rewriteRow > writes only the two measured columns and leaves the rest byte-identical
+AssertionError: expected 'plan.md, WORST_TO_BEST_LOG.md' to be 'WORST_TO_BEST_LOG.md, plan.md' // Object.is equality
+ FAIL  tests/unit/analyze-merge-conflicts.test.ts > summarizeConflictPaths > orders by code unit, so the same measurement writes the same table anywhere
+AssertionError: expected 'ä.md, z.md' to be 'z.md, ä.md' // Object.is equality
+ FAIL  tests/unit/analyze-merge-conflicts.test.ts > the committed triage table > expands every abbreviated cell into the same files the block names
+AssertionError: expected 'WORST_TO_BEST_LOG.md, plan.md' to be 'plan.md, WORST_TO_BEST_LOG.md' // Object.is equality
+      Tests  3 failed | 125 passed (128)
+
+=================================================================
+MUTATION: the committed-table assertions go back to the retired first-column regex
+=================================================================
+     × would still find its rows if the PR column moved 10ms
+ FAIL  tests/unit/analyze-merge-conflicts.test.ts > the committed triage table > would still find its rows if the PR column moved
+AssertionError: expected +0 to be 6 // Object.is equality
+      Tests  1 failed | 127 passed (128)
+

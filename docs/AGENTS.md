@@ -45,6 +45,14 @@ Rules that follow from the split:
   agree — `tests/unit/analyze-merge-conflicts.test.ts` reads the committed file and rebuilds each cell
   from the block's paths with `summarizeConflictPaths`, rather than parsing the cell apart, because a
   filename may legally contain the separator a parser would split on.
+- The generated columns must be byte-identical on every machine. Ordering is by UTF-16 code unit, never
+  `localeCompare` — with no locale that reads the host's collation, so the same measurement wrote a
+  different table on a `sv-SE` machine than on an `en-US` one, and a committed file whose bytes depend on
+  where they were generated is not evidence.
+- Guards are ordered by what they need, cheapest precondition first. Row width needs no parsing, so it is
+  checked over every non-divider row of the table before any cell is read; a `PR` cell is parsed only
+  once the row is known to be the right shape. A row that was both too narrow and missing its `#` used to
+  pass both guards, because each one needed the other's precondition to hold.
 - **Structure is recognised only where structure can legally be.** This file holds filenames git chose,
   and a filename may be shaped like a table row, like a block marker, or like a blank line. So PR rows
   come only from the contiguous table (`tableRowEnd`), the markers only from outside a fenced block

@@ -240,6 +240,38 @@ Short, durable decisions with context and tradeoffs.
   paths with `summarizeConflictPaths` and compares, parsing no filenames at all. That is also a stronger
   check than the one it replaces: it asserts the whole cell rather than each entry. **A test that parses
   a value apart inherits every ambiguity the format has; one that regenerates it inherits none.**
+- **A fourteenth round, four findings, and the first is two guards each catching half a defect.** A row
+  with *both* faults at once - `| 348 | title |`, too narrow **and** missing its `#` - passed everything.
+  `findRowsWithBadPrCell` only judges full-width rows, so it skipped it; `readTable` left it out of
+  `prRows` because the cell does not parse; and `findMalformedRows` only inspected `prRows`. The analyzer
+  advanced the provenance line having never measured that PR, and the validator reported an empty
+  backlog. **Two guards that each require a different precondition leave the intersection of their blind
+  spots uncovered**, and the fix is ordering by what a check needs: width needs no parsing, so it is
+  checked first and over every non-divider row of the contiguous table, and only then is a PR cell read.
+- **The second is the round-13 fence rule, missing from the reader that verifies it.** The test helper
+  that reads the committed block back kept its own `/^\`{3,}/` toggle, which a file named exactly
+  ``` satisfies - so it read the surrounding markup as paths and would have failed `npm test` on a
+  perfectly valid refresh. `fencedLines` now returns a **classification** (`outside` / `open` / `inside` /
+  `close`) rather than a boolean, because the two readers need different halves of one answer:
+  `findConflictBlock` wants the lines outside a fence, the block reader wants the lines inside one. That
+  is the shape that makes a second implementation unnecessary, which is the only reliable way to stop one
+  appearing - the fourth time on this PR that a rule existed in one reader and not another.
+- **The third finding is about determinism, and it had made the committed file machine-dependent.**
+  `summarizeConflictPaths` sorted with `localeCompare` and no locale, so the same git measurement wrote a
+  different `docs/triage-table.md` depending on the host: `sv-SE` orders `ä` after `z`, `en-US` before
+  it. Measured on this container, `localeCompare` puts `ä.md` first. **A generated file whose bytes depend
+  on the machine that generated them is not the evidence this repository treats it as**, and the
+  idempotence proved for this script held only per machine. Ordering is by UTF-16 code unit now - an
+  explicit locale would still leave the answer to the ICU version Node was built against, and code units
+  leave it to nothing. The cost is `LC_ALL=C` ordering, so `WORST_TO_BEST_LOG.md` sorts before `docs/`;
+  the committed cells were regenerated and re-run byte-identical.
+- **The fourth is the retired first-column assumption, alive in the tests that check the file.** Five
+  committed-table assertions found rows with `/^\|\s*#\d+\s*\|/` - the exact coupling the parser was
+  fixed for in the eleventh round - so moving the `PR` column would have left them finding no rows and
+  failing, blocking a schema change the production readers support. They resolve through `readTable` now,
+  and one test moves the column in a copy of the real file to prove it. **A test that encodes a retired
+  assumption is a second place the assumption has to be retired**, and it is the easier one to forget
+  because it is green while it is wrong.
 - Revisit criteria: a table that needs the script to write a third column adds it to the exported
   column names, not to a position. A third reader of the table imports `readTable` rather than
   scanning for a phrase. A second fact about a row gets its own column rather than being encoded in
@@ -276,8 +308,8 @@ Short, durable decisions with context and tradeoffs.
 - Cipher Gate:
   - Date: 2026-09-12
   - Seams: SafetyPolicySeam
-  - Evidence: docs/evidence/2026-09-12/rewind-SafetyPolicySeam.txt; docs/evidence/2026-09-12/redproof-safety-keyword-parity.txt; docs/evidence/2026-09-12/redproof-triage-lossless-paths.txt; docs/evidence/2026-09-12/abortproof-triage-table.txt; docs/evidence/2026-09-12/redproof-triage-structure-shaped-filenames.txt; docs/evidence/2026-09-12/sonarjs-local.txt; docs/evidence/2026-09-12/verify-outer.txt; docs/evidence/2026-09-12/verify.txt; docs/evidence/2026-09-12/test.txt; docs/evidence/2026-09-12/check.txt; docs/evidence/2026-09-12/lint.txt; docs/evidence/2026-09-12/build.txt; docs/evidence/2026-09-11/verify-outer.txt; docs/evidence/2026-09-11/sonarjs-local.txt; tests/unit/safety-keyword-parity.test.ts; tests/unit/constants.test.ts; tests/unit/analyze-merge-conflicts.test.ts
-  - Summary: Dated 2026-09-12 because the work crossed a UTC midnight and the chain writes into the day it runs; the 2026-09-11 folder holds the same run's earlier transcripts and is cited alongside. SafetyPolicySeam's 10 contract tests pass unchanged (rewind evidence above); the suite is 2187 passing across 114 files. The seam's contract, mock, fixtures, probe and contract tests are unchanged; only `policy.ts` changed, and only to delete the local keyword array so the implementation reads `SYSTEM_CONSTANTS.DISALLOWED_KEYWORDS` and nothing else. The two words it used to hold privately are now in that constant, which is what makes the other two routes enforce them. A new parity test drives both enforcement paths from the constant itself, and `enforcedDisallowedKeywords` is exported so the test can assert **identity** with the shared array rather than equality of contents - reintroducing the original `[...SHARED, 'x']` shape fails it, proven by mutation in the red proof above.
+  - Evidence: docs/evidence/2026-09-12/rewind-SafetyPolicySeam.txt; docs/evidence/2026-09-12/redproof-safety-keyword-parity.txt; docs/evidence/2026-09-12/redproof-triage-lossless-paths.txt; docs/evidence/2026-09-12/abortproof-triage-table.txt; docs/evidence/2026-09-12/redproof-triage-structure-shaped-filenames.txt; docs/evidence/2026-09-12/redproof-triage-two-faults-and-locale.txt; docs/evidence/2026-09-12/sonarjs-local.txt; docs/evidence/2026-09-12/verify-outer.txt; docs/evidence/2026-09-12/verify.txt; docs/evidence/2026-09-12/test.txt; docs/evidence/2026-09-12/check.txt; docs/evidence/2026-09-12/lint.txt; docs/evidence/2026-09-12/build.txt; docs/evidence/2026-09-11/verify-outer.txt; docs/evidence/2026-09-11/sonarjs-local.txt; tests/unit/safety-keyword-parity.test.ts; tests/unit/constants.test.ts; tests/unit/analyze-merge-conflicts.test.ts
+  - Summary: Dated 2026-09-12 because the work crossed a UTC midnight and the chain writes into the day it runs; the 2026-09-11 folder holds the same run's earlier transcripts and is cited alongside. SafetyPolicySeam's 10 contract tests pass unchanged (rewind evidence above); the suite is 2194 passing across 114 files. The seam's contract, mock, fixtures, probe and contract tests are unchanged; only `policy.ts` changed, and only to delete the local keyword array so the implementation reads `SYSTEM_CONSTANTS.DISALLOWED_KEYWORDS` and nothing else. The two words it used to hold privately are now in that constant, which is what makes the other two routes enforce them. A new parity test drives both enforcement paths from the constant itself, and `enforcedDisallowedKeywords` is exported so the test can assert **identity** with the shared array rather than equality of contents - reintroducing the original `[...SHARED, 'x']` shape fails it, proven by mutation in the red proof above.
   - Risks: The two newly-shared words widen what `/api/tools` and `/api/meechie-studio-text` refuse, so a request that worked yesterday can be refused today - intended, and the reason it is in `CHANGELOG.md`. Substring matching is unchanged and remains blunt: `'minors'` matches inside `'minorsuit'` and `'suicide'` inside a clinical phrase, and this change neither introduces nor fixes that. Widening the list widens that bluntness by two words, which is the cost of the parity being correct rather than a defect it adds.
 
 ## 2026-09-10 — Give the letterform one voice in the prompt, and give the reader the control

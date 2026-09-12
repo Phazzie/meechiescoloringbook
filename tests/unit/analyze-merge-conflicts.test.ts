@@ -45,12 +45,14 @@ const DIVIDER = '| --- | --- | --- | --- | --- | --- | --- | --- |';
 // nobody can change in one place.
 const CLEAN_ROW = '| #348 | t | h | CLEAN | — | yes | c | d |';
 const CONFLICTED_LOG = 'WORST_TO_BEST_LOG.md';
-const TWO_CONFLICTS = `plan.md, ${CONFLICTED_LOG}`;
+// Code-unit order, which is what `summarizeConflictPaths` now uses: `W` is below `p`.
+const TWO_CONFLICTS = `${CONFLICTED_LOG}, plan.md`;
 // A row whose PR cell is the header's width but does not name a PR — the hole that tightening the row
 // match to `#<digits>` opened, and which both readers now refuse.
 const ROW_WITHOUT_HASH = '| 348 | t | h | CLEAN | — | yes | c | d |';
 const EVIDENCE_PATH = 'docs/evidence/2026-09-05/test.txt';
 const UNFETCHABLE = 'could not fetch its head';
+const PROVENANCE = 'Last refreshed: **2026-09-12**, against `origin/main` at `f1a8c91`.';
 
 describe('parseTableColumns', () => {
 	it('maps header names to their index in the split parts', () => {
@@ -296,11 +298,24 @@ describe('summarizeConflictPaths', () => {
 	});
 
 	it('keeps a lone file in a directory by name, because one file is different news', () => {
+		// Unchanged by the code-unit comparator, and worth pinning: the top-level sort is by *directory*,
+		// and `plan.md`'s directory is the empty string, which sorts below `docs` under either rule.
 		expect(summarizeConflictPaths(['docs/seams.md', 'plan.md'])).toBe('plan.md, docs/seams.md');
 	});
 
 	it('says so when there is nothing to name', () => {
 		expect(summarizeConflictPaths([])).toBe('—');
+	});
+
+	// `localeCompare` with no locale reads the host's collation: `sv-SE` orders `ä` after `z`, `en-US`
+	// before it. The same git measurement therefore wrote a different committed table depending on the
+	// machine, which is not evidence. Code units order by `z` (122) then `ä` (228) everywhere, so this
+	// assertion fails under either locale's collation and passes under none.
+	it('orders by code unit, so the same measurement writes the same table anywhere', () => {
+		expect(summarizeConflictPaths(['ä.md', 'z.md'])).toBe('z.md, ä.md');
+		expect(summarizeConflictPaths(['WORST_TO_BEST_LOG.md', 'plan.md'])).toBe(
+			'WORST_TO_BEST_LOG.md, plan.md'
+		);
 	});
 });
 
@@ -576,7 +591,7 @@ describe('isDividerRow', () => {
 describe('findMalformedRows', () => {
 	const malformed = (lines: string[]) => {
 		const table = readTable(lines);
-		return findMalformedRows(lines, table?.headerIndex ?? 0, table?.prRows ?? []);
+		return findMalformedRows(lines, table?.headerIndex ?? 0);
 	};
 
 	// rewriteRow guards against an out-of-range index and so does nothing for a short row, quietly —
@@ -584,7 +599,7 @@ describe('findMalformedRows', () => {
 	// and the run would exit 0 with that row unmeasured.
 	it('names a row truncated at the end', () => {
 		expect(malformed([HEADER, CLEAN_ROW, '| #317 | title |'])).toEqual([
-			{ pr: 317, cells: 4, expected: 10 }
+			{ pr: 317, lineIndex: 2, cells: 4, expected: 10 }
 		]);
 	});
 
@@ -594,7 +609,7 @@ describe('findMalformedRows', () => {
 	// over a human's Dry-run answer.
 	it('names a row with an interior cell deleted, which a range check would accept', () => {
 		expect(malformed([HEADER, '| #2 | t | CLEAN | — | no | c | d |'])).toEqual([
-			{ pr: 2, cells: 9, expected: 10 }
+			{ pr: 2, lineIndex: 1, cells: 9, expected: 10 }
 		]);
 	});
 
@@ -749,7 +764,6 @@ describe('validateTable', () => {
 	// of them fires before a single PR is fetched: a table this script cannot write is not worth
 	// measuring against.
 	const BLOCK = [CONFLICT_BLOCK_BEGIN, CONFLICT_BLOCK_END];
-	const PROVENANCE = 'Last refreshed: **2026-09-12**, against `origin/main` at `f1a8c91`.';
 	const wellFormed = [PROVENANCE, HEADER, DIVIDER, CLEAN_ROW, ...BLOCK];
 	const reasonFor = (lines: string[]) => {
 		const table = readTable(lines);
@@ -793,7 +807,7 @@ describe('validateTable', () => {
 
 	it('refuses a row that is not the header\u2019s width, naming its count', () => {
 		const lines = [PROVENANCE, HEADER, DIVIDER, '| #348 | t | CLEAN | — | yes | c | d |', ...BLOCK];
-		expect(reasonFor(lines)).toContain('#348: 9 cell(s), header has 10');
+		expect(reasonFor(lines)).toContain('(#348): 9 cell(s), header has 10');
 	});
 
 	it('refuses a table with no provenance line to rewrite', () => {
@@ -891,7 +905,6 @@ describe('a filename that looks like this document\u2019s own structure', () => 
 	// hand-built fixture, because the defect was in the reader trusting what the writer had emitted.
 	const ROW_SHAPED = '| #999 | not | a | table | row | but | a | filename |';
 	const MARKER_SHAPED = CONFLICT_BLOCK_BEGIN;
-	const PROVENANCE = 'Last refreshed: **2026-09-12**, against `origin/main` at `f1a8c91`.';
 	const hostile = [
 		PROVENANCE,
 		HEADER,
@@ -934,6 +947,35 @@ describe('a filename that looks like this document\u2019s own structure', () => 
 	});
 });
 
+describe('a row carrying two faults at once', () => {
+	// Each fault alone was already caught, and a row with both fell between the two guards: `| 348 | t |`
+	// is too narrow for `findRowsWithBadPrCell` to judge and its cell does not parse, so `readTable` left
+	// it out of `prRows` and the width check never saw it. The analyzer advanced the provenance line
+	// having never measured that PR.
+	const BOTH_FAULTS = '| 348 | title |';
+	const lines = [PROVENANCE, HEADER, DIVIDER, CLEAN_ROW, BOTH_FAULTS, CONFLICT_BLOCK_BEGIN, CONFLICT_BLOCK_END];
+
+	it('is named by the width check even though its PR cell does not parse', () => {
+		expect(findMalformedRows(lines, 1)).toEqual([
+			{ pr: null, lineIndex: 4, cells: 4, expected: 10 }
+		]);
+	});
+
+	it('stops the analyzer before it measures anything', () => {
+		const table = readTable(lines);
+		const result = validateTable(lines, table ?? { headerIndex: 0, columns: {}, prRows: [] });
+		expect(result.ok).toBe(false);
+		expect(result.ok ? '' : result.message).toContain('line 5: 4 cell(s), header has 10');
+	});
+
+	it('stops the validator too, with a reason rather than an empty backlog', () => {
+		const result = selectCleanCandidates(lines);
+		expect(result.candidates).toEqual([]);
+		expect(result.reason).toBeDefined();
+		expect(result.reason).toContain('line 5');
+	});
+});
+
 describe('tableRowEnd', () => {
 	it('stops at the first line that is not a table row', () => {
 		expect(tableRowEnd([HEADER, DIVIDER, CLEAN_ROW, '', 'prose'], 0)).toBe(3);
@@ -948,9 +990,42 @@ describe('tableRowEnd', () => {
 	});
 });
 
+describe('a conflicted filename that is itself a code fence', () => {
+	// `fenceFor` wraps it in a longer fence, so the path is content. The test helper that reads the block
+	// back had its own `/^`{3,}/` toggle, which this path satisfies — so it read the surrounding markup as
+	// paths and would have failed `npm test` on a valid refresh. It uses `fencedLines` now, the same rule
+	// production uses, which is the only way the two cannot drift.
+	const FENCE_NAMED = '```';
+	const rendered = [
+		PROVENANCE,
+		HEADER,
+		DIVIDER,
+		'| #348 | t | h | CONFLICT | x | yes | c | d |',
+		'',
+		...renderConflictDetails([
+			{ pr: 348, status: 'CONFLICT', conflictPaths: [FENCE_NAMED, 'plan.md'] }
+		])
+	];
+
+	it('is wrapped in a longer fence, so it cannot close the block early', () => {
+		expect(rendered).toContain('````text');
+		expect(rendered).toContain(FENCE_NAMED);
+	});
+
+	it('is read back as a path, not as a delimiter', () => {
+		expect(pathsListedPerPr(rendered).get(348)).toEqual([FENCE_NAMED, 'plan.md']);
+	});
+});
+
 describe('fencedLines', () => {
-	it('marks the fence delimiters and everything between them', () => {
-		expect(fencedLines(['a', '```text', 'x', '```', 'b'])).toEqual([false, true, true, true, false]);
+	it('classifies the delimiters apart from the content between them', () => {
+		expect(fencedLines(['a', '```text', 'x', '```', 'b'])).toEqual([
+			'outside',
+			'open',
+			'inside',
+			'close',
+			'outside'
+		]);
 	});
 
 	// fenceFor opens with a run longer than any in the paths, so a path that is itself ``` belongs to the
@@ -958,11 +1033,11 @@ describe('fencedLines', () => {
 	// the adaptive fence exists for.
 	it('does not let a shorter run close a longer fence', () => {
 		expect(fencedLines(['````text', '```', 'x', '````', 'after'])).toEqual([
-			true,
-			true,
-			true,
-			true,
-			false
+			'open',
+			'inside',
+			'inside',
+			'close',
+			'outside'
 		]);
 	});
 });
@@ -1026,25 +1101,34 @@ describe('rewriteConflictBlock', () => {
  */
 const pathsListedPerPr = (lines: string[]) => {
 	const block = findConflictBlock(lines);
+	const within = lines.slice(block.begin ?? 0, (block.end ?? 0) + 1);
+	// `fencedLines`, not a second copy of the rule. This used to toggle on `/^`{3,}/`, which a file named
+	// exactly ``` satisfies — so the path the adaptive fence exists to hold was read as a delimiter and
+	// the surrounding markup was read as paths, failing `npm test` on a valid refresh. The production
+	// reader had already been fixed for that; the reader that checks it had not.
+	const fenced = fencedLines(within);
 	const listed = new Map<number, string[]>();
 	let current = 0;
-	let inFence = false;
-	for (const line of lines.slice(block.begin ?? 0, (block.end ?? 0) + 1)) {
+	within.forEach((line, index) => {
 		const summary = line.match(/^<summary>#(\d+) —/);
 		if (summary) {
 			current = Number.parseInt(summary[1], 10);
 			listed.set(current, []);
-		} else if (/^`{3,}/.test(line)) {
-			inFence = !inFence;
-		} else if (inFence && current !== 0) {
+		} else if (fenced[index] === 'inside' && current !== 0) {
 			listed.get(current)?.push(line);
 		}
-	}
+	});
 	return listed;
 };
 
 describe('the committed triage table', () => {
 	const table = fs.readFileSync(path.resolve('docs/triage-table.md'), 'utf8').split('\n');
+	// Resolved the way production resolves them. These assertions used to find rows with
+	// `/^\|\s*#\d+\s*\|/` — the first-column assumption the parser was fixed for two rounds earlier — so
+	// moving the `PR` column would leave them finding nothing and failing, blocking a schema change the
+	// production readers support. A test that encodes a retired assumption is a second place to fix.
+	const committed = readTable(table);
+	const rowLines = () => (committed?.prRows ?? []).map((row) => table[row.lineIndex]);
 
 	it('has a header this script can find, so a refresh cannot rewrite the wrong cells', () => {
 		const header = table.find((line) => parseTableColumns(line)[STATUS_COLUMN] !== undefined);
@@ -1052,15 +1136,8 @@ describe('the committed triage table', () => {
 		expect(parseTableColumns(header ?? '')[CONFLICT_PATHS_COLUMN]).toBeDefined();
 	});
 
-	it('has every PR row exactly as wide as its header', () => {
-		const headerIndex = table.findIndex(
-			(line) => parseTableColumns(line)[STATUS_COLUMN] !== undefined
-		);
-		const prRows = table
-			.map((line, lineIndex) => ({ line, lineIndex }))
-			.filter(({ line }) => /^\|\s*#\d+\s*\|/.test(line))
-			.map(({ lineIndex }) => ({ pr: 0, lineIndex }));
-		expect(findMalformedRows(table, headerIndex, prRows)).toEqual([]);
+	it('has every row of its table exactly as wide as the header', () => {
+		expect(findMalformedRows(table, committed?.headerIndex ?? 0)).toEqual([]);
 	});
 
 	it('carries a provenance line the analyzer can rewrite', () => {
@@ -1075,7 +1152,7 @@ describe('the committed triage table', () => {
 		const header = table.find((line) => parseTableColumns(line)[STATUS_COLUMN] !== undefined) ?? '';
 		const dryRunIndex = parseTableColumns(header)[DRY_RUN_COLUMN];
 		expect(dryRunIndex).toBeDefined();
-		for (const row of table.filter((line) => /^\|\s*#\d+\s*\|/.test(line))) {
+		for (const row of rowLines()) {
 			// splitRow, not split('|'): production deliberately supports an escaped pipe in a title, and a
 			// raw split here would read the wrong cell and fail the suite over a legitimate title.
 			expect(splitRow(row)[dryRunIndex].trim()).toMatch(/^(yes|no)$/i);
@@ -1085,7 +1162,7 @@ describe('the committed triage table', () => {
 	it('holds exactly CLEAN or CONFLICT in the status cell of every PR row', () => {
 		const header = table.find((line) => parseTableColumns(line)[STATUS_COLUMN] !== undefined) ?? '';
 		const statusIndex = parseTableColumns(header)[STATUS_COLUMN];
-		const prRows = table.filter((line) => /^\|\s*#\d+\s*\|/.test(line));
+		const prRows = rowLines();
 		expect(prRows.length).toBeGreaterThan(0);
 		for (const row of prRows) {
 			expect(splitRow(row)[statusIndex].trim()).toMatch(/^(CLEAN|CONFLICT)$/);
@@ -1096,10 +1173,23 @@ describe('the committed triage table', () => {
 		expect(findConflictBlock(table).begin).not.toBeNull();
 	});
 
-	// The abbreviation and the complete list are written in one run from one measurement, so they cannot
-	// disagree — unless someone edits one by hand, which is what this reads the real file to catch. Every
-	// `dir/* (N files)` in a cell must have exactly N paths under that directory in the block, and every
-	// filename the cell spells out must appear there too.
+	// These assertions resolve rows the way production does. The positional filter they used to share
+	// would find nothing the moment the `PR` column moved — failing the suite over a schema change the
+	// parser was fixed two rounds earlier to support.
+	it('would still find its rows if the PR column moved', () => {
+		const headerIndex = committed?.headerIndex ?? 0;
+		const end = tableRowEnd(table, headerIndex);
+		const moved = table.map((line, index) => {
+			if (index < headerIndex || index >= end) {
+				return line;
+			}
+			const cells = splitRow(line);
+			return [cells[0], cells[2], cells[1], ...cells.slice(3)].join('|');
+		});
+		expect(readTable(moved)?.prRows.length).toBe(committed?.prRows.length);
+		expect(moved.filter((line) => /^\|\s*#\d+\s*\|/.test(line))).toEqual([]);
+	});
+
 	// The cell and the block are written from one measurement in one run, so they cannot disagree unless
 	// someone edits one by hand — which is what this reads the real file to catch. Checked by *generating*
 	// the cell from the block's paths and comparing, rather than parsing the cell apart: an earlier version
@@ -1113,7 +1203,7 @@ describe('the committed triage table', () => {
 			table.find((line) => parseTableColumns(line)[STATUS_COLUMN] !== undefined) ?? ''
 		);
 		let compared = 0;
-		for (const row of table.filter((line) => /^\|\s*#\d+\s*\|/.test(line))) {
+		for (const row of rowLines()) {
 			const cells = splitRow(row);
 			if (cells[columns[STATUS_COLUMN]].trim() !== 'CONFLICT') {
 				continue;

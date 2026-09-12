@@ -11,6 +11,7 @@ import {
   STATUS_COLUMN,
   findDuplicateColumns,
   findMalformedRows,
+  malformedRowLabel,
   findRowsWithBadPrCell,
   readTable,
   runCommand,
@@ -88,11 +89,29 @@ export const selectCleanCandidates = (lines) => {
         'it no row can be recognised and an empty selection would say nothing about the backlog'
     };
   }
+  // The analyzer rejects a row whose width does not match the header; this reader must too. It is the
+  // *same* malformed row, and a row of the wrong width shifts every index — so without this the
+  // selection reads the wrong cells, finds nothing, returns no reason, and `main` exits 0 as though
+  // the backlog were legitimately empty. A rule a parser gains belongs to every reader of the format.
+  //
+  // Width first, and over every row of the table rather than the recognised ones: a row both too narrow
+  // and missing its `#` is invisible to a check that needs the cell parsed and to one that needs the
+  // width right, so it has to be judged by the check that needs neither.
+  const malformed = findMalformedRows(lines, table.headerIndex);
+  if (malformed.length > 0) {
+    const named = malformed
+      .map((row) => `${malformedRowLabel(row)} (${row.cells} cells)`)
+      .join(', ');
+    return {
+      candidates: [],
+      reason:
+        `these rows are not the header's width: ${named}. Every column index comes from the header, ` +
+        'so their cells cannot be read in the right places'
+    };
+  }
   // The same hole the analyzer was fixed for, in the second reader: a full-width data row written `348`
-  // instead of `#348` does not parse as a PR, so it never reaches `prRows` — where `findMalformedRows`
-  // cannot see it either, because that only inspects rows already recognised. The row vanishes, the
-  // selection is silently short by one, and a PR the table says to validate is never validated. Width
-  // separates a data row from prose; the divider is excluded by shape.
+  // instead of `#348` does not parse as a PR, so it never reaches `prRows` and the selection is silently
+  // short by one — a PR the table says to validate, never validated.
   const badPrCells = findRowsWithBadPrCell(lines, table.headerIndex, table.columns);
   if (badPrCells.length > 0) {
     const named = badPrCells.map((row) => `line ${row.lineIndex + 1} ("${row.cell}")`).join(', ');
@@ -101,20 +120,6 @@ export const selectCleanCandidates = (lines) => {
       reason:
         `these rows are the header's width but their PR cell does not name a PR: ${named}. A ` +
         'full-width row is a data row, so leaving it out would shorten the selection with no sign of it'
-    };
-  }
-  // The analyzer rejects a row whose width does not match the header; this reader must too. It is the
-  // *same* malformed row, and a row of the wrong width shifts every index — so without this the
-  // selection reads the wrong cells, finds nothing, returns no reason, and `main` exits 0 as though
-  // the backlog were legitimately empty. A rule a parser gains belongs to every reader of the format.
-  const malformed = findMalformedRows(lines, table.headerIndex, table.prRows);
-  if (malformed.length > 0) {
-    const named = malformed.map((row) => `#${row.pr} (${row.cells} cells)`).join(', ');
-    return {
-      candidates: [],
-      reason:
-        `these rows are not the header's width: ${named}. Every column index comes from the header, ` +
-        'so their cells cannot be read in the right places'
     };
   }
   const dryRunIndex = table.columns[DRY_RUN_COLUMN];

@@ -256,6 +256,30 @@ export const parseConflictPaths = (stdout) => {
 };
 
 /**
+ * Order two strings by UTF-16 code unit, which is the same order on every machine.
+ *
+ * `localeCompare` with no locale reads the **host's** collation, so the same git measurement wrote a
+ * different `docs/triage-table.md` depending on where it ran: `sv-SE` orders `ä` after `z` and `en-US`
+ * orders it before. A file whose committed bytes depend on the machine that generated them cannot be
+ * the evidence this repository treats it as, and the idempotence this script is proved to have would
+ * have held only per machine. An explicit locale would be better than none and still leaves the answer
+ * to the ICU version Node was built against; code units leave it to nothing.
+ *
+ * The cost is that ordering is now ASCII-style — `WORST_TO_BEST_LOG.md` sorts before `docs/` because
+ * `W` is below `d` — which is `LC_ALL=C` order and the conventional choice for generated files.
+ *
+ * @param {string} a
+ * @param {string} b
+ * @returns {number}
+ */
+const byCodeUnit = (a, b) => {
+  if (a < b) {
+    return -1;
+  }
+  return a > b ? 1 : 0;
+};
+
+/**
  * Render a conflicting-path list short enough to read in a table cell.
  *
  * A stale PR conflicts on its whole dated evidence folder, so the raw list runs to twenty-five
@@ -286,11 +310,11 @@ export const summarizeConflictPaths = (paths) => {
     byDirectory.set(directory, [...(byDirectory.get(directory) ?? []), filePath]);
   }
   return [...byDirectory.entries()]
-    .sort(([a], [b]) => a.localeCompare(b))
+    .sort(([a], [b]) => byCodeUnit(a, b))
     .flatMap(([directory, files]) =>
       files.length > 1 && directory !== ''
         ? [`${directory}/* (${files.length} files)`]
-        : [...files].sort((a, b) => a.localeCompare(b))
+        : [...files].sort(byCodeUnit)
     )
     .join(', ');
 };
@@ -385,28 +409,43 @@ export const renderConflictDetails = (measured) => {
  * longer than any in the paths, so a path that is itself ``` sits inside a ```` fence without closing
  * it, which a "three or more backticks" test would get wrong in exactly the case this exists for.
  *
+ * Returns a **classification** rather than a flag, because two readers need different halves of the
+ * same answer and a second implementation of this rule is how the rule gets broken. `findConflictBlock`
+ * needs the lines that are `outside` a fence, so a filename can never be read as a marker; the test
+ * that reads the committed block back needs the lines that are `inside` one, so a filename that is
+ * itself ``` is not mistaken for a delimiter. Its own copy of the "three or more backticks" test had
+ * exactly that bug — the defect this function exists to prevent, reintroduced by the reader that
+ * checks it.
+ *
  * @param {string[]} lines
- * @returns {boolean[]} one flag per line; the fence delimiters themselves count as inside
+ * @returns {('outside'|'open'|'inside'|'close')[]} one classification per line
  */
 export const fencedLines = (lines) => {
-  /** @type {boolean[]} */
-  const inside = [];
+  /** @type {('outside'|'open'|'inside'|'close')[]} */
+  const classified = [];
   let openLength = 0;
   for (const line of lines) {
-    const run = line.match(/^(`{3,})/);
-    if (openLength === 0 && run) {
-      openLength = run[1].length;
-      inside.push(true);
+    const run = line.match(/^(`{3,})/)?.[1].length ?? 0;
+    if (openLength === 0) {
+      // An opening fence may carry an info string (`fenceFor` writes ```text), so only the run is read.
+      if (run > 0) {
+        openLength = run;
+        classified.push('open');
+      } else {
+        classified.push('outside');
+      }
       continue;
     }
-    if (openLength > 0 && /^`{3,}\s*$/.test(line) && (line.match(/^(`+)/)?.[1].length ?? 0) >= openLength) {
+    // CommonMark: a closing fence is a run at least as long as the opening one and nothing else on the
+    // line. `fenceFor` opens longer than any run in the paths, so a path that is itself ``` stays content.
+    if (run >= openLength && /^`+\s*$/.test(line)) {
       openLength = 0;
-      inside.push(true);
+      classified.push('close');
       continue;
     }
-    inside.push(openLength > 0);
+    classified.push('inside');
   }
-  return inside;
+  return classified;
 };
 
 /**
@@ -425,10 +464,10 @@ export const fencedLines = (lines) => {
 export const findConflictBlock = (lines) => {
   const fenced = fencedLines(lines);
   const begins = lines.flatMap((line, index) =>
-    !fenced[index] && line.trim() === CONFLICT_BLOCK_BEGIN ? [index] : []
+    fenced[index] === 'outside' && line.trim() === CONFLICT_BLOCK_BEGIN ? [index] : []
   );
   const ends = lines.flatMap((line, index) =>
-    !fenced[index] && line.trim() === CONFLICT_BLOCK_END ? [index] : []
+    fenced[index] === 'outside' && line.trim() === CONFLICT_BLOCK_END ? [index] : []
   );
   if (begins.length !== 1 || ends.length !== 1) {
     return {
@@ -580,7 +619,29 @@ export const findRowsWithBadPrCell = (lines, headerIndex, columns) => {
 };
 
 /**
- * Which PR rows are not exactly as wide as the header.
+ * How both readers name a row that is not the header's width.
+ *
+ * Shared rather than written twice, because the two messages had drifted into different shapes for the
+ * same fact — and a row that cannot be identified by number still has to be findable by line.
+ *
+ * @param {{ lineIndex: number, pr: number | null }} row
+ * @returns {string}
+ */
+export const malformedRowLabel = (row) =>
+  `line ${row.lineIndex + 1}${prSuffix(row.pr)}`;
+
+/**
+ * ` (#348)`, or nothing when the row is malformed in a way that leaves it unidentifiable.
+ *
+ * @param {number | null} pr
+ * @returns {string}
+ */
+function prSuffix(pr) {
+  return pr === null ? '' : ` (#${pr})`;
+}
+
+/**
+ * Which rows of the contiguous table are not exactly as wide as the header.
  *
  * **Width equality, not "long enough".** The first version of this checked only that the columns this
  * script writes were in range, which missed a deleted *interior* cell: remove `Head` and the row still
@@ -593,16 +654,40 @@ export const findRowsWithBadPrCell = (lines, headerIndex, columns) => {
  * `rewriteRow` guards an out-of-range index and therefore does nothing, quietly, while `refreshRows`
  * counted the row as measured. Checked before any measurement, so a malformed table costs no git work.
  *
+ * **Every row in the table, not only the recognised ones.** This used to take `prRows`, and a row with
+ * *both* faults at once — `| 348 | title |`, too narrow **and** missing its `#` — passed every guard:
+ * `readTable` left it out of `prRows` because the cell does not parse, so this never saw it, and
+ * `findRowsWithBadPrCell` skipped it because that only judges full-width rows. Two checks that each
+ * catch one fault, and a row carrying both fell between them, so the analyzer advanced the provenance
+ * line having never measured that PR. Width is the check that needs no parsing, so it comes first and
+ * it applies to everything in the table that is not the divider.
+ *
  * @param {string[]} lines
  * @param {number} headerIndex
- * @param {{ pr: number, lineIndex: number }[]} prRows
- * @returns {{ pr: number, cells: number, expected: number }[]}
+ * @returns {{ pr: number | null, lineIndex: number, cells: number, expected: number }[]}
+ *          `pr` is the number when the cell happens to parse, and null when it does not - a row can be
+ *          malformed without being identifiable, which is the case this exists for.
  */
-export const findMalformedRows = (lines, headerIndex, prRows) => {
+export const findMalformedRows = (lines, headerIndex) => {
   const expected = splitRow(lines[headerIndex]).length;
-  return prRows
-    .map((row) => ({ pr: row.pr, cells: splitRow(lines[row.lineIndex]).length, expected }))
-    .filter(({ cells }) => cells !== expected);
+  const prIndex = parseTableColumns(lines[headerIndex])[PR_COLUMN];
+  const end = tableRowEnd(lines, headerIndex);
+  /** @type {{ pr: number | null, lineIndex: number, cells: number, expected: number }[]} */
+  const malformed = [];
+  for (let index = headerIndex + 1; index < end; index += 1) {
+    const cells = splitRow(lines[index]);
+    if (cells.length === expected || isDividerRow(lines[index])) {
+      continue;
+    }
+    const parsed = prIndex === undefined ? null : cells[prIndex]?.trim().match(/^#(\d+)$/);
+    malformed.push({
+      pr: parsed ? Number.parseInt(parsed[1], 10) : null,
+      lineIndex: index,
+      cells: cells.length,
+      expected
+    });
+  }
+  return malformed;
 };
 
 /**
@@ -752,6 +837,23 @@ export const validateTable = (lines, table) => {
         'statuses. Nothing measured, nothing written — add the column or fix its spelling.'
     };
   }
+  // Width first, because it needs no parsing and a row of the wrong width makes every cell index a
+  // guess — including the one the next check reads. Reversed, a row that is both too narrow and missing
+  // its `#` fell between the two guards entirely.
+  const malformed = findMalformedRows(lines, table.headerIndex);
+  if (malformed.length > 0) {
+    const named = malformed
+      .map((row) => `  ${malformedRowLabel(row)}: ${row.cells} cell(s), header has ${row.expected}`)
+      .join('\n');
+    return {
+      ok: false,
+      message:
+        `These rows of the table do not have the same number of cells as the header:\n${named}\n` +
+        'Every column index comes from the header, so a row of a different width puts every cell in ' +
+        "the wrong place — the status into another column, the paths over a human's decision — or " +
+        'silently nowhere. Nothing measured, nothing written; repair the rows.'
+    };
+  }
   const badPrCells = findRowsWithBadPrCell(lines, table.headerIndex, table.columns);
   if (badPrCells.length > 0) {
     const named = badPrCells.map((row) => `  line ${row.lineIndex + 1}: "${row.cell}"`).join('\n');
@@ -762,20 +864,6 @@ export const validateTable = (lines, table) => {
         'A full-width row is a data row, so it must be measurable. Omitting it would refresh every ' +
         'other row and advance the provenance line while this PR went unmeasured. Nothing measured, ' +
         'nothing written — write the cell as #<number>, or make the line narrower if it is prose.'
-    };
-  }
-  const malformed = findMalformedRows(lines, table.headerIndex, table.prRows);
-  if (malformed.length > 0) {
-    const named = malformed
-      .map((row) => `  #${row.pr}: ${row.cells} cell(s), header has ${row.expected}`)
-      .join('\n');
-    return {
-      ok: false,
-      message:
-        `These PR rows do not have the same number of cells as the header:\n${named}\n` +
-        'Every column index comes from the header, so a row of a different width puts every cell in ' +
-        "the wrong place — the status into another column, the paths over a human's decision — or " +
-        'silently nowhere. Nothing measured, nothing written; repair the rows.'
     };
   }
   // **Exactly one**, for the reason the block markers need exactly one of each: `rewriteProvenance`
