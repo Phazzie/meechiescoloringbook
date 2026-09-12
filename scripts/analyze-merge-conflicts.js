@@ -315,6 +315,57 @@ export const readTable = (lines) => {
 };
 
 /**
+ * Is this the header's dashed separator rather than a data row?
+ *
+ * It is exactly the header's width, so every width-based check has to exclude it by shape: its cells
+ * hold only dashes, colons and spaces.
+ *
+ * @param {string} line
+ * @returns {boolean}
+ */
+export const isDividerRow = (line) => {
+  const cells = splitRow(line).slice(1, -1);
+  return cells.length > 0 && cells.every((cell) => /^[\s:-]+$/.test(cell));
+};
+
+/**
+ * Full-width rows whose `PR` cell is not exactly `#<digits>`.
+ *
+ * Tightening the row match to `#<digits>` - so `| see #348 |` in prose is not mistaken for a row -
+ * created a quieter hole than the one it closed: write `348` without the `#` in a real data row and it
+ * simply *vanishes* from `prRows`, where `findMalformedRows` cannot see it either. The analyzer then
+ * refreshes every other row, advances the provenance line and exits 0, having never measured that PR.
+ *
+ * The distinction that makes both safe is width. A line the header's own width is a data row and its
+ * `PR` cell must parse; anything narrower is prose and is ignored. The divider is excluded by shape.
+ *
+ * @param {string[]} lines
+ * @param {number} headerIndex
+ * @param {Record<string, number>} columns
+ * @returns {{ lineIndex: number, cell: string }[]}
+ */
+export const findRowsWithBadPrCell = (lines, headerIndex, columns) => {
+  const expected = splitRow(lines[headerIndex]).length;
+  const prIndex = columns[PR_COLUMN];
+  if (prIndex === undefined) {
+    return [];
+  }
+  /** @type {{ lineIndex: number, cell: string }[]} */
+  const bad = [];
+  for (let index = headerIndex + 1; index < lines.length; index += 1) {
+    const cells = splitRow(lines[index]);
+    if (cells.length !== expected || isDividerRow(lines[index])) {
+      continue;
+    }
+    const cell = cells[prIndex]?.trim() ?? '';
+    if (!/^#\d+$/.test(cell)) {
+      bad.push({ lineIndex: index, cell });
+    }
+  }
+  return bad;
+};
+
+/**
  * Which PR rows are not exactly as wide as the header.
  *
  * **Width equality, not "long enough".** The first version of this checked only that the columns this
@@ -482,6 +533,19 @@ async function main() {
       `No "${CONFLICT_PATHS_COLUMN}" column found in the triage table header. This column is the ` +
         "analyzer's to write, so a refresh without it would leave stale path cells beside fresh " +
         'statuses. Nothing measured, nothing written — add the column or fix its spelling.'
+    );
+    process.exit(1);
+  }
+  const badPrCells = findRowsWithBadPrCell(lines, table.headerIndex, columns);
+  if (badPrCells.length > 0) {
+    console.error('These rows are the header\'s width but their PR cell does not name a PR:');
+    for (const row of badPrCells) {
+      console.error(`  line ${row.lineIndex + 1}: "${row.cell}"`);
+    }
+    console.error(
+      'A full-width row is a data row, so it must be measurable. Omitting it would refresh every ' +
+        'other row and advance the provenance line while this PR went unmeasured. Nothing measured, ' +
+        'nothing written — write the cell as #<number>, or make the line narrower if it is prose.'
     );
     process.exit(1);
   }

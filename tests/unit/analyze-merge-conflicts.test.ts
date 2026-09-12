@@ -12,6 +12,8 @@ import { describe, expect, it } from 'vitest';
 import {
 	CONFLICT_PATHS_COLUMN,
 	findDuplicateColumns,
+	findRowsWithBadPrCell,
+	isDividerRow,
 	escapeCell,
 	findMalformedRows,
 	STATUS_COLUMN,
@@ -477,6 +479,46 @@ describe('readTable finding rows by the PR column', () => {
 	});
 });
 
+describe('findRowsWithBadPrCell', () => {
+	const DIV = '| --- | --- | --- | --- | --- | --- | --- | --- |';
+	const bad = (lines: string[]) =>
+		findRowsWithBadPrCell(lines, 0, parseTableColumns(lines[0]));
+
+	// Tightening the row match to `#<digits>` closed one hole and opened a quieter one: `348` without
+	// the `#` in a real data row simply vanishes from prRows, where findMalformedRows cannot see it —
+	// so the analyzer refreshes every other row, advances provenance, and never measures that PR.
+	it('names a full-width row whose PR cell does not name a PR', () => {
+		expect(bad([HEADER, DIV, '| 348 | t | h | CLEAN | — | yes | c | d |'])).toEqual([
+			{ lineIndex: 2, cell: '348' }
+		]);
+	});
+
+	it('accepts a full-width row whose PR cell does name one', () => {
+		expect(bad([HEADER, DIV, CLEAN_ROW])).toEqual([]);
+	});
+
+	// Width is what separates a data row from prose, so both of the previous behaviours stay correct:
+	// a narrow line mentioning a PR is still ignored rather than treated as a row.
+	it('ignores prose and narrow lines, however they mention a PR', () => {
+		expect(bad([HEADER, 'some prose about #348', '| a | b |', ''])).toEqual([]);
+	});
+
+	it('ignores the header\u2019s divider, which is full width by definition', () => {
+		expect(bad([HEADER, DIV])).toEqual([]);
+	});
+});
+
+describe('isDividerRow', () => {
+	it('recognises a divider, with or without alignment colons', () => {
+		expect(isDividerRow('| --- | --- |')).toBe(true);
+		expect(isDividerRow('| :--- | ---: | :-: |')).toBe(true);
+	});
+
+	it('does not mistake a data row for one', () => {
+		expect(isDividerRow(CLEAN_ROW)).toBe(false);
+	});
+});
+
 describe('findMalformedRows', () => {
 	const malformed = (lines: string[]) => {
 		const table = readTable(lines);
@@ -546,6 +588,32 @@ describe('selectCleanCandidates on a malformed table', () => {
 
 	it('still selects a well-formed row beside none', () => {
 		expect(selectCleanCandidates([HEADER, CLEAN_ROW]).candidates).toEqual([348]);
+	});
+
+	// The analyzer owns the status column and writes exactly CLEAN or CONFLICT. A corrupted value merely
+	// excluded the row from the filter, with no reason — so a malformed table read as an empty backlog.
+	it('gives a reason for a status the analyzer could not have written', () => {
+		const result = selectCleanCandidates([
+			HEADER,
+			'| #348 | t | h | CLEEN | — | yes | c | d |'
+		]);
+		expect(result.candidates).toEqual([]);
+		expect(result.reason).toContain('cleen');
+	});
+
+	it('gives a reason for a blank status, which is the same malformed table', () => {
+		expect(
+			selectCleanCandidates([HEADER, '| #348 | t | h |  | — | yes | c | d |']).reason
+		).toContain(STATUS_COLUMN);
+	});
+
+	it('accepts CONFLICT as measured, selecting nothing without a reason', () => {
+		const result = selectCleanCandidates([
+			HEADER,
+			'| #348 | t | h | CONFLICT | x.md | no | c | d |'
+		]);
+		expect(result.candidates).toEqual([]);
+		expect(result.reason).toBeUndefined();
 	});
 
 	// A mistyped answer is not an answer. `yse` compared unequal to 'yes' and so read as a deliberate

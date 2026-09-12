@@ -82,6 +82,23 @@ export const selectCleanCandidates = (lines) => {
   const cellAt = (/** @type {number} */ lineIndex, /** @type {number} */ column) =>
     splitRow(lines[lineIndex])[column]?.trim().toLowerCase();
 
+  // The analyzer owns this column and writes exactly CLEAN or CONFLICT. A blank or corrupted value —
+  // `CLEEN`, or an empty cell after a bad edit — merely excluded the row from the filter, with no
+  // reason, so the tool reported an empty backlog and exited 0. A value this column cannot hold means
+  // the table is malformed, not that the PR is uninteresting.
+  const unmeasured = table.prRows
+    .map((row) => ({ pr: row.pr, status: cellAt(row.lineIndex, table.columns[STATUS_COLUMN]) }))
+    .filter(({ status }) => status !== 'clean' && status !== 'conflict');
+  if (unmeasured.length > 0) {
+    const named = unmeasured.map((row) => `#${row.pr} ("${row.status ?? ''}")`).join(', ');
+    return {
+      candidates: [],
+      reason:
+        `these rows do not hold a measured ${STATUS_COLUMN}: ${named}. That column is the analyzer's ` +
+        'and holds exactly CLEAN or CONFLICT, so any other value means the table is malformed'
+    };
+  }
+
   // A mistyped answer is not an answer. `yse` compared unequal to 'yes' and therefore read as a
   // deliberate `no` — and if it were the only candidate the tool reported an empty backlog and exited
   // 0, which is the same silence this file has now been fixed for twice by other routes. This column

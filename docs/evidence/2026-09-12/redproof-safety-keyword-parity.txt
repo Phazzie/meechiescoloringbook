@@ -1,0 +1,58 @@
+Red proof: the identity assertion in tests/unit/safety-keyword-parity.test.ts fails on the
+exact defect this PR removes — a seam-local widening of the shared keyword list.
+
+Mutation applied to src/lib/seams/safety-policy-seam/policy.ts:
+  export const enforcedDisallowedKeywords: readonly string[] =
+-   SYSTEM_CONSTANTS.DISALLOWED_KEYWORDS;
++   [...SYSTEM_CONSTANTS.DISALLOWED_KEYWORDS, 'gambling'];
+
+
+ RUN  v4.1.11 /home/user/meechiescoloringbook
+
+ ❯ tests/unit/safety-keyword-parity.test.ts (16 tests | 1 failed) 16ms
+     × is the shared constant the seam iterates, not a copy of it 7ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/unit/safety-keyword-parity.test.ts > safety keyword parity > is the shared constant the seam iterates, not a copy of it
+AssertionError: expected [ 'minors', 'self-harm', …(3) ] to be [ 'minors', 'self-harm', …(2) ] // Object.is equality
+
+- Expected
++ Received
+
+  [
+    "minors",
+    "self-harm",
+    "suicide",
+    "extremist",
++   "gambling",
+  ]
+
+ ❯ tests/unit/safety-keyword-parity.test.ts:60:38
+     58|  // to be used, not merely to be read.
+     59|  it('is the shared constant the seam iterates, not a copy of it', () =…
+     60|   expect(enforcedDisallowedKeywords).toBe(SYSTEM_CONSTANTS.DISALLOWED_…
+       |                                      ^
+     61|  });
+     62|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 15 passed (16)
+   Start at  22:03:18
+   Duration  857ms (transform 89ms, setup 44ms, import 69ms, tests 16ms, environment 549ms)
+
+(exit was 1 — red as intended)
+
+Mutation reverted; the same file green on the shipped code:
+
+ RUN  v4.1.11 /home/user/meechiescoloringbook
+
+
+ Test Files  1 passed (1)
+      Tests  16 passed (16)
+   Start at  22:03:20
+   Duration  857ms (transform 91ms, setup 49ms, import 66ms, tests 11ms, environment 566ms)
+

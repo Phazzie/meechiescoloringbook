@@ -158,6 +158,22 @@ Short, durable decisions with context and tradeoffs.
   a value genuinely cannot be represented unambiguously, say so next to the code rather than rounding
   the value off - `parseConflictPaths` carries that note about a filename's edge whitespace, and names
   the one consumer (a person reading the column) that makes preserving the better trade.
+- **An eleventh round, and the first of its two findings was created by the tenth.** Tightening the row
+  match to `#<digits>` stopped prose being read as a row, and made a *data* row written `348` instead of
+  `#348` vanish from `prRows` - where the width check cannot see it either, so the analyzer refreshed
+  every other row and advanced the provenance line having never measured that PR. **Width is the
+  distinction that makes both correct:** a line the header's own width is a data row and its `PR` cell
+  must parse; anything narrower is prose. The divider is full width by definition and excluded by shape
+  (`isDividerRow`). A guard that narrows what counts as valid input needs a matching guard for input
+  that *looks* valid and no longer counts - otherwise the first guard converts a wrong answer into a
+  missing one. The second finding was the **fifth** route to "empty result, no reason, exit 0": a
+  corrupted `Merge status` (`CLEEN`, or blank) excluded the row from the filter silently, and is now a
+  malformed-table reason like the `Dry-run` typo before it.
+- **Idempotence, stated precisely because this run's own test tripped on it:** the refresh is
+  byte-identical *within a UTC day*, not across one. At 00:0x on 2026-09-12 a re-run correctly rewrote
+  the provenance line from 2026-09-11 - the feature working, not drift. Any test or claim of
+  byte-identity has to say "same day" or be run twice in quick succession; the committed table keeps the
+  date its measurement and its dated evidence folder actually belong to.
 - Revisit criteria: a table that needs the script to write a third column adds it to the exported
   column names, not to a position. A third reader of the table imports `readTable` rather than
   scanning for a phrase. A second fact about a row gets its own column rather than being encoded in
@@ -192,10 +208,10 @@ Short, durable decisions with context and tradeoffs.
   it needs the contract in scope. Adding a word to the shared constant does not.
 
 - Cipher Gate:
-  - Date: 2026-09-11
+  - Date: 2026-09-12
   - Seams: SafetyPolicySeam
-  - Evidence: docs/evidence/2026-09-11/rewind-SafetyPolicySeam.txt; docs/evidence/2026-09-11/redproof-safety-keyword-parity.txt; docs/evidence/2026-09-11/sonarjs-local.txt; docs/evidence/2026-09-11/verify-outer.txt; docs/evidence/2026-09-11/verify.txt; docs/evidence/2026-09-11/test.txt; docs/evidence/2026-09-11/check.txt; docs/evidence/2026-09-11/lint.txt; docs/evidence/2026-09-11/build.txt; tests/unit/safety-keyword-parity.test.ts; tests/unit/constants.test.ts; tests/unit/analyze-merge-conflicts.test.ts
-  - Summary: SafetyPolicySeam's 10 contract tests pass unchanged (rewind evidence above); the suite is 2132 passing across 114 files. The seam's contract, mock, fixtures, probe and contract tests are unchanged; only `policy.ts` changed, and only to delete the local keyword array so the implementation reads `SYSTEM_CONSTANTS.DISALLOWED_KEYWORDS` and nothing else. The two words it used to hold privately are now in that constant, which is what makes the other two routes enforce them. A new parity test drives both enforcement paths from the constant itself, and `enforcedDisallowedKeywords` is exported so the test can assert **identity** with the shared array rather than equality of contents - reintroducing the original `[...SHARED, 'x']` shape fails it, proven by mutation in the red proof above.
+  - Evidence: docs/evidence/2026-09-12/rewind-SafetyPolicySeam.txt; docs/evidence/2026-09-12/redproof-safety-keyword-parity.txt; docs/evidence/2026-09-12/sonarjs-local.txt; docs/evidence/2026-09-12/verify-outer.txt; docs/evidence/2026-09-12/verify.txt; docs/evidence/2026-09-12/test.txt; docs/evidence/2026-09-12/check.txt; docs/evidence/2026-09-12/lint.txt; docs/evidence/2026-09-12/build.txt; docs/evidence/2026-09-11/verify-outer.txt; docs/evidence/2026-09-11/sonarjs-local.txt; tests/unit/safety-keyword-parity.test.ts; tests/unit/constants.test.ts; tests/unit/analyze-merge-conflicts.test.ts
+  - Summary: Dated 2026-09-12 because the work crossed a UTC midnight and the chain writes into the day it runs; the 2026-09-11 folder holds the same run's earlier transcripts and is cited alongside. SafetyPolicySeam's 10 contract tests pass unchanged (rewind evidence above); the suite is 2141 passing across 114 files. The seam's contract, mock, fixtures, probe and contract tests are unchanged; only `policy.ts` changed, and only to delete the local keyword array so the implementation reads `SYSTEM_CONSTANTS.DISALLOWED_KEYWORDS` and nothing else. The two words it used to hold privately are now in that constant, which is what makes the other two routes enforce them. A new parity test drives both enforcement paths from the constant itself, and `enforcedDisallowedKeywords` is exported so the test can assert **identity** with the shared array rather than equality of contents - reintroducing the original `[...SHARED, 'x']` shape fails it, proven by mutation in the red proof above.
   - Risks: The two newly-shared words widen what `/api/tools` and `/api/meechie-studio-text` refuse, so a request that worked yesterday can be refused today - intended, and the reason it is in `CHANGELOG.md`. Substring matching is unchanged and remains blunt: `'minors'` matches inside `'minorsuit'` and `'suicide'` inside a clinical phrase, and this change neither introduces nor fixes that. Widening the list widens that bluntness by two words, which is the cost of the parity being correct rather than a defect it adds.
 
 ## 2026-09-10 — Give the letterform one voice in the prompt, and give the reader the control
