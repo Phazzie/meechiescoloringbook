@@ -14,6 +14,8 @@ import {
 	CONFLICT_BLOCK_END,
 	CONFLICT_PATHS_COLUMN,
 	fenceFor,
+	fencedLines,
+	tableRowEnd,
 	findConflictBlock,
 	findDuplicateColumns,
 	validateTable,
@@ -257,6 +259,27 @@ describe('parseConflictPaths', () => {
 	it('distinguishes null from an empty list, because they mean opposite things', () => {
 		// [] is "a conflicted merge that named no files"; null is "this was not a merge-tree result".
 		expect(parseConflictPaths('d2c0f80fd6a2e9f062fa9a16982605b3b9ef66df')).not.toBeNull();
+	});
+});
+
+describe('parseConflictPaths and a filename with nothing but spaces in it', () => {
+	const TREE = 'a'.repeat(40);
+
+	// The terminator is an empty line, not a blank one. Tested on a trimmed copy, a file literally named
+	// `   ` read as the separator before git's diagnostics: the table recorded that git named no files and
+	// the real path was missing from the complete block too. Same mistake as trimming the path itself, one
+	// line lower — whitespace inside a filename is content, and only a line with nothing in it is structure.
+	it('keeps a path made entirely of spaces', () => {
+		expect(parseConflictPaths(`${TREE}\n   \nplan.md\n\nAuto-merging plan.md`)).toEqual([
+			'   ',
+			'plan.md'
+		]);
+	});
+
+	it('still stops at the truly empty line before git\u2019s own messages', () => {
+		expect(parseConflictPaths(`${TREE}\nplan.md\n\nCONFLICT (content): plan.md`)).toEqual([
+			'plan.md'
+		]);
 	});
 });
 
@@ -777,6 +800,14 @@ describe('validateTable', () => {
 		expect(reasonFor([HEADER, DIVIDER, CLEAN_ROW, ...BLOCK])).toContain('Last refreshed:');
 	});
 
+	// rewriteProvenance updates the first match, so a second line surviving a copy/paste would be left
+	// claiming an older base while the run exited 0 — two contradictory bases in the document the table is
+	// read as the record of. Exactly one, for the reason the block markers need exactly one of each.
+	it('refuses a table carrying two provenance lines', () => {
+		const reason = reasonFor([PROVENANCE, PROVENANCE, HEADER, DIVIDER, CLEAN_ROW, ...BLOCK]);
+		expect(reason).toContain('Found 2 lines');
+	});
+
 	// The abbreviation in the cell is not allowed to be the only record, so a table with nowhere to put
 	// the complete list is not measured at all.
 	it('refuses a table with nowhere to write every conflicting filename', () => {
@@ -850,6 +881,89 @@ describe('renderConflictDetails', () => {
 		const rendered = renderConflictDetails(measured);
 		expect(rendered[0]).toBe(CONFLICT_BLOCK_BEGIN);
 		expect(rendered.at(-1)).toBe(CONFLICT_BLOCK_END);
+	});
+});
+
+describe('a filename that looks like this document\u2019s own structure', () => {
+	// This script writes filenames into the file it reads. Every path below is legal on the filesystems
+	// this runs on, and each one used to be read back as structure rather than as content: the first as a
+	// data row, the second as a block marker. Round-tripped through the real writer rather than a
+	// hand-built fixture, because the defect was in the reader trusting what the writer had emitted.
+	const ROW_SHAPED = '| #999 | not | a | table | row | but | a | filename |';
+	const MARKER_SHAPED = CONFLICT_BLOCK_BEGIN;
+	const PROVENANCE = 'Last refreshed: **2026-09-12**, against `origin/main` at `f1a8c91`.';
+	const hostile = [
+		PROVENANCE,
+		HEADER,
+		DIVIDER,
+		'| #348 | t | h | CONFLICT | x | yes | c | d |',
+		'',
+		...renderConflictDetails([
+			{ pr: 348, status: 'CONFLICT', conflictPaths: [ROW_SHAPED, MARKER_SHAPED, 'plan.md'] }
+		])
+	];
+
+	it('writes all three verbatim, because the block is the complete record', () => {
+		expect(hostile).toContain(ROW_SHAPED);
+		expect(hostile).toContain(MARKER_SHAPED);
+		expect(hostile).toContain('plan.md');
+	});
+
+	it('does not read the row-shaped filename as a PR row', () => {
+		expect(readTable(hostile)?.prRows).toEqual([{ pr: 348, lineIndex: 3 }]);
+	});
+
+	it('does not judge it as a data row with a bad PR cell either', () => {
+		const table = readTable(hostile);
+		expect(findRowsWithBadPrCell(hostile, table?.headerIndex ?? 0, table?.columns ?? {})).toEqual([]);
+	});
+
+	it('does not count the marker-shaped filename as a second begin marker', () => {
+		const located = findConflictBlock(hostile);
+		expect(located.begin).toBe(5);
+		expect(located.end).toBe(hostile.length - 1);
+	});
+
+	// The whole point: a refresh that succeeded used to leave a file the next run refuses to read.
+	it('still validates, so the refresh it produced is one the next run accepts', () => {
+		const table = readTable(hostile);
+		expect(table).not.toBeNull();
+		expect(validateTable(hostile, table ?? { headerIndex: 0, columns: {}, prRows: [] })).toEqual({
+			ok: true
+		});
+	});
+});
+
+describe('tableRowEnd', () => {
+	it('stops at the first line that is not a table row', () => {
+		expect(tableRowEnd([HEADER, DIVIDER, CLEAN_ROW, '', 'prose'], 0)).toBe(3);
+	});
+
+	it('stops at end of file when the table runs to it', () => {
+		expect(tableRowEnd([HEADER, DIVIDER, CLEAN_ROW], 0)).toBe(3);
+	});
+
+	it('counts an indented continuation row, which markdown does too', () => {
+		expect(tableRowEnd([HEADER, DIVIDER, `  ${CLEAN_ROW}`, ''], 0)).toBe(3);
+	});
+});
+
+describe('fencedLines', () => {
+	it('marks the fence delimiters and everything between them', () => {
+		expect(fencedLines(['a', '```text', 'x', '```', 'b'])).toEqual([false, true, true, true, false]);
+	});
+
+	// fenceFor opens with a run longer than any in the paths, so a path that is itself ``` belongs to the
+	// fence's content. A "three or more backticks" test would close the block on it — in exactly the case
+	// the adaptive fence exists for.
+	it('does not let a shorter run close a longer fence', () => {
+		expect(fencedLines(['````text', '```', 'x', '````', 'after'])).toEqual([
+			true,
+			true,
+			true,
+			true,
+			false
+		]);
 	});
 });
 
@@ -929,19 +1043,6 @@ const pathsListedPerPr = (lines: string[]) => {
 	return listed;
 };
 
-/** One entry of a `Conflicting paths` cell, checked against the complete list behind it. */
-const expectCellEntryCoveredBy = (entry: string, paths: string[]) => {
-	const wildcard = entry.match(/^(.+)\/\* \((\d+) files\)$/);
-	if (wildcard) {
-		const under = paths.filter(
-			(filePath) => filePath.slice(0, filePath.lastIndexOf('/')) === wildcard[1]
-		);
-		expect(under).toHaveLength(Number.parseInt(wildcard[2], 10));
-	} else {
-		expect(paths).toContain(entry.replaceAll('\\|', '|').replaceAll('\\\\', '\\'));
-	}
-};
-
 describe('the committed triage table', () => {
 	const table = fs.readFileSync(path.resolve('docs/triage-table.md'), 'utf8').split('\n');
 
@@ -999,12 +1100,19 @@ describe('the committed triage table', () => {
 	// disagree — unless someone edits one by hand, which is what this reads the real file to catch. Every
 	// `dir/* (N files)` in a cell must have exactly N paths under that directory in the block, and every
 	// filename the cell spells out must appear there too.
+	// The cell and the block are written from one measurement in one run, so they cannot disagree unless
+	// someone edits one by hand — which is what this reads the real file to catch. Checked by *generating*
+	// the cell from the block's paths and comparing, rather than parsing the cell apart: an earlier version
+	// split it on comma-space, and a conflicted file legitimately named `a, b.md` would have been written
+	// correctly into both places and then read here as two entries, failing `npm test` and making a valid
+	// refresh impossible to commit. A test that cannot accept a legal filename is a worse test than none.
 	it('expands every abbreviated cell into the same files the block names', () => {
 		const listed = pathsListedPerPr(table);
 		expect(listed.size).toBeGreaterThan(0);
 		const columns = parseTableColumns(
 			table.find((line) => parseTableColumns(line)[STATUS_COLUMN] !== undefined) ?? ''
 		);
+		let compared = 0;
 		for (const row of table.filter((line) => /^\|\s*#\d+\s*\|/.test(line))) {
 			const cells = splitRow(row);
 			if (cells[columns[STATUS_COLUMN]].trim() !== 'CONFLICT') {
@@ -1013,9 +1121,11 @@ describe('the committed triage table', () => {
 			const pr = Number.parseInt(cells[columns[PR_COLUMN]].trim().slice(1), 10);
 			const paths = listed.get(pr) ?? [];
 			expect(paths.length).toBeGreaterThan(0);
-			for (const entry of cells[columns[CONFLICT_PATHS_COLUMN]].trim().split(', ')) {
-				expectCellEntryCoveredBy(entry, paths);
-			}
+			expect(cells[columns[CONFLICT_PATHS_COLUMN]].trim()).toBe(
+				escapeCell(summarizeConflictPaths(paths))
+			);
+			compared += 1;
 		}
+		expect(compared).toBeGreaterThan(0);
 	});
 });

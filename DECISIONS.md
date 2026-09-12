@@ -209,6 +209,37 @@ Short, durable decisions with context and tradeoffs.
   of calling `process.exit` inline. Nine unit tests assert those messages directly; before this they
   could only be reached by running the script as a subprocess and reading its stderr, which is why
   none of them had a test. A guard worth having is worth being able to test cheaply.
+- **A thirteenth round, five findings, and three of them were created by the twelfth's own fix.** The
+  lossless block writes every filename git named into the file this script also parses for structure,
+  and three of these are the reader mistaking that content for structure. (1) `readTable` and
+  `findRowsWithBadPrCell` scanned to end of file, so a conflicted filename shaped like
+  `| #999 | not | a | table | row | but | a | filename |` — legal on every filesystem this runs on —
+  became a PR row, and the analyzer would fetch a pull request that does not exist or rewrite that
+  filename inside the fence. (2) A file named exactly `<!-- conflicting-paths:begin -->` was counted as
+  a second block marker, so a refresh that *succeeded* produced a table the next run refuses to read.
+  (3) `parseConflictPaths` tested its terminator on a trimmed copy, so a file named `   ` read as the
+  empty separator before git's diagnostics and the whole measurement was lost to three spaces.
+- **The rule those three share, and it is the one this PR most needed to learn:** a writer that emits
+  arbitrary content into a file its own reader parses has handed the reader's grammar to whoever names
+  the content. Every earlier "a filename may contain X" finding here was about a *cell* — a pipe in the
+  ninth round, edge whitespace in the eleventh. These are about the document. **Structure is recognised
+  only where structure can legally be:** rows only inside the contiguous table (`tableRowEnd`), markers
+  only outside a fence (`fencedLines`, with CommonMark's rule that a closing run must be at least as
+  long as the opening one, because `fenceFor` deliberately opens longer than any run in the paths), and
+  the path terminator only on a line with nothing in it at all.
+- **The fourth finding is the duplicate-header rule, unapplied to the provenance line.** `validateTable`
+  required *at least* one `Last refreshed:` line while `rewriteProvenance` updates the first — so two
+  lines after a copy/paste or a merge resolution meant one refreshed and one left claiming a different
+  base, under a run that exited 0. Exactly one is now required, which is what the block markers already
+  demanded. Three times on this PR a "there must be one of these" rule has been written for one piece of
+  the schema and not the others.
+- **The fifth is a test that could not accept a legal filename, which is worse than no test.** The
+  real-file check split the `Conflicting paths` cell on comma-space, so a conflicted file named
+  `a, b.md` — written correctly into both the cell and the block — read as two entries and failed
+  `npm test`, making a valid refresh impossible to commit. It now *generates* the cell from the block's
+  paths with `summarizeConflictPaths` and compares, parsing no filenames at all. That is also a stronger
+  check than the one it replaces: it asserts the whole cell rather than each entry. **A test that parses
+  a value apart inherits every ambiguity the format has; one that regenerates it inherits none.**
 - Revisit criteria: a table that needs the script to write a third column adds it to the exported
   column names, not to a position. A third reader of the table imports `readTable` rather than
   scanning for a phrase. A second fact about a row gets its own column rather than being encoded in
@@ -245,8 +276,8 @@ Short, durable decisions with context and tradeoffs.
 - Cipher Gate:
   - Date: 2026-09-12
   - Seams: SafetyPolicySeam
-  - Evidence: docs/evidence/2026-09-12/rewind-SafetyPolicySeam.txt; docs/evidence/2026-09-12/redproof-safety-keyword-parity.txt; docs/evidence/2026-09-12/redproof-triage-lossless-paths.txt; docs/evidence/2026-09-12/abortproof-triage-table.txt; docs/evidence/2026-09-12/sonarjs-local.txt; docs/evidence/2026-09-12/verify-outer.txt; docs/evidence/2026-09-12/verify.txt; docs/evidence/2026-09-12/test.txt; docs/evidence/2026-09-12/check.txt; docs/evidence/2026-09-12/lint.txt; docs/evidence/2026-09-12/build.txt; docs/evidence/2026-09-11/verify-outer.txt; docs/evidence/2026-09-11/sonarjs-local.txt; tests/unit/safety-keyword-parity.test.ts; tests/unit/constants.test.ts; tests/unit/analyze-merge-conflicts.test.ts
-  - Summary: Dated 2026-09-12 because the work crossed a UTC midnight and the chain writes into the day it runs; the 2026-09-11 folder holds the same run's earlier transcripts and is cited alongside. SafetyPolicySeam's 10 contract tests pass unchanged (rewind evidence above); the suite is 2174 passing across 114 files. The seam's contract, mock, fixtures, probe and contract tests are unchanged; only `policy.ts` changed, and only to delete the local keyword array so the implementation reads `SYSTEM_CONSTANTS.DISALLOWED_KEYWORDS` and nothing else. The two words it used to hold privately are now in that constant, which is what makes the other two routes enforce them. A new parity test drives both enforcement paths from the constant itself, and `enforcedDisallowedKeywords` is exported so the test can assert **identity** with the shared array rather than equality of contents - reintroducing the original `[...SHARED, 'x']` shape fails it, proven by mutation in the red proof above.
+  - Evidence: docs/evidence/2026-09-12/rewind-SafetyPolicySeam.txt; docs/evidence/2026-09-12/redproof-safety-keyword-parity.txt; docs/evidence/2026-09-12/redproof-triage-lossless-paths.txt; docs/evidence/2026-09-12/abortproof-triage-table.txt; docs/evidence/2026-09-12/redproof-triage-structure-shaped-filenames.txt; docs/evidence/2026-09-12/sonarjs-local.txt; docs/evidence/2026-09-12/verify-outer.txt; docs/evidence/2026-09-12/verify.txt; docs/evidence/2026-09-12/test.txt; docs/evidence/2026-09-12/check.txt; docs/evidence/2026-09-12/lint.txt; docs/evidence/2026-09-12/build.txt; docs/evidence/2026-09-11/verify-outer.txt; docs/evidence/2026-09-11/sonarjs-local.txt; tests/unit/safety-keyword-parity.test.ts; tests/unit/constants.test.ts; tests/unit/analyze-merge-conflicts.test.ts
+  - Summary: Dated 2026-09-12 because the work crossed a UTC midnight and the chain writes into the day it runs; the 2026-09-11 folder holds the same run's earlier transcripts and is cited alongside. SafetyPolicySeam's 10 contract tests pass unchanged (rewind evidence above); the suite is 2187 passing across 114 files. The seam's contract, mock, fixtures, probe and contract tests are unchanged; only `policy.ts` changed, and only to delete the local keyword array so the implementation reads `SYSTEM_CONSTANTS.DISALLOWED_KEYWORDS` and nothing else. The two words it used to hold privately are now in that constant, which is what makes the other two routes enforce them. A new parity test drives both enforcement paths from the constant itself, and `enforcedDisallowedKeywords` is exported so the test can assert **identity** with the shared array rather than equality of contents - reintroducing the original `[...SHARED, 'x']` shape fails it, proven by mutation in the red proof above.
   - Risks: The two newly-shared words widen what `/api/tools` and `/api/meechie-studio-text` refuse, so a request that worked yesterday can be refused today - intended, and the reason it is in `CHANGELOG.md`. Substring matching is unchanged and remains blunt: `'minors'` matches inside `'minorsuit'` and `'suicide'` inside a clinical phrase, and this change neither introduces nor fixes that. Widening the list widens that bluntness by two words, which is the cost of the parity being correct rather than a defect it adds.
 
 ## 2026-09-10 — Give the letterform one voice in the prompt, and give the reader the control

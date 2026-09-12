@@ -5,7 +5,7 @@ Info flow: evidence files -> summary -> review.
 -->
 # Proof Tape
 
-Generated at: 2026-09-12T00:51:23.697Z
+Generated at: 2026-09-12T01:09:59.480Z
 Evidence folder: docs/evidence/2026-09-12
 
 Files included (this tape's own outputs, proof-tape.json and proof-tape.md, are written
@@ -22,7 +22,7 @@ writing while this runs and would therefore always be listed short):
   Commands: meechies-coloringbook@0.1.0 check | svelte-kit sync && svelte-check --tsconfig ./tsconfig.json
 - cipher-gate-run.txt (75 bytes) — PREDATES THIS VERIFY RUN
   Commands: meechies-coloringbook@0.1.0 cipher:gate | node scripts/cipher-gate.mjs
-- cipher-gate.json (3151 bytes) — PREDATES THIS VERIFY RUN
+- cipher-gate.json (3382 bytes) — PREDATES THIS VERIFY RUN
 - clan-chain.json (3181 bytes)
 - clan-chain.md (1956 bytes)
 - lint.txt (48 bytes) — PREDATES THIS VERIFY RUN

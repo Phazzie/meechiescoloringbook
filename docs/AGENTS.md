@@ -42,8 +42,14 @@ Rules that follow from the split:
   `findDuplicateColumns` takes the column names its caller reads, so a reader guards its own columns.
 - An abbreviation in a cell is allowed; being the only record is not. Anything shortened for
   readability needs the unshortened version written by the same run, and a test asserting the two
-  agree — `tests/unit/analyze-merge-conflicts.test.ts` reads the committed file and fails if any
-  `dir/* (N files)` does not expand to exactly N paths under that directory.
+  agree — `tests/unit/analyze-merge-conflicts.test.ts` reads the committed file and rebuilds each cell
+  from the block's paths with `summarizeConflictPaths`, rather than parsing the cell apart, because a
+  filename may legally contain the separator a parser would split on.
+- **Structure is recognised only where structure can legally be.** This file holds filenames git chose,
+  and a filename may be shaped like a table row, like a block marker, or like a blank line. So PR rows
+  come only from the contiguous table (`tableRowEnd`), the markers only from outside a fenced block
+  (`fencedLines`), and git's path-list terminator only from a line with nothing in it. Matching the
+  shape of a line anywhere in the document hands this file's grammar to whoever names a file.
 - A second fact about a row gets its own column. Encoding two decisions in one cell is what the
   retired `Target Bucket` vocabulary did, and separating them is why it is gone: its five categories
   (`1. Safe candidate for dry-run` … `5. Dependency/generated/evidence-only`) described the 2026-06

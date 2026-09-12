@@ -239,9 +239,15 @@ export const parseConflictPaths = (stdout) => {
   for (const line of rest) {
     // Only a trailing CR is stripped. A filename may legitimately begin or end with a space, and git
     // emits it verbatim - trimming recorded ` leadtrail ` as `leadtrail`, a different file, in the
-    // column a reader trusts to name files. The blank-line terminator is tested on a trimmed copy.
+    // column a reader trusts to name files.
     const path = line.replace(/\r$/, '');
-    if (path.trim().length === 0) {
+    // The terminator is an **empty** line, not a blank one. Testing it on a trimmed copy read a file
+    // literally named `   ` as the separator before git's diagnostics, so the table recorded that git
+    // named no files and the real path was missing from the complete block as well - the whole
+    // measurement lost to three spaces. That is the same mistake as trimming the path itself, made one
+    // line lower: whitespace inside a filename is content, and only a line with nothing in it is
+    // structure.
+    if (path.length === 0) {
       break;
     }
     paths.push(path);
@@ -366,18 +372,64 @@ export const renderConflictDetails = (measured) => {
 };
 
 /**
+ * Which lines of a markdown file are inside a fenced code block.
+ *
+ * Needed because this script writes filenames into a fence and then reads the same file back looking
+ * for structure. A conflicted filename may be *exactly* `<!-- conflicting-paths:begin -->` — legal on
+ * every filesystem this runs on — and the marker scan counted it as a second begin marker, so a refresh
+ * that succeeded produced a table the next run and the committed-table test both reject. Content inside
+ * a fence is content; only lines outside one may be read as structure.
+ *
+ * Closing follows CommonMark: a fence is closed by a line of **at least** as many backticks as opened
+ * it, and nothing else. That matters here rather than being pedantry — `fenceFor` opens with a run
+ * longer than any in the paths, so a path that is itself ``` sits inside a ```` fence without closing
+ * it, which a "three or more backticks" test would get wrong in exactly the case this exists for.
+ *
+ * @param {string[]} lines
+ * @returns {boolean[]} one flag per line; the fence delimiters themselves count as inside
+ */
+export const fencedLines = (lines) => {
+  /** @type {boolean[]} */
+  const inside = [];
+  let openLength = 0;
+  for (const line of lines) {
+    const run = line.match(/^(`{3,})/);
+    if (openLength === 0 && run) {
+      openLength = run[1].length;
+      inside.push(true);
+      continue;
+    }
+    if (openLength > 0 && /^`{3,}\s*$/.test(line) && (line.match(/^(`+)/)?.[1].length ?? 0) >= openLength) {
+      openLength = 0;
+      inside.push(true);
+      continue;
+    }
+    inside.push(openLength > 0);
+  }
+  return inside;
+};
+
+/**
  * Where the conflicting-file block lives in the table file, if it is there exactly once and in order.
  *
  * Both markers, in order, and one of each. A file with the end before the begin, or with two begins,
  * has no single region to replace and rewriting on a guess would swallow whatever sits between the
  * wrong pair — including the table.
  *
+ * Markers are recognised only outside a fence, because this script's own output puts arbitrary
+ * filenames inside one. See `fencedLines`.
+ *
  * @param {string[]} lines
  * @returns {{ begin: number, end: number } | { begin: null, end: null, reason: string }}
  */
 export const findConflictBlock = (lines) => {
-  const begins = lines.flatMap((line, index) => (line.trim() === CONFLICT_BLOCK_BEGIN ? [index] : []));
-  const ends = lines.flatMap((line, index) => (line.trim() === CONFLICT_BLOCK_END ? [index] : []));
+  const fenced = fencedLines(lines);
+  const begins = lines.flatMap((line, index) =>
+    !fenced[index] && line.trim() === CONFLICT_BLOCK_BEGIN ? [index] : []
+  );
+  const ends = lines.flatMap((line, index) =>
+    !fenced[index] && line.trim() === CONFLICT_BLOCK_END ? [index] : []
+  );
   if (begins.length !== 1 || ends.length !== 1) {
     return {
       begin: null,
@@ -418,6 +470,29 @@ export const rewriteConflictBlock = (lines, measured) => {
 const collapse = (text) => text.replaceAll(/\s+/g, ' ').trim();
 
 /**
+ * Where the contiguous markdown table under `headerIndex` ends.
+ *
+ * A markdown table is contiguous by definition: it runs until the first line that is not a row. Both
+ * readers used to scan to end of file instead, which was harmless until this script started writing
+ * **filenames** into the same document. A conflicted filename may contain pipes, so
+ * `| #999 | not | a | table | row | but | a | filename |` is a legal path; written verbatim into the
+ * lossless block it has the header's width and a PR cell that parses, and the analyzer would then go
+ * and fetch a pull request that does not exist — or rewrite that filename in place inside the fence.
+ * Bounding the scan is what makes writing arbitrary filenames into this file safe at all.
+ *
+ * @param {string[]} lines
+ * @param {number} headerIndex
+ * @returns {number} exclusive end index
+ */
+export const tableRowEnd = (lines, headerIndex) => {
+  let end = headerIndex + 1;
+  while (end < lines.length && lines[end].trim().startsWith('|')) {
+    end += 1;
+  }
+  return end;
+};
+
+/**
  * Locate the table's header, its column map, and every PR row beneath it.
  *
  * Separated from `main` so it can be tested against a table without running git, and because the
@@ -439,7 +514,8 @@ export const readTable = (lines) => {
   const prIndex = columns[PR_COLUMN];
   /** @type {{ pr: number, lineIndex: number }[]} */
   const prRows = [];
-  for (let index = headerIndex + 1; index < lines.length; index += 1) {
+  const end = tableRowEnd(lines, headerIndex);
+  for (let index = headerIndex + 1; index < end; index += 1) {
     const cell = prIndex === undefined ? undefined : splitRow(lines[index])[prIndex];
     const match = cell?.trim().match(/^#(\d+)$/);
     if (match) {
@@ -472,7 +548,9 @@ export const isDividerRow = (line) => {
  * refreshes every other row, advances the provenance line and exits 0, having never measured that PR.
  *
  * The distinction that makes both safe is width. A line the header's own width is a data row and its
- * `PR` cell must parse; anything narrower is prose and is ignored. The divider is excluded by shape.
+ * `PR` cell must parse; anything narrower is prose and is ignored. The divider is excluded by shape, and
+ * everything below the contiguous table is out of scope entirely — see `tableRowEnd`, without which a
+ * conflicted filename shaped like a row would be judged here.
  *
  * @param {string[]} lines
  * @param {number} headerIndex
@@ -487,7 +565,8 @@ export const findRowsWithBadPrCell = (lines, headerIndex, columns) => {
   }
   /** @type {{ lineIndex: number, cell: string }[]} */
   const bad = [];
-  for (let index = headerIndex + 1; index < lines.length; index += 1) {
+  const end = tableRowEnd(lines, headerIndex);
+  for (let index = headerIndex + 1; index < end; index += 1) {
     const cells = splitRow(lines[index]);
     if (cells.length !== expected || isDividerRow(lines[index])) {
       continue;
@@ -699,13 +778,19 @@ export const validateTable = (lines, table) => {
         'silently nowhere. Nothing measured, nothing written; repair the rows.'
     };
   }
-  if (lines.findIndex((line) => line.startsWith(PROVENANCE_PREFIX)) === -1) {
+  // **Exactly one**, for the reason the block markers need exactly one of each: `rewriteProvenance`
+  // updates the first match, so a second line surviving a copy/paste or a merge resolution would be
+  // left claiming an older base while the run exited 0 — two contradictory bases in the document the
+  // whole table is read as the record of. Counted rather than found, and the count is the check.
+  const provenance = lines.filter((line) => line.startsWith(PROVENANCE_PREFIX));
+  if (provenance.length !== 1) {
     return {
       ok: false,
       message:
-        `No line starting "${PROVENANCE_PREFIX}" found. Without it the table would carry fresh ` +
-        'statuses and no record of the date or base they were measured against, which is the ' +
-        'reproducibility this refresh exists to provide. Nothing measured, nothing written.'
+        `Found ${provenance.length} lines starting "${PROVENANCE_PREFIX}"; there must be exactly one. ` +
+        'A table with none would carry fresh statuses and no record of the date or base they were ' +
+        'measured against, and a table with two would have one of them refreshed and the other left ' +
+        'claiming a different base. Nothing measured, nothing written.'
     };
   }
   // Required for the same reason the paths column is. The cells abbreviate, so the block is the only

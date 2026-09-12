@@ -348,3 +348,23 @@ Two of those duplicate-string findings predate this round and were recorded unfi
 fixed here because the constants they wanted are in the file this round was already editing, and the
 file already carried the convention ("named because several tests need the same ones"). The
 cognitive-complexity 21 recorded in the previous round is gone with the same refactor.
+
+================================================================================
+Round 15 — the filenames that looked like this document's own structure
+================================================================================
+
+Same substitute, same config (recommended + S1192). Five findings fixed this round; the sweep
+reports **0 problems** on all three touched files before and after, so nothing here was driven by it.
+
+Recorded because the round is the clearest instance yet of a pattern this PR keeps producing:
+
+  the previous round's fix wrote arbitrary filenames into the file this script also reads for
+  structure, and three of this round's five findings are the reader mistaking that content for
+  structure — a row-shaped filename read as a PR row, a marker-shaped filename read as a block
+  delimiter, and a whitespace-only filename read as the separator before git's diagnostics.
+
+Every earlier "a filename may contain X" finding on this PR (a pipe in round 9, edge whitespace in
+round 11) was about a *cell*. These are about the document. The fix is the same shape in all three
+cases and worth stating once: **structure is recognised only where structure can legally be** — rows
+only inside the contiguous table, markers only outside a fence, the terminator only on a line with
+nothing in it.
