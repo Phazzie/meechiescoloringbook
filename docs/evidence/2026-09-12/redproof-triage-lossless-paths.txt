@@ -1,0 +1,77 @@
+Red-proof: the three Codex P2 findings on dfbe4e7, each reintroduced and each caught
+====================================================================================
+
+Findings, verbatim in substance:
+
+  1. "Preserve every conflicted filename" (scripts/analyze-merge-conflicts.js) — when two or more
+     conflicts share a directory the cell replaces their names with `dir/* (N files)`, so the table
+     no longer holds the files git named and a reviewer cannot audit the conflict without rerunning
+     the analyzer. Remedy offered: keep the complete list, or link to lossless evidence.
+  2. "Validate PR cells in the dry-run reader" (scripts/validate-pr-backlog.js) — the second reader
+     never calls findRowsWithBadPrCell, so a full-width row written `348` instead of `#348` is
+     omitted from prRows, selectCleanCandidates returns an empty list with no reason, and main
+     exits 0 as though no validation were requested.
+  3. "Reject duplicate decision headers" (scripts/validate-pr-backlog.js) — parseTableColumns keeps
+     the first index for a repeated name, so a header carrying `Dry-run` twice lets one row answer
+     yes and no at once, with the earlier column silently winning.
+
+All three confirmed by reading the code. Fix for 1: the cell keeps the readable summary and the
+complete list is written verbatim into a delimited block below the table, in the same run, from the
+same measurement; the analyzer refuses to measure a table with nowhere to put it. Fixes for 2 and 3:
+the validator gains the guards the analyzer already had, and findDuplicateColumns now takes the
+column names its caller reads instead of hard-coding the analyzer's three.
+
+Each mutation below reintroduces one defect and runs
+`npx vitest run tests/unit/analyze-merge-conflicts.test.ts`.
+
+=================================================================
+MUTATION: findDuplicateColumns ignores the names its caller asked about (duplicated Dry-run readable again)
+=================================================================
+     × names a duplicate among the columns a caller asks about 10ms
+     × gives a reason for a duplicated Dry-run column rather than reading the first copy 2ms
+ FAIL  tests/unit/analyze-merge-conflicts.test.ts > findDuplicateColumns > names a duplicate among the columns a caller asks about
+AssertionError: expected [] to deeply equal [ 'dry-run' ]
+ FAIL  tests/unit/analyze-merge-conflicts.test.ts > selectCleanCandidates on a malformed table > gives a reason for a duplicated Dry-run column rather than reading the first copy
+AssertionError: expected [ 348 ] to deeply equal []
+      Tests  2 failed | 97 passed (99)
+
+=================================================================
+MUTATION: validator drops the bad-PR-cell guard (a row written 348 vanishes again)
+=================================================================
+     × gives a reason for a full-width row whose PR cell does not name a PR 7ms
+ FAIL  tests/unit/analyze-merge-conflicts.test.ts > selectCleanCandidates on a malformed table > gives a reason for a full-width row whose PR cell does not name a PR
+AssertionError: the given combination of arguments (undefined and string) is invalid for this assertion. You can use an array, a map, an object, a set, a string, or a weakset instead of a string
+      Tests  1 failed | 98 passed (99)
+
+=================================================================
+MUTATION: validator drops the PR-column presence check
+=================================================================
+     × gives a reason when there is no PR column to identify rows by 6ms
+ FAIL  tests/unit/analyze-merge-conflicts.test.ts > selectCleanCandidates on a malformed table > gives a reason when there is no PR column to identify rows by
+AssertionError: the given combination of arguments (undefined and string) is invalid for this assertion. You can use an array, a map, an object, a set, a string, or a weakset instead of a string
+      Tests  1 failed | 98 passed (99)
+
+=================================================================
+MUTATION: the block abbreviates instead of naming every file - the reported defect, one level up
+=================================================================
+     × names every path git gave, each on its own line 6ms
+ FAIL  tests/unit/analyze-merge-conflicts.test.ts > renderConflictDetails > names every path git gave, each on its own line
+AssertionError: expected [ …(19) ] to include 'plan.md'
+      Tests  1 failed | 98 passed (99)
+
+=================================================================
+MUTATION: a hand-edited abbreviation count in the committed table (19 -> 18)
+=================================================================
+     × expands every abbreviated cell into the same files the block names 13ms
+ FAIL  tests/unit/analyze-merge-conflicts.test.ts > the committed triage table > expands every abbreviated cell into the same files the block names
+AssertionError: expected [ …(19) ] to have a length of 18 but got 19
+      Tests  1 failed | 98 passed (99)
+
+=================================================================
+MUTATION: a filename removed from the committed block while the cell still names it
+=================================================================
+     × expands every abbreviated cell into the same files the block names 10ms
+ FAIL  tests/unit/analyze-merge-conflicts.test.ts > the committed triage table > expands every abbreviated cell into the same files the block names
+AssertionError: expected [ 'CHANGELOG.md', …(19) ] to include 'docs/seams.md'
+      Tests  1 failed | 98 passed (99)
+

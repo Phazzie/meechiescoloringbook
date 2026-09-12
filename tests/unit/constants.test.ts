@@ -55,6 +55,15 @@ describe('SYSTEM_CONSTANTS', () => {
 			expect(keywords).toContain('self-harm');
 		});
 
+		// 'suicide' and 'extremist' lived in a local array inside safety-policy-seam/policy.ts, so the
+		// two routes that read this constant through findDisallowedKeywords never blocked either word.
+		// Asserting them here is what makes moving them back out of the shared list fail.
+		it('contains the two keywords SafetyPolicySeam used to hold privately', () => {
+			const keywords = SYSTEM_CONSTANTS.DISALLOWED_KEYWORDS;
+			expect(keywords).toContain('suicide');
+			expect(keywords).toContain('extremist');
+		});
+
 		it('every keyword is a non-empty lowercase string', () => {
 			for (const keyword of SYSTEM_CONSTANTS.DISALLOWED_KEYWORDS) {
 				expect(typeof keyword).toBe('string');

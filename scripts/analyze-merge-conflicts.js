@@ -1,154 +1,991 @@
 /**
- * Purpose: Analyze merge conflicts for all open candidate PRs against the current main branch in real-time.
- * Why: Identify exactly which files are conflicting for each PR to help developers plan conflict resolution.
- * Info flow: docs/triage-table.md (PR list) -> analyze-merge-conflicts.js -> git merge tests -> update docs/triage-table.md.
+ * Purpose: Measure every open PR in docs/triage-table.md against origin/main and write the result
+ *          back into that table's own merge-status and conflicting-paths columns.
+ * Why: The table is the triage source of truth and this script is its only writer. It used to
+ *      address columns by fixed index (`parts[5]` was assumed to be a bucket, `parts[6]` was
+ *      overwritten with a merge note) and to test each merge from whatever branch happened to be
+ *      checked out. Both were silent: a table whose columns had moved lost a human's disposition on
+ *      the next run, and a stale local `main` produced statuses measured against a base the table
+ *      did not name.
+ * Info flow: docs/triage-table.md (PR numbers + header row) -> git merge-tree against origin/main ->
+ *            the same table, with only the two columns this script owns rewritten.
  */
 
 import fs from 'node:fs';
 import path from 'node:path';
+import process from 'node:process';
 import { execSync } from 'node:child_process';
+import { isEntryPoint, toDateFolder } from './evidence-reporting.mjs';
 
 const TRIAGE_TABLE_PATH = path.resolve('docs/triage-table.md');
 
-function runCommand(command) {
+/**
+ * The table's provenance line, which this script also owns.
+ *
+ * It claims a date and a base commit, and until a review caught it the script rewrote the measured
+ * cells without touching this line — so a refresh after `origin/main` advanced left a table whose
+ * statuses were measured against one commit while its own header named an older one. A provenance
+ * line that can go stale is worse than none, because it is read as the thing that makes the
+ * measurement reproducible.
+ */
+const PROVENANCE_PREFIX = 'Last refreshed:';
+
+/** The banner this tool prints around its own output, four times. */
+const BANNER = '='.repeat(50);
+
+/** The two columns this script writes. Everything else in a row belongs to whoever wrote it. */
+export const STATUS_COLUMN = 'merge status';
+export const CONFLICT_PATHS_COLUMN = 'conflicting paths';
+
+/**
+ * The column naming the PR. Read by name like the rest, not by position.
+ *
+ * A row used to be recognised by `/^\|\s*#(\d+)\s*\|/` - the first cell - while every other column was
+ * resolved from the header. Reorder the table and the anchor finds no rows at all, so the analyzer
+ * exits 0 saying "No PR rows found" and the validator reports an empty backlog: both tools silently
+ * off, for a table that is perfectly well formed.
+ */
+export const PR_COLUMN = 'pr';
+
+/**
+ * Run a git command, returning its output either way rather than throwing.
+ *
+ * `stdout` and `stderr` are kept apart as well as combined. That is not tidiness: `output` used to be
+ * the only field, and on an operational failure - an invalid ref, an option this git does not know -
+ * it began with an empty line where stdout would have been, so `parseConflictPaths` dropped that line
+ * as if it were the tree id and read the *stderr message* as a conflicting filename. The table then
+ * recorded `CONFLICT` with an error string under conflicting paths, which is a measurement the
+ * command never made.
+ *
+ * @param {string} command
+ * @returns {{ success: boolean, output: string, stdout: string, stderr: string }}
+ */
+export function runCommand(command) {
   try {
     const stdout = execSync(command, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
-    return { success: true, output: stdout.trim() };
+    return { success: true, output: stdout.trim(), stdout: stdout.trim(), stderr: '' };
   } catch (error) {
-    return { success: false, output: (error.stdout || '') + '\n' + (error.stderr || '') + '\n' + error.message };
+    // execSync throws an Error carrying the child's captured streams. Narrowed here rather than
+    // dereferenced off `unknown`, which is what the typechecker reported once a test imported this
+    // file and pulled it into the checked graph.
+    const failure = /** @type {{ stdout?: string, stderr?: string, message?: string }} */ (error);
+    const stdout = (failure.stdout ?? '').trim();
+    const stderr = (failure.stderr ?? '').trim();
+    return {
+      success: false,
+      output: `${failure.stdout ?? ''}\n${failure.stderr ?? ''}\n${failure.message ?? ''}`,
+      stdout,
+      stderr: stderr.length > 0 ? stderr : (failure.message ?? '')
+    };
   }
 }
 
-async function main() {
-  console.log('==================================================');
-  console.log('PR Merge Conflict Analyzer');
-  console.log('==================================================\n');
-
-  // Verify git working tree is clean
-  const statusResult = runCommand('git status --porcelain');
-  const statusLines = statusResult.output.split('\n').filter(line => line.trim().length > 0 && !line.startsWith('??'));
-  if (statusLines.length > 0) {
-    console.error('ERROR: Your git working tree has uncommitted modifications. Please stash or commit them first.');
-    process.exit(1);
+/**
+ * Split a markdown table row into its cells, honouring `\|` escapes.
+ *
+ * A pipe inside a cell must be written `\|`, and a plain `split('|')` treats it as a separator - so
+ * one PR title containing an escaped pipe shifted every cell after it. The selection then read the
+ * Head cell as the status and found no candidates, and `rewriteRow` wrote `CONFLICT` **into the Head
+ * column**, silently corrupting the row it was asked to refresh.
+ *
+ * **Escaping is decided by the parity of the backslash run**, not by the single character before the
+ * pipe. A lookbehind for one backslash was wrong for a cell ending in a literal backslash: in
+ * `| a\\| b |` the `\\` is an *escaped backslash*, so that pipe is a delimiter - and the lookbehind
+ * suppressed it, merging two cells. An odd run escapes the pipe; an even run does not.
+ *
+ * Round-trips: cell contents are preserved verbatim and each delimiter contributed exactly one `|`, so
+ * `parts.join('|')` reproduces the input exactly - which is what lets `rewriteRow` replace two cells
+ * and leave the rest byte-identical.
+ *
+ * @param {string} line
+ * @returns {string[]}
+ */
+export const splitRow = (line) => {
+  /** @type {string[]} */
+  const cells = [];
+  let current = '';
+  let backslashes = 0;
+  for (const char of line) {
+    if (char === '|' && backslashes % 2 === 0) {
+      cells.push(current);
+      current = '';
+      backslashes = 0;
+      continue;
+    }
+    backslashes = char === '\\' ? backslashes + 1 : 0;
+    current += char;
   }
+  cells.push(current);
+  return cells;
+};
+
+/**
+ * Make text safe to put in a table cell, without altering what it says.
+ *
+ * A conflicted filename may legitimately contain a pipe. This used to replace it with `/`, which
+ * records `a/b.md` for `a|b.md` — a different file, in the column a reader trusts to name files.
+ * Escaping keeps the name and `splitRow` reads it back as one cell. Backslashes are escaped first, so
+ * escaping cannot be undone by a backslash already in the name.
+ *
+ * @param {string} text
+ * @returns {string}
+ */
+export const escapeCell = (text) => text.replaceAll('\\', '\\\\').replaceAll('|', '\\|');
+
+/**
+ * Map the table's header names to their index in `splitRow(line)`.
+ *
+ * By name rather than by position, because the previous version hard-coded positions and a later
+ * edit to the table's columns therefore rewrote the wrong cells without failing. A header this
+ * script does not recognise is simply absent from the map, and `rewriteRow` leaves that cell alone.
+ *
+ * @param {string} headerLine A markdown table header row, pipes included.
+ * @returns {Record<string, number>} normalized header name -> index into the split parts
+ */
+export const parseTableColumns = (headerLine) => {
+  /** @type {Record<string, number>} */
+  const columns = {};
+  splitRow(headerLine).forEach((cell, index) => {
+    const name = cell.trim().replace(/`/g, '').toLowerCase();
+    if (name.length > 0 && !(name in columns)) {
+      columns[name] = index;
+    }
+  });
+  return columns;
+};
+
+/** The columns this script writes, plus the one it reads to identify a row. */
+export const REQUIRED_COLUMNS = [PR_COLUMN, STATUS_COLUMN, CONFLICT_PATHS_COLUMN];
+
+/**
+ * Header names that appear more than once among the ones a caller reads.
+ *
+ * `parseTableColumns` keeps the first index for a repeated name, which is a silent choice: a table
+ * with two `Merge status` columns would have the first refreshed and the second left stale, under one
+ * provenance line claiming both were measured. Row-width validation cannot see it, because the width
+ * is right. Treated as a parse error so the ambiguity is never resolved by luck of ordering.
+ *
+ * **Which names to check is the caller's, because the columns each tool reads differ.** This defaulted
+ * to the analyzer's three, so `validate-pr-backlog.js` had no way to reject a duplicated `Dry-run` —
+ * and a header carrying `Dry-run` twice let one row answer `yes` and `no` at once, with the first copy
+ * silently winning. That is a contradictory human decision being resolved by column order, on the one
+ * column that decides whether a PR is reported ready to merge.
+ *
+ * @param {string} headerLine
+ * @param {readonly string[]} [names] the normalized header names the caller reads; the analyzer's own
+ *        three by default.
+ * @returns {string[]}
+ */
+export const findDuplicateColumns = (headerLine, names = REQUIRED_COLUMNS) => {
+  /** @type {Map<string, number>} */
+  const counts = new Map();
+  for (const cell of splitRow(headerLine)) {
+    const name = cell.trim().replace(/`/g, '').toLowerCase();
+    if (name.length > 0) {
+      counts.set(name, (counts.get(name) ?? 0) + 1);
+    }
+  }
+  return names.filter((name) => (counts.get(name) ?? 0) > 1);
+};
+
+/**
+ * Rewrite one PR row's measured columns, leaving every other cell byte-identical.
+ *
+ * The status cell holds exactly `CLEAN` or `CONFLICT` — nothing else, so the value stays readable
+ * by anything that compares it. Which files conflicted is a separate fact and lives in its own
+ * column; when the table has no such column the paths are dropped rather than smuggled into the
+ * status.
+ *
+ * @param {string} originalLine
+ * @param {Record<string, number>} columns
+ * @param {{ status: 'CLEAN' | 'CONFLICT', conflictPaths: string[], failureNote?: string }} measured
+ * @returns {string}
+ */
+export const rewriteRow = (originalLine, columns, measured) => {
+  const parts = splitRow(originalLine);
+  const statusIndex = columns[STATUS_COLUMN];
+  if (statusIndex !== undefined && statusIndex < parts.length) {
+    parts[statusIndex] = ` ${measured.status} `;
+  }
+  const pathsIndex = columns[CONFLICT_PATHS_COLUMN];
+  if (pathsIndex !== undefined && pathsIndex < parts.length) {
+    const detail = measured.failureNote ?? summarizeConflictPaths(measured.conflictPaths);
+    parts[pathsIndex] = ` ${escapeCell(detail)} `;
+  }
+  return parts.join('|');
+};
+
+/**
+ * Parse the **stdout** of `git merge-tree --write-tree --name-only` for a conflicted merge.
+ *
+ * The first line is the tree object id; the conflicted paths follow, one per line, until the blank
+ * line separating them from git's own messages.
+ *
+ * Returns `null` rather than `[]` when the first line is not a tree id, because the two mean opposite
+ * things and this function used to conflate them. A clean merge and a conflicted one both print an id;
+ * a command that failed operationally prints nothing on stdout, and treating that as "a conflicted
+ * merge with no files named" is how an invalid ref got recorded as a real CONFLICT measurement.
+ *
+ * @param {string} stdout the command's stdout alone - never stdout and stderr combined
+ * @returns {string[] | null} the conflicted paths, or null if this is not a merge-tree result
+ */
+export const parseConflictPaths = (stdout) => {
+  const [treeId, ...rest] = stdout.split('\n');
+  if (!/^[0-9a-f]{40}$/.test(treeId.trim())) {
+    return null;
+  }
+  /** @type {string[]} */
+  const paths = [];
+  for (const line of rest) {
+    // Only a trailing CR is stripped. A filename may legitimately begin or end with a space, and git
+    // emits it verbatim - trimming recorded ` leadtrail ` as `leadtrail`, a different file, in the
+    // column a reader trusts to name files.
+    const path = line.replace(/\r$/, '');
+    // The terminator is an **empty** line, not a blank one. Testing it on a trimmed copy read a file
+    // literally named `   ` as the separator before git's diagnostics, so the table recorded that git
+    // named no files and the real path was missing from the complete block as well - the whole
+    // measurement lost to three spaces. That is the same mistake as trimming the path itself, made one
+    // line lower: whitespace inside a filename is content, and only a line with nothing in it is
+    // structure.
+    if (path.length === 0) {
+      break;
+    }
+    paths.push(path);
+  }
+  return paths;
+};
+
+/**
+ * Order two strings by UTF-16 code unit, which is the same order on every machine.
+ *
+ * `localeCompare` with no locale reads the **host's** collation, so the same git measurement wrote a
+ * different `docs/triage-table.md` depending on where it ran: `sv-SE` orders `ä` after `z` and `en-US`
+ * orders it before. A file whose committed bytes depend on the machine that generated them cannot be
+ * the evidence this repository treats it as, and the idempotence this script is proved to have would
+ * have held only per machine. An explicit locale would be better than none and still leaves the answer
+ * to the ICU version Node was built against; code units leave it to nothing.
+ *
+ * The cost is that ordering is now ASCII-style — `WORST_TO_BEST_LOG.md` sorts before `docs/` because
+ * `W` is below `d` — which is `LC_ALL=C` order and the conventional choice for generated files.
+ *
+ * @param {string} a
+ * @param {string} b
+ * @returns {number}
+ */
+const byCodeUnit = (a, b) => {
+  if (a < b) {
+    return -1;
+  }
+  return a > b ? 1 : 0;
+};
+
+/**
+ * Render a conflicting-path list short enough to read in a table cell.
+ *
+ * A stale PR conflicts on its whole dated evidence folder, so the raw list runs to twenty-five
+ * paths and the cell becomes unreadable — which is how the column ended up saying nothing at all in
+ * the version of this script that wrote `Has conflicts: .` Any directory contributing more than one
+ * conflicting file collapses to `dir/* (N files)`; a directory contributing one keeps its filename,
+ * because `docs/seams.md` is a different kind of news from twelve regenerated JSON reports.
+ *
+ * **This is an abbreviation, so it may not be the only record.** `dir/* (14 files)` does not name the
+ * fourteen, and a reviewer auditing a conflict then has nothing to read but the analyzer's output from
+ * a run they did not see — the same complaint that retired `Has conflicts: .`, one step milder. Every
+ * path git named is written verbatim into the block `renderConflictDetails` builds, in the same run,
+ * and `main` refuses to measure a table with nowhere to put it. The cell says the shape; the block says
+ * the names; neither is allowed to be the only one.
+ *
+ * @param {string[]} paths
+ * @returns {string}
+ */
+export const summarizeConflictPaths = (paths) => {
+  if (paths.length === 0) {
+    return '—';
+  }
+  /** @type {Map<string, string[]>} */
+  const byDirectory = new Map();
+  for (const filePath of paths) {
+    const slash = filePath.lastIndexOf('/');
+    const directory = slash === -1 ? '' : filePath.slice(0, slash);
+    byDirectory.set(directory, [...(byDirectory.get(directory) ?? []), filePath]);
+  }
+  return [...byDirectory.entries()]
+    .sort(([a], [b]) => byCodeUnit(a, b))
+    .flatMap(([directory, files]) =>
+      files.length > 1 && directory !== ''
+        ? [`${directory}/* (${files.length} files)`]
+        : [...files].sort(byCodeUnit)
+    )
+    .join(', ');
+};
+
+/**
+ * The comment markers around the block listing every conflicting file in full.
+ *
+ * A delimited region rather than a second file: the block and the cells it expands are one
+ * measurement, made in one run, under one provenance line, and two files can drift apart while a
+ * region cannot. Everything between the markers belongs to this script, exactly as the two measured
+ * columns and the refresh line do.
+ */
+export const CONFLICT_BLOCK_BEGIN = '<!-- conflicting-paths:begin -->';
+export const CONFLICT_BLOCK_END = '<!-- conflicting-paths:end -->';
+
+/**
+ * A code fence long enough that none of these paths can close it early.
+ *
+ * A filename may contain backticks, and three of them in a path would end a ``` block mid-list —
+ * truncating the lossless record at the one character that makes it unreadable. The fence is always
+ * longer than the longest backtick run it has to contain.
+ *
+ * @param {string[]} paths
+ * @returns {string}
+ */
+export const fenceFor = (paths) => {
+  const longestRun = paths.reduce((longest, filePath) => {
+    const runs = filePath.match(/`+/g) ?? [];
+    return runs.reduce((inner, run) => Math.max(inner, run.length), longest);
+  }, 0);
+  return '`'.repeat(Math.max(3, longestRun + 1));
+};
+
+/**
+ * Render the block naming every conflicting file, verbatim.
+ *
+ * Inside a fence rather than a table cell, because a fence needs no escaping: the bytes git printed are
+ * the bytes a reader sees, and `escapeCell`'s `\|` — correct in a cell, and invisible to a reader who
+ * copies the line into a shell — never appears. `git merge-tree --name-only` emits one path per line
+ * and quotes any path containing a newline, so one line per path holds.
+ *
+ * A CLEAN row contributes nothing; so does a conflict git refused to name files for, which the cell
+ * already reports as the anomaly it is.
+ *
+ * @param {{ pr: number, status: string, conflictPaths: string[] }[]} measured
+ * @returns {string[]} the block's lines, markers included
+ */
+export const renderConflictDetails = (measured) => {
+  const conflicted = measured.filter((row) => row.conflictPaths.length > 0);
+  /** @type {string[]} */
+  const body = [
+    '## Every conflicting file, in full',
+    '',
+    'Written by `scripts/analyze-merge-conflicts.js` in the run that measured the statuses above, and',
+    'rewritten whole on every refresh. The `Conflicting paths` cell abbreviates a directory contributing',
+    'several files to `dir/* (N files)`, which is readable but names none of them; these are the names',
+    'git gave, unescaped and in its order. Nothing here is a human\'s to edit.',
+    ''
+  ];
+  if (conflicted.length === 0) {
+    body.push('No open PR conflicts with `origin/main`, so git named no files.');
+  }
+  for (const row of conflicted) {
+    const fence = fenceFor(row.conflictPaths);
+    const count = row.conflictPaths.length;
+    body.push(
+      '<details>',
+      `<summary>#${row.pr} — ${count} conflicting file${count === 1 ? '' : 's'}</summary>`,
+      '',
+      `${fence}text`,
+      ...row.conflictPaths,
+      fence,
+      '',
+      '</details>',
+      ''
+    );
+  }
+  return [CONFLICT_BLOCK_BEGIN, '', ...body, CONFLICT_BLOCK_END];
+};
+
+/**
+ * Which lines of a markdown file are inside a fenced code block.
+ *
+ * Needed because this script writes filenames into a fence and then reads the same file back looking
+ * for structure. A conflicted filename may be *exactly* `<!-- conflicting-paths:begin -->` — legal on
+ * every filesystem this runs on — and the marker scan counted it as a second begin marker, so a refresh
+ * that succeeded produced a table the next run and the committed-table test both reject. Content inside
+ * a fence is content; only lines outside one may be read as structure.
+ *
+ * Closing follows CommonMark: a fence is closed by a line of **at least** as many backticks as opened
+ * it, and nothing else. That matters here rather than being pedantry — `fenceFor` opens with a run
+ * longer than any in the paths, so a path that is itself ``` sits inside a ```` fence without closing
+ * it, which a "three or more backticks" test would get wrong in exactly the case this exists for.
+ *
+ * Returns a **classification** rather than a flag, because two readers need different halves of the
+ * same answer and a second implementation of this rule is how the rule gets broken. `findConflictBlock`
+ * needs the lines that are `outside` a fence, so a filename can never be read as a marker; the test
+ * that reads the committed block back needs the lines that are `inside` one, so a filename that is
+ * itself ``` is not mistaken for a delimiter. Its own copy of the "three or more backticks" test had
+ * exactly that bug — the defect this function exists to prevent, reintroduced by the reader that
+ * checks it.
+ *
+ * @param {string[]} lines
+ * @returns {('outside'|'open'|'inside'|'close')[]} one classification per line
+ */
+export const fencedLines = (lines) => {
+  /** @type {('outside'|'open'|'inside'|'close')[]} */
+  const classified = [];
+  let openLength = 0;
+  for (const line of lines) {
+    const run = line.match(/^(`{3,})/)?.[1].length ?? 0;
+    if (openLength === 0) {
+      // An opening fence may carry an info string (`fenceFor` writes ```text), so only the run is read.
+      if (run > 0) {
+        openLength = run;
+        classified.push('open');
+      } else {
+        classified.push('outside');
+      }
+      continue;
+    }
+    // CommonMark: a closing fence is a run at least as long as the opening one and nothing else on the
+    // line. `fenceFor` opens longer than any run in the paths, so a path that is itself ``` stays content.
+    if (run >= openLength && /^`+\s*$/.test(line)) {
+      openLength = 0;
+      classified.push('close');
+      continue;
+    }
+    classified.push('inside');
+  }
+  return classified;
+};
+
+/**
+ * Where the conflicting-file block lives in the table file, if it is there exactly once and in order.
+ *
+ * Both markers, in order, and one of each. A file with the end before the begin, or with two begins,
+ * has no single region to replace and rewriting on a guess would swallow whatever sits between the
+ * wrong pair — including the table.
+ *
+ * Markers are recognised only outside a fence, because this script's own output puts arbitrary
+ * filenames inside one. See `fencedLines`.
+ *
+ * @param {string[]} lines
+ * @returns {{ begin: number, end: number } | { begin: null, end: null, reason: string }}
+ */
+export const findConflictBlock = (lines) => {
+  const fenced = fencedLines(lines);
+  const begins = lines.flatMap((line, index) =>
+    fenced[index] === 'outside' && line.trim() === CONFLICT_BLOCK_BEGIN ? [index] : []
+  );
+  const ends = lines.flatMap((line, index) =>
+    fenced[index] === 'outside' && line.trim() === CONFLICT_BLOCK_END ? [index] : []
+  );
+  if (begins.length !== 1 || ends.length !== 1) {
+    return {
+      begin: null,
+      end: null,
+      reason:
+        `found ${begins.length} "${CONFLICT_BLOCK_BEGIN}" and ${ends.length} ` +
+        `"${CONFLICT_BLOCK_END}" markers; there must be exactly one of each`
+    };
+  }
+  if (ends[0] < begins[0]) {
+    return { begin: null, end: null, reason: 'the end marker comes before the begin marker' };
+  }
+  return { begin: begins[0], end: ends[0] };
+};
+
+/**
+ * Replace the conflicting-file block with this run's measurement, leaving the rest of the file alone.
+ *
+ * @param {string[]} lines mutated in place, as the row rewrites and the provenance line already are
+ * @param {{ pr: number, status: string, conflictPaths: string[] }[]} measured
+ * @returns {boolean} whether a single well-ordered block was found to rewrite
+ */
+export const rewriteConflictBlock = (lines, measured) => {
+  const block = findConflictBlock(lines);
+  if (block.begin === null) {
+    return false;
+  }
+  lines.splice(block.begin, block.end - block.begin + 1, ...renderConflictDetails(measured));
+  return true;
+};
+
+/**
+ * Squash a multi-line git error into one line, so it fits a table cell or a log line.
+ *
+ * @param {string} text
+ * @returns {string}
+ */
+const collapse = (text) => text.replaceAll(/\s+/g, ' ').trim();
+
+/**
+ * Where the contiguous markdown table under `headerIndex` ends.
+ *
+ * A markdown table is contiguous by definition: it runs until the first line that is not a row. Both
+ * readers used to scan to end of file instead, which was harmless until this script started writing
+ * **filenames** into the same document. A conflicted filename may contain pipes, so
+ * `| #999 | not | a | table | row | but | a | filename |` is a legal path; written verbatim into the
+ * lossless block it has the header's width and a PR cell that parses, and the analyzer would then go
+ * and fetch a pull request that does not exist — or rewrite that filename in place inside the fence.
+ * Bounding the scan is what makes writing arbitrary filenames into this file safe at all.
+ *
+ * @param {string[]} lines
+ * @param {number} headerIndex
+ * @returns {number} exclusive end index
+ */
+export const tableRowEnd = (lines, headerIndex) => {
+  let end = headerIndex + 1;
+  while (end < lines.length && lines[end].trim().startsWith('|')) {
+    end += 1;
+  }
+  return end;
+};
+
+/**
+ * Locate the table's header, its column map, and every PR row beneath it.
+ *
+ * Separated from `main` so it can be tested against a table without running git, and because the
+ * cost of getting it wrong is a rewritten disposition rather than a visible error.
+ *
+ * @param {string[]} lines
+ * @returns {{ headerIndex: number, columns: Record<string, number>, prRows: { pr: number, lineIndex: number }[] } | null}
+ *          null when no `Merge status` column exists, which is the one case where guessing is worse
+ *          than refusing.
+ */
+export const readTable = (lines) => {
+  const headerIndex = lines.findIndex(
+    (line) => parseTableColumns(line)[STATUS_COLUMN] !== undefined
+  );
+  if (headerIndex === -1) {
+    return null;
+  }
+  const columns = parseTableColumns(lines[headerIndex]);
+  const prIndex = columns[PR_COLUMN];
+  /** @type {{ pr: number, lineIndex: number }[]} */
+  const prRows = [];
+  const end = tableRowEnd(lines, headerIndex);
+  for (let index = headerIndex + 1; index < end; index += 1) {
+    const cell = prIndex === undefined ? undefined : splitRow(lines[index])[prIndex];
+    const match = cell?.trim().match(/^#(\d+)$/);
+    if (match) {
+      prRows.push({ pr: Number.parseInt(match[1], 10), lineIndex: index });
+    }
+  }
+  return { headerIndex, columns, prRows };
+};
+
+/**
+ * Is this the header's dashed separator rather than a data row?
+ *
+ * It is exactly the header's width, so every width-based check has to exclude it by shape: its cells
+ * hold only dashes, colons and spaces.
+ *
+ * @param {string} line
+ * @returns {boolean}
+ */
+export const isDividerRow = (line) => {
+  const cells = splitRow(line).slice(1, -1);
+  return cells.length > 0 && cells.every((cell) => /^[\s:-]+$/.test(cell));
+};
+
+/**
+ * Full-width rows whose `PR` cell is not exactly `#<digits>`.
+ *
+ * Tightening the row match to `#<digits>` - so `| see #348 |` in prose is not mistaken for a row -
+ * created a quieter hole than the one it closed: write `348` without the `#` in a real data row and it
+ * simply *vanishes* from `prRows`, where `findMalformedRows` cannot see it either. The analyzer then
+ * refreshes every other row, advances the provenance line and exits 0, having never measured that PR.
+ *
+ * The distinction that makes both safe is width. A line the header's own width is a data row and its
+ * `PR` cell must parse; anything narrower is prose and is ignored. The divider is excluded by shape, and
+ * everything below the contiguous table is out of scope entirely — see `tableRowEnd`, without which a
+ * conflicted filename shaped like a row would be judged here.
+ *
+ * @param {string[]} lines
+ * @param {number} headerIndex
+ * @param {Record<string, number>} columns
+ * @returns {{ lineIndex: number, cell: string }[]}
+ */
+export const findRowsWithBadPrCell = (lines, headerIndex, columns) => {
+  const expected = splitRow(lines[headerIndex]).length;
+  const prIndex = columns[PR_COLUMN];
+  if (prIndex === undefined) {
+    return [];
+  }
+  /** @type {{ lineIndex: number, cell: string }[]} */
+  const bad = [];
+  const end = tableRowEnd(lines, headerIndex);
+  for (let index = headerIndex + 1; index < end; index += 1) {
+    const cells = splitRow(lines[index]);
+    if (cells.length !== expected || isDividerRow(lines[index])) {
+      continue;
+    }
+    const cell = cells[prIndex]?.trim() ?? '';
+    if (!/^#\d+$/.test(cell)) {
+      bad.push({ lineIndex: index, cell });
+    }
+  }
+  return bad;
+};
+
+/**
+ * How both readers name a row that is not the header's width.
+ *
+ * Shared rather than written twice, because the two messages had drifted into different shapes for the
+ * same fact — and a row that cannot be identified by number still has to be findable by line.
+ *
+ * @param {{ lineIndex: number, pr: number | null }} row
+ * @returns {string}
+ */
+export const malformedRowLabel = (row) =>
+  `line ${row.lineIndex + 1}${prSuffix(row.pr)}`;
+
+/**
+ * ` (#348)`, or nothing when the row is malformed in a way that leaves it unidentifiable.
+ *
+ * @param {number | null} pr
+ * @returns {string}
+ */
+function prSuffix(pr) {
+  return pr === null ? '' : ` (#${pr})`;
+}
+
+/**
+ * Which rows of the contiguous table are not exactly as wide as the header.
+ *
+ * **Width equality, not "long enough".** The first version of this checked only that the columns this
+ * script writes were in range, which missed a deleted *interior* cell: remove `Head` and the row still
+ * has cells at indexes 4 and 5, so nothing was rejected - but they are now the *wrong* cells, and
+ * `rewriteRow` wrote the status into the old conflicting-paths cell and the paths over a human's
+ * `Dry-run` answer. Every index in the map is derived from the header, so any width but the header's
+ * makes all of them wrong at once; there is no useful weaker check.
+ *
+ * A trailing-truncated row (`| #317 | title |`) is the same defect, and is caught by the same rule:
+ * `rewriteRow` guards an out-of-range index and therefore does nothing, quietly, while `refreshRows`
+ * counted the row as measured. Checked before any measurement, so a malformed table costs no git work.
+ *
+ * **Every row in the table, not only the recognised ones.** This used to take `prRows`, and a row with
+ * *both* faults at once — `| 348 | title |`, too narrow **and** missing its `#` — passed every guard:
+ * `readTable` left it out of `prRows` because the cell does not parse, so this never saw it, and
+ * `findRowsWithBadPrCell` skipped it because that only judges full-width rows. Two checks that each
+ * catch one fault, and a row carrying both fell between them, so the analyzer advanced the provenance
+ * line having never measured that PR. Width is the check that needs no parsing, so it comes first and
+ * it applies to everything in the table that is not the divider.
+ *
+ * @param {string[]} lines
+ * @param {number} headerIndex
+ * @returns {{ pr: number | null, lineIndex: number, cells: number, expected: number }[]}
+ *          `pr` is the number when the cell happens to parse, and null when it does not - a row can be
+ *          malformed without being identifiable, which is the case this exists for.
+ */
+export const findMalformedRows = (lines, headerIndex) => {
+  const expected = splitRow(lines[headerIndex]).length;
+  const prIndex = parseTableColumns(lines[headerIndex])[PR_COLUMN];
+  const end = tableRowEnd(lines, headerIndex);
+  /** @type {{ pr: number | null, lineIndex: number, cells: number, expected: number }[]} */
+  const malformed = [];
+  for (let index = headerIndex + 1; index < end; index += 1) {
+    const cells = splitRow(lines[index]);
+    if (cells.length === expected || isDividerRow(lines[index])) {
+      continue;
+    }
+    const parsed = prIndex === undefined ? null : cells[prIndex]?.trim().match(/^#(\d+)$/);
+    malformed.push({
+      pr: parsed ? Number.parseInt(parsed[1], 10) : null,
+      lineIndex: index,
+      cells: cells.length,
+      expected
+    });
+  }
+  return malformed;
+};
+
+/**
+ * Measure one PR's head against `origin/main`, without touching the working tree.
+ *
+ * Returns a *reason* on failure rather than a bare null, and `CONFLICT` only when git actually
+ * performed a merge and refused it. An earlier version turned "merge-tree did not run" into a
+ * `CONFLICT` carrying the error as a note, which `refreshRows` then counted as a measured row: the
+ * table would have recorded a conflict, rewritten the provenance line and exited 0 for a command that
+ * never compared anything. `CONFLICT` in this table means git named conflicting files.
+ *
+ * @param {number} pr
+ * @returns {{ ok: true, status: 'CLEAN' | 'CONFLICT', conflictPaths: string[], failureNote?: string }
+ *          | { ok: false, reason: string }}
+ */
+export const measureAgainstMain = (pr) => {
+  const head = `refs/pr-analysis/${pr}`;
+  const fetched = runCommand(`git fetch --force origin pull/${pr}/head:${head}`);
+  if (!fetched.success) {
+    return { ok: false, reason: `could not fetch its head: ${collapse(fetched.stderr)}` };
+  }
+  // merge-tree is read-only: no checkout, no temporary branch, no clean-worktree requirement.
+  const merge = runCommand(`git merge-tree --write-tree --name-only origin/main ${head}`);
+  runCommand(`git update-ref -d ${head}`);
+
+  if (merge.success) {
+    return { ok: true, status: 'CLEAN', conflictPaths: [] };
+  }
+  // Non-zero from merge-tree means either "conflicts" or "this did not run". Only the first prints a
+  // tree id on stdout, and only the first is a measurement worth writing into the table.
+  const conflictPaths = parseConflictPaths(merge.stdout);
+  if (conflictPaths === null) {
+    return { ok: false, reason: `merge-tree did not run: ${collapse(merge.stderr)}` };
+  }
+  return {
+    ok: true,
+    status: 'CONFLICT',
+    conflictPaths,
+    failureNote:
+      conflictPaths.length === 0
+        ? 'merge-tree reported a conflict but named no files'
+        : undefined
+  };
+};
+
+/**
+ * Rewrite the table's provenance line to the date and base this run actually measured against.
+ *
+ * @param {string[]} lines mutated in place, as the row rewrites already are
+ * @param {{ date: string, base: string }} measured
+ * @returns {boolean} whether a provenance line was found to rewrite
+ */
+export const rewriteProvenance = (lines, { date, base }) => {
+  const index = lines.findIndex((line) => line.startsWith(PROVENANCE_PREFIX));
+  if (index === -1) {
+    return false;
+  }
+  lines[index] = `${PROVENANCE_PREFIX} **${date}**, against \`origin/main\` at \`${base}\`.`;
+  return true;
+};
+
+/**
+ * Refresh every PR row, or none of them.
+ *
+ * All-or-nothing because the provenance line makes a claim about the **whole** table: measured on
+ * this date against this base. A run that skipped one unfetchable row and wrote the rest still
+ * rewrote that line, so the table presented a mixture of old and new measurements as one refresh and
+ * exited 0 — the reader has no way to tell which row is which. A partial refresh is not a refresh.
+ *
+ * The measurement is injected rather than called directly, so a test can drive the skip path without
+ * needing a PR that cannot be fetched.
+ *
+ * @param {string[]} lines
+ * @param {Record<string, number>} columns
+ * @param {{ pr: number, lineIndex: number }[]} prRows
+ * @param {(pr: number) => ReturnType<typeof measureAgainstMain>} measure
+ * @returns {{ lines: string[] | null, skipped: { pr: number, reason: string }[], measured: { pr: number, status: string, conflictPaths: string[] }[] }}
+ *          `lines` is null when anything was skipped: there is nothing safe to write. Each skip keeps
+ *          its reason, because "could not measure #348" without saying why sends the next reader back
+ *          to run the command by hand. Each measurement keeps its whole path list, not a count: the
+ *          abbreviated cell and the block naming every file are built from one measurement, so they
+ *          cannot disagree about which files git named.
+ */
+export const refreshRows = (lines, columns, prRows, measure) => {
+  const next = [...lines];
+  /** @type {{ pr: number, reason: string }[]} */
+  const skipped = [];
+  /** @type {{ pr: number, status: string, conflictPaths: string[] }[]} */
+  const measured = [];
+  for (const row of prRows) {
+    const result = measure(row.pr);
+    if (!result.ok) {
+      skipped.push({ pr: row.pr, reason: result.reason });
+      continue;
+    }
+    next[row.lineIndex] = rewriteRow(next[row.lineIndex], columns, result);
+    measured.push({ pr: row.pr, status: result.status, conflictPaths: result.conflictPaths });
+  }
+  return { lines: skipped.length > 0 ? null : next, skipped, measured };
+};
+
+/**
+ * Everything the table must satisfy before a single PR is measured.
+ *
+ * Lifted out of `main` so each refusal is a value rather than a `process.exit`, which is what lets a
+ * test assert the message instead of running the script as a subprocess and reading its stderr. Every
+ * one of these is checked **before** any git work: a table this script cannot write is not a table
+ * worth measuring against, and a run that measured six PRs and then refused to write them would have
+ * spent the fetches to say what it already knew.
+ *
+ * Ordered from the faults that make every later check unsound to the ones that do not: a duplicated
+ * header makes every column index a guess, so it is first.
+ *
+ * @param {string[]} lines
+ * @param {{ headerIndex: number, columns: Record<string, number>, prRows: { pr: number, lineIndex: number }[] }} table
+ * @returns {{ ok: true } | { ok: false, message: string }}
+ */
+export const validateTable = (lines, table) => {
+  const duplicated = findDuplicateColumns(lines[table.headerIndex]);
+  if (duplicated.length > 0) {
+    return {
+      ok: false,
+      message:
+        `These columns appear more than once in the header: ${duplicated.join(', ')}. Which copy this ` +
+        'script should write is ambiguous, and refreshing one while leaving the other stale would ' +
+        'put contradictory measurements under one provenance line. Nothing measured, nothing written.'
+    };
+  }
+  if (table.columns[PR_COLUMN] === undefined) {
+    return {
+      ok: false,
+      message:
+        `No "${PR_COLUMN}" column found in the triage table header. Rows are identified by that cell, ` +
+        'so without it no row can be recognised — and reporting "no PR rows" for a well-formed table ' +
+        'would read as an empty backlog. Nothing measured, nothing written.'
+    };
+  }
+  // Required, not optional. Warning and continuing would update every status and the provenance line
+  // while leaving the old path cells in place — statuses measured against the new base sitting beside
+  // conflict details from an older refresh, with nothing to mark them stale.
+  if (table.columns[CONFLICT_PATHS_COLUMN] === undefined) {
+    return {
+      ok: false,
+      message:
+        `No "${CONFLICT_PATHS_COLUMN}" column found in the triage table header. This column is the ` +
+        "analyzer's to write, so a refresh without it would leave stale path cells beside fresh " +
+        'statuses. Nothing measured, nothing written — add the column or fix its spelling.'
+    };
+  }
+  // Width first, because it needs no parsing and a row of the wrong width makes every cell index a
+  // guess — including the one the next check reads. Reversed, a row that is both too narrow and missing
+  // its `#` fell between the two guards entirely.
+  const malformed = findMalformedRows(lines, table.headerIndex);
+  if (malformed.length > 0) {
+    const named = malformed
+      .map((row) => `  ${malformedRowLabel(row)}: ${row.cells} cell(s), header has ${row.expected}`)
+      .join('\n');
+    return {
+      ok: false,
+      message:
+        `These rows of the table do not have the same number of cells as the header:\n${named}\n` +
+        'Every column index comes from the header, so a row of a different width puts every cell in ' +
+        "the wrong place — the status into another column, the paths over a human's decision — or " +
+        'silently nowhere. Nothing measured, nothing written; repair the rows.'
+    };
+  }
+  const badPrCells = findRowsWithBadPrCell(lines, table.headerIndex, table.columns);
+  if (badPrCells.length > 0) {
+    const named = badPrCells.map((row) => `  line ${row.lineIndex + 1}: "${row.cell}"`).join('\n');
+    return {
+      ok: false,
+      message:
+        `These rows are the header's width but their PR cell does not name a PR:\n${named}\n` +
+        'A full-width row is a data row, so it must be measurable. Omitting it would refresh every ' +
+        'other row and advance the provenance line while this PR went unmeasured. Nothing measured, ' +
+        'nothing written — write the cell as #<number>, or make the line narrower if it is prose.'
+    };
+  }
+  // **Exactly one**, for the reason the block markers need exactly one of each: `rewriteProvenance`
+  // updates the first match, so a second line surviving a copy/paste or a merge resolution would be
+  // left claiming an older base while the run exited 0 — two contradictory bases in the document the
+  // whole table is read as the record of. Counted rather than found, and the count is the check.
+  const provenance = lines.filter((line) => line.startsWith(PROVENANCE_PREFIX));
+  if (provenance.length !== 1) {
+    return {
+      ok: false,
+      message:
+        `Found ${provenance.length} lines starting "${PROVENANCE_PREFIX}"; there must be exactly one. ` +
+        'A table with none would carry fresh statuses and no record of the date or base they were ' +
+        'measured against, and a table with two would have one of them refreshed and the other left ' +
+        'claiming a different base. Nothing measured, nothing written.'
+    };
+  }
+  // Required for the same reason the paths column is. The cells abbreviate, so the block is the only
+  // place the table names the files git named; refreshing without it would leave a reader the summary
+  // and nothing to audit it against, which is what the summary was reviewed for.
+  const block = findConflictBlock(lines);
+  if (block.begin === null) {
+    return {
+      ok: false,
+      message:
+        `The block naming every conflicting file cannot be located: ${block.reason}. The ` +
+        '`Conflicting paths` cells abbreviate, so that block is where the table names files at all. ' +
+        'Nothing measured, nothing written — restore the markers around it.'
+    };
+  }
+  return { ok: true };
+};
+
+async function main() {
+  console.log(BANNER);
+  console.log('PR Merge Conflict Analyzer');
+  console.log(`${BANNER}\n`);
 
   if (!fs.existsSync(TRIAGE_TABLE_PATH)) {
     console.error(`Triage table not found at: ${TRIAGE_TABLE_PATH}`);
     process.exit(1);
   }
 
-  // Parse PR list from table
-  const tableContent = fs.readFileSync(TRIAGE_TABLE_PATH, 'utf8');
-  const lines = tableContent.split('\n');
-  const prRows = [];
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    const match = line.match(/^\|\s*#(\d+)\s*\|/);
-    if (match) {
-      prRows.push({
-        pr: parseInt(match[1], 10),
-        lineIndex: i,
-        originalLine: line
-      });
-    }
+  const lines = fs.readFileSync(TRIAGE_TABLE_PATH, 'utf8').split('\n');
+  const table = readTable(lines);
+  if (table === null) {
+    console.error(
+      `No "${STATUS_COLUMN}" column found in the triage table header. Refusing to guess which ` +
+        'cells to rewrite — add the column or fix its spelling.'
+    );
+    process.exit(1);
   }
-
+  const validated = validateTable(lines, table);
+  if (!validated.ok) {
+    console.error(validated.message);
+    process.exit(1);
+  }
+  const { columns, prRows } = table;
   if (prRows.length === 0) {
     console.log('No PR rows found in triage table.');
     process.exit(0);
   }
 
-  console.log(`Analyzing merge status for ${prRows.length} PRs against current HEAD...`);
+  // Against origin/main, refreshed here, rather than against the checked-out branch. The base is
+  // named in the table, so measuring from a stale or unrelated checkout made the table lie.
+  const fetched = runCommand('git fetch origin main');
+  if (!fetched.success) {
+    console.error(`[ERROR] Could not fetch origin/main:\n${fetched.output}`);
+    process.exit(1);
+  }
+  const baseSha = runCommand('git rev-parse --short origin/main').output;
+  console.log(`Measuring ${prRows.length} PRs against origin/main (${baseSha}).\n`);
 
-  const originalBranch = runCommand('git branch --show-current').output || 'main';
-
-  // Process each PR
-  for (const row of prRows) {
-    const pr = row.pr;
-    const tempBranch = `pr-${pr}-conflict-temp`;
-    const testMergeBranch = `test-merge-${pr}-temp`;
-
-    console.log(`Testing PR #${pr}...`);
-
-    // Clean up past branches
-    runCommand(`git branch -D ${tempBranch}`);
-    runCommand(`git branch -D ${testMergeBranch}`);
-
-    // Fetch PR
-    const fetchResult = runCommand(`git fetch origin pull/${pr}/head:${tempBranch}`);
-    if (!fetchResult.success) {
-      console.warn(`[WARNING] Failed to fetch PR #${pr}. Skipping.`);
-      continue;
-    }
-
-    // Checkout test merge branch from original branch
-    const checkoutResult = runCommand(`git checkout -b ${testMergeBranch} ${originalBranch}`);
-    if (!checkoutResult.success) {
-      console.error(`[ERROR] Failed to checkout test branch for PR #${pr}.`);
-      runCommand(`git branch -D ${tempBranch}`);
-      continue;
-    }
-
-    // Attempt merge
-    const mergeResult = runCommand(`git merge ${tempBranch} --no-commit --no-ff`);
-
-    let isClean = true;
-    let conflictFiles = [];
-
-    if (!mergeResult.success) {
-      isClean = false;
-      // Get list of files with merge conflicts (Unmerged status)
-      const diffResult = runCommand('git diff --name-only --diff-filter=U');
-      conflictFiles = diffResult.output.split('\n').filter(f => f.trim().length > 0);
-
-      // Abort the merge
-      runCommand('git merge --abort');
-    }
-
-    // Go back and clean up
-    runCommand(`git checkout ${originalBranch}`);
-    runCommand(`git branch -D ${testMergeBranch}`);
-    runCommand(`git branch -D ${tempBranch}`);
-
-    // Update row details
-    const statusText = isClean ? 'CLEAN' : 'CONFLICT';
-    let notes;
-    if (isClean) {
-      notes = 'Merges cleanly against origin/main.';
-    } else if (conflictFiles.length > 0) {
-      notes = `Has conflicts: ${conflictFiles.join(', ')}.`;
-    } else {
-      const sanitizedError = mergeResult.output.trim().replaceAll(/\s+/g, ' ').replaceAll('|', '/');
-      notes = `Merge failed for a non-conflict reason: ${sanitizedError}`;
-    }
-
-    // Reconstruct the table line
-    // Format: | #PR | Title | Author | Merge Status | Target Bucket | Concrete Reason |
-    const parts = row.originalLine.split('|');
-    parts[4] = ` ${statusText} `;
-
-    // If it's currently marked as clean but has conflicts, demote the Target Bucket
-    let targetBucket = parts[5].trim();
-    if (!isClean && targetBucket.includes('1. Safe candidate')) {
-      targetBucket = '**4. High-conflict/manual intervention**';
-    } else if (isClean && targetBucket.includes('4. High-conflict')) {
-      targetBucket = '**1. Safe candidate for dry-run**';
-    }
-
-    parts[5] = ` ${targetBucket} `;
-    parts[6] = ` ${notes} `;
-
-    lines[row.lineIndex] = parts.join('|');
-    console.log(`-> PR #${pr} is ${statusText}.`);
+  const refreshed = refreshRows(lines, columns, prRows, measureAgainstMain);
+  for (const row of refreshed.measured) {
+    const count = row.conflictPaths.length;
+    const detail = count > 0 ? ` (${count} file(s))` : '';
+    console.log(`-> PR #${row.pr} is ${row.status}${detail}.`);
   }
 
-  // Save the updated table
-  fs.writeFileSync(TRIAGE_TABLE_PATH, lines.join('\n'));
-  console.log(`\n==================================================`);
-  console.log(`Conflict analysis complete.`);
+  if (refreshed.lines === null) {
+    console.error(`\n[ERROR] Could not measure ${refreshed.skipped.length} PR(s):`);
+    for (const skip of refreshed.skipped) {
+      console.error(`  #${skip.pr}: ${skip.reason}`);
+    }
+    console.error(
+      'Nothing written: the table is unchanged and still says which base it was measured against. ' +
+        'A refresh that skipped a row would present old and new measurements as one, with no way to ' +
+        'tell them apart. Fix the cause above, or remove a row that no longer names a fetchable PR.'
+    );
+    process.exit(1);
+  }
+
+  // Checked before measuring too, so this cannot normally fire. Kept as a guard rather than a warning
+  // because writing rows without it is the one outcome this whole refresh must not produce.
+  if (!rewriteProvenance(refreshed.lines, { date: toDateFolder(new Date()), base: baseSha })) {
+    console.error(
+      `No line starting "${PROVENANCE_PREFIX}" to update. Nothing written: fresh statuses with no ` +
+        'record of the base they were measured against are worse than none.'
+    );
+    process.exit(1);
+  }
+
+  // Checked before measuring too, for the same reason the provenance guard is kept: writing summarised
+  // cells with no complete list behind them is the one outcome this refresh must not produce.
+  if (!rewriteConflictBlock(refreshed.lines, refreshed.measured)) {
+    console.error(
+      'No single well-ordered block found to hold every conflicting file. Nothing written: ' +
+        'abbreviated cells with no complete list behind them are not a measurement a reviewer can audit.'
+    );
+    process.exit(1);
+  }
+
+  fs.writeFileSync(TRIAGE_TABLE_PATH, refreshed.lines.join('\n'));
+  console.log(`\n${BANNER}`);
+  console.log('Conflict analysis complete.');
   console.log(`Updated triage table: ${TRIAGE_TABLE_PATH}`);
-  console.log(`==================================================`);
+  console.log(BANNER);
 }
 
-main().catch(console.error);
+// Guarded so a test can import the helpers above without running the analyzer and rewriting the
+// triage table as a side effect of the suite.
+if (isEntryPoint(import.meta.url)) {
+  main().catch(console.error);
+}

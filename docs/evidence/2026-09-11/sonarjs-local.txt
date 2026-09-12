@@ -1,0 +1,312 @@
+SonarJS sweep over this PR's changed source, run per the method recorded in WORST_TO_BEST_LOG.md
+(Run 25 close-out): npm i --no-save eslint-plugin-sonarjs, run its recommended rules with the
+repo's own @typescript-eslint/parser, then remove it. sonarcloud.io itself is refused by this
+container's network policy, so the dashboard's findings are not readable here.
+
+BEFORE (head 44b7bc0) — matched SonarCloud's "2 New issues" exactly:
+  scripts/analyze-merge-conflicts.js
+    152:16  sonarjs/cognitive-complexity        main() at 20, limit 15
+    227:71  sonarjs/no-nested-template-literals  the per-PR progress line
+
+FIX: main() split into readTable() and measureAgainstMain(), both exported and now tested;
+     the progress line computes its suffix before interpolating it.
+
+AFTER — same command, same rule set, same files:
+  (no output above this line: 0 problems, exit 0)
+
+SECOND ROUND — after the Codex P2 on scripts/validate-pr-backlog.js (head 4f53dba).
+That file was not in the first sweep. Baseline before touching it:
+    32:16  sonarjs/cognitive-complexity  main() at 34, limit 15   [pre-existing on main]
+
+Extracting selectCleanCandidates() and dryRunPr() out of main() fixes the reported
+selection defect and clears that pre-existing finding as well.
+
+AFTER — both scripts, same rule set:
+  (no output above this line: 0 problems, exit 0)
+
+THIRD ROUND — SonarCloud still reported "2 New issues" on 4f53dba and dbe25fa while the
+recommended-rule sweep was clean, so the sweep was widened: every rule the plugin ships (279)
+rather than the 217 that recommended enables. The check run carries no annotations and
+sonarcloud.io is refused by this container, so which two Sonar means cannot be read directly.
+
+Most of the extra 62 rules are project-wide style the repo violates everywhere (file-header,
+no-tab, arrow-function-convention, cyclomatic-complexity at 10) — Sonar reports 2, not hundreds,
+so those are not in its profile. One extra rule is squarely in Sonar way and fires only on this
+PR's changed files: S1192 / sonarjs/no-duplicate-string.
+
+  tests/unit/analyze-merge-conflicts.test.ts  'WORST_TO_BEST_LOG.md' x3, the CLEAN row x3
+  scripts/analyze-merge-conflicts.js          the 50-char banner x4
+
+Fixed by naming each: CONFLICTED_LOG, CLEAN_ROW, DIVIDER, BANNER. This is a hypothesis about
+Sonar's count, not a reading of it — the next analysis is what confirms or refutes it.
+
+S1192 across this PR's changed code files, after:
+  (no output above this line: 0 problems, exit 0)
+
+And the recommended set, still clean:
+  (no output above this line: 0 problems, exit 0)
+
+End-to-end proof that neither fix broke the writer: node scripts/analyze-merge-conflicts.js
+run against the committed table reproduced it byte-for-byte (git diff empty), with all six
+dispositions intact:
+  -> PR #348 is CLEAN.
+  -> PR #338 is CONFLICT (2 file(s)).
+  -> PR #328 is CONFLICT (13 file(s)).
+  -> PR #317 is CONFLICT (21 file(s)).
+  -> PR #308 is CONFLICT (18 file(s)).
+  -> PR #296 is CONFLICT (22 file(s)).
+
+FOURTH ROUND — after two more Codex P2s on dbe25fa (the Dry-run eligibility column and the
+provenance line the analyzer never rewrote). Sweep is recommended + S1192, over both scripts and
+every changed source file:
+  (no output above this line: 0 problems, exit 0)
+
+Idempotence proof for the writer, run twice against the committed table: the second run
+produced a byte-identical file (diff empty), so neither the six dispositions, the six Dry-run
+answers, nor the provenance line drift on a refresh.
+
+FIFTH ROUND — after the Codex P2 on merge-tree operational failures (stderr read as a
+conflicting filename). Reproduced here on git 2.43 before the fix:
+  runCommand('git merge-tree --write-tree --name-only origin/main refs/does-not-exist')
+  output: "\nmerge-tree: refs/does-not-exist - not something we can merge\n\nCommand failed: ..."
+  parseConflictPaths(output) -> ["merge-tree: refs/does-not-exist - not something we can merge"]
+  so the cell read that error string and failureNote never fired.
+After: stdout is kept separate and is empty, parseConflictPaths returns null, and the note fires.
+
+Sweep is recommended + S1192 over both scripts and every changed source file:
+  (no output above this line: 0 problems, exit 0)
+
+Idempotence re-proved on this head: the analyzer run twice against the committed table left it
+byte-identical, dispositions, Dry-run answers and provenance line intact.
+
+SIXTH ROUND — after the Codex P2 on partial refreshes (one unfetchable row skipped, the rest
+written, provenance rewritten anyway, exit 0). The refresh is now all-or-nothing.
+
+Proof, run against the committed table with an extra row naming PR #999999, which cannot be
+fetched:
+  [ERROR] Could not measure PR(s) #999999. Nothing written: the table is unchanged and still says 
+  which base it was measured against. A refresh that skipped a row would present old and new 
+  measurements as one, with no way to tell them apart. Fix the fetch, or remove a row that no 
+  longer names a fetchable PR.
+  real exit status: 1
+  and every other row was byte-identical afterwards: nothing was written.
+
+Then the same run without that row: exit 0, table byte-identical, still idempotent.
+
+Sweep (recommended + S1192) on this head:
+
+/home/user/meechiescoloringbook/scripts/analyze-merge-conflicts.js
+  354:74  error  Refactor this code to not use nested template literals  sonarjs/no-nested-template-literals
+
+✖ 1 problem (1 error, 0 warnings)
+
+  (no output above this line: 0 problems, exit 1)
+
+SEVENTH ROUND — after two Codex P2s on 819b400: escaped pipes in a row, and docs/AGENTS.md
+still defining the table through the retired Target Bucket categories.
+
+The escaped-pipe symptom was worse than reported. Before, for the row
+  | #400 | fix parser \\| safely | `h` | CLEAN | — | yes | c | d |
+  split('|') cells:  ['', '#400', 'fix parser \\', 'safely', '`h`', 'CLEAN', ...]
+  selectCleanCandidates -> {"candidates":[]}      (the reported symptom)
+  rewriteRow           -> | #400 | fix parser \\| safely | CONFLICT | x.md | — | yes | c | d |
+                          i.e. CONFLICT written into the Head column. Not reported; worse.
+After, via splitRow:
+  selectCleanCandidates -> {"candidates":[400]}
+  rewriteRow           -> | #400 | fix parser \\| safely | `h` | CONFLICT | x.md | yes | c | d |
+
+Sweep (recommended + S1192) on this head:
+
+/home/user/meechiescoloringbook/scripts/analyze-merge-conflicts.js
+  370:74  error  Refactor this code to not use nested template literals  sonarjs/no-nested-template-literals
+
+✖ 1 problem (1 error, 0 warnings)
+
+  (no output above this line: 0 problems, exit 1)
+
+EIGHTH ROUND — three Codex P2s on cbd25dd, all the same class: a path that warned and wrote
+instead of aborting. Every analyzer-owned column and the provenance line are now required.
+
+Proved against the real file, each abort in turn:
+  Conflicting paths header renamed -> exit 1, 'No "conflicting paths" column found...', nothing written
+  Last refreshed line renamed      -> exit 1, 'No line starting "Last refreshed:" found...', nothing written
+  neither broken                   -> exit 0, table byte-identical (idempotent)
+
+ALSO: the SonarCloud count moved 2 -> 3 on cbd25dd and stayed 3 on 20a8e95. That REFUTES the
+S1192 hypothesis recorded in the fourth round: the count is not stuck, it tracks something, and it
+rose as code was added. Whatever the three are, they are not the three duplicated literals named
+there, which were fixed in 98abb60 while the count stayed at 2. Recorded so the next session does
+not re-derive a hypothesis this run already disproved.
+
+Sweep (recommended + S1192) on this head:
+
+/home/user/meechiescoloringbook/tests/unit/analyze-merge-conflicts.test.ts
+  332:28  error  Define a constant instead of duplicating this literal 5 times  sonarjs/no-duplicate-string
+
+✖ 1 problem (1 error, 0 warnings)
+
+  (no output above this line: 0 problems, exit 1)
+
+NINTH ROUND — Codex P2 on 20a8e95: a structurally short PR row was counted as measured.
+rewriteRow guards an out-of-range index and so does nothing, quietly; refreshRows still counted
+the row. Reproduced before the fix, for '| #317 | title |' against a full header:
+  readTable prRows: [{"pr":317,"lineIndex":1}]
+  refreshRows skipped: []   measured: [{"pr":317,"status":"CONFLICT","fileCount":1}]
+  row after the rewrite: '| #317 | title |'  (unchanged)
+findTruncatedRows now rejects such rows before any measurement. Proved against the real file:
+  exit 1, 'These PR rows are too short...  #317: 4 cell(s)', table byte-identical afterwards.
+
+Sweep (recommended + S1192) on this head:
+
+/home/user/meechiescoloringbook/scripts/analyze-merge-conflicts.js
+  359:16  error  Refactor this function to reduce its Cognitive Complexity from 16 to the 15 allowed  sonarjs/cognitive-complexity
+
+/home/user/meechiescoloringbook/tests/unit/analyze-merge-conflicts.test.ts
+  333:28  error  Define a constant instead of duplicating this literal 5 times  sonarjs/no-duplicate-string
+
+✖ 2 problems (2 errors, 0 warnings)
+
+  (no output above this line: 0 problems, exit 1)
+
+TENTH ROUND — three Codex P2s on af639f4, all consequences of the escaped-pipe fix itself.
+
+A. A conflicted filename may legitimately contain a pipe, and rewriteRow replaced it with '/'.
+   before: conflictPaths ['a|b.md'] -> cell 'a/b.md'   (a different file)
+   after:  escapeCell           -> cell 'a\|b.md', read back by splitRow as 'a\|b.md'
+
+B. findTruncatedRows checked only that the owned columns were in range, so a deleted INTERIOR
+   cell passed while every index became wrong:
+   before: '| #2 | t | CLEAN | — | no | c | d |' -> findTruncatedRows [] and rewriteRow produced
+           '| #2 | t | CLEAN | CONFLICT | x.md | c | d |' — status into the old paths cell, paths
+           over the human-owned Dry-run answer
+   after:  findMalformedRows requires width equality with the header -> [{pr:2,cells:9,expected:10}]
+   proved on the real file: delete #348's Head cell -> exit 1, '#348: 9 cell(s), header has 10',
+   table byte-identical afterwards
+
+C. The committed-table assertions used a raw split('|'), so a legitimate escaped pipe in a PR
+   title would have failed npm test rather than being parsed the way production parses it.
+   Now splitRow, plus a new assertion that every row is exactly the header's width.
+
+Sweep (recommended + S1192) on this head:
+
+/home/user/meechiescoloringbook/scripts/analyze-merge-conflicts.js
+  374:16  error  Refactor this function to reduce its Cognitive Complexity from 16 to the 15 allowed  sonarjs/cognitive-complexity
+
+/home/user/meechiescoloringbook/tests/unit/analyze-merge-conflicts.test.ts
+   89:32  error  Define a constant instead of duplicating this literal 3 times  sonarjs/no-duplicate-string
+  361:28  error  Define a constant instead of duplicating this literal 5 times  sonarjs/no-duplicate-string
+
+✖ 3 problems (3 errors, 0 warnings)
+
+  (no output above this line: 0 problems, exit 1)
+
+ELEVENTH ROUND — two Codex P2s on df01aff.
+
+A. splitRow decided escaping with a lookbehind for ONE backslash, which is wrong for a cell ending
+   in a literal backslash: in '| a \\\\| b |' the '\\\\' is an escaped backslash, so that pipe IS a
+   delimiter. Before: 3 cells (two merged). After, by backslash-run parity: 4 cells.
+   All four shapes round-trip through join('|'):
+     '| a | b |'          -> 4 cells
+     '| a \\\\| b |'       -> 4 cells   (even run: delimiter)
+     '| a \\| b |'         -> 3 cells   (odd run: escaped)
+     '| a \\\\\\| b |'     -> 3 cells   (odd run: escaped)
+
+B. validate-pr-backlog.js never called findMalformedRows, so the row the analyzer now rejects was
+   still accepted by the second reader — it read shifted cells, found nothing, returned NO reason,
+   and main exited 0 as though the backlog were legitimately empty. This is a direct instance of the
+   rule written in DECISIONS.md the round before (a rule a parser gains belongs to every reader of
+   the format), not applied to this PR's own second reader.
+   before: selectCleanCandidates -> {"candidates":[]}                   (no reason; exit 0)
+   after:  selectCleanCandidates -> reason naming '#348 (9 cells)'      (exit 1)
+
+Sweep (recommended + S1192) on this head:
+
+/home/user/meechiescoloringbook/scripts/analyze-merge-conflicts.js
+  397:16  error  Refactor this function to reduce its Cognitive Complexity from 16 to the 15 allowed  sonarjs/cognitive-complexity
+
+/home/user/meechiescoloringbook/tests/unit/analyze-merge-conflicts.test.ts
+  113:32  error  Define a constant instead of duplicating this literal 3 times  sonarjs/no-duplicate-string
+  385:28  error  Define a constant instead of duplicating this literal 5 times  sonarjs/no-duplicate-string
+
+✖ 3 problems (3 errors, 0 warnings)
+
+  (no output above this line: 0 problems, exit 1)
+
+TWELFTH ROUND — four Codex P2s on 1528562. Each reproduced before fixing:
+
+A. The PR number was read by a regex anchored to the FIRST cell while every other column came from
+   the header. Reorder the table and readTable found no rows at all:
+     before: reordered header -> prRows []      (analyzer exits 0 'No PR rows found')
+     after:  read from the 'pr' column         -> prRows [{pr:348,lineIndex:1}]
+   The column is now required, and a cell that is not exactly '#<digits>' is not a row.
+
+B. parseTableColumns keeps the FIRST index for a repeated header, silently. A table with two
+   'Merge status' columns would have the first refreshed and the second left stale under one
+   provenance line. Row-width validation cannot see it — the width is right.
+     findDuplicateColumns -> ['merge status'], and main aborts.
+   Proved on the real file: duplicate the header -> exit 1, 'These columns appear more than once in
+   the header: merge status.', table byte-identical afterwards.
+
+C. parseConflictPaths trimmed each path, so a filename that legitimately begins or ends with a space
+   was recorded as a different file:
+     before: ' leadtrail ' -> 'leadtrail'
+     after:  ' leadtrail ' -> ' leadtrail '   (only a trailing CR is stripped)
+
+D. A mistyped dry-run answer read as a deliberate 'no'. 'yse' != 'yes', so the row was skipped and,
+   as the only candidate, the tool reported an empty backlog and exited 0 — the SAME silence this
+   file has now been fixed for three times by three different routes.
+     before: {"candidates":[]}
+     after:  reason naming '#348 ("yse")'
+
+Sweep (recommended + S1192) on this head:
+
+/home/user/meechiescoloringbook/scripts/analyze-merge-conflicts.js
+  440:16  error  Refactor this function to reduce its Cognitive Complexity from 18 to the 15 allowed  sonarjs/cognitive-complexity
+
+/home/user/meechiescoloringbook/tests/unit/analyze-merge-conflicts.test.ts
+  114:32  error  Define a constant instead of duplicating this literal 3 times  sonarjs/no-duplicate-string
+  400:28  error  Define a constant instead of duplicating this literal 5 times  sonarjs/no-duplicate-string
+
+✖ 3 problems (3 errors, 0 warnings)
+
+  (no output above this line: 0 problems, exit 1)
+
+THIRTEENTH ROUND — two Codex P2s on ab0b349, the first of them created by the round before.
+
+A. Tightening the row match to '#<digits>' (twelfth round) closed one hole and opened a quieter one:
+   a full-width data row written '348' instead of '#348' VANISHES from prRows, where
+   findMalformedRows cannot see it either — so the analyzer refreshes every other row, advances the
+   provenance line and exits 0, having never measured that PR.
+     before: readTable prRows [] for '| 348 | t | h | CLEAN | ... |'
+     after:  findRowsWithBadPrCell -> [{lineIndex:2, cell:'348'}], main aborts
+   Width is what separates a data row from prose, so both behaviours stay correct: a narrow line
+   mentioning a PR is still ignored, and the header's divider is excluded by shape (isDividerRow).
+   Proved on the real file — change '| #296 |' to '| 296 |':
+     PR Merge Conflict Analyzer
+     ==================================================
+     
+     real exit status: 1, and nothing was written.
+
+B. A corrupted analyzer-owned status ('CLEEN', or blank after a bad edit) merely excluded the row
+   from the filter with no reason, so a malformed table read as an empty backlog — the FIFTH route
+   to that same silence on these two scripts.
+     before: {"candidates":[]}
+     after:  reason naming '#348 ("cleen")'
+
+NOTE on idempotence, recorded because it bit this run's own test: the refresh is byte-identical
+within a UTC day, not across one. At 00:0x on 2026-09-12 a re-run correctly rewrote the provenance
+line from 2026-09-11 to 2026-09-12 — the feature working, not drift. The committed table keeps the
+date its measurement and dated evidence actually belong to.
+
+Sweep (recommended + S1192) on this head:
+
+/home/user/meechiescoloringbook/scripts/analyze-merge-conflicts.js
+  491:16  error  Refactor this function to reduce its Cognitive Complexity from 21 to the 15 allowed  sonarjs/cognitive-complexity
+
+/home/user/meechiescoloringbook/tests/unit/analyze-merge-conflicts.test.ts
+  116:32  error  Define a constant instead of duplicating this literal 3 times  sonarjs/no-duplicate-string
+  402:28  error  Define a constant instead of duplicating this literal 5 times  sonarjs/no-duplicate-string
+
+✖ 3 problems (3 errors, 0 warnings)
+
+  (no output above this line: 0 problems, exit 1)

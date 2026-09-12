@@ -14,10 +14,23 @@ type TextSegment = {
   text: unknown;
 };
 
-const disallowedKeywords = [...SYSTEM_CONSTANTS.DISALLOWED_KEYWORDS, 'suicide', 'extremist'];
+/**
+ * The keywords this seam refuses — the shared constant itself, not a list derived from it.
+ *
+ * This used to be `[...SYSTEM_CONSTANTS.DISALLOWED_KEYWORDS, 'suicide', 'extremist']`, a private
+ * widening that made this seam refuse content `findDisallowedKeywords` — the check behind
+ * /api/tools and /api/meechie-studio-text — waved through. A local addition to a policy two other
+ * routes read through a different function is a silent split, not a stricter seam.
+ *
+ * Exported so `tests/unit/safety-keyword-parity.test.ts` can assert **identity** with the shared
+ * constant rather than mere equality of contents. That is the assertion that catches the original
+ * mistake mechanically: any spread, append or rebuild produces a different array and fails it,
+ * where a contents comparison would pass for a copy that then drifts.
+ */
+export const enforcedDisallowedKeywords: readonly string[] = SYSTEM_CONSTANTS.DISALLOWED_KEYWORDS;
 
 const hasDisallowedContent = (text: string) =>
-  disallowedKeywords.some((keyword) => text.toLowerCase().includes(keyword));
+  enforcedDisallowedKeywords.some((keyword) => text.toLowerCase().includes(keyword));
 
 const disallowedContent = (message: string, field: string): SafetyPolicyResult => ({
   ok: false,
