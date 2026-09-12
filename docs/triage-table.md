@@ -8,13 +8,19 @@ Info flow: `gh pr list` / merge tests against origin/main -> this table -> merge
 -->
 # Live PR Triage Table
 
-Last refreshed: **2026-09-11**, against `origin/main` at `f1a8c91`.
+Last refreshed: **2026-09-12**, against `origin/main` at `f1a8c91`.
 
-Merge status, conflicting paths and the refresh line above are written by
+Merge status, conflicting paths, the refresh line above and the block below the table are written by
 `scripts/analyze-merge-conflicts.js`, which runs `git merge-tree --write-tree --name-only origin/main
 <head>` per row: **CLEAN** means git produced a tree, **CONFLICT** means it named files. Those two
 columns are the script's; **Dry-run**, the content column and the disposition are a human's, and no
 script writes them. Re-running it refreshes the measurement without touching a decision.
+
+The **Conflicting paths** cell abbreviates: a directory contributing several files reads
+`dir/* (N files)`, because one stale PR conflicts on twenty-five paths and a cell holding all of them
+says nothing a reader can use. That abbreviation is never the only record — **Every conflicting file,
+in full** below names every path git gave, written in the same run, and the script refuses to measure
+a table with nowhere to put it.
 
 **Dry-run** is read by `scripts/validate-pr-backlog.js`, which checks a PR out and runs the suite and
 the verify chain against it. It selects a row only when that says `yes` **and** the status is `CLEAN`
@@ -32,6 +38,133 @@ checking first and the reason each row says what is missing rather than only tha
 | #317 | feat(studio): bring back the question the draft's evidence was typed under | `claude/great-bell-k1i146` | CONFLICT | CHANGELOG.md, DECISIONS.md, LESSONS_LEARNED.md, plan.md, WORST_TO_BEST_LOG.md, docs/seams.md, docs/evidence/2026-09-07/* (14 files), src/lib/components/studio/StudioInputPanel.svelte | no | `DraftRecordSchema` on `main` still has no `modeId`, so a reopened draft's `chatMessage` is still restored under whichever mode the studio happens to open on. `src/lib/core/draft-restore.ts` does not exist on `main`. | **Port.** Real live defect, ~866 lines across 13 files including a seam contract — a full Seam-Driven Development port, not a cherry-pick. |
 | #308 | fix: a tracked evidence guard, and the eleven claims that needed one | `claude/great-bell-31hg5t` | CONFLICT | DECISIONS.md, WORST_TO_BEST_LOG.md, .github/workflows/verify.yml, docs/evidence/2026-09-06/* (15 files) | no | `scripts/evidence-guard.mjs`, `scripts/chain-intact.mjs` and their fixtures and tests are absent from `main`. | **Port.** Touches `.github/workflows/verify.yml` and `package.json`; 45 commits behind, so port the guard rather than merging the branch. |
 | #296 | Close out Run 4 of the worst-feature routine | `claude/great-bell-sntvn9` | CONFLICT | DECISIONS.md, plan.md, WORST_TO_BEST_LOG.md, docs/evidence/2026-09-05/* (19 files) | no | `main`'s log has Run 4's first and second close-outs and then jumps to Run 5 — `## Run 4, merged` and its six corrections are missing. | **Port the log entries.** Append-only, as #338. |
+
+<!-- conflicting-paths:begin -->
+
+## Every conflicting file, in full
+
+Written by `scripts/analyze-merge-conflicts.js` in the run that measured the statuses above, and
+rewritten whole on every refresh. The `Conflicting paths` cell abbreviates a directory contributing
+several files to `dir/* (N files)`, which is readable but names none of them; these are the names
+git gave, unescaped and in its order. Nothing here is a human's to edit.
+
+<details>
+<summary>#338 — 2 conflicting files</summary>
+
+```text
+WORST_TO_BEST_LOG.md
+plan.md
+```
+
+</details>
+
+<details>
+<summary>#328 — 13 conflicting files</summary>
+
+```text
+CHANGELOG.md
+DECISIONS.md
+docs/evidence/2026-09-07/assumption-alarm.json
+docs/evidence/2026-09-07/chamber-lock.json
+docs/evidence/2026-09-07/clan-chain.json
+docs/evidence/2026-09-07/clan-chain.md
+docs/evidence/2026-09-07/proof-tape.json
+docs/evidence/2026-09-07/proof-tape.md
+docs/evidence/2026-09-07/seam-ledger.json
+docs/evidence/2026-09-07/seam-ledger.md
+docs/evidence/2026-09-07/shaolin-lint.json
+docs/evidence/2026-09-07/test.txt
+docs/evidence/2026-09-07/verify.txt
+```
+
+</details>
+
+<details>
+<summary>#317 — 21 conflicting files</summary>
+
+```text
+CHANGELOG.md
+DECISIONS.md
+LESSONS_LEARNED.md
+WORST_TO_BEST_LOG.md
+docs/evidence/2026-09-07/assumption-alarm.json
+docs/evidence/2026-09-07/build.txt
+docs/evidence/2026-09-07/chamber-lock.json
+docs/evidence/2026-09-07/clan-chain.json
+docs/evidence/2026-09-07/clan-chain.md
+docs/evidence/2026-09-07/e2e.txt
+docs/evidence/2026-09-07/lint.txt
+docs/evidence/2026-09-07/proof-tape.json
+docs/evidence/2026-09-07/proof-tape.md
+docs/evidence/2026-09-07/seam-ledger.json
+docs/evidence/2026-09-07/seam-ledger.md
+docs/evidence/2026-09-07/shaolin-lint.json
+docs/evidence/2026-09-07/test.txt
+docs/evidence/2026-09-07/verify.txt
+docs/seams.md
+plan.md
+src/lib/components/studio/StudioInputPanel.svelte
+```
+
+</details>
+
+<details>
+<summary>#308 — 18 conflicting files</summary>
+
+```text
+.github/workflows/verify.yml
+DECISIONS.md
+WORST_TO_BEST_LOG.md
+docs/evidence/2026-09-06/assumption-alarm.json
+docs/evidence/2026-09-06/build.txt
+docs/evidence/2026-09-06/chamber-lock.json
+docs/evidence/2026-09-06/clan-chain.json
+docs/evidence/2026-09-06/clan-chain.md
+docs/evidence/2026-09-06/e2e.txt
+docs/evidence/2026-09-06/lint.txt
+docs/evidence/2026-09-06/proof-tape.json
+docs/evidence/2026-09-06/proof-tape.md
+docs/evidence/2026-09-06/seam-ledger.json
+docs/evidence/2026-09-06/seam-ledger.md
+docs/evidence/2026-09-06/shaolin-lint.json
+docs/evidence/2026-09-06/test.txt
+docs/evidence/2026-09-06/verify-outer.txt
+docs/evidence/2026-09-06/verify.txt
+```
+
+</details>
+
+<details>
+<summary>#296 — 22 conflicting files</summary>
+
+```text
+DECISIONS.md
+WORST_TO_BEST_LOG.md
+docs/evidence/2026-09-05/assumption-alarm.json
+docs/evidence/2026-09-05/build.txt
+docs/evidence/2026-09-05/chamber-lock.json
+docs/evidence/2026-09-05/cipher-gate.json
+docs/evidence/2026-09-05/clan-chain.json
+docs/evidence/2026-09-05/clan-chain.md
+docs/evidence/2026-09-05/e2e.txt
+docs/evidence/2026-09-05/proof-tape.json
+docs/evidence/2026-09-05/proof-tape.md
+docs/evidence/2026-09-05/rewind-CreationStoreSeam.txt
+docs/evidence/2026-09-05/rewind-OutputPackagingSeam.txt
+docs/evidence/2026-09-05/rewind-ProviderAdapterSeam.txt
+docs/evidence/2026-09-05/rewind-SessionSeam.txt
+docs/evidence/2026-09-05/seam-ledger.json
+docs/evidence/2026-09-05/seam-ledger.md
+docs/evidence/2026-09-05/shaolin-lint.json
+docs/evidence/2026-09-05/test.txt
+docs/evidence/2026-09-05/verify-chain.txt
+docs/evidence/2026-09-05/verify.txt
+plan.md
+```
+
+</details>
+
+<!-- conflicting-paths:end -->
 
 ## What the previous version of this file said, and why it is gone
 

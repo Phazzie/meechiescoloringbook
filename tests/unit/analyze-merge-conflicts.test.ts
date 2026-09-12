@@ -10,17 +10,25 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import {
+	CONFLICT_BLOCK_BEGIN,
+	CONFLICT_BLOCK_END,
 	CONFLICT_PATHS_COLUMN,
+	fenceFor,
+	findConflictBlock,
 	findDuplicateColumns,
+	validateTable,
 	findRowsWithBadPrCell,
 	isDividerRow,
 	escapeCell,
 	findMalformedRows,
+	PR_COLUMN,
 	STATUS_COLUMN,
 	parseConflictPaths,
 	parseTableColumns,
 	readTable,
 	refreshRows,
+	renderConflictDetails,
+	rewriteConflictBlock,
 	rewriteProvenance,
 	rewriteRow,
 	splitRow,
@@ -35,6 +43,12 @@ const DIVIDER = '| --- | --- | --- | --- | --- | --- | --- | --- |';
 // nobody can change in one place.
 const CLEAN_ROW = '| #348 | t | h | CLEAN | — | yes | c | d |';
 const CONFLICTED_LOG = 'WORST_TO_BEST_LOG.md';
+const TWO_CONFLICTS = `plan.md, ${CONFLICTED_LOG}`;
+// A row whose PR cell is the header's width but does not name a PR — the hole that tightening the row
+// match to `#<digits>` opened, and which both readers now refuse.
+const ROW_WITHOUT_HASH = '| 348 | t | h | CLEAN | — | yes | c | d |';
+const EVIDENCE_PATH = 'docs/evidence/2026-09-05/test.txt';
+const UNFETCHABLE = 'could not fetch its head';
 
 describe('parseTableColumns', () => {
 	it('maps header names to their index in the split parts', () => {
@@ -80,7 +94,7 @@ describe('splitRow', () => {
 			'| a \\| b |',
 			'| a \\\\| b |',
 			'| a \\\\\\| b |',
-			'| plan.md, WORST_TO_BEST_LOG.md |'
+			`| ${TWO_CONFLICTS} |`
 		]) {
 			expect(splitRow(line).join('|')).toBe(line);
 		}
@@ -113,7 +127,7 @@ describe('rewriteRow', () => {
 		});
 		const cells = rewritten.split('|');
 		expect(cells[4].trim()).toBe('CONFLICT');
-		expect(cells[5].trim()).toBe('plan.md, WORST_TO_BEST_LOG.md');
+		expect(cells[5].trim()).toBe(TWO_CONFLICTS);
 		// The disposition is a human's decision. Losing it on a refresh is the defect these tests exist
 		// for, so it is asserted rather than assumed.
 		expect(cells[8].trim()).toBe('**Port it.**');
@@ -187,7 +201,7 @@ describe('escapeCell', () => {
 	});
 
 	it('leaves text with nothing to escape alone', () => {
-		expect(escapeCell('plan.md, WORST_TO_BEST_LOG.md')).toBe('plan.md, WORST_TO_BEST_LOG.md');
+		expect(escapeCell(TWO_CONFLICTS)).toBe(TWO_CONFLICTS);
 	});
 });
 
@@ -251,7 +265,7 @@ describe('summarizeConflictPaths', () => {
 		expect(
 			summarizeConflictPaths([
 				'DECISIONS.md',
-				'docs/evidence/2026-09-05/test.txt',
+				EVIDENCE_PATH,
 				'docs/evidence/2026-09-05/verify.txt',
 				'docs/evidence/2026-09-05/lint.txt'
 			])
@@ -399,11 +413,11 @@ describe('refreshRows', () => {
 	it('writes nothing at all when any row could not be measured', () => {
 		const refreshed = refreshRows(lines, columns, prRows, (pr) =>
 			pr === 296
-				? { ok: false, reason: 'could not fetch its head' }
+				? { ok: false, reason: UNFETCHABLE }
 				: { ok: true, status: 'CONFLICT', conflictPaths: ['plan.md'] }
 		);
 		expect(refreshed.lines).toBeNull();
-		expect(refreshed.skipped).toEqual([{ pr: 296, reason: 'could not fetch its head' }]);
+		expect(refreshed.skipped).toEqual([{ pr: 296, reason: UNFETCHABLE }]);
 	});
 
 	// `measureAgainstMain` itself is not unit-tested: every path in it runs `git fetch` against the
@@ -416,10 +430,10 @@ describe('refreshRows', () => {
 	it('keeps a reason per skipped row, not one for the batch', () => {
 		const refreshed = refreshRows(lines, columns, prRows, (pr) => ({
 			ok: false,
-			reason: pr === 348 ? 'could not fetch its head' : 'merge-tree did not run'
+			reason: pr === 348 ? UNFETCHABLE : 'merge-tree did not run'
 		}));
 		expect(refreshed.skipped).toEqual([
-			{ pr: 348, reason: 'could not fetch its head' },
+			{ pr: 348, reason: UNFETCHABLE },
 			{ pr: 296, reason: 'merge-tree did not run' }
 		]);
 		expect(refreshed.lines).toBeNull();
@@ -429,7 +443,7 @@ describe('refreshRows', () => {
 		const original = [...lines];
 		refreshRows(lines, columns, prRows, (pr) =>
 			pr === 296
-				? { ok: false, reason: 'could not fetch its head' }
+				? { ok: false, reason: UNFETCHABLE }
 				: { ok: true, status: 'CONFLICT', conflictPaths: ['plan.md'] }
 		);
 		expect(lines).toEqual(original);
@@ -454,6 +468,23 @@ describe('findDuplicateColumns', () => {
 
 	it('accepts the committed header', () => {
 		expect(findDuplicateColumns(HEADER)).toEqual([]);
+	});
+
+	// The columns each tool reads differ, and this was hard-wired to the analyzer's three — so the
+	// validator had no way to reject a duplicated `Dry-run`, and a header carrying it twice let one row
+	// answer yes and no at once with the earlier copy silently winning.
+	it('names a duplicate among the columns a caller asks about', () => {
+		expect(
+			findDuplicateColumns('| PR | Merge status | Dry-run | Dry-run |', [
+				PR_COLUMN,
+				STATUS_COLUMN,
+				DRY_RUN_COLUMN
+			])
+		).toEqual([DRY_RUN_COLUMN]);
+	});
+
+	it('leaves that column out by default, because the analyzer does not read it', () => {
+		expect(findDuplicateColumns('| PR | Merge status | Dry-run | Dry-run |')).toEqual([]);
 	});
 });
 
@@ -488,7 +519,7 @@ describe('findRowsWithBadPrCell', () => {
 	// the `#` in a real data row simply vanishes from prRows, where findMalformedRows cannot see it —
 	// so the analyzer refreshes every other row, advances provenance, and never measures that PR.
 	it('names a full-width row whose PR cell does not name a PR', () => {
-		expect(bad([HEADER, DIV, '| 348 | t | h | CLEAN | — | yes | c | d |'])).toEqual([
+		expect(bad([HEADER, DIV, ROW_WITHOUT_HASH])).toEqual([
 			{ lineIndex: 2, cell: '348' }
 		]);
 	});
@@ -634,7 +665,282 @@ describe('selectCleanCandidates on a malformed table', () => {
 		expect(result.candidates).toEqual([]);
 		expect(result.reason).toBeUndefined();
 	});
+
+	// The same hole the analyzer was fixed for, in the second reader. A full-width data row written `348`
+	// instead of `#348` does not parse as a PR, so it never reaches prRows — where findMalformedRows
+	// cannot see it either. The row vanished, the selection was short by one, and nothing said so.
+	it('gives a reason for a full-width row whose PR cell does not name a PR', () => {
+		const result = selectCleanCandidates([
+			HEADER,
+			DIVIDER,
+			ROW_WITHOUT_HASH
+		]);
+		expect(result.candidates).toEqual([]);
+		expect(result.reason).toBeDefined();
+		expect(result.reason).toContain('"348"');
+	});
+
+	it('reads the divider row as a divider, not as a row missing its PR', () => {
+		expect(selectCleanCandidates([HEADER, DIVIDER, CLEAN_ROW]).candidates).toEqual([348]);
+	});
+
+	// Without a PR column no row is recognised at all, so the filter finds nothing and says nothing —
+	// which reads as a drained backlog for a table that simply spells its first column differently.
+	it('gives a reason when there is no PR column to identify rows by', () => {
+		const result = selectCleanCandidates([
+			'| Number | Title | Head | Merge status | Conflicting paths | Dry-run | c | d |',
+			'| #348 | t | h | CLEAN | — | yes | c | d |'
+		]);
+		expect(result.candidates).toEqual([]);
+		expect(result.reason).toBeDefined();
+		expect(result.reason).toContain(PR_COLUMN);
+	});
+
+	// parseTableColumns keeps the first index for a repeated name. A header carrying `Dry-run` twice lets
+	// one row answer yes and no at once, and the earlier column wins silently — on the one column that
+	// decides whether this tool reports a PR ready to merge.
+	it('gives a reason for a duplicated Dry-run column rather than reading the first copy', () => {
+		const result = selectCleanCandidates([
+			'| PR | Title | Head | Merge status | Conflicting paths | Dry-run | Dry-run | Disposition |',
+			'| #348 | t | h | CLEAN | — | yes | no | d |'
+		]);
+		expect(result.candidates).toEqual([]);
+		expect(result.reason).toBeDefined();
+		expect(result.reason).toContain(DRY_RUN_COLUMN);
+	});
+
+	it('gives a reason for a duplicated Merge status column too', () => {
+		const result = selectCleanCandidates([
+			'| PR | Title | Merge status | Merge status | Conflicting paths | Dry-run | c | d |',
+			'| #348 | t | CLEAN | CONFLICT | — | yes | c | d |'
+		]);
+		expect(result.candidates).toEqual([]);
+		expect(result.reason).toBeDefined();
+		expect(result.reason).toContain(STATUS_COLUMN);
+	});
 });
+
+describe('validateTable', () => {
+	// Lifted out of main so a refusal is a value rather than a process.exit, which is what lets these
+	// assert the message instead of running the script as a subprocess and reading its stderr. Every one
+	// of them fires before a single PR is fetched: a table this script cannot write is not worth
+	// measuring against.
+	const BLOCK = [CONFLICT_BLOCK_BEGIN, CONFLICT_BLOCK_END];
+	const PROVENANCE = 'Last refreshed: **2026-09-12**, against `origin/main` at `f1a8c91`.';
+	const wellFormed = [PROVENANCE, HEADER, DIVIDER, CLEAN_ROW, ...BLOCK];
+	const reasonFor = (lines: string[]) => {
+		const table = readTable(lines);
+		expect(table).not.toBeNull();
+		const result = validateTable(lines, table ?? { headerIndex: 0, columns: {}, prRows: [] });
+		return result.ok ? '' : result.message;
+	};
+
+	it('accepts a well-formed table', () => {
+		expect(reasonFor(wellFormed)).toBe('');
+	});
+
+	it('accepts the committed table, so a refresh is never blocked by the file itself', () => {
+		const committed = fs.readFileSync(path.resolve('docs/triage-table.md'), 'utf8').split('\n');
+		expect(reasonFor(committed)).toBe('');
+	});
+
+	it('refuses a duplicated column it writes', () => {
+		const header = '| PR | Merge status | Merge status | Conflicting paths |';
+		expect(reasonFor([PROVENANCE, header, '| #348 | CLEAN | CLEAN | — |', ...BLOCK])).toContain(
+			'more than once'
+		);
+	});
+
+	it('refuses a header with no PR column', () => {
+		const header = '| Number | Merge status | Conflicting paths |';
+		expect(reasonFor([PROVENANCE, header, '| #348 | CLEAN | — |', ...BLOCK])).toContain(PR_COLUMN);
+	});
+
+	it('refuses a header with no conflicting-paths column', () => {
+		const header = '| PR | Merge status |';
+		expect(reasonFor([PROVENANCE, header, '| #348 | CLEAN |', ...BLOCK])).toContain(
+			CONFLICT_PATHS_COLUMN
+		);
+	});
+
+	it('refuses a full-width row whose PR cell does not name a PR, naming its line', () => {
+		const lines = [PROVENANCE, HEADER, DIVIDER, ROW_WITHOUT_HASH, ...BLOCK];
+		expect(reasonFor(lines)).toContain('line 4: "348"');
+	});
+
+	it('refuses a row that is not the header\u2019s width, naming its count', () => {
+		const lines = [PROVENANCE, HEADER, DIVIDER, '| #348 | t | CLEAN | — | yes | c | d |', ...BLOCK];
+		expect(reasonFor(lines)).toContain('#348: 9 cell(s), header has 10');
+	});
+
+	it('refuses a table with no provenance line to rewrite', () => {
+		expect(reasonFor([HEADER, DIVIDER, CLEAN_ROW, ...BLOCK])).toContain('Last refreshed:');
+	});
+
+	// The abbreviation in the cell is not allowed to be the only record, so a table with nowhere to put
+	// the complete list is not measured at all.
+	it('refuses a table with nowhere to write every conflicting filename', () => {
+		expect(reasonFor([PROVENANCE, HEADER, DIVIDER, CLEAN_ROW])).toContain(
+			'cannot be located'
+		);
+	});
+});
+
+describe('fenceFor', () => {
+	it('uses a plain fence when no path contains a backtick', () => {
+		expect(fenceFor(['plan.md', 'docs/seams.md'])).toBe('```');
+	});
+
+	// A filename may contain backticks, and three of them would close the block mid-list — truncating
+	// the lossless record at the one character that makes it unreadable.
+	it('outgrows the longest backtick run it has to contain', () => {
+		expect(fenceFor(['a```b.md'])).toBe('````');
+		expect(fenceFor(['a`b.md', 'c`````d.md'])).toBe('``````');
+	});
+});
+
+describe('renderConflictDetails', () => {
+	const measured = [
+		{ pr: 348, status: 'CLEAN', conflictPaths: [] },
+		{ pr: 296, status: 'CONFLICT', conflictPaths: ['plan.md', EVIDENCE_PATH] }
+	];
+
+	// The finding: the cell replaces `src/a.ts` and `src/b.ts` with `src/* (2 files)`, so the table no
+	// longer holds the names git gave and a reviewer cannot audit the conflict without rerunning the
+	// analyzer. The summary stays — twenty-five paths in a cell is how this column once said nothing at
+	// all — and this block is the complete record behind it.
+	it('names every path git gave, each on its own line', () => {
+		const rendered = renderConflictDetails(measured);
+		expect(rendered).toContain('plan.md');
+		expect(rendered).toContain(EVIDENCE_PATH);
+	});
+
+	it('says how many files and which PR, so an entry can be matched to its row', () => {
+		expect(renderConflictDetails(measured)).toContain('<summary>#296 — 2 conflicting files</summary>');
+	});
+
+	it('says file, not files, for a single one', () => {
+		expect(
+			renderConflictDetails([{ pr: 338, status: 'CONFLICT', conflictPaths: ['plan.md'] }])
+		).toContain('<summary>#338 — 1 conflicting file</summary>');
+	});
+
+	// A fence needs no escaping, which is the point of using one: `escapeCell` is correct in a cell and
+	// invisible to a reader who copies the line into a shell, so the block holds the bytes git printed.
+	it('leaves a pipe in a filename unescaped, unlike the cell', () => {
+		const rendered = renderConflictDetails([
+			{ pr: 1, status: 'CONFLICT', conflictPaths: ['a|b.md'] }
+		]);
+		expect(rendered).toContain('a|b.md');
+		expect(escapeCell('a|b.md')).toBe('a\\|b.md');
+	});
+
+	it('gives a CLEAN row no entry, because git named nothing', () => {
+		expect(renderConflictDetails(measured).join('\n')).not.toContain('#348');
+	});
+
+	// measureAgainstMain reports this anomaly in the cell as a failure note; there are no names to list.
+	it('gives a conflict that named no files no entry either', () => {
+		const rendered = renderConflictDetails([{ pr: 1, status: 'CONFLICT', conflictPaths: [] }]);
+		expect(rendered.join('\n')).toContain('git named no files');
+		expect(rendered.join('\n')).not.toContain('<details>');
+	});
+
+	it('wraps itself in the markers the rewriter looks for', () => {
+		const rendered = renderConflictDetails(measured);
+		expect(rendered[0]).toBe(CONFLICT_BLOCK_BEGIN);
+		expect(rendered.at(-1)).toBe(CONFLICT_BLOCK_END);
+	});
+});
+
+describe('findConflictBlock', () => {
+	// Narrowed in a helper rather than by loosening the return type: `begin: null` is the discriminant
+	// that stops a caller reading an index that is not there, and the production call sites need it.
+	const reasonFor = (located: ReturnType<typeof findConflictBlock>) =>
+		located.begin === null ? located.reason : '';
+
+	it('locates a single well-ordered block', () => {
+		expect(findConflictBlock(['a', CONFLICT_BLOCK_BEGIN, 'x', CONFLICT_BLOCK_END, 'b'])).toEqual({
+			begin: 1,
+			end: 3
+		});
+	});
+
+	it('gives a reason when a marker is missing', () => {
+		expect(reasonFor(findConflictBlock(['a', CONFLICT_BLOCK_BEGIN, 'x']))).toContain('exactly one');
+	});
+
+	// Rewriting on a guess would swallow whatever sits between the wrong pair of markers — including
+	// the table this block exists to explain.
+	it('gives a reason for two begin markers', () => {
+		expect(
+			reasonFor(findConflictBlock([CONFLICT_BLOCK_BEGIN, CONFLICT_BLOCK_BEGIN, CONFLICT_BLOCK_END]))
+		).toContain('exactly one');
+	});
+
+	it('gives a reason when the end comes first', () => {
+		expect(reasonFor(findConflictBlock([CONFLICT_BLOCK_END, CONFLICT_BLOCK_BEGIN]))).toContain(
+			'before the begin'
+		);
+	});
+});
+
+describe('rewriteConflictBlock', () => {
+	it('replaces the region and leaves every line outside it byte-identical', () => {
+		const lines = ['before', CONFLICT_BLOCK_BEGIN, 'stale', CONFLICT_BLOCK_END, 'after'];
+		expect(rewriteConflictBlock(lines, [{ pr: 296, status: 'CONFLICT', conflictPaths: ['plan.md'] }])).toBe(
+			true
+		);
+		expect(lines[0]).toBe('before');
+		expect(lines.at(-1)).toBe('after');
+		expect(lines).toContain('plan.md');
+		expect(lines).not.toContain('stale');
+	});
+
+	it('writes nothing when there is no block to write into', () => {
+		const lines = ['before', 'after'];
+		expect(rewriteConflictBlock(lines, [])).toBe(false);
+		expect(lines).toEqual(['before', 'after']);
+	});
+});
+
+/**
+ * Read the committed block back into `PR -> every path listed under it`.
+ *
+ * Written as a parser rather than a regex sweep because the point of the block is that it holds the
+ * bytes git printed: a path is whatever sits inside a fence, including one that looks like markup.
+ */
+const pathsListedPerPr = (lines: string[]) => {
+	const block = findConflictBlock(lines);
+	const listed = new Map<number, string[]>();
+	let current = 0;
+	let inFence = false;
+	for (const line of lines.slice(block.begin ?? 0, (block.end ?? 0) + 1)) {
+		const summary = line.match(/^<summary>#(\d+) —/);
+		if (summary) {
+			current = Number.parseInt(summary[1], 10);
+			listed.set(current, []);
+		} else if (/^`{3,}/.test(line)) {
+			inFence = !inFence;
+		} else if (inFence && current !== 0) {
+			listed.get(current)?.push(line);
+		}
+	}
+	return listed;
+};
+
+/** One entry of a `Conflicting paths` cell, checked against the complete list behind it. */
+const expectCellEntryCoveredBy = (entry: string, paths: string[]) => {
+	const wildcard = entry.match(/^(.+)\/\* \((\d+) files\)$/);
+	if (wildcard) {
+		const under = paths.filter(
+			(filePath) => filePath.slice(0, filePath.lastIndexOf('/')) === wildcard[1]
+		);
+		expect(under).toHaveLength(Number.parseInt(wildcard[2], 10));
+	} else {
+		expect(paths).toContain(entry.replaceAll('\\|', '|').replaceAll('\\\\', '\\'));
+	}
+};
 
 describe('the committed triage table', () => {
 	const table = fs.readFileSync(path.resolve('docs/triage-table.md'), 'utf8').split('\n');
@@ -682,6 +988,34 @@ describe('the committed triage table', () => {
 		expect(prRows.length).toBeGreaterThan(0);
 		for (const row of prRows) {
 			expect(splitRow(row)[statusIndex].trim()).toMatch(/^(CLEAN|CONFLICT)$/);
+		}
+	});
+
+	it('carries one well-ordered block for the analyzer to write every filename into', () => {
+		expect(findConflictBlock(table).begin).not.toBeNull();
+	});
+
+	// The abbreviation and the complete list are written in one run from one measurement, so they cannot
+	// disagree — unless someone edits one by hand, which is what this reads the real file to catch. Every
+	// `dir/* (N files)` in a cell must have exactly N paths under that directory in the block, and every
+	// filename the cell spells out must appear there too.
+	it('expands every abbreviated cell into the same files the block names', () => {
+		const listed = pathsListedPerPr(table);
+		expect(listed.size).toBeGreaterThan(0);
+		const columns = parseTableColumns(
+			table.find((line) => parseTableColumns(line)[STATUS_COLUMN] !== undefined) ?? ''
+		);
+		for (const row of table.filter((line) => /^\|\s*#\d+\s*\|/.test(line))) {
+			const cells = splitRow(row);
+			if (cells[columns[STATUS_COLUMN]].trim() !== 'CONFLICT') {
+				continue;
+			}
+			const pr = Number.parseInt(cells[columns[PR_COLUMN]].trim().slice(1), 10);
+			const paths = listed.get(pr) ?? [];
+			expect(paths.length).toBeGreaterThan(0);
+			for (const entry of cells[columns[CONFLICT_PATHS_COLUMN]].trim().split(', ')) {
+				expectCellEntryCoveredBy(entry, paths);
+			}
 		}
 	});
 });

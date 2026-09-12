@@ -1,6 +1,6 @@
 {
   "tool": "cipher-gate",
-  "generatedAt": "2026-09-12T00:19:10.434Z",
+  "generatedAt": "2026-09-12T00:51:23.936Z",
   "cipher": {
     "date": "2026-09-12",
     "seams": "SafetyPolicySeam",
@@ -11,6 +11,14 @@
       },
       {
         "path": "docs/evidence/2026-09-12/redproof-safety-keyword-parity.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-09-12/redproof-triage-lossless-paths.txt",
+        "exists": true
+      },
+      {
+        "path": "docs/evidence/2026-09-12/abortproof-triage-table.txt",
         "exists": true
       },
       {
@@ -62,9 +70,9 @@
         "exists": true
       }
     ],
-    "summary": "Dated 2026-09-12 because the work crossed a UTC midnight and the chain writes into the day it runs; the 2026-09-11 folder holds the same run's earlier transcripts and is cited alongside. SafetyPolicySeam's 10 contract tests pass unchanged (rewind evidence above); the suite is 2141 passing across 114 files. The seam's contract, mock, fixtures, probe and contract tests are unchanged; only `policy.ts` changed, and only to delete the local keyword array so the implementation reads `SYSTEM_CONSTANTS.DISALLOWED_KEYWORDS` and nothing else. The two words it used to hold privately are now in that constant, which is what makes the other two routes enforce them. A new parity test drives both enforcement paths from the constant itself, and `enforcedDisallowedKeywords` is exported so the test can assert **identity** with the shared array rather than equality of contents - reintroducing the original `[...SHARED, 'x']` shape fails it, proven by mutation in the red proof above.",
+    "summary": "Dated 2026-09-12 because the work crossed a UTC midnight and the chain writes into the day it runs; the 2026-09-11 folder holds the same run's earlier transcripts and is cited alongside. SafetyPolicySeam's 10 contract tests pass unchanged (rewind evidence above); the suite is 2174 passing across 114 files. The seam's contract, mock, fixtures, probe and contract tests are unchanged; only `policy.ts` changed, and only to delete the local keyword array so the implementation reads `SYSTEM_CONSTANTS.DISALLOWED_KEYWORDS` and nothing else. The two words it used to hold privately are now in that constant, which is what makes the other two routes enforce them. A new parity test drives both enforcement paths from the constant itself, and `enforcedDisallowedKeywords` is exported so the test can assert **identity** with the shared array rather than equality of contents - reintroducing the original `[...SHARED, 'x']` shape fails it, proven by mutation in the red proof above.",
     "risks": "The two newly-shared words widen what `/api/tools` and `/api/meechie-studio-text` refuse, so a request that worked yesterday can be refused today - intended, and the reason it is in `CHANGELOG.md`. Substring matching is unchanged and remains blunt: `'minors'` matches inside `'minorsuit'` and `'suicide'` inside a clinical phrase, and this change neither introduces nor fixes that. Widening the list widens that bluntness by two words, which is the cost of the parity being correct rather than a defect it adds."
   },
-  "latestChangeMs": 1789171966789.5996,
+  "latestChangeMs": 1789173677555.2847,
   "status": "ok"
 }

@@ -14,6 +14,12 @@ This folder houses the repository's state ledgers, triage tables, seam catalogs,
 **Written only by `scripts/analyze-merge-conflicts.js`. Never edited by hand:**
 - **Merge status** — exactly `CLEAN` or `CONFLICT`, and nothing else. No decoration, no third value.
 - **Conflicting paths** — the files git named, or a note saying the measurement could not be made.
+  This cell **abbreviates**: a directory contributing several files reads `dir/* (N files)`, because a
+  cell holding twenty-five paths is how this column once said nothing at all.
+- The block between `<!-- conflicting-paths:begin -->` and `<!-- conflicting-paths:end -->`, which
+  names every path git gave, verbatim and unescaped, inside a code fence. It is the complete record the
+  abbreviated cell stands for, written from the same measurement in the same run. Rewritten whole; the
+  refresh refuses to measure a table whose markers are missing, duplicated or out of order.
 - The `Last refreshed: **<date>**, against \`origin/main\` at \`<sha>\`` line, which the same run
   rewrites so the table cannot claim a base its cells were not measured against.
 
@@ -30,6 +36,14 @@ Rules that follow from the split:
   (`readTable`, `splitRow`) rather than parsing the file again.
 - A refresh is all-or-nothing. If any row's head cannot be measured, nothing is written — a table
   mixing old and new measurements under one provenance line cannot be read.
+- Every guard belongs to every reader. Both scripts import the same `findRowsWithBadPrCell`,
+  `findMalformedRows`, `findDuplicateColumns` and `readTable`; a guard added for one of them and not
+  the other is how the validator twice reported an empty backlog for a table it simply could not read.
+  `findDuplicateColumns` takes the column names its caller reads, so a reader guards its own columns.
+- An abbreviation in a cell is allowed; being the only record is not. Anything shortened for
+  readability needs the unshortened version written by the same run, and a test asserting the two
+  agree — `tests/unit/analyze-merge-conflicts.test.ts` reads the committed file and fails if any
+  `dir/* (N files)` does not expand to exactly N paths under that directory.
 - A second fact about a row gets its own column. Encoding two decisions in one cell is what the
   retired `Target Bucket` vocabulary did, and separating them is why it is gone: its five categories
   (`1. Safe candidate for dry-run` … `5. Dependency/generated/evidence-only`) described the 2026-06

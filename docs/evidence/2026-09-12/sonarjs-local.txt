@@ -310,3 +310,41 @@ Sweep (recommended + S1192) on this head:
 ✖ 3 problems (3 errors, 0 warnings)
 
   (no output above this line: 0 problems, exit 1)
+
+================================================================================
+Round 14 — the lossless conflicting-file block, and the validator's missing guards
+================================================================================
+
+Same substitute, same command. This round's changes took `main`'s cognitive complexity from 21 to 23
+by adding one more pre-measurement guard, so the guards were lifted wholesale into an exported
+`validateTable` that returns a message instead of calling `process.exit`. That is not a metric
+exercise: each refusal is now a value a unit test asserts directly, and nine of them do, instead of
+the script being run as a subprocess and its stderr read.
+
+The new real-file test — the one checking that every abbreviated cell expands to the same files the
+block names — came in at 17, and was flattened by lifting its block parser and its per-entry check
+into two named helpers.
+
+Config (recommended + S1192, as the earlier rounds):
+
+  rules: { ...sonarjs.configs.recommended.rules, 'sonarjs/no-duplicate-string': 'error' }
+
+Before this round's cleanup, on the three files this PR touches:
+
+  scripts/analyze-merge-conflicts.js
+    628:16  Cognitive Complexity from 23 to the 15 allowed          sonarjs/cognitive-complexity
+  tests/unit/analyze-merge-conflicts.test.ts
+    891:78  Cognitive Complexity from 17 to the 15 allowed           sonarjs/cognitive-complexity
+    124:32  duplicating this literal 3 times                        sonarjs/no-duplicate-string
+    262:5   duplicating this literal 3 times                        sonarjs/no-duplicate-string
+    410:28  duplicating this literal 5 times                        sonarjs/no-duplicate-string
+    516:28  duplicating this literal 3 times                        sonarjs/no-duplicate-string
+
+After:
+
+  ✖ 0 problems
+
+Two of those duplicate-string findings predate this round and were recorded unfixed above; they are
+fixed here because the constants they wanted are in the file this round was already editing, and the
+file already carried the convention ("named because several tests need the same ones"). The
+cognitive-complexity 21 recorded in the previous round is gone with the same refactor.

@@ -174,6 +174,41 @@ Short, durable decisions with context and tradeoffs.
   the provenance line from 2026-09-11 - the feature working, not drift. Any test or claim of
   byte-identity has to say "same day" or be run twice in quick succession; the committed table keeps the
   date its measurement and its dated evidence folder actually belong to.
+- **A twelfth round, three findings, and the first is about an abbreviation becoming the only record.**
+  The `Conflicting paths` cell collapses a directory contributing several files to `dir/* (N files)`,
+  which is readable — one stale PR conflicts on twenty-five paths and a cell holding all of them is how
+  this column once said nothing at all — but it does not name them, so the table no longer held the
+  files git named and a reviewer could not audit a conflict without rerunning the analyzer. That is the
+  `Has conflicts: .` defect one step milder, and the summary alone is not a fix for it. The cell keeps
+  its summary and the complete list is written verbatim into a delimited block below the table,
+  **from the same measurement in the same run**: `refreshRows` now carries each row's whole path list
+  rather than a count, so the two cannot disagree about which files git named, and `validateTable`
+  refuses to measure a table with nowhere to put the block. The block is a fence rather than cells,
+  because a fence needs no escaping — `escapeCell`'s `\|` is correct in a cell and invisible to a
+  reader who copies the line into a shell. A unit test reads the committed file and fails if any
+  `dir/* (N files)` does not expand to exactly N paths under that directory in the block.
+- **The general rule that generalises: an abbreviation is allowed, being the only record is not.** A
+  cell that shortens what it says needs the unshortened version somewhere a reader can reach, written
+  by the same run, or it is a claim nobody can check. This sits beside "a cell's formatting is never
+  allowed to change what the cell says" above, and is the same concern one level up: that rule is about
+  altering a value, this one is about discarding part of it.
+- **The other two findings are the ninth round's lesson, unapplied for the second time.** "A rule a
+  parser gains belongs to every reader of the format" — and `validate-pr-backlog.js` still had neither
+  `findRowsWithBadPrCell` nor any duplicate-header check, so a full-width row written `348` vanished
+  from `prRows` (the **sixth** route to "empty result, no reason, exit 0") and a header carrying
+  `Dry-run` twice let one row answer `yes` and `no` at once with the earlier column silently winning —
+  on the one column that decides whether this tool reports a PR ready to merge. Both are now reasons.
+  `findDuplicateColumns` takes the column names its caller reads instead of hard-coding the analyzer's
+  three, which is what made the gap possible: a shared guard scoped to one caller's needs is not a
+  shared guard. **Twice now the rule was written down in this file and then not applied on the next
+  change**, which says the rule needs a mechanism, not a third restatement: the two readers now import
+  the same guards, and nothing in the validator parses the table itself.
+- **A refactor that came out of the same round, recorded because it changed shape rather than
+  behaviour.** The new guard took `main()`'s cognitive complexity from 21 to 23, and the seven
+  pre-measurement guards are now an exported `validateTable` returning `{ ok: false, message }` instead
+  of calling `process.exit` inline. Nine unit tests assert those messages directly; before this they
+  could only be reached by running the script as a subprocess and reading its stderr, which is why
+  none of them had a test. A guard worth having is worth being able to test cheaply.
 - Revisit criteria: a table that needs the script to write a third column adds it to the exported
   column names, not to a position. A third reader of the table imports `readTable` rather than
   scanning for a phrase. A second fact about a row gets its own column rather than being encoded in
@@ -210,8 +245,8 @@ Short, durable decisions with context and tradeoffs.
 - Cipher Gate:
   - Date: 2026-09-12
   - Seams: SafetyPolicySeam
-  - Evidence: docs/evidence/2026-09-12/rewind-SafetyPolicySeam.txt; docs/evidence/2026-09-12/redproof-safety-keyword-parity.txt; docs/evidence/2026-09-12/sonarjs-local.txt; docs/evidence/2026-09-12/verify-outer.txt; docs/evidence/2026-09-12/verify.txt; docs/evidence/2026-09-12/test.txt; docs/evidence/2026-09-12/check.txt; docs/evidence/2026-09-12/lint.txt; docs/evidence/2026-09-12/build.txt; docs/evidence/2026-09-11/verify-outer.txt; docs/evidence/2026-09-11/sonarjs-local.txt; tests/unit/safety-keyword-parity.test.ts; tests/unit/constants.test.ts; tests/unit/analyze-merge-conflicts.test.ts
-  - Summary: Dated 2026-09-12 because the work crossed a UTC midnight and the chain writes into the day it runs; the 2026-09-11 folder holds the same run's earlier transcripts and is cited alongside. SafetyPolicySeam's 10 contract tests pass unchanged (rewind evidence above); the suite is 2141 passing across 114 files. The seam's contract, mock, fixtures, probe and contract tests are unchanged; only `policy.ts` changed, and only to delete the local keyword array so the implementation reads `SYSTEM_CONSTANTS.DISALLOWED_KEYWORDS` and nothing else. The two words it used to hold privately are now in that constant, which is what makes the other two routes enforce them. A new parity test drives both enforcement paths from the constant itself, and `enforcedDisallowedKeywords` is exported so the test can assert **identity** with the shared array rather than equality of contents - reintroducing the original `[...SHARED, 'x']` shape fails it, proven by mutation in the red proof above.
+  - Evidence: docs/evidence/2026-09-12/rewind-SafetyPolicySeam.txt; docs/evidence/2026-09-12/redproof-safety-keyword-parity.txt; docs/evidence/2026-09-12/redproof-triage-lossless-paths.txt; docs/evidence/2026-09-12/abortproof-triage-table.txt; docs/evidence/2026-09-12/sonarjs-local.txt; docs/evidence/2026-09-12/verify-outer.txt; docs/evidence/2026-09-12/verify.txt; docs/evidence/2026-09-12/test.txt; docs/evidence/2026-09-12/check.txt; docs/evidence/2026-09-12/lint.txt; docs/evidence/2026-09-12/build.txt; docs/evidence/2026-09-11/verify-outer.txt; docs/evidence/2026-09-11/sonarjs-local.txt; tests/unit/safety-keyword-parity.test.ts; tests/unit/constants.test.ts; tests/unit/analyze-merge-conflicts.test.ts
+  - Summary: Dated 2026-09-12 because the work crossed a UTC midnight and the chain writes into the day it runs; the 2026-09-11 folder holds the same run's earlier transcripts and is cited alongside. SafetyPolicySeam's 10 contract tests pass unchanged (rewind evidence above); the suite is 2174 passing across 114 files. The seam's contract, mock, fixtures, probe and contract tests are unchanged; only `policy.ts` changed, and only to delete the local keyword array so the implementation reads `SYSTEM_CONSTANTS.DISALLOWED_KEYWORDS` and nothing else. The two words it used to hold privately are now in that constant, which is what makes the other two routes enforce them. A new parity test drives both enforcement paths from the constant itself, and `enforcedDisallowedKeywords` is exported so the test can assert **identity** with the shared array rather than equality of contents - reintroducing the original `[...SHARED, 'x']` shape fails it, proven by mutation in the red proof above.
   - Risks: The two newly-shared words widen what `/api/tools` and `/api/meechie-studio-text` refuse, so a request that worked yesterday can be refused today - intended, and the reason it is in `CHANGELOG.md`. Substring matching is unchanged and remains blunt: `'minors'` matches inside `'minorsuit'` and `'suicide'` inside a clinical phrase, and this change neither introduces nor fixes that. Widening the list widens that bluntness by two words, which is the cost of the parity being correct rather than a defect it adds.
 
 ## 2026-09-10 — Give the letterform one voice in the prompt, and give the reader the control

@@ -7,8 +7,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {
+  PR_COLUMN,
   STATUS_COLUMN,
+  findDuplicateColumns,
   findMalformedRows,
+  findRowsWithBadPrCell,
   readTable,
   runCommand,
   splitRow
@@ -53,6 +56,52 @@ export const selectCleanCandidates = (lines) => {
   const table = readTable(lines);
   if (table === null) {
     return { candidates: [], reason: `no "${STATUS_COLUMN}" column in the triage table` };
+  }
+  // Checked before any cell is read, because a duplicated header makes every later read unsound rather
+  // than merely wrong in one place. `parseTableColumns` keeps the first index for a repeated name, so a
+  // header carrying `Dry-run` twice lets one row answer `yes` and `no` at once and the *earlier* column
+  // wins silently — on the one column that decides whether this tool reports a PR ready to merge. The
+  // analyzer already refused its own duplicated columns; the names differ per reader, which is the only
+  // reason this call names its three.
+  const duplicated = findDuplicateColumns(lines[table.headerIndex], [
+    PR_COLUMN,
+    STATUS_COLUMN,
+    DRY_RUN_COLUMN
+  ]);
+  if (duplicated.length > 0) {
+    return {
+      candidates: [],
+      reason:
+        `these columns appear more than once in the header: ${duplicated.join(', ')}. Every index ` +
+        'comes from the first copy, so a second one holding a different answer would be read as ' +
+        'though it were not there — including a contradictory Dry-run decision'
+    };
+  }
+  // Without it no row is recognised at all, and `prRows` is empty: the filter below then finds nothing
+  // and returns no reason, which reads as a legitimately empty backlog for a table that simply spells
+  // its first column differently.
+  if (table.columns[PR_COLUMN] === undefined) {
+    return {
+      candidates: [],
+      reason:
+        `no "${PR_COLUMN}" column in the triage table. Rows are identified by that cell, so without ` +
+        'it no row can be recognised and an empty selection would say nothing about the backlog'
+    };
+  }
+  // The same hole the analyzer was fixed for, in the second reader: a full-width data row written `348`
+  // instead of `#348` does not parse as a PR, so it never reaches `prRows` — where `findMalformedRows`
+  // cannot see it either, because that only inspects rows already recognised. The row vanishes, the
+  // selection is silently short by one, and a PR the table says to validate is never validated. Width
+  // separates a data row from prose; the divider is excluded by shape.
+  const badPrCells = findRowsWithBadPrCell(lines, table.headerIndex, table.columns);
+  if (badPrCells.length > 0) {
+    const named = badPrCells.map((row) => `line ${row.lineIndex + 1} ("${row.cell}")`).join(', ');
+    return {
+      candidates: [],
+      reason:
+        `these rows are the header's width but their PR cell does not name a PR: ${named}. A ` +
+        'full-width row is a data row, so leaving it out would shorten the selection with no sign of it'
+    };
   }
   // The analyzer rejects a row whose width does not match the header; this reader must too. It is the
   // *same* malformed row, and a row of the wrong width shifts every index — so without this the
