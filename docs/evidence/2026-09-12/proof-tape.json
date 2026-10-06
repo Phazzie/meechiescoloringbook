@@ -1,0 +1,206 @@
+{
+  "tool": "proof-tape",
+  "generatedAt": "2026-09-12T01:40:48.962Z",
+  "evidenceDir": "docs/evidence/2026-09-12",
+  "runMarker": "chamber-lock.json",
+  "excludedFromInventory": [
+    "proof-tape.json",
+    "proof-tape.md"
+  ],
+  "filesPredatingRun": [
+    "abortproof-triage-table.txt",
+    "build.txt",
+    "check.txt",
+    "cipher-gate-run.txt",
+    "cipher-gate.json",
+    "lint.txt",
+    "redproof-safety-keyword-parity.txt",
+    "redproof-triage-lossless-paths.txt",
+    "redproof-triage-structure-shaped-filenames.txt",
+    "rewind-SafetyPolicySeam.txt",
+    "sonarjs-local.txt"
+  ],
+  "files": [
+    {
+      "name": "abortproof-triage-table.txt",
+      "path": "docs/evidence/2026-09-12/abortproof-triage-table.txt",
+      "sizeBytes": 2258,
+      "modifiedAt": "2026-09-12T00:47:11.080Z",
+      "commands": [],
+      "predatesRun": true
+    },
+    {
+      "name": "assumption-alarm.json",
+      "path": "docs/evidence/2026-09-12/assumption-alarm.json",
+      "sizeBytes": 18402,
+      "modifiedAt": "2026-09-12T01:40:48.776Z",
+      "commands": [],
+      "predatesRun": false
+    },
+    {
+      "name": "build.txt",
+      "path": "docs/evidence/2026-09-12/build.txt",
+      "sizeBytes": 15838,
+      "modifiedAt": "2026-09-12T01:38:33.469Z",
+      "commands": [
+        "meechies-coloringbook@0.1.0 build",
+        "vite build",
+        "Using @sveltejs/adapter-vercel"
+      ],
+      "predatesRun": true
+    },
+    {
+      "name": "chamber-lock.json",
+      "path": "docs/evidence/2026-09-12/chamber-lock.json",
+      "sizeBytes": 35315,
+      "modifiedAt": "2026-09-12T01:39:01.548Z",
+      "commands": [],
+      "predatesRun": false
+    },
+    {
+      "name": "check.txt",
+      "path": "docs/evidence/2026-09-12/check.txt",
+      "sizeBytes": 240,
+      "modifiedAt": "2026-09-12T01:38:44.232Z",
+      "commands": [
+        "meechies-coloringbook@0.1.0 check",
+        "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json"
+      ],
+      "predatesRun": true
+    },
+    {
+      "name": "cipher-gate-run.txt",
+      "path": "docs/evidence/2026-09-12/cipher-gate-run.txt",
+      "sizeBytes": 75,
+      "modifiedAt": "2026-09-12T01:11:23.664Z",
+      "commands": [
+        "meechies-coloringbook@0.1.0 cipher:gate",
+        "node scripts/cipher-gate.mjs"
+      ],
+      "predatesRun": true
+    },
+    {
+      "name": "cipher-gate.json",
+      "path": "docs/evidence/2026-09-12/cipher-gate.json",
+      "sizeBytes": 3513,
+      "modifiedAt": "2026-09-12T01:11:23.748Z",
+      "commands": [],
+      "predatesRun": true
+    },
+    {
+      "name": "clan-chain.json",
+      "path": "docs/evidence/2026-09-12/clan-chain.json",
+      "sizeBytes": 3181,
+      "modifiedAt": "2026-09-12T01:40:48.896Z",
+      "commands": [],
+      "predatesRun": false
+    },
+    {
+      "name": "clan-chain.md",
+      "path": "docs/evidence/2026-09-12/clan-chain.md",
+      "sizeBytes": 1956,
+      "modifiedAt": "2026-09-12T01:40:48.896Z",
+      "commands": [],
+      "predatesRun": false
+    },
+    {
+      "name": "lint.txt",
+      "path": "docs/evidence/2026-09-12/lint.txt",
+      "sizeBytes": 48,
+      "modifiedAt": "2026-09-12T01:38:44.464Z",
+      "commands": [
+        "meechies-coloringbook@0.1.0 lint",
+        "eslint ."
+      ],
+      "predatesRun": true
+    },
+    {
+      "name": "redproof-safety-keyword-parity.txt",
+      "path": "docs/evidence/2026-09-12/redproof-safety-keyword-parity.txt",
+      "sizeBytes": 1936,
+      "modifiedAt": "2026-09-12T00:18:54.420Z",
+      "commands": [],
+      "predatesRun": true
+    },
+    {
+      "name": "redproof-triage-lossless-paths.txt",
+      "path": "docs/evidence/2026-09-12/redproof-triage-lossless-paths.txt",
+      "sizeBytes": 5630,
+      "modifiedAt": "2026-09-12T00:47:11.076Z",
+      "commands": [],
+      "predatesRun": true
+    },
+    {
+      "name": "redproof-triage-structure-shaped-filenames.txt",
+      "path": "docs/evidence/2026-09-12/redproof-triage-structure-shaped-filenames.txt",
+      "sizeBytes": 7752,
+      "modifiedAt": "2026-09-12T01:10:23.284Z",
+      "commands": [],
+      "predatesRun": true
+    },
+    {
+      "name": "rewind-SafetyPolicySeam.txt",
+      "path": "docs/evidence/2026-09-12/rewind-SafetyPolicySeam.txt",
+      "sizeBytes": 400,
+      "modifiedAt": "2026-09-12T01:19:16.364Z",
+      "commands": [],
+      "predatesRun": true
+    },
+    {
+      "name": "seam-ledger.json",
+      "path": "docs/evidence/2026-09-12/seam-ledger.json",
+      "sizeBytes": 37511,
+      "modifiedAt": "2026-09-12T01:40:48.844Z",
+      "commands": [],
+      "predatesRun": false
+    },
+    {
+      "name": "seam-ledger.md",
+      "path": "docs/evidence/2026-09-12/seam-ledger.md",
+      "sizeBytes": 2981,
+      "modifiedAt": "2026-09-12T01:40:48.844Z",
+      "commands": [],
+      "predatesRun": false
+    },
+    {
+      "name": "shaolin-lint.json",
+      "path": "docs/evidence/2026-09-12/shaolin-lint.json",
+      "sizeBytes": 518,
+      "modifiedAt": "2026-09-12T01:40:48.620Z",
+      "commands": [],
+      "predatesRun": false
+    },
+    {
+      "name": "sonarjs-local.txt",
+      "path": "docs/evidence/2026-09-12/sonarjs-local.txt",
+      "sizeBytes": 20864,
+      "modifiedAt": "2026-09-12T01:10:31.796Z",
+      "commands": [],
+      "predatesRun": true
+    },
+    {
+      "name": "test.txt",
+      "path": "docs/evidence/2026-09-12/test.txt",
+      "sizeBytes": 3134,
+      "modifiedAt": "2026-09-12T01:40:48.516Z",
+      "commands": [
+        "meechies-coloringbook@0.1.0 test",
+        "vitest run --pool=forks --maxWorkers=1"
+      ],
+      "predatesRun": false
+    },
+    {
+      "name": "verify.txt",
+      "path": "docs/evidence/2026-09-12/verify.txt",
+      "sizeBytes": 3459,
+      "modifiedAt": "2026-09-12T01:40:48.516Z",
+      "commands": [
+        "meechies-coloringbook@0.1.0 check",
+        "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+        "meechies-coloringbook@0.1.0 test",
+        "vitest run --pool=forks --maxWorkers=1"
+      ],
+      "predatesRun": false
+    }
+  ]
+}

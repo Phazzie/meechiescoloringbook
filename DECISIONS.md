@@ -7,6 +7,311 @@ Info flow: Decision -> consequences -> future changes.
 
 Short, durable decisions with context and tradeoffs.
 
+## 2026-09-11 - The triage table's columns are addressed by name, and measured against `origin/main`
+
+- Date: 2026-09-11
+- Decision: `scripts/analyze-merge-conflicts.js` locates the cells it writes by header name
+  (`Merge status`, `Conflicting paths`), writes nothing else, measures with
+  `git merge-tree --write-tree --name-only origin/main <head>`, and guards `main()` with
+  `isEntryPoint`. `docs/triage-table.md` gains the conflicting-paths column so the status cell holds
+  exactly `CLEAN` or `CONFLICT`.
+- Context: the script addressed columns by fixed index - `parts[5]` was assumed to be a target
+  bucket and `parts[6]` was unconditionally replaced with a merge note. Refreshing the table after
+  its columns moved would therefore have destroyed every disposition in it, silently, which two
+  review bots caught on PR #356 before it could happen. Separately it built each test merge from
+  `git branch --show-current`, so the base was whatever was checked out while the table's own header
+  named `origin/main` at a specific commit; a stale local `main` produced statuses measured against
+  a base the table did not claim.
+- Alternatives: **(a) Restore the old column order.** Rejected: it preserves the coupling that
+  caused the defect, and the bucket vocabulary it encodes described a backlog triage that is over.
+  **(b) Keep the checkout-and-merge dance and document that it must run from a fresh `main`.**
+  Rejected: an unenforceable precondition on a script whose entire output is a factual claim.
+  `merge-tree` needs no checkout, no temporary branches and no clean worktree, so the precondition
+  disappears instead of being written down.
+- Consequences: the script is read-only against the working tree and can run from any branch. It
+  refuses to run at all if no `Merge status` column is found, rather than guessing which cells to
+  rewrite. The dropped clean-worktree check is no longer needed because nothing is checked out.
+  `tests/unit/analyze-merge-conflicts.test.ts` covers the helpers and reads the committed table, so
+  a future column change that breaks the writer fails a test instead of eating a disposition.
+- The second reader, found by review after the first fix. `scripts/validate-pr-backlog.js` selected
+  the PRs it checks out and validates by searching every line for the literal
+  `1. Safe candidate for dry-run`. With the bucket vocabulary gone it would have reported
+  "No PR candidates found" and exited 0 - which is indistinguishable from a drained backlog, so the
+  tool would have quietly stopped doing its job. It now selects on the measured `Merge status`
+  column being `CLEAN`, which is the same claim the bucket made and is measured rather than typed.
+  Its `runCommand` copy is gone in favour of the analyzer's, and `selectCleanCandidates` and
+  `dryRunPr` are lifted out of `main` - which also cleared a pre-existing cognitive-complexity
+  finding of 34 on that function.
+- **Two more findings from the same review, both about what the split lost.** The retired bucket
+  string `1. Safe candidate for dry-run` asserted *two* facts - this PR merges cleanly, and we want it
+  validated - and the first fix kept only the measured one. So a `CLEAN` row marked **Superseded**
+  was still selected, and the dry run would have reported "All checks green. Ready to merge." about
+  the row telling a reader not to merge it; #348 is exactly that row. The table now carries an
+  explicit `Dry-run` column a human answers `yes` or `no`, and selection needs both it and `CLEAN`.
+  Reading "Superseded" out of the disposition prose would work today and is the same literal-matching
+  that caused the original defect. Separately, the provenance line (`Last refreshed: ... at <sha>`)
+  was not rewritten by the refresh, so a run after `origin/main` advanced left a table whose statuses
+  were measured against one commit while its own header named an older one. `rewriteProvenance` now
+  writes it in the same pass as the rows.
+- Consequences of those two: the validator exits **1** with a reason when the table lacks either
+  column, rather than 0 with an empty candidate list - the quiet failure this whole entry is about.
+  Against the committed table it selects nothing, which is correct: the one `CLEAN` row is superseded
+  by this branch. A second refresh of the table is byte-identical to the first, which is the property
+  worth having and is recorded in `docs/evidence/2026-09-11/sonarjs-local.txt`.
+- **A third finding, and the only one that would have written a false measurement.** `runCommand`
+  exposed only stdout and stderr combined. On an operational failure - an invalid ref, an option this
+  git does not know - stdout is empty, so the combined string began with a blank line where the tree
+  id belonged; `parseConflictPaths` dropped that line as the id and read git's *error message* as a
+  conflicting filename. The row then recorded `CONFLICT` with an error string in the conflicting-paths
+  column and `failureNote` never fired. Reproduced on git 2.43. `runCommand` now returns `stdout` and
+  `stderr` separately, and `parseConflictPaths` returns **null** rather than `[]` when the first line
+  is not a 40-hex tree id, because a conflicted merge with no files named and a command that never ran
+  are opposite facts. Only the first is a measurement this table may record.
+- **A fourth finding, about the provenance line's scope.** That line makes a claim about the *whole*
+  table - measured on this date against this base - and the refresh skipped any row whose head could
+  not be fetched while still rewriting the line and exiting 0. The table then presented old and new
+  measurements as one refresh with nothing to tell them apart. `refreshRows` is now all-or-nothing:
+  it collects every measurement, returns `lines: null` if any row was skipped, and `main` writes
+  nothing and exits 1 naming the rows. A permanently unfetchable row therefore blocks refreshes until
+  a human removes it, which is the right pressure - a row naming a PR nobody can fetch has no business
+  in a table read as current.
+- **A fifth finding, and the one with the widest blast radius.** Rows were split on every `|`, so a
+  PR title containing a markdown-escaped `\|` shifted every cell after it. The reported symptom was
+  the selection finding no candidates; the unreported and worse one is that `rewriteRow` then wrote
+  `CONFLICT` **into the Head column**, corrupting the row it was refreshing. `splitRow` splits on
+  unescaped pipes only and round-trips through `join('|')`, which is what lets a rewrite leave the
+  other cells byte-identical. Every reader of a row goes through it.
+- **`docs/AGENTS.md` was still governing the old schema**, defining the table through the five
+  `Target Bucket` categories - so the file a future agent is required to follow contradicted the file
+  it describes. Rewritten around the two kinds of column: what only the script writes (status,
+  conflicting paths, the provenance line) and what only a human writes (`Dry-run`, the content column,
+  the disposition), plus the rules that follow - by header name never position, unescaped pipes only,
+  all-or-nothing refresh, and a second fact gets its own column.
+- **A sixth round, three findings, one rule.** Each was a path that warned and wrote instead of
+  aborting: an unrun `merge-tree` returned as a measured `CONFLICT` carrying the error as a note; a
+  missing `Conflicting paths` column warned, then updated every status and the provenance line while
+  leaving stale path cells beside them; a missing provenance line warned, then wrote fresh statuses
+  with no record of what they were measured against. The rule now holds without exception: **every
+  analyzer-owned column and the provenance line are required, and anything missing aborts before a
+  single measurement is taken.** `measureAgainstMain` returns `{ ok: false, reason }` rather than a
+  bare null, and `refreshRows` keeps a reason per skipped row - "could not measure #348" without
+  saying why sends the next reader back to run the command by hand.
+- **The SonarCloud hypothesis is refuted, and that is worth more than a fix.** The count moved 2 -> 3
+  after the duplicated literals were named, having stayed at 2 while they existed. So the three are not
+  those, and the count is not stuck - it tracks something and rose as code was added. Recorded in
+  `docs/evidence/2026-09-11/sonarjs-local.txt` so the next session does not re-derive a hypothesis this
+  one disproved. The quality gate passes on every head; the number is unexplained, not red.
+- **A seventh round, one finding, same rule again.** A structurally short row - `| #317 | title |`
+  after a careless edit - was counted as measured. `rewriteRow` guards an out-of-range index and so
+  does nothing for such a row, *quietly*, while `refreshRows` recorded it as done: the table would be
+  written, its provenance rewritten, and the run would exit 0 having measured nothing for that PR.
+  `findTruncatedRows` rejects them before any measurement, alongside the column and provenance checks.
+  Worth noting what made this one invisible: a guard that prevents a crash by doing nothing is a guard
+  that converts a loud failure into a silent one, and every caller then has to know it might no-op.
+- **An eighth round, three findings, all caused by the escaped-pipe fix of the round before.** Fixing
+  the reader created two holes in the writer and one in a test. (1) A conflicted filename may
+  legitimately contain a pipe, and `rewriteRow` replaced it with `/` - recording `a/b.md` for
+  `a|b.md`, a different file, in the column a reader trusts to name files. `escapeCell` escapes the
+  delimiter instead, so the name survives and `splitRow` reads it back whole. (2) The truncated-row
+  check tested only that the *owned* columns were in range, which a deleted **interior** cell passes -
+  the row still has cells at those indexes, they are simply the wrong ones, and the status went into
+  the old paths column while the paths overwrote a human's `Dry-run` answer. `findMalformedRows` now
+  requires width equality with the header, because every index is derived from the header and a row of
+  any other width makes all of them wrong at once. (3) The committed-table assertions used a raw
+  `split('|')`, so a legitimate escaped pipe in a title would have failed `npm test` rather than being
+  parsed the way production parses it.
+- The general lesson from the eight rounds, since it is now unmistakable: **when a parser gains a rule,
+  every writer and every test that shares its format has gained the same rule.** Six of these findings
+  were a reader and a writer disagreeing about one format after only the reader was updated.
+- **A ninth round, and one of its two findings is the rule of the eighth, unapplied.** I wrote "a rule a
+  parser gains belongs to every reader of the format" and then did not give `findMalformedRows` to
+  `validate-pr-backlog.js` - the second reader of the same file. It read shifted cells from a malformed
+  row, found nothing, returned **no reason**, and exited 0 as though the backlog were legitimately
+  empty. Writing a rule down is not applying it, and the file that states a rule is the first place to
+  check against when the next change lands. The other finding: `splitRow` decided escaping with a
+  lookbehind for one backslash, which is wrong for a cell ending in a literal backslash - in
+  `| a\\| b |` the `\\` is an *escaped backslash*, so that pipe is a delimiter. Escaping is the parity
+  of the backslash run, and all four shapes are now asserted to round-trip through `join`.
+- **A tenth round, four findings, and the recurring one is worth counting.** (1) The PR number was read
+  by a regex anchored to the first cell while every other column came from the header; reorder the table
+  and no rows are found at all, so both tools go silently off for a well-formed table. The `PR` column is
+  now required and read by name. (2) `parseTableColumns` keeps the first index for a repeated header, so
+  a duplicated `Merge status` would have one copy refreshed and one left stale under a single provenance
+  line - invisible to width validation, because the width is right. Duplicated owned headers are now a
+  parse error. (3) `parseConflictPaths` trimmed each path, recording ` leadtrail ` as `leadtrail` - a
+  different file. Only a trailing CR is stripped now. (4) A mistyped `Dry-run` answer read as a
+  deliberate `no`.
+- **"Empty result, no reason, exit 0" has now been fixed four times on the same two scripts**, by four
+  unrelated causes: a retired literal phrase, a `readTable` null collapsing into an empty array, a
+  malformed row shifting the cells, and a typo in a human's answer. The lesson is not about any of those
+  causes. **A tool whose empty answer is indistinguishable from its healthy answer will keep finding new
+  ways to go quiet**, so the fix belongs in the *shape* of the return - a reason alongside the result,
+  and a caller that exits non-zero on one - rather than in the individual guards. That is what the
+  `{ candidates, reason }` pair is for, and each of the four was cheap to fix only because the shape was
+  already there by the second one.
+- **A cell's formatting is never allowed to change what the cell says.** Three findings on this PR were
+  the same mistake: a pipe in a conflicted filename replaced with `/` (recording `a/b.md` for `a|b.md`),
+  a filename's own leading and trailing spaces trimmed away (` leadtrail` recorded as `leadtrail`), and
+  before those, an error string joined into the column that names files. In each case the value was
+  altered so it would sit quietly in a markdown cell, and in each case the column a reader trusts to
+  name files then named a different file. Escaping, not substitution; preserving, not normalising. Where
+  a value genuinely cannot be represented unambiguously, say so next to the code rather than rounding
+  the value off - `parseConflictPaths` carries that note about a filename's edge whitespace, and names
+  the one consumer (a person reading the column) that makes preserving the better trade.
+- **An eleventh round, and the first of its two findings was created by the tenth.** Tightening the row
+  match to `#<digits>` stopped prose being read as a row, and made a *data* row written `348` instead of
+  `#348` vanish from `prRows` - where the width check cannot see it either, so the analyzer refreshed
+  every other row and advanced the provenance line having never measured that PR. **Width is the
+  distinction that makes both correct:** a line the header's own width is a data row and its `PR` cell
+  must parse; anything narrower is prose. The divider is full width by definition and excluded by shape
+  (`isDividerRow`). A guard that narrows what counts as valid input needs a matching guard for input
+  that *looks* valid and no longer counts - otherwise the first guard converts a wrong answer into a
+  missing one. The second finding was the **fifth** route to "empty result, no reason, exit 0": a
+  corrupted `Merge status` (`CLEEN`, or blank) excluded the row from the filter silently, and is now a
+  malformed-table reason like the `Dry-run` typo before it.
+- **Idempotence, stated precisely because this run's own test tripped on it:** the refresh is
+  byte-identical *within a UTC day*, not across one. At 00:0x on 2026-09-12 a re-run correctly rewrote
+  the provenance line from 2026-09-11 - the feature working, not drift. Any test or claim of
+  byte-identity has to say "same day" or be run twice in quick succession; the committed table keeps the
+  date its measurement and its dated evidence folder actually belong to.
+- **A twelfth round, three findings, and the first is about an abbreviation becoming the only record.**
+  The `Conflicting paths` cell collapses a directory contributing several files to `dir/* (N files)`,
+  which is readable — one stale PR conflicts on twenty-five paths and a cell holding all of them is how
+  this column once said nothing at all — but it does not name them, so the table no longer held the
+  files git named and a reviewer could not audit a conflict without rerunning the analyzer. That is the
+  `Has conflicts: .` defect one step milder, and the summary alone is not a fix for it. The cell keeps
+  its summary and the complete list is written verbatim into a delimited block below the table,
+  **from the same measurement in the same run**: `refreshRows` now carries each row's whole path list
+  rather than a count, so the two cannot disagree about which files git named, and `validateTable`
+  refuses to measure a table with nowhere to put the block. The block is a fence rather than cells,
+  because a fence needs no escaping — `escapeCell`'s `\|` is correct in a cell and invisible to a
+  reader who copies the line into a shell. A unit test reads the committed file and fails if any
+  `dir/* (N files)` does not expand to exactly N paths under that directory in the block.
+- **The general rule that generalises: an abbreviation is allowed, being the only record is not.** A
+  cell that shortens what it says needs the unshortened version somewhere a reader can reach, written
+  by the same run, or it is a claim nobody can check. This sits beside "a cell's formatting is never
+  allowed to change what the cell says" above, and is the same concern one level up: that rule is about
+  altering a value, this one is about discarding part of it.
+- **The other two findings are the ninth round's lesson, unapplied for the second time.** "A rule a
+  parser gains belongs to every reader of the format" — and `validate-pr-backlog.js` still had neither
+  `findRowsWithBadPrCell` nor any duplicate-header check, so a full-width row written `348` vanished
+  from `prRows` (the **sixth** route to "empty result, no reason, exit 0") and a header carrying
+  `Dry-run` twice let one row answer `yes` and `no` at once with the earlier column silently winning —
+  on the one column that decides whether this tool reports a PR ready to merge. Both are now reasons.
+  `findDuplicateColumns` takes the column names its caller reads instead of hard-coding the analyzer's
+  three, which is what made the gap possible: a shared guard scoped to one caller's needs is not a
+  shared guard. **Twice now the rule was written down in this file and then not applied on the next
+  change**, which says the rule needs a mechanism, not a third restatement: the two readers now import
+  the same guards, and nothing in the validator parses the table itself.
+- **A refactor that came out of the same round, recorded because it changed shape rather than
+  behaviour.** The new guard took `main()`'s cognitive complexity from 21 to 23, and the seven
+  pre-measurement guards are now an exported `validateTable` returning `{ ok: false, message }` instead
+  of calling `process.exit` inline. Nine unit tests assert those messages directly; before this they
+  could only be reached by running the script as a subprocess and reading its stderr, which is why
+  none of them had a test. A guard worth having is worth being able to test cheaply.
+- **A thirteenth round, five findings, and three of them were created by the twelfth's own fix.** The
+  lossless block writes every filename git named into the file this script also parses for structure,
+  and three of these are the reader mistaking that content for structure. (1) `readTable` and
+  `findRowsWithBadPrCell` scanned to end of file, so a conflicted filename shaped like
+  `| #999 | not | a | table | row | but | a | filename |` — legal on every filesystem this runs on —
+  became a PR row, and the analyzer would fetch a pull request that does not exist or rewrite that
+  filename inside the fence. (2) A file named exactly `<!-- conflicting-paths:begin -->` was counted as
+  a second block marker, so a refresh that *succeeded* produced a table the next run refuses to read.
+  (3) `parseConflictPaths` tested its terminator on a trimmed copy, so a file named `   ` read as the
+  empty separator before git's diagnostics and the whole measurement was lost to three spaces.
+- **The rule those three share, and it is the one this PR most needed to learn:** a writer that emits
+  arbitrary content into a file its own reader parses has handed the reader's grammar to whoever names
+  the content. Every earlier "a filename may contain X" finding here was about a *cell* — a pipe in the
+  ninth round, edge whitespace in the eleventh. These are about the document. **Structure is recognised
+  only where structure can legally be:** rows only inside the contiguous table (`tableRowEnd`), markers
+  only outside a fence (`fencedLines`, with CommonMark's rule that a closing run must be at least as
+  long as the opening one, because `fenceFor` deliberately opens longer than any run in the paths), and
+  the path terminator only on a line with nothing in it at all.
+- **The fourth finding is the duplicate-header rule, unapplied to the provenance line.** `validateTable`
+  required *at least* one `Last refreshed:` line while `rewriteProvenance` updates the first — so two
+  lines after a copy/paste or a merge resolution meant one refreshed and one left claiming a different
+  base, under a run that exited 0. Exactly one is now required, which is what the block markers already
+  demanded. Three times on this PR a "there must be one of these" rule has been written for one piece of
+  the schema and not the others.
+- **The fifth is a test that could not accept a legal filename, which is worse than no test.** The
+  real-file check split the `Conflicting paths` cell on comma-space, so a conflicted file named
+  `a, b.md` — written correctly into both the cell and the block — read as two entries and failed
+  `npm test`, making a valid refresh impossible to commit. It now *generates* the cell from the block's
+  paths with `summarizeConflictPaths` and compares, parsing no filenames at all. That is also a stronger
+  check than the one it replaces: it asserts the whole cell rather than each entry. **A test that parses
+  a value apart inherits every ambiguity the format has; one that regenerates it inherits none.**
+- **A fourteenth round, four findings, and the first is two guards each catching half a defect.** A row
+  with *both* faults at once - `| 348 | title |`, too narrow **and** missing its `#` - passed everything.
+  `findRowsWithBadPrCell` only judges full-width rows, so it skipped it; `readTable` left it out of
+  `prRows` because the cell does not parse; and `findMalformedRows` only inspected `prRows`. The analyzer
+  advanced the provenance line having never measured that PR, and the validator reported an empty
+  backlog. **Two guards that each require a different precondition leave the intersection of their blind
+  spots uncovered**, and the fix is ordering by what a check needs: width needs no parsing, so it is
+  checked first and over every non-divider row of the contiguous table, and only then is a PR cell read.
+- **The second is the round-13 fence rule, missing from the reader that verifies it.** The test helper
+  that reads the committed block back kept its own `/^\`{3,}/` toggle, which a file named exactly
+  ``` satisfies - so it read the surrounding markup as paths and would have failed `npm test` on a
+  perfectly valid refresh. `fencedLines` now returns a **classification** (`outside` / `open` / `inside` /
+  `close`) rather than a boolean, because the two readers need different halves of one answer:
+  `findConflictBlock` wants the lines outside a fence, the block reader wants the lines inside one. That
+  is the shape that makes a second implementation unnecessary, which is the only reliable way to stop one
+  appearing - the fourth time on this PR that a rule existed in one reader and not another.
+- **The third finding is about determinism, and it had made the committed file machine-dependent.**
+  `summarizeConflictPaths` sorted with `localeCompare` and no locale, so the same git measurement wrote a
+  different `docs/triage-table.md` depending on the host: `sv-SE` orders `ä` after `z`, `en-US` before
+  it. Measured on this container, `localeCompare` puts `ä.md` first. **A generated file whose bytes depend
+  on the machine that generated them is not the evidence this repository treats it as**, and the
+  idempotence proved for this script held only per machine. Ordering is by UTF-16 code unit now - an
+  explicit locale would still leave the answer to the ICU version Node was built against, and code units
+  leave it to nothing. The cost is `LC_ALL=C` ordering, so `WORST_TO_BEST_LOG.md` sorts before `docs/`;
+  the committed cells were regenerated and re-run byte-identical.
+- **The fourth is the retired first-column assumption, alive in the tests that check the file.** Five
+  committed-table assertions found rows with `/^\|\s*#\d+\s*\|/` - the exact coupling the parser was
+  fixed for in the eleventh round - so moving the `PR` column would have left them finding no rows and
+  failing, blocking a schema change the production readers support. They resolve through `readTable` now,
+  and one test moves the column in a copy of the real file to prove it. **A test that encodes a retired
+  assumption is a second place the assumption has to be retired**, and it is the easier one to forget
+  because it is green while it is wrong.
+- Revisit criteria: a table that needs the script to write a third column adds it to the exported
+  column names, not to a position. A third reader of the table imports `readTable` rather than
+  scanning for a phrase. A second fact about a row gets its own column rather than being encoded in
+  an existing one - that conflation is what both of these findings were.
+
+## 2026-09-11 - One safety keyword list, read by all three checks
+
+- Date: 2026-09-11
+- Decision: `'suicide'` and `'extremist'` move into `SYSTEM_CONSTANTS.DISALLOWED_KEYWORDS`, and
+  `src/lib/seams/safety-policy-seam/policy.ts` scans that constant directly instead of spreading it
+  into a local array and appending to it. Ports the fix from the stale PR #328 onto current `main`
+  and closes issue #327, adding the parity test that PR did not have.
+- Context: the constant held two words; the seam's local copy held four. `findDisallowedKeywords`,
+  the shared helper, reads the constant — and it is what `tools-pipeline.ts` and
+  `meechie-studio-text-pipeline.ts` call, so `/api/tools` and `/api/meechie-studio-text` accepted
+  requests describing suicide or extremist material that `/api/generate` refused. The words were in
+  the tree, in the refusal message a reader sees (`'Remove content involving minors, self-harm,
+  suicide, or extremist material.'`), and in three of the seam's own fixtures. Only the one list two
+  of the three routes actually consult was missing them.
+- Alternatives: **(a) Add the two words to `findDisallowedKeywords` as well.** Rejected: that is the
+  same mistake a second time, and leaves two lists to keep in step. **(b) Give the seam a
+  contract-level policy input so each caller declares its own list.** Rejected as the wrong shape for
+  this defect: the three routes are not meant to differ. A per-caller list makes divergence
+  expressible, and the whole finding is that divergence happened by accident and nobody noticed.
+- Consequences: `/api/tools` and `/api/meechie-studio-text` now refuse two categories of request they
+  previously accepted. That is the point of the change and it is a behaviour change, recorded in
+  `CHANGELOG.md` rather than absorbed. `findDisallowedKeywords` already lowercases both sides, and
+  the seam already lowercased the text, so no case behaviour changes. The four words are matched as
+  substrings, exactly as before - this change does not alter how matching works, only which words are
+  matched.
+- Revisit criteria: if any route ever needs a list the other two do not, that is alternative (b) and
+  it needs the contract in scope. Adding a word to the shared constant does not.
+
+- Cipher Gate:
+  - Date: 2026-09-12
+  - Seams: SafetyPolicySeam
+  - Evidence: docs/evidence/2026-09-12/rewind-SafetyPolicySeam.txt; docs/evidence/2026-09-12/redproof-safety-keyword-parity.txt; docs/evidence/2026-09-12/redproof-triage-lossless-paths.txt; docs/evidence/2026-09-12/abortproof-triage-table.txt; docs/evidence/2026-09-12/redproof-triage-structure-shaped-filenames.txt; docs/evidence/2026-09-12/redproof-triage-two-faults-and-locale.txt; docs/evidence/2026-09-12/sonarjs-local.txt; docs/evidence/2026-09-12/verify-outer.txt; docs/evidence/2026-09-12/verify.txt; docs/evidence/2026-09-12/test.txt; docs/evidence/2026-09-12/check.txt; docs/evidence/2026-09-12/lint.txt; docs/evidence/2026-09-12/build.txt; docs/evidence/2026-09-11/verify-outer.txt; docs/evidence/2026-09-11/sonarjs-local.txt; tests/unit/safety-keyword-parity.test.ts; tests/unit/constants.test.ts; tests/unit/analyze-merge-conflicts.test.ts
+  - Summary: Dated 2026-09-12 because the work crossed a UTC midnight and the chain writes into the day it runs; the 2026-09-11 folder holds the same run's earlier transcripts and is cited alongside. SafetyPolicySeam's 10 contract tests pass unchanged (rewind evidence above); the suite is 2194 passing across 114 files. The seam's contract, mock, fixtures, probe and contract tests are unchanged; only `policy.ts` changed, and only to delete the local keyword array so the implementation reads `SYSTEM_CONSTANTS.DISALLOWED_KEYWORDS` and nothing else. The two words it used to hold privately are now in that constant, which is what makes the other two routes enforce them. A new parity test drives both enforcement paths from the constant itself, and `enforcedDisallowedKeywords` is exported so the test can assert **identity** with the shared array rather than equality of contents - reintroducing the original `[...SHARED, 'x']` shape fails it, proven by mutation in the red proof above.
+  - Risks: The two newly-shared words widen what `/api/tools` and `/api/meechie-studio-text` refuse, so a request that worked yesterday can be refused today - intended, and the reason it is in `CHANGELOG.md`. Substring matching is unchanged and remains blunt: `'minors'` matches inside `'minorsuit'` and `'suicide'` inside a clinical phrase, and this change neither introduces nor fixes that. Widening the list widens that bluntness by two words, which is the cost of the parity being correct rather than a defect it adds.
+
 ## 2026-09-10 — Give the letterform one voice in the prompt, and give the reader the control
 
 - Decision: `fontStyleLine` describes the letterform in words instead of emitting the bare enum
