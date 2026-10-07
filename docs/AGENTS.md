@@ -8,14 +8,60 @@ Info flow: Triage/Verify tools -> docs/evidence/ -> docs/triage-table.md & docs/
 This folder houses the repository's state ledgers, triage tables, seam catalogs, decision logs, and command evidence records. Any updates to documentation inside this directory must follow these rules:
 
 ## 1. Triage Table Maintenance (`triage-table.md`)
-The [triage-table.md](file:///C:/Users/ieatc/Meechiescoloringbook/docs/triage-table.md) acts as the single source of truth for open PR statuses.
-- **Merge Status:** Must only be updated to `CLEAN` or `CONFLICT` after a programmatic merge run (via `scripts/analyze-merge-conflicts.js`).
-- **Target Bucket Definitions:**
-  - `1. Safe candidate for dry-run`: Clean merge, tests/verify pending.
-  - `2. Stale/superseded`: Superseded by newer workpacks.
-  - `3. Salvageable code only`: Port useful parts, do not merge branch wholesale.
-  - `4. High-conflict/manual intervention`: Conflicting files require manual code edits.
-  - `5. Dependency/generated/evidence-only`: Automatically updated metadata or lockfiles.
+[`triage-table.md`](./triage-table.md) is the single source of truth for open PR statuses, and it has
+**two kinds of column**. Which kind a column is decides who may write it.
+
+**Written only by `scripts/analyze-merge-conflicts.js`. Never edited by hand:**
+- **Merge status** — exactly `CLEAN` or `CONFLICT`, and nothing else. No decoration, no third value.
+- **Conflicting paths** — the files git named, or a note saying the measurement could not be made.
+  This cell **abbreviates**: a directory contributing several files reads `dir/* (N files)`, because a
+  cell holding twenty-five paths is how this column once said nothing at all.
+- The block between `<!-- conflicting-paths:begin -->` and `<!-- conflicting-paths:end -->`, which
+  names every path git gave, verbatim and unescaped, inside a code fence. It is the complete record the
+  abbreviated cell stands for, written from the same measurement in the same run. Rewritten whole; the
+  refresh refuses to measure a table whose markers are missing, duplicated or out of order.
+- The `Last refreshed: **<date>**, against \`origin/main\` at \`<sha>\`` line, which the same run
+  rewrites so the table cannot claim a base its cells were not measured against.
+
+**Written only by a human. Never by a script:**
+- **Dry-run** — `yes` or `no`: whether this PR should be checked out and validated.
+  `scripts/validate-pr-backlog.js` selects a row only when this is `yes` **and** the status is
+  `CLEAN`. Two conditions, because merging cleanly and being worth validating are different facts.
+- **Content `main` lacks** and **Disposition** — what the PR still holds that `main` does not, and
+  what to do about it, in prose.
+
+Rules that follow from the split:
+- A script that reads this table must locate its columns **by header name**, never by position, and
+  must split rows on unescaped pipes only. Import the helpers from `analyze-merge-conflicts.js`
+  (`readTable`, `splitRow`) rather than parsing the file again.
+- A refresh is all-or-nothing. If any row's head cannot be measured, nothing is written — a table
+  mixing old and new measurements under one provenance line cannot be read.
+- Every guard belongs to every reader. Both scripts import the same `findRowsWithBadPrCell`,
+  `findMalformedRows`, `findDuplicateColumns` and `readTable`; a guard added for one of them and not
+  the other is how the validator twice reported an empty backlog for a table it simply could not read.
+  `findDuplicateColumns` takes the column names its caller reads, so a reader guards its own columns.
+- An abbreviation in a cell is allowed; being the only record is not. Anything shortened for
+  readability needs the unshortened version written by the same run, and a test asserting the two
+  agree — `tests/unit/analyze-merge-conflicts.test.ts` reads the committed file and rebuilds each cell
+  from the block's paths with `summarizeConflictPaths`, rather than parsing the cell apart, because a
+  filename may legally contain the separator a parser would split on.
+- The generated columns must be byte-identical on every machine. Ordering is by UTF-16 code unit, never
+  `localeCompare` — with no locale that reads the host's collation, so the same measurement wrote a
+  different table on a `sv-SE` machine than on an `en-US` one, and a committed file whose bytes depend on
+  where they were generated is not evidence.
+- Guards are ordered by what they need, cheapest precondition first. Row width needs no parsing, so it is
+  checked over every non-divider row of the table before any cell is read; a `PR` cell is parsed only
+  once the row is known to be the right shape. A row that was both too narrow and missing its `#` used to
+  pass both guards, because each one needed the other's precondition to hold.
+- **Structure is recognised only where structure can legally be.** This file holds filenames git chose,
+  and a filename may be shaped like a table row, like a block marker, or like a blank line. So PR rows
+  come only from the contiguous table (`tableRowEnd`), the markers only from outside a fenced block
+  (`fencedLines`), and git's path-list terminator only from a line with nothing in it. Matching the
+  shape of a line anywhere in the document hands this file's grammar to whoever names a file.
+- A second fact about a row gets its own column. Encoding two decisions in one cell is what the
+  retired `Target Bucket` vocabulary did, and separating them is why it is gone: its five categories
+  (`1. Safe candidate for dry-run` … `5. Dependency/generated/evidence-only`) described the 2026-06
+  backlog drain, which is finished. Do not reintroduce them.
 
 ## 2. PR Resolution Ledgers
 Ledger documents (e.g. `docs/hpr-pr-resolution-ledger-YYYY-MM-DD.md`) track historical PR audits.

@@ -9,7 +9,7 @@ export const SYSTEM_CONSTANTS = {
 		'Crisp vector-like linework',
 		'NEGATIVE PROMPT:'
 	],
-	DISALLOWED_KEYWORDS: ['minors', 'self-harm'],
+	DISALLOWED_KEYWORDS: ['minors', 'self-harm', 'suicide', 'extremist'],
 	CHAT_SYSTEM_PROMPT: `You map user intent to a ColoringPageSpec JSON object. Output ONLY JSON.
 
 Rules:

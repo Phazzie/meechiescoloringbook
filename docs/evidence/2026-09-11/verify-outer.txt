@@ -1,0 +1,73 @@
+$ npm run verify
+# started 2026-09-11T23:57:23.447Z
+
+$ npm run audit:gate
+
+> meechies-coloringbook@0.1.0 audit:gate
+> npm audit --audit-level=high
+
+found 0 vulnerabilities
+
+$ /opt/node22/bin/node scripts/chamber-lock.mjs
+
+$ /opt/node22/bin/node scripts/verify-runner.mjs
+
+> meechies-coloringbook@0.1.0 check
+> svelte-kit sync && svelte-check --tsconfig ./tsconfig.json
+
+Loading svelte-check in workspace: /home/user/meechiescoloringbook
+Getting Svelte diagnostics...
+
+svelte-check found 0 errors and 0 warnings
+
+> meechies-coloringbook@0.1.0 test
+> vitest run --pool=forks --maxWorkers=1
+
+
+ RUN  v4.1.11 /home/user/meechiescoloringbook
+
+
+ Test Files  114 passed | 1 skipped (115)
+      Tests  2132 passed | 1 skipped (2133)
+   Start at  23:57:36
+   Duration  96.57s (transform 3.99s, setup 932ms, import 7.94s, tests 8.54s, environment 61.65s)
+
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+
+$ /opt/node22/bin/node scripts/shaolin-lint.mjs
+
+$ /opt/node22/bin/node scripts/assumption-alarm.mjs
+
+$ /opt/node22/bin/node scripts/seam-ledger.mjs
+
+$ /opt/node22/bin/node scripts/clan-chain.mjs
+
+$ /opt/node22/bin/node scripts/proof-tape.mjs
+
+# npm run verify exited 0
+# finished 2026-09-11T23:59:13.952Z

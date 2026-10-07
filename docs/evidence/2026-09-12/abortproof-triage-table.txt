@@ -1,0 +1,47 @@
+Abort and idempotence proof, after the pre-measurement guards were lifted into validateTable
+=============================================================================================
+
+Each case edits the committed docs/triage-table.md, runs `node scripts/analyze-merge-conflicts.js`,
+and restores the file. "Nothing measured" is visible in the transcript: the run never reaches the
+"Measuring 6 PRs" line, so no PR head was fetched.
+
+== block markers removed ==
+==================================================
+PR Merge Conflict Analyzer
+==================================================
+
+The block naming every conflicting file cannot be located: found 0 "<!-- conflicting-paths:begin -->" and 0 "<!-- conflicting-paths:end -->" markers; there must be exactly one of each. The `Conflicting paths` cells abbreviate, so that block is where the table names files at all. Nothing measured, nothing written — restore the markers around it.
+exit=1
+
+== a data row written 348 instead of #348 ==
+==================================================
+PR Merge Conflict Analyzer
+==================================================
+
+These rows are the header's width but their PR cell does not name a PR:
+  line 40: "296"
+A full-width row is a data row, so it must be measurable. Omitting it would refresh every other row and advance the provenance line while this PR went unmeasured. Nothing measured, nothing written — write the cell as #<number>, or make the line narrower if it is prose.
+exit=1
+
+== idempotence: a second real run ==
+==================================================
+PR Merge Conflict Analyzer
+==================================================
+
+Measuring 6 PRs against origin/main (f1a8c91).
+
+-> PR #348 is CLEAN.
+-> PR #338 is CONFLICT (2 file(s)).
+-> PR #328 is CONFLICT (13 file(s)).
+-> PR #317 is CONFLICT (21 file(s)).
+-> PR #308 is CONFLICT (18 file(s)).
+-> PR #296 is CONFLICT (22 file(s)).
+
+==================================================
+Conflict analysis complete.
+Updated triage table: /home/user/meechiescoloringbook/docs/triage-table.md
+==================================================
+exit=0
+byte-identical to the committed table
+md5 before: 24b62eb2ca48f72cd4d02299d4de1278
+md5 after:  24b62eb2ca48f72cd4d02299d4de1278

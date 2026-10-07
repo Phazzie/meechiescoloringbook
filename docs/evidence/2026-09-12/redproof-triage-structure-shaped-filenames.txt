@@ -1,0 +1,122 @@
+Red-proof: round 14's five findings on 02ef91e, each reintroduced and each caught
+=================================================================================
+
+Three of the five are defects the previous round's own fix created — the lossless block writes
+arbitrary filenames into the file this script also reads for structure — and that is the finding
+worth stating plainly:
+
+  **A writer that emits arbitrary content into a file its own reader parses has handed the reader's
+  grammar to whoever names the content.** A conflicted filename can be `| #999 | ... |`, or exactly
+  `<!-- conflicting-paths:begin -->`, or `   `. Each was read as structure rather than as content.
+
+Findings, in substance:
+
+  1. Stop parsing at the end of the PR table (analyze-merge-conflicts.js). readTable and
+     findRowsWithBadPrCell scanned to EOF, so a filename shaped like a data row — legal, and now
+     written verbatim into the block below the table — became a PR row. The analyzer would fetch a
+     pull request that does not exist, or rewrite that filename inside the fence.
+  2. Reject duplicate provenance lines before refreshing. validateTable checked that at least one
+     exists; rewriteProvenance updates the first. Two lines meant one refreshed and one left
+     claiming a different base, exit 0.
+  3. Keep marker-shaped filenames from becoming block delimiters. A file named exactly
+     `<!-- conflicting-paths:begin -->` was written into the fence and then counted as a second
+     marker, so a refresh that succeeded produced a table the next run refuses to read.
+  4. Compare summaries without splitting valid filenames (the test). The real-file check split the
+     cell on comma-space, so a file named `a, b.md` — written correctly into both the cell and the
+     block — read as two entries and failed `npm test`, making a valid refresh impossible to commit.
+  5. Preserve filenames made entirely of whitespace. parseConflictPaths tested its terminator on a
+     trimmed copy, so a file named `   ` read as the empty separator before git's diagnostics: the
+     table recorded that git named no files and the path was missing from the block as well.
+
+Fixes: row discovery is bounded to the contiguous table (`tableRowEnd`); marker discovery skips
+fenced lines, with CommonMark's closing rule so a shorter backtick run cannot close a longer fence
+(`fencedLines`); exactly one provenance line is required, as for the block markers; the real-file
+check now *generates* the cell from the block's paths with `summarizeConflictPaths` and compares,
+parsing no filenames at all; and the path terminator is an empty line rather than a blank one.
+
+Each mutation below reintroduces one defect and runs
+`npx vitest run tests/unit/analyze-merge-conflicts.test.ts`.
+
+=================================================================
+MUTATION: row discovery scans to EOF again (a row-shaped filename becomes a PR row)
+=================================================================
+     × does not read the row-shaped filename as a PR row 10ms
+ FAIL  tests/unit/analyze-merge-conflicts.test.ts > a filename that looks like this document’s own structure > does not read the row-shaped filename as a PR row
+AssertionError: expected [ { pr: 348, lineIndex: 3 }, …(1) ] to deeply equal [ { pr: 348, lineIndex: 3 } ]
+      Tests  1 failed | 120 passed (121)
+
+=================================================================
+MUTATION: marker discovery ignores fences (a marker-shaped filename becomes a marker)
+=================================================================
+     × does not count the marker-shaped filename as a second begin marker 7ms
+     × still validates, so the refresh it produced is one the next run accepts 4ms
+ FAIL  tests/unit/analyze-merge-conflicts.test.ts > a filename that looks like this document’s own structure > does not count the marker-shaped filename as a second begin marker
+AssertionError: expected null to be 5 // Object.is equality
+ FAIL  tests/unit/analyze-merge-conflicts.test.ts > a filename that looks like this document’s own structure > still validates, so the refresh it produced is one the next run accepts
+AssertionError: expected { ok: false, …(1) } to deeply equal { ok: true }
+      Tests  2 failed | 119 passed (121)
+
+=================================================================
+MUTATION: a shorter backtick run closes a longer fence
+=================================================================
+     × does not let a shorter run close a longer fence 9ms
+ FAIL  tests/unit/analyze-merge-conflicts.test.ts > fencedLines > does not let a shorter run close a longer fence
+AssertionError: expected [ true, true, false, true, true ] to deeply equal [ true, true, true, true, false ]
+      Tests  1 failed | 120 passed (121)
+
+=================================================================
+MUTATION: provenance requires at least one line instead of exactly one
+=================================================================
+     × refuses a table carrying two provenance lines 7ms
+ FAIL  tests/unit/analyze-merge-conflicts.test.ts > validateTable > refuses a table carrying two provenance lines
+AssertionError: expected '' to contain 'Found 2 lines'
+      Tests  1 failed | 120 passed (121)
+
+=================================================================
+MUTATION: the path terminator is tested on a trimmed copy (a file named '   ' disappears)
+=================================================================
+     × keeps a path made entirely of spaces 9ms
+ FAIL  tests/unit/analyze-merge-conflicts.test.ts > parseConflictPaths and a filename with nothing but spaces in it > keeps a path made entirely of spaces
+AssertionError: expected [] to deeply equal [ '   ', 'plan.md' ]
+      Tests  1 failed | 120 passed (121)
+
+=================================================================
+MUTATION: the real-file check splits the cell on comma-space, against a file named 'a, b.md'
+=================================================================
+     × expands every abbreviated cell into the same files the block names 7ms
+ FAIL  tests/unit/analyze-merge-conflicts.test.ts > the committed triage table > expands every abbreviated cell into the same files the block names
+AssertionError: expected [ 'a, b.md' ] to include 'a'
+      Tests  1 failed | 120 passed (121)
+
+=================================================================
+Abort proof: the provenance count, and a row-shaped filename now inert
+=================================================================
+
+== two provenance lines ==
+==================================================
+PR Merge Conflict Analyzer
+==================================================
+
+Found 2 lines starting "Last refreshed:"; there must be exactly one. A table with none would carry fresh statuses and no record of the date or base they were measured against, and a table with two would have one of them refreshed and the other left claiming a different base. Nothing measured, nothing written.
+exit=1
+
+== a row-shaped filename in the block (no longer fatal) ==
+==================================================
+PR Merge Conflict Analyzer
+==================================================
+
+Measuring 6 PRs against origin/main (f1a8c91).
+
+-> PR #348 is CLEAN.
+-> PR #338 is CONFLICT (2 file(s)).
+-> PR #328 is CONFLICT (13 file(s)).
+-> PR #317 is CONFLICT (21 file(s)).
+-> PR #308 is CONFLICT (18 file(s)).
+-> PR #296 is CONFLICT (22 file(s)).
+
+==================================================
+Conflict analysis complete.
+Updated triage table: /home/user/meechiescoloringbook/docs/triage-table.md
+==================================================
+exit=0
+24b62eb2ca48f72cd4d02299d4de1278  docs/triage-table.md
