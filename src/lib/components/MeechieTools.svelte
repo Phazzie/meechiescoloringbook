@@ -935,6 +935,13 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 				// Here, and only here, does what is on screen stop belonging to what is on screen.
 				resetState();
 				output = parsedResult.data.value;
+				// Random Meechie returns a different saying every time, so a dedication chosen for the
+				// previous one must not ride along — the same rule `/random` and the focused Random page
+				// apply. Cleared here, before the page this verdict starts reads it. Until now the hub
+				// kept it and the reader's own "make page" press was the chance to notice; the page now
+				// starts itself, so there is no such moment. Question tools keep theirs: re-asking
+				// about the same situation is still about the same subject. Caught in review of PR #358.
+				if (parsedResult.data.value.toolId === 'random_meechie') dedicatedTo = '';
 				installed = parsedResult.data.value;
 			} else {
 				verdictFailure = classifyVerdictFailure({
@@ -1192,6 +1199,8 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 						<span class="working-dot" aria-hidden="true"></span>
 						Printing the truth…
 					</span>
+				{:else if imagePreviews.length > 0}
+					Redraw My Coloring Page
 				{:else}
 					Generate My Coloring Page
 				{/if}

@@ -35,6 +35,13 @@ Invariants: The quality report is rendered ONLY through `QualityReportPanel`, ne
 		dedicationPlaceholder?: string;
 	} = $props();
 
+	// A remake once a page exists, as on the home studio: the verdict already started its page, so
+	// "Generate" would invite a second paid generation of the same words. See `createLabel` in
+	// `StudioPreviewPanel.svelte`.
+	const generateLabel = $derived(
+		studio.hasPage ? 'Redraw My Coloring Page' : 'Generate My Coloring Page'
+	);
+
 	let glitter = $state(false);
 </script>
 
@@ -130,7 +137,7 @@ Invariants: The quality report is rendered ONLY through `QualityReportPanel`, ne
 		aria-describedby={studio.quota.pictureMessage() ? 'page-budget' : undefined}
 		disabled={studio.isGenerating || studio.isWorking || studio.pageQuotaExhausted}
 	>
-		{studio.isGenerating ? 'Printing the truth…' : 'Generate My Coloring Page'}
+		{studio.isGenerating ? 'Printing the truth…' : generateLabel}
 	</button>
 	<!-- The image bucket, which is what the button directly above spends. This panel is shared by
 	     the three standalone mode routes and every `/m/<slug>` page, so this one line is what puts a

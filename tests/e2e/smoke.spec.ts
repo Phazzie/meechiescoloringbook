@@ -300,6 +300,9 @@ test('one press on the home studio makes the verdict and the page, and a rewrite
 	await page.getByTestId('home-generate-verdict').click();
 	await expect(page.getByTestId('home-generated-image')).toBeVisible();
 	expect(calls).toEqual(['text', 'page']);
+	// With a page already on the paper the control is a remake and must not still say "Create": a
+	// reader doing what the label asks would pay for a second picture of the same words.
+	await expect(page.getByTestId('home-create-page')).toContainText(/redraw/i);
 
 	// A rewrite throws the old page away, so it must draw the new one: the picture on screen is
 	// always the picture of the words beside it.
@@ -1095,6 +1098,39 @@ test('the tools hub will not start another verdict while its picture is being dr
 	release();
 	await expectPageOnScreen(page);
 	await expect(page.getByTestId('meechie-tool-generate')).toBeEnabled();
+	await expect(page.getByTestId('meechie-tool-make-page')).toContainText(/redraw/i);
+});
+
+test('the tools hub drops a dedication chosen for the previous Random saying', async ({
+	page
+}) => {
+	// The hub kept its dedication across every verdict. Harmless while the reader's own "make page"
+	// press was the moment to notice it; the page now starts itself with whatever is in the field,
+	// so a new Random saying would be printed for the previous one's recipient. Caught in review of
+	// PR #358.
+	const dedications: Array<string | undefined> = [];
+	await page.route('**/api/generate', async (route) => {
+		const body = route.request().postDataJSON() as {
+			spec: { dedication?: string };
+		};
+		dedications.push(body.spec.dedication);
+		await route.fulfill({ json: generatedPage });
+	});
+
+	await gotoHydrated(page, '/meechie');
+	await page.getByTestId('meechie-tool-random_meechie').click();
+	await page.getByTestId('meechie-tool-generate').click();
+	await expectPageOnScreen(page);
+
+	// A dedication edit drops the page it was not generated with; the next saying replaces it.
+	await page.getByTestId('meechie-tool-dedication').fill('For Andre');
+	await expect(page.locator('.preview-grid img')).toHaveCount(0);
+	await page.getByTestId('meechie-tool-generate').click();
+
+	await expectPageOnScreen(page);
+	await expect(page.getByTestId('meechie-tool-dedication')).toHaveValue('');
+	expect(dedications).toHaveLength(2);
+	expect(dedications[1] ?? '').toBe('');
 });
 
 test('a slow page generation cannot land under a different verdict', async ({
