@@ -162,6 +162,44 @@ const routeTools = async (
 };
 
 /**
+ * A request the test holds open until it chooses to let it go. `release` is the key; `held` is what
+ * a route handler awaits. Shared because every "observe the state while a picture is still being
+ * drawn" test needs exactly this, and a copy in each tripped SonarCloud's duplication gate.
+ */
+const holdOpen = (): { held: Promise<void>; release: () => void } => {
+	let release!: () => void;
+	const held = new Promise<void>((resolve) => {
+		release = resolve;
+	});
+	return { held, release };
+};
+
+/** Hold every `/api/generate` request open until the returned `release` is called, then answer it. */
+const holdGenerate = async (page: Page): Promise<() => void> => {
+	const { held, release } = holdOpen();
+	await page.route('**/api/generate', async (route) => {
+		await held;
+		await route.fulfill({ json: generatedPage });
+	});
+	return release;
+};
+
+/** Record the dedication every `/api/generate` request carries, answering each with the stub page. */
+const recordDedications = async (
+	page: Page
+): Promise<Array<string | undefined>> => {
+	const dedications: Array<string | undefined> = [];
+	await page.route('**/api/generate', async (route) => {
+		const body = route.request().postDataJSON() as {
+			spec: { dedication?: string };
+		};
+		dedications.push(body.spec.dedication);
+		await route.fulfill({ json: generatedPage });
+	});
+	return dedications;
+};
+
+/**
  * Take the verdict already on screen through to a page kept in the vault: dedicate it, generate
  * it, check the download exists, save it, then confirm it reached the same vault the home page
  * reads rather than a private one.
@@ -922,14 +960,7 @@ test('the focused Random mode makes its page from one tap, and Another one does 
 	// The defect this exists for: the route cleared the dedication after the tap returned, by which
 	// time the page had already started, and clearing discards a page in flight. The picture was
 	// drawn, paid for and thrown away — and nothing failed, so only a browser could see it.
-	const dedications: Array<string | undefined> = [];
-	await page.route('**/api/generate', async (route) => {
-		const body = route.request().postDataJSON() as {
-			spec: { dedication?: string };
-		};
-		dedications.push(body.spec.dedication);
-		await route.fulfill({ json: generatedPage });
-	});
+	const dedications = await recordDedications(page);
 
 	await gotoHydrated(page, '/m/random');
 	await page.getByTestId('mode-submit').click();
@@ -1081,14 +1112,7 @@ test('the tools hub will not start another verdict while its picture is being dr
 	// A verdict now starts its own page, so every verdict opens a window in which asking again would
 	// discard a picture already paid for. The button says so by being unavailable, and comes back
 	// the moment the picture lands. Caught in review of PR #358.
-	let release!: () => void;
-	const held = new Promise<void>((resolve) => {
-		release = resolve;
-	});
-	await page.route('**/api/generate', async (route) => {
-		await held;
-		await route.fulfill({ json: generatedPage });
-	});
+	const release = await holdGenerate(page);
 
 	await gotoHydrated(page, '/meechie');
 	await page.getByTestId('meechie-tool-generate').click();
@@ -1108,14 +1132,7 @@ test('the tools hub drops a dedication chosen for the previous Random saying', a
 	// press was the moment to notice it; the page now starts itself with whatever is in the field,
 	// so a new Random saying would be printed for the previous one's recipient. Caught in review of
 	// PR #358.
-	const dedications: Array<string | undefined> = [];
-	await page.route('**/api/generate', async (route) => {
-		const body = route.request().postDataJSON() as {
-			spec: { dedication?: string };
-		};
-		dedications.push(body.spec.dedication);
-		await route.fulfill({ json: generatedPage });
-	});
+	const dedications = await recordDedications(page);
 
 	await gotoHydrated(page, '/meechie');
 	await page.getByTestId('meechie-tool-random_meechie').click();
@@ -1141,10 +1158,7 @@ test('a slow page generation cannot land under a different verdict', async ({
 	// new verdict, and reading the old verdict's toolId after the await threw outright.
 	// Definite-assignment, not `| null`: the executor runs synchronously, but control-flow
 	// analysis cannot see that and narrows a nullable binding to `never` at the call site.
-	let release!: () => void;
-	const held = new Promise<void>((resolve) => {
-		release = resolve;
-	});
+	const { held, release } = holdOpen();
 	// The first generation is tool A's, started by the press that asked for A's verdict, and is the
 	// one held open. Tool B's verdict starts a generation of its own now, and it is refused: with
 	// B's page unable to land, a picture on screen after the release can only be A's stale one.
@@ -1872,10 +1886,7 @@ test('each button reports the bucket it actually spends', async ({ page }) => {
 	// Held open until released: the press now starts the page too, so without holding it the
 	// "verdict has reported and the page has not" moment this test is about would be gone before it
 	// could be observed.
-	let releasePage!: () => void;
-	const pageHeld = new Promise<void>((resolve) => {
-		releasePage = resolve;
-	});
+	const { held: pageHeld, release: releasePage } = holdOpen();
 	await page.route('**/api/generate', async (route) => {
 		await pageHeld;
 		await route.fulfill({

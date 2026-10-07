@@ -1241,6 +1241,12 @@ export class StudioState {
 		!!this.selectedWigId &&
 			!!this.selfieBase64 &&
 			!this.isTryingOn &&
+			// A try-on repaints the one paper: it resets the generated page, which advances the token a
+			// page still being drawn compares against, so that page discards itself after it has been
+			// paid for. A verdict now starts its own page, so every verdict opens that window. The
+			// opposite direction already refuses (`handleGenerateTryOnPage` waits for `isTryingOn`).
+			// Caught in review of PR #358.
+			!this.isGenerating &&
 			!this.tryOnQuotaExhausted
 	);
 	// The portrait on screen is whichever belongs to the wig on screen. Selecting a wig that was
@@ -2762,6 +2768,10 @@ export class StudioState {
 	}
 
 	handleWigTryOn = async (): Promise<void> => {
+		// Refused here as well as on the button, for the reason `canTryOn` gives: the state is where
+		// a race between two transitions has to be refused. Silent, like `retryWigTryOn`'s own guard:
+		// the page the reader is waiting for is the thing in progress.
+		if (this.isGenerating) return;
 		const wig = this.selectedWig;
 		if (!wig || !this.selectedWigId || !this.selfieBase64) {
 			// A defensive guard, not a path the reader can reach today: `canTryOn` already requires

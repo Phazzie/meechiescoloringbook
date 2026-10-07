@@ -5516,6 +5516,33 @@ describe('StudioState one-press page', () => {
 		expect(studio.canMakeMeaner).toBe(true);
 	});
 
+	it('refuses a wig try-on while its page is being drawn, so the paid page is not discarded', async () => {
+		// A try-on resets the generated page, which advances the token a page in flight compares
+		// against — so pressing it mid-drawing made that page discard itself after being paid for.
+		// Caught in review of PR #358.
+		let release!: (response: Response) => void;
+		const held = new Promise<Response>((resolve) => {
+			release = resolve;
+		});
+		const calls = stubEndpoints({ generate: () => held });
+		const studio = arrange();
+		studio.selectedWig = SAMPLE_WIG;
+		studio.selfieBase64 = 'selfie-bytes';
+		expect(studio.canTryOn).toBe(true);
+
+		const pressed = studio.runTextAction('generate_text');
+		await until(() => studio.isGenerating);
+
+		expect(studio.canTryOn).toBe(false);
+		await studio.handleWigTryOn();
+		expect(calls).not.toContain('/api/wig-try-on');
+
+		release(pageResponse());
+		await pressed;
+		expect(studio.images).toHaveLength(1);
+		expect(studio.canTryOn).toBe(true);
+	});
+
 	it('keeps the new verdict and spends no image when the image allowance is already empty', async () => {
 		const calls = stubEndpoints({
 			generate: async () =>
