@@ -568,6 +568,20 @@ export class StudioState {
 	private generatedSpec = $state<ColoringPageSpec | undefined>(undefined);
 	isTextWorking = $state(false);
 	isGenerating = $state(false);
+	/**
+	 * Which page generation currently owns `isGenerating`: the latest one started.
+	 *
+	 * Two runs can overlap now that the controls are released when a picture *lands* rather than when
+	 * its packaging ends — a rewrite can start page B while page A is still packaging. A's `finally`
+	 * used to clear the flag unconditionally, handing B's in-flight picture back to the controls that
+	 * discard it. Each run clears the flag only if it is still the latest.
+	 *
+	 * A counter rather than `pageLoadToken`, on purpose: a reset with no replacement (a mode switch)
+	 * bumps that token too, and a run it abandoned would then never release the flag. The counter only
+	 * moves when a new generation starts, so the last one standing always releases it. Caught in
+	 * review of PR #358.
+	 */
+	private generationRun = 0;
 	copyStatus = $state('');
 	validationIssues = $state<SpecValidationOutput['issues']>([]);
 	/**
@@ -2560,6 +2574,7 @@ export class StudioState {
 		// finishes — which is the defect the mode routes already guard against, and this one did not.
 		const pageToken = this.pageLoadToken;
 		this.isGenerating = true;
+		const run = ++this.generationRun;
 		this.lastPageAttempt = 'page';
 		try {
 			await this.applyTextToSpec(this.textOutput);
@@ -2655,7 +2670,8 @@ export class StudioState {
 		} catch (error) {
 			this.pageFailure = this.classifyPageFailure({ thrown: error });
 		} finally {
-			this.isGenerating = false;
+			// Only the latest run releases the flag — see `generationRun`.
+			if (run === this.generationRun) this.isGenerating = false;
 		}
 	};
 
@@ -2701,6 +2717,7 @@ export class StudioState {
 		// a moved token means the reader is no longer looking at the page they asked for.
 		const pageToken = this.pageLoadToken;
 		this.isGenerating = true;
+		const run = ++this.generationRun;
 		this.lastPageAttempt = 'tryOn';
 		try {
 			// Captured before the await, like `wig` above and like the generate path: the spec this
@@ -2778,7 +2795,8 @@ export class StudioState {
 					'The try-on page could not be assembled. Try creating it again.'
 			});
 		} finally {
-			this.isGenerating = false;
+			// Only the latest run releases the flag — see `generationRun`.
+			if (run === this.generationRun) this.isGenerating = false;
 		}
 	};
 

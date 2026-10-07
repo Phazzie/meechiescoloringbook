@@ -5543,6 +5543,79 @@ describe('StudioState one-press page', () => {
 		}
 	);
 
+	it('does not let an earlier page\u2019s slow packaging release the flag a newer page owns', async () => {
+		// The controls are released when a picture lands, so a rewrite can start page B while page A
+		// is still packaging. A's `finally` used to clear `isGenerating` unconditionally, handing B's
+		// in-flight picture back to the controls that discard it. Caught in review of PR #358.
+		let releaseA!: () => void;
+		const heldA = new Promise<void>((resolve) => {
+			releaseA = resolve;
+		});
+		let releaseB!: (response: Response) => void;
+		const heldB = new Promise<Response>((resolve) => {
+			releaseB = resolve;
+		});
+		let generateCalls = 0;
+		stubEndpoints({
+			generate: () => {
+				generateCalls += 1;
+				return generateCalls === 1 ? Promise.resolve(pageResponse()) : heldB;
+			}
+		});
+		const studio = arrange();
+		let packageCalls = 0;
+		vi.mocked(outputPackagingAdapter.package).mockImplementation(async () => {
+			packageCalls += 1;
+			if (packageCalls === 1) await heldA;
+			return {
+				ok: true,
+				value: {
+					files: [{ filename: 'page.pdf', mimeType: 'application/pdf', dataBase64: 'cGRm' }]
+				}
+			};
+		});
+
+		void studio.runTextAction('generate_text');
+		await vi.waitFor(() => expect(studio.images.length).toBeGreaterThan(0));
+		expect(studio.canMakeMeaner).toBe(true);
+
+		void studio.runTextAction('make_meaner');
+		await vi.waitFor(() => expect(generateCalls).toBe(2));
+		expect(studio.isAwaitingPicture).toBe(true);
+
+		// A's packaging finally settles, with B's picture still being drawn.
+		releaseA();
+		await new Promise((resolve) => setTimeout(resolve, 25));
+
+		expect(studio.isAwaitingPicture).toBe(true);
+		expect(studio.canMakeMeaner).toBe(false);
+
+		releaseB(pageResponse());
+		await vi.waitFor(() => expect(studio.isGenerating).toBe(false));
+		expect(studio.images).toHaveLength(1);
+	});
+
+	it('still releases the flag when the run it belongs to was abandoned with no replacement', async () => {
+		// Why ownership is a run counter and not `pageLoadToken`: a mode switch bumps the token and
+		// starts nothing, so a token comparison would leave the abandoned run unable to release the
+		// flag, and the studio disabled until a reload.
+		let release!: (response: Response) => void;
+		const held = new Promise<Response>((resolve) => {
+			release = resolve;
+		});
+		stubEndpoints({ generate: () => held });
+		const studio = arrange();
+
+		const pressed = studio.runTextAction('generate_text');
+		await until(() => studio.isGenerating);
+		studio.handleModeSelect(studio.modes[1].id);
+		release(pageResponse());
+		await pressed;
+
+		expect(studio.isGenerating).toBe(false);
+		expect(studio.isAwaitingPicture).toBe(false);
+	});
+
 	it('releases the text controls once the picture lands, even if packaging never settles', async () => {
 		// `isGenerating` also covers packaging, and the packaging adapter awaits `image.onload` with
 		// no timeout, so a hang there must not leave every text control disabled for good — nor Try
