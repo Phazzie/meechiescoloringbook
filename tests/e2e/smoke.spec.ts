@@ -1072,6 +1072,31 @@ test('every toolkit verdict becomes a coloring page that downloads and saves', a
 	await expect(page.getByTestId('home-vault-load')).toBeVisible();
 });
 
+test('the tools hub will not start another verdict while its picture is being drawn', async ({
+	page
+}) => {
+	// A verdict now starts its own page, so every verdict opens a window in which asking again would
+	// discard a picture already paid for. The button says so by being unavailable, and comes back
+	// the moment the picture lands. Caught in review of PR #358.
+	let release!: () => void;
+	const held = new Promise<void>((resolve) => {
+		release = resolve;
+	});
+	await page.route('**/api/generate', async (route) => {
+		await held;
+		await route.fulfill({ json: generatedPage });
+	});
+
+	await gotoHydrated(page, '/meechie');
+	await page.getByTestId('meechie-tool-generate').click();
+	await expect(page.getByTestId('meechie-tool-page-factory')).toBeVisible();
+	await expect(page.getByTestId('meechie-tool-generate')).toBeDisabled();
+
+	release();
+	await expectPageOnScreen(page);
+	await expect(page.getByTestId('meechie-tool-generate')).toBeEnabled();
+});
+
 test('a slow page generation cannot land under a different verdict', async ({
 	page
 }) => {

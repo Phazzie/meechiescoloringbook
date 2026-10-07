@@ -135,6 +135,15 @@ export class VerdictPageState extends PageArtifactState {
 	 * `change_request` advice already says.
 	 */
 	private lastVerdictInput: MeechieToolInput | null = null;
+	/**
+	 * Whether that attempt was for a new subject, so a retry clears the dedication the way the first
+	 * attempt would have. It is what makes a retry "the same question": Random Meechie returns a
+	 * different saying every time, and a retried tap must not print the previous saying's dedication
+	 * on the new one. Recorded by `requestVerdictAndPage` and paired with `lastVerdictInput` in
+	 * practice, because `newSubject` is a constant of the route (only the input-less Random question
+	 * sets it), so the two cannot disagree.
+	 */
+	private lastNewSubject = false;
 
 	/**
 	 * Cleared with the page: a "Verdict copied." line under a verdict that is no longer there.
@@ -166,6 +175,7 @@ export class VerdictPageState extends PageArtifactState {
 		this.isWorking = false;
 		this.verdictFailure = null;
 		this.lastVerdictInput = null;
+		this.lastNewSubject = false;
 		this.verdict = null;
 		this.dedication = '';
 		this.resetPage();
@@ -322,6 +332,7 @@ export class VerdictPageState extends PageArtifactState {
 		input: MeechieToolInput,
 		options: { newSubject?: boolean } = {}
 	): Promise<MeechieToolOutput | null> {
+		this.lastNewSubject = options.newSubject === true;
 		const installed = await this.requestVerdict(input);
 		if (installed === null) return null;
 		if (options.newSubject) this.dedication = '';
@@ -365,8 +376,11 @@ export class VerdictPageState extends PageArtifactState {
 		const input = this.lastVerdictInput;
 		if (!input || this.isWorking || this.isGenerating) return null;
 		// Through the composed entry: a retried question is the same one press as the first, so the
-		// reader who retries a failed verdict is not handed a second button for the page.
-		return await this.requestVerdictAndPage(input);
+		// reader who retries a failed verdict is not handed a second button for the page. With the
+		// same `newSubject` the failed attempt had — a retried Random tap is still a new saying.
+		return await this.requestVerdictAndPage(input, {
+			newSubject: this.lastNewSubject
+		});
 	}
 
 	/** Build the coloring page this verdict deserves, and package it for download. */

@@ -1506,10 +1506,11 @@ describe('requestVerdictAndPage', () => {
 		expect(state.hasPage).toBe(true);
 	});
 
-	const sentSpec = (): { dedication?: string } => {
-		const call = vi
+	const sentSpec = (which: 'first' | 'last' = 'first'): { dedication?: string } => {
+		const calls = vi
 			.mocked(fetch)
-			.mock.calls.find(([url]) => url === ENDPOINTS.generate);
+			.mock.calls.filter(([url]) => url === ENDPOINTS.generate);
+		const call = which === 'last' ? calls[calls.length - 1] : calls[0];
 		return JSON.parse((call?.[1] as RequestInit).body as string).spec;
 	};
 
@@ -1575,5 +1576,34 @@ describe('requestVerdictAndPage', () => {
 		expect(
 			fetchCalls.filter((url) => url === ENDPOINTS.generate)
 		).toHaveLength(generateCallsBefore);
+	});
+
+	it('clears the dedication on a retried new-subject tap, so the old saying\u2019s dedication does not follow it', async () => {
+		// Caught in review of PR #358: `retryVerdict` re-asked the same question but dropped the
+		// option, so a Random tap that failed and was retried printed the previous saying's dedication
+		// on the new one — and, now that a verdict starts its page, spent an image doing it.
+		const state = await readyState();
+		routes.tools = okTools(PLAIN_VERDICT);
+		routes.generate = okGenerate();
+		await state.requestVerdictAndPage({ toolId: 'random_meechie' });
+		await untilPageSettles(state);
+		state.setDedication('For Andre');
+
+		routes.tools = async () => {
+			throw new Error('Network is down');
+		};
+		await state.requestVerdictAndPage(
+			{ toolId: 'random_meechie' },
+			{ newSubject: true }
+		);
+		expect(state.dedication).toBe('For Andre');
+
+		routes.tools = okTools(PLAIN_VERDICT);
+		await state.retryVerdict();
+		await untilPageSettles(state);
+
+		expect(state.dedication).toBe('');
+		expect(state.hasPage).toBe(true);
+		expect(sentSpec('last').dedication ?? '').toBe('');
 	});
 });

@@ -869,6 +869,12 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 	const askMeechie = async (
 		retryInput: MeechieToolInput | null = null
 	): Promise<void> => {
+		// A verdict that lands calls `resetState()`, which discards a page still being made — and a
+		// verdict now starts its own page, so every verdict opens exactly that window. Asking again in
+		// it could only throw away a picture already paid for. `VerdictPageState.requestVerdict` and
+		// the home studio refuse for the same reason; the hub is the third place that had to. Switching
+		// tools releases `isGenerating` itself, so abandoning a page by changing tools still works.
+		if (isGenerating) return;
 		if (quota.textExhausted(MEECHIE_TOOL_QUOTA_COST)) return;
 		// Only the stale error goes now. The verdict and the page it produced are what the reader is
 		// looking at, and they cost a paid generation: clearing them up front meant an empty required
@@ -1070,7 +1076,7 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 			})
 				? 'text-budget'
 				: undefined}
-			disabled={isWorking || quota.textExhausted(MEECHIE_TOOL_QUOTA_COST)}
+			disabled={isWorking || isGenerating || quota.textExhausted(MEECHIE_TOOL_QUOTA_COST)}
 		>
 			{#if isWorking}
 				<span class="working-inner">
