@@ -25,9 +25,8 @@ test.describe.configure({ mode: 'parallel' });
 /**
  * Take the home studio from a cold load to a finished picture on the paper.
  *
- * The wait on the verdict is load-bearing: "Create Coloring Page" is disabled until there is
- * something to make a page out of, so clicking straight after asking for the verdict clicks a
- * disabled button.
+ * One press makes the page: asking for the verdict starts it, so this waits for the picture and
+ * does not click "Create Coloring Page" for it. That button is the *remake* control now.
  */
 const makeHomePage = async (page: Page): Promise<void> => {
 	await open(page, '/');
@@ -36,7 +35,6 @@ const makeHomePage = async (page: Page): Promise<void> => {
 	await expect(page.getByTestId('home-verdict-quote')).toContainText(
 		STUB_QUOTE
 	);
-	await page.getByTestId('home-create-page').click();
 	await expect(page.getByTestId('home-generated-image')).toBeVisible();
 };
 
@@ -120,6 +118,17 @@ test('printing a screen with no coloring page says so instead of emitting blank 
 
 test('a mode route prints its page through the shared studio', async ({ page }) => {
 	await stub(page);
+	// Held, so "a verdict with no page yet" can be observed: the press that asks for the verdict now
+	// starts the page, and the stub would otherwise answer before the assertion below could look.
+	// `fallback()` hands the request on to the shared stub registered above.
+	let release!: () => void;
+	const held = new Promise<void>((resolve) => {
+		release = resolve;
+	});
+	await page.route('**/api/generate', async (route) => {
+		await held;
+		await route.fallback();
+	});
 	await open(page, '/who-fucked-up');
 
 	await page.getByTestId('who-situation-input').fill('He said he was asleep at 2am.');
@@ -133,7 +142,7 @@ test('a mode route prints its page through the shared studio', async ({ page }) 
 	const print = page.getByTestId('verdict-page-print');
 	await expect(print).toHaveCount(0);
 
-	await page.getByTestId('verdict-page-generate').click();
+	release();
 	await expect(page.locator('.preview-grid img')).toBeVisible();
 	await expect(print).toBeEnabled();
 

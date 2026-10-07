@@ -869,6 +869,12 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 	const askMeechie = async (
 		retryInput: MeechieToolInput | null = null
 	): Promise<void> => {
+		// A verdict that lands calls `resetState()`, which discards a page still being made — and a
+		// verdict now starts its own page, so every verdict opens exactly that window. Asking again in
+		// it could only throw away a picture already paid for. `VerdictPageState.requestVerdict` and
+		// the home studio refuse for the same reason; the hub is the third place that had to. Switching
+		// tools releases `isGenerating` itself, so abandoning a page by changing tools still works.
+		if (isGenerating) return;
 		if (quota.textExhausted(MEECHIE_TOOL_QUOTA_COST)) return;
 		// Only the stale error goes now. The verdict and the page it produced are what the reader is
 		// looking at, and they cost a paid generation: clearing them up front meant an empty required
@@ -903,6 +909,9 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 		let abandoned = false;
 
 		const toolRequestedAtMs = clockSeam.now();
+		// The verdict this call installed, if it did. Stays null on every failure and every abandoned
+		// request, which is what keeps those from starting a page.
+		let installed: MeechieToolOutput | null = null;
 
 		try {
 			const payload = await postJson('/api/tools', parsedInput.data, {
@@ -926,6 +935,14 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 				// Here, and only here, does what is on screen stop belonging to what is on screen.
 				resetState();
 				output = parsedResult.data.value;
+				// Random Meechie returns a different saying every time, so a dedication chosen for the
+				// previous one must not ride along — the same rule `/random` and the focused Random page
+				// apply. Cleared here, before the page this verdict starts reads it. Until now the hub
+				// kept it and the reader's own "make page" press was the chance to notice; the page now
+				// starts itself, so there is no such moment. Question tools keep theirs: re-asking
+				// about the same situation is still about the same subject. Caught in review of PR #358.
+				if (parsedResult.data.value.toolId === 'random_meechie') dedicatedTo = '';
+				installed = parsedResult.data.value;
 			} else {
 				verdictFailure = classifyVerdictFailure({
 					apiError: parsedResult.data.error
@@ -942,6 +959,11 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 			// abandoning reset released it already.
 			if (!abandoned) isWorking = false;
 		}
+		// One press, one page. Not awaited, so the verdict is readable while the picture is made and
+		// the button is not held on "Reading" for the length of a generation. After the `finally`
+		// for the same reason as `VerdictPageState.requestVerdictAndPage`: `isWorking` is released first.
+		// `makePageFor` carries its own failure handling, notice and retry.
+		if (installed) void makePageFor(installed);
 	};
 
 	// Bound to the controls. Wrappers rather than the functions themselves, because `on:click` would
@@ -1061,7 +1083,7 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 			})
 				? 'text-budget'
 				: undefined}
-			disabled={isWorking || quota.textExhausted(MEECHIE_TOOL_QUOTA_COST)}
+			disabled={isWorking || isGenerating || quota.textExhausted(MEECHIE_TOOL_QUOTA_COST)}
 		>
 			{#if isWorking}
 				<span class="working-inner">
@@ -1177,6 +1199,8 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 						<span class="working-dot" aria-hidden="true"></span>
 						Printing the truth…
 					</span>
+				{:else if imagePreviews.length > 0}
+					Redraw My Coloring Page
 				{:else}
 					Generate My Coloring Page
 				{/if}

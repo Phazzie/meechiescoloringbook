@@ -135,6 +135,15 @@ export class VerdictPageState extends PageArtifactState {
 	 * `change_request` advice already says.
 	 */
 	private lastVerdictInput: MeechieToolInput | null = null;
+	/**
+	 * Whether that attempt was for a new subject, so a retry clears the dedication the way the first
+	 * attempt would have. It is what makes a retry "the same question": Random Meechie returns a
+	 * different saying every time, and a retried tap must not print the previous saying's dedication
+	 * on the new one. Recorded by `requestVerdictAndPage` and paired with `lastVerdictInput` in
+	 * practice, because `newSubject` is a constant of the route (only the input-less Random question
+	 * sets it), so the two cannot disagree.
+	 */
+	private lastNewSubject = false;
 
 	/**
 	 * Cleared with the page: a "Verdict copied." line under a verdict that is no longer there.
@@ -166,6 +175,7 @@ export class VerdictPageState extends PageArtifactState {
 		this.isWorking = false;
 		this.verdictFailure = null;
 		this.lastVerdictInput = null;
+		this.lastNewSubject = false;
 		this.verdict = null;
 		this.dedication = '';
 		this.resetPage();
@@ -291,6 +301,46 @@ export class VerdictPageState extends PageArtifactState {
 	}
 
 	/**
+	 * Ask for a verdict and, once it is on screen, make its page: the one press a reader makes.
+	 *
+	 * The two halves stay separate methods because they fail, retry and are guarded differently — a
+	 * verdict is refused while a page is generating, a page while a verdict is loading — and
+	 * `makePage` is still the control that remakes a page the reader did not like or that failed.
+	 * This is only their composition, and the entry every surface that takes a question calls.
+	 *
+	 * Returns what `requestVerdict` returns, **as soon as the verdict is installed**, not after the
+	 * picture. A route relabels its form on that answer and must not wait the tens of seconds a
+	 * generation takes; the page lands afterwards on its own, reporting itself through the same
+	 * `failure`, quota meter and retry it always had.
+	 *
+	 * A verdict that failed, was refused or was abandoned returns null here and starts nothing, so
+	 * none of them can spend an image. `makePage` is called only after `requestVerdict` has
+	 * returned, because it refuses to start while `isWorking` — which that call releases on its way
+	 * out. Not awaited, and safe to drop: `generatePage` reports its failures into `failure` and
+	 * never rejects.
+	 *
+	 * `newSubject` is for a question that returns a different subject every time (Random Meechie): a
+	 * dedication chosen for the previous saying must not ride along onto this one. It is cleared
+	 * **here, between the two halves**, and not by the caller after this returns. `setDedication`
+	 * discards any page in flight, and by the time the caller gets control the page has already
+	 * started — clearing afterwards threw away a picture that had just been paid for. Cleared only
+	 * once a replacement has landed, so a failed tap keeps the saying, its page and its dedication.
+	 * Assigned directly rather than through `setDedication`: `requestVerdict` has already reset the
+	 * page on its way out, so there is nothing left for the setter to drop.
+	 */
+	async requestVerdictAndPage(
+		input: MeechieToolInput,
+		options: { newSubject?: boolean } = {}
+	): Promise<MeechieToolOutput | null> {
+		this.lastNewSubject = options.newSubject === true;
+		const installed = await this.requestVerdict(input);
+		if (installed === null) return null;
+		if (options.newSubject) this.dedication = '';
+		void this.makePage();
+		return installed;
+	}
+
+	/**
 	 * Classify one failed verdict request, with the context only this state holds.
 	 *
 	 * The TEXT bucket's reset instant, not the image one the page half uses. A verdict refused for
@@ -325,7 +375,12 @@ export class VerdictPageState extends PageArtifactState {
 	async retryVerdict(): Promise<MeechieToolOutput | null> {
 		const input = this.lastVerdictInput;
 		if (!input || this.isWorking || this.isGenerating) return null;
-		return await this.requestVerdict(input);
+		// Through the composed entry: a retried question is the same one press as the first, so the
+		// reader who retries a failed verdict is not handed a second button for the page. With the
+		// same `newSubject` the failed attempt had — a retried Random tap is still a new saying.
+		return await this.requestVerdictAndPage(input, {
+			newSubject: this.lastNewSubject
+		});
 	}
 
 	/** Build the coloring page this verdict deserves, and package it for download. */

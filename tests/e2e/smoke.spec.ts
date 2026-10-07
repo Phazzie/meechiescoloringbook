@@ -114,19 +114,21 @@ const gotoHydrated = async (page: Page, path: string): Promise<void> => {
 };
 
 /**
- * Take the toolkit from a cold load to a page on screen: verdict, then generation.
+ * Take the toolkit from a cold load to a page on screen.
+ *
+ * One press makes the page — the verdict starts it — so this waits for the picture and does not
+ * click for it. Clicking "make page" here would test the *remake* path and call it the first one.
  *
  * Every page-lifecycle test needs this exact opening, and repeating it inline tripped
  * SonarCloud's duplication gate at 8.2% on new code.
  */
 const makeToolkitPage = async (page: Page): Promise<void> => {
 	await makeToolkitVerdict(page);
-	await page.getByTestId('meechie-tool-make-page').click();
 	await expectPageOnScreen(page);
 };
 
 /**
- * The first half of the above: a verdict on screen, ready to be made into a page.
+ * The first half of the above: the verdict on screen, with its page already on its way.
  *
  * Split out because the failure tests need to stop here — they stub `/api/generate` to fail, so
  * they cannot use a helper that asserts a page arrived.
@@ -157,6 +159,44 @@ const routeTools = async (
 		if (options.holdCall === calls && options.held) await options.held;
 		await route.fulfill({ json: toolPayload(body.toolId ?? 'unknown') });
 	});
+};
+
+/**
+ * A request the test holds open until it chooses to let it go. `release` is the key; `held` is what
+ * a route handler awaits. Shared because every "observe the state while a picture is still being
+ * drawn" test needs exactly this, and a copy in each tripped SonarCloud's duplication gate.
+ */
+const holdOpen = (): { held: Promise<void>; release: () => void } => {
+	let release!: () => void;
+	const held = new Promise<void>((resolve) => {
+		release = resolve;
+	});
+	return { held, release };
+};
+
+/** Hold every `/api/generate` request open until the returned `release` is called, then answer it. */
+const holdGenerate = async (page: Page): Promise<() => void> => {
+	const { held, release } = holdOpen();
+	await page.route('**/api/generate', async (route) => {
+		await held;
+		await route.fulfill({ json: generatedPage });
+	});
+	return release;
+};
+
+/** Record the dedication every `/api/generate` request carries, answering each with the stub page. */
+const recordDedications = async (
+	page: Page
+): Promise<Array<string | undefined>> => {
+	const dedications: Array<string | undefined> = [];
+	await page.route('**/api/generate', async (route) => {
+		const body = route.request().postDataJSON() as {
+			spec: { dedication?: string };
+		};
+		dedications.push(body.spec.dedication);
+		await route.fulfill({ json: generatedPage });
+	});
+	return dedications;
 };
 
 /**
@@ -240,6 +280,12 @@ test('home mode switching and generation controls work', async ({ page }) => {
 		switchedMode.placeholder
 	);
 
+	// Before a page exists the row says so, instead of showing buttons that are disabled for
+	// a reason nobody states. Checked before the press, because the press now makes the page.
+	await expect(page.getByTestId('home-export-empty')).toBeVisible();
+	await expect(page.getByTestId('home-export-link')).toHaveCount(0);
+
+	// One press: the verdict and its picture, with no second button between them.
 	await page
 		.getByTestId('home-evidence')
 		.fill('He said traffic made him late.');
@@ -247,13 +293,6 @@ test('home mode switching and generation controls work', async ({ page }) => {
 	await expect(page.getByTestId('home-verdict-quote')).toContainText(
 		'The story folded before the receipt opened.'
 	);
-
-	// Before a page exists the row says so, instead of showing buttons that are disabled for
-	// a reason nobody states.
-	await expect(page.getByTestId('home-export-empty')).toBeVisible();
-	await expect(page.getByTestId('home-export-link')).toHaveCount(0);
-
-	await page.getByTestId('home-create-page').click();
 	await expect(page.getByTestId('home-generated-image')).toBeVisible();
 
 	// The mainline path out of the studio: a printable file, a share image, and the bytes on
@@ -276,6 +315,39 @@ test('home mode switching and generation controls work', async ({ page }) => {
 		/Quote copied|Copy unavailable/
 	);
 	await expect(page.getByTestId('home-vault-empty')).toBeVisible();
+});
+
+test('one press on the home studio makes the verdict and the page, and a rewrite redraws it', async ({
+	page
+}) => {
+	// The defect this exists for: the verdict preview is a plain text card laid out like a page, and
+	// the real picture sat behind a second button, so the app read as one that writes text and never
+	// draws. Counted at the network, because "an image appeared" cannot tell one press from two.
+	const calls: string[] = [];
+	await page.route('**/api/meechie-studio-text', async (route) => {
+		calls.push('text');
+		await route.fulfill({ json: { ok: true, value: textOutput } });
+	});
+	await page.route('**/api/generate', async (route) => {
+		calls.push('page');
+		await route.fulfill({ json: generatedPage });
+	});
+
+	await gotoHydrated(page, '/');
+	await page.getByTestId('home-evidence').fill('He said traffic made him late.');
+	await page.getByTestId('home-generate-verdict').click();
+	await expect(page.getByTestId('home-generated-image')).toBeVisible();
+	expect(calls).toEqual(['text', 'page']);
+	// With a page already on the paper the control is a remake and must not still say "Create": a
+	// reader doing what the label asks would pay for a second picture of the same words.
+	await expect(page.getByTestId('home-create-page')).toContainText(/redraw/i);
+
+	// A rewrite throws the old page away, so it must draw the new one: the picture on screen is
+	// always the picture of the words beside it.
+	await page.getByRole('button', { name: /make meaner/i }).click();
+	await expect.poll(() => calls.length).toBe(4);
+	expect(calls).toEqual(['text', 'page', 'text', 'page']);
+	await expect(page.getByTestId('home-generated-image')).toBeVisible();
 });
 
 test('wig try-on demo works end to end without provider traffic', async ({
@@ -830,7 +902,6 @@ test('the mode routes print the structure a verdict came back in', async ({
 		.fill('He went quiet for a week.');
 	await page.getByTestId('who-submit').click();
 	await expect(page.getByTestId('who-result')).toContainText('Fault: them');
-	await page.getByTestId('verdict-page-generate').click();
 	await expect(page.locator('.preview-grid img')).toBeVisible();
 
 	// Random Meechie's stubbed saying has no structure, so it stays a full-quote page.
@@ -839,9 +910,9 @@ test('the mode routes print the structure a verdict came back in', async ({
 		page.waitForResponse('**/api/tools'),
 		page.getByTestId('random-tap').click()
 	]);
-	await page.getByTestId('verdict-page-generate').click();
 	await expect(page.locator('.preview-grid img')).toBeVisible();
 
+	// Exactly one generation per press: the length is the proof that no second button was needed.
 	expect(specs).toHaveLength(2);
 	expect(specs[0].listMode).toBe('list');
 	expect(specs[0].items.length).toBeGreaterThanOrEqual(2);
@@ -881,6 +952,34 @@ test('editing the dedication drops the page it was not generated with', async ({
 	await page.getByTestId('verdict-page-dedication').fill('Second thoughts');
 	await expect(page.locator('.preview-grid img')).toHaveCount(0);
 	await expect(page.getByTestId('verdict-page-export-link')).toHaveCount(0);
+});
+
+test('the focused Random mode makes its page from one tap, and Another one does not lose it to the old dedication', async ({
+	page
+}) => {
+	// The defect this exists for: the route cleared the dedication after the tap returned, by which
+	// time the page had already started, and clearing discards a page in flight. The picture was
+	// drawn, paid for and thrown away — and nothing failed, so only a browser could see it.
+	const dedications = await recordDedications(page);
+
+	await gotoHydrated(page, '/m/random');
+	await page.getByTestId('mode-submit').click();
+	await expect(page.locator('.preview-grid img')).toBeVisible();
+	expect(dedications).toHaveLength(1);
+	// The studio mounted while the picture was still being drawn, so its label has to follow the
+	// page landing rather than being read once: "Generate" over a finished page invites a second
+	// paid picture of the same words. Caught in review of PR #358.
+	await expect(page.getByTestId('verdict-page-generate')).toContainText(/redraw/i);
+
+	// A dedication edit drops the page it was not generated with, then the next saying replaces it.
+	await page.getByTestId('verdict-page-dedication').fill('For Andre');
+	await expect(page.locator('.preview-grid img')).toHaveCount(0);
+	await page.getByTestId('mode-again').click();
+
+	await expect(page.locator('.preview-grid img')).toBeVisible();
+	await expect(page.getByTestId('verdict-page-dedication')).toHaveValue('');
+	expect(dedications).toHaveLength(2);
+	expect(dedications[1] ?? '').toBe('');
 });
 
 test('Another one drops a dedication chosen for the previous saying', async ({
@@ -1011,6 +1110,50 @@ test('every toolkit verdict becomes a coloring page that downloads and saves', a
 	await expect(page.getByTestId('home-vault-load')).toBeVisible();
 });
 
+test('the tools hub will not start another verdict while its picture is being drawn', async ({
+	page
+}) => {
+	// A verdict now starts its own page, so every verdict opens a window in which asking again would
+	// discard a picture already paid for. The button says so by being unavailable, and comes back
+	// the moment the picture lands. Caught in review of PR #358.
+	const release = await holdGenerate(page);
+
+	await gotoHydrated(page, '/meechie');
+	await page.getByTestId('meechie-tool-generate').click();
+	await expect(page.getByTestId('meechie-tool-page-factory')).toBeVisible();
+	await expect(page.getByTestId('meechie-tool-generate')).toBeDisabled();
+
+	release();
+	await expectPageOnScreen(page);
+	await expect(page.getByTestId('meechie-tool-generate')).toBeEnabled();
+	await expect(page.getByTestId('meechie-tool-make-page')).toContainText(/redraw/i);
+});
+
+test('the tools hub drops a dedication chosen for the previous Random saying', async ({
+	page
+}) => {
+	// The hub kept its dedication across every verdict. Harmless while the reader's own "make page"
+	// press was the moment to notice it; the page now starts itself with whatever is in the field,
+	// so a new Random saying would be printed for the previous one's recipient. Caught in review of
+	// PR #358.
+	const dedications = await recordDedications(page);
+
+	await gotoHydrated(page, '/meechie');
+	await page.getByTestId('meechie-tool-random_meechie').click();
+	await page.getByTestId('meechie-tool-generate').click();
+	await expectPageOnScreen(page);
+
+	// A dedication edit drops the page it was not generated with; the next saying replaces it.
+	await page.getByTestId('meechie-tool-dedication').fill('For Andre');
+	await expect(page.locator('.preview-grid img')).toHaveCount(0);
+	await page.getByTestId('meechie-tool-generate').click();
+
+	await expectPageOnScreen(page);
+	await expect(page.getByTestId('meechie-tool-dedication')).toHaveValue('');
+	expect(dedications).toHaveLength(2);
+	expect(dedications[1] ?? '').toBe('');
+});
+
 test('a slow page generation cannot land under a different verdict', async ({
 	page
 }) => {
@@ -1019,13 +1162,26 @@ test('a slow page generation cannot land under a different verdict', async ({
 	// new verdict, and reading the old verdict's toolId after the await threw outright.
 	// Definite-assignment, not `| null`: the executor runs synchronously, but control-flow
 	// analysis cannot see that and narrows a nullable binding to `never` at the call site.
-	let release!: () => void;
-	const held = new Promise<void>((resolve) => {
-		release = resolve;
-	});
+	const { held, release } = holdOpen();
+	// The first generation is tool A's, started by the press that asked for A's verdict, and is the
+	// one held open. Tool B's verdict starts a generation of its own now, and it is refused: with
+	// B's page unable to land, a picture on screen after the release can only be A's stale one.
+	// Letting B's succeed too would make "A leaked under B" and "B arrived" the same observation.
+	let generateCalls = 0;
 	await page.route('**/api/generate', async (route) => {
-		await held;
-		await route.fulfill({ json: generatedPage });
+		generateCalls += 1;
+		if (generateCalls === 1) {
+			await held;
+			await route.fulfill({ json: generatedPage });
+			return;
+		}
+		await route.fulfill({
+			status: 502,
+			json: {
+				ok: false,
+				error: { code: 'PROVIDER_DOWN', message: 'Provider is down.' }
+			}
+		});
 	});
 
 	const pageErrors: string[] = [];
@@ -1033,11 +1189,11 @@ test('a slow page generation cannot land under a different verdict', async ({
 
 	await gotoHydrated(page, '/meechie');
 	await page.getByTestId('meechie-tool-red_flag_or_run').click();
+	// This press asks for A's verdict and starts A's page, which is held in flight.
 	await page.getByTestId('meechie-tool-generate').click();
 	await expect(page.getByTestId('meechie-tool-page-factory')).toBeVisible();
 
-	// Start the generation, then switch tools while it is still in flight.
-	await page.getByTestId('meechie-tool-make-page').click();
+	// Switch tools while A's generation is still in flight.
 	await page.getByTestId('meechie-tool-clapback').click();
 	await expect(page.getByTestId('meechie-tool-page-factory')).toBeHidden();
 
@@ -1047,6 +1203,7 @@ test('a slow page generation cannot land under a different verdict', async ({
 	// generation releases `isGenerating` rather than wedging it.
 	await page.getByTestId('meechie-tool-generate').click();
 	await expect(page.getByTestId('meechie-tool-page-factory')).toBeVisible();
+	await expect(page.getByTestId('meechie-tool-generate-error')).toBeVisible();
 	await expect(page.getByTestId('meechie-tool-make-page')).toBeEnabled();
 	await expect(page.locator('.preview-grid img')).toHaveCount(0);
 
@@ -1194,13 +1351,14 @@ test('a structured verdict prints as a numbered list page, an unstructured one a
 	await page.getByTestId('meechie-tool-red_flag_or_run').click();
 	await page.getByTestId('meechie-tool-generate').click();
 	await expect(page.getByTestId('meechie-tool-page-factory')).toBeVisible();
-	await page.getByTestId('meechie-tool-make-page').click();
 	await expect(page.locator('.preview-grid img')).toBeVisible();
 
 	// Random Meechie's stubbed saying has no structure to print as a list.
 	await page.getByTestId('meechie-tool-random_meechie').click();
 	await page.getByTestId('meechie-tool-generate').click();
-	await page.getByTestId('meechie-tool-make-page').click();
+	// Polled, not read: the first page's picture can still be on screen when this runs, so an
+	// image appearing is not evidence that the second generation has been asked for yet.
+	await expect.poll(() => specs.length).toBe(2);
 	await expect(page.locator('.preview-grid img')).toBeVisible();
 
 	expect(specs).toHaveLength(2);
@@ -1289,8 +1447,9 @@ test('a failed page says what happened in the app\u2019s own words, and offers a
 		await route.fulfill({ json: generatedPage });
 	});
 
+	// The press that asks for the verdict also asks for the page, so the first attempt is the one
+	// that is aborted; there is no second button to click for it.
 	await makeToolkitVerdict(page);
-	await page.getByTestId('meechie-tool-make-page').click();
 
 	const notice = page.getByTestId('meechie-tool-generate-error');
 	await expect(notice).toBeVisible();
@@ -1324,7 +1483,6 @@ test('a page the server refused on its merits offers no retry to spend', async (
 	});
 
 	await makeToolkitVerdict(page);
-	await page.getByTestId('meechie-tool-make-page').click();
 
 	await expect(page.getByTestId('meechie-tool-generate-error')).toBeVisible();
 	await expect(
@@ -1728,7 +1886,13 @@ test('each button reports the bucket it actually spends', async ({ page }) => {
 	});
 	// A deliberately different bucket: 8 units, 3 left. If either line derived from the other, one
 	// of the two assertions below could not pass.
+	//
+	// Held open until released: the press now starts the page too, so without holding it the
+	// "verdict has reported and the page has not" moment this test is about would be gone before it
+	// could be observed.
+	const { held: pageHeld, release: releasePage } = holdOpen();
 	await page.route('**/api/generate', async (route) => {
+		await pageHeld;
 		await route.fulfill({
 			headers: {
 				'RateLimit-Limit': '8',
@@ -1746,13 +1910,14 @@ test('each button reports the bucket it actually spends', async ({ page }) => {
 	await expect(page.getByTestId('home-verdict-quote')).toBeVisible();
 
 	// The verdict call reported `text`. It says nothing about pages, and the page line stays silent
-	// rather than borrowing the number sitting right above it.
+	// rather than borrowing the number sitting right above it — observed while the page that the
+	// same press started is still being drawn.
 	await expect(page.getByTestId('home-ai-quota')).toContainText(
 		'7 verdicts or rewrites left'
 	);
 	await expect(page.getByTestId('home-page-quota')).toHaveCount(0);
 
-	await page.getByTestId('home-create-page').click();
+	releasePage();
 	await expect(page.getByTestId('home-generated-image')).toBeVisible();
 
 	// Now both buckets have reported, and the two lines disagree — correctly.

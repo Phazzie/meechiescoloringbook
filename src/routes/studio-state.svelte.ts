@@ -568,6 +568,20 @@ export class StudioState {
 	private generatedSpec = $state<ColoringPageSpec | undefined>(undefined);
 	isTextWorking = $state(false);
 	isGenerating = $state(false);
+	/**
+	 * Which page generation currently owns `isGenerating`: the latest one started.
+	 *
+	 * Two runs can overlap now that the controls are released when a picture *lands* rather than when
+	 * its packaging ends — a rewrite can start page B while page A is still packaging. A's `finally`
+	 * used to clear the flag unconditionally, handing B's in-flight picture back to the controls that
+	 * discard it. Each run clears the flag only if it is still the latest.
+	 *
+	 * A counter rather than `pageLoadToken`, on purpose: a reset with no replacement (a mode switch)
+	 * bumps that token too, and a run it abandoned would then never release the flag. The counter only
+	 * moves when a new generation starts, so the last one standing always releases it. Caught in
+	 * review of PR #358.
+	 */
+	private generationRun = 0;
 	copyStatus = $state('');
 	validationIssues = $state<SpecValidationOutput['issues']>([]);
 	/**
@@ -1115,11 +1129,42 @@ export class StudioState {
 	 * end — the sentence and the guard have to be reading the same number.
 	 */
 	aiQuotaExhausted = $derived(this.quota.textExhausted());
+	/**
+	 * A page has been asked for and its picture has not landed yet.
+	 *
+	 * The window the gates above and on Try On exist for: a reset in it makes the page discard itself
+	 * after being paid for. It ends when the picture is *installed*, not when packaging finishes —
+	 * `isGenerating` also covers packaging, and the packaging adapter awaits `image.onload` with no
+	 * timeout, so a hang there would otherwise leave every text control disabled for good (and a
+	 * mode switch does not release `isGenerating`). Once the picture is on the paper a rewrite is the
+	 * reader replacing a page they can see, which is theirs to do. Caught in review of PR #358.
+	 */
+	isAwaitingPicture = $derived(this.isGenerating && this.images.length === 0);
+	/**
+	 * A text action is refused while words are being asked for *or a picture is being made*.
+	 *
+	 * The second half is what one-press generation needs. A verdict now starts its page by itself,
+	 * so a generation is in flight for tens of seconds the reader never asked for by name, with the
+	 * rewrite buttons sitting right there. Every text action ends in `resetGeneratedPage()`, which
+	 * discards a page that is mid-flight after it has already been billed — the same rule
+	 * `VerdictPageState.requestVerdict` already states for the mode routes: never start work whose
+	 * only possible effect is to throw away work that was paid for.
+	 */
+	isTextBlocked = $derived(this.isTextWorking || this.isAwaitingPicture);
+	/**
+	 * The page button would *remake* a page that is on the paper: there is a picture, and it is the
+	 * verdict's own. False over a wig try-on portrait — the button always makes the verdict's page, so
+	 * calling that a redraw would promise the portrait back and replace it with an unrelated page.
+	 * Read through `pageIsTryOnPortrait` for the ordering reason documented there.
+	 */
+	pageButtonRemakes = $derived(
+		this.images.length > 0 && !this.pageIsTryOnPortrait
+	);
 	canGenerateText = $derived(
 		!this.aiQuotaExhausted &&
 			canRunStudioAction('generate_text', {
 				remainingBudget: this.revisionBudget,
-				isRunning: this.isTextWorking
+				isRunning: this.isTextBlocked
 			})
 	);
 	canRegenerateText = $derived(
@@ -1127,7 +1172,7 @@ export class StudioState {
 			!this.aiQuotaExhausted &&
 			canRunStudioAction('regenerate', {
 				remainingBudget: this.revisionBudget,
-				isRunning: this.isTextWorking
+				isRunning: this.isTextBlocked
 			})
 	);
 	canMakePrettier = $derived(
@@ -1135,7 +1180,7 @@ export class StudioState {
 			!this.aiQuotaExhausted &&
 			canRunStudioAction('make_prettier', {
 				remainingBudget: this.revisionBudget,
-				isRunning: this.isTextWorking
+				isRunning: this.isTextBlocked
 			})
 	);
 	canMakeMeaner = $derived(
@@ -1143,7 +1188,7 @@ export class StudioState {
 			!this.aiQuotaExhausted &&
 			canRunStudioAction('make_meaner', {
 				remainingBudget: this.revisionBudget,
-				isRunning: this.isTextWorking
+				isRunning: this.isTextBlocked
 			})
 	);
 	canMakeMoreSpecific = $derived(
@@ -1151,7 +1196,7 @@ export class StudioState {
 			!this.aiQuotaExhausted &&
 			canRunStudioAction('make_more_specific', {
 				remainingBudget: this.revisionBudget,
-				isRunning: this.isTextWorking
+				isRunning: this.isTextBlocked
 			})
 	);
 	// `?? ''` rather than dropping the entry: this array is indexed in parallel with `images`, so
@@ -1230,6 +1275,13 @@ export class StudioState {
 		!!this.selectedWigId &&
 			!!this.selfieBase64 &&
 			!this.isTryingOn &&
+			// A try-on repaints the one paper: it resets the generated page, which advances the token a
+			// page still being drawn compares against, so that page discards itself after it has been
+			// paid for. A verdict now starts its own page, so every verdict opens that window. The
+			// opposite direction already refuses (`handleGenerateTryOnPage` waits for `isTryingOn`).
+			// Only until the picture lands — see `isAwaitingPicture` for why not through packaging.
+			// Caught in review of PR #358.
+			!this.isAwaitingPicture &&
 			!this.tryOnQuotaExhausted
 	);
 	// The portrait on screen is whichever belongs to the wig on screen. Selecting a wig that was
@@ -2219,7 +2271,7 @@ export class StudioState {
 			this.aiQuotaExhausted ||
 			!canRunStudioAction(actionId, {
 				remainingBudget: this.revisionBudget,
-				isRunning: this.isTextWorking
+				isRunning: this.isTextBlocked
 			})
 		) {
 			return;
@@ -2252,6 +2304,9 @@ export class StudioState {
 		const requestStartedAtMs = this.clock.now();
 		// Captured before the await, compared after it. See `verdictToken`.
 		const roundToken = this.verdictToken;
+		// Set only once a verdict is on screen and the spec has caught up with it. Every failure and
+		// every abandoned round leaves it false, which is what keeps them from starting a page.
+		let verdictInstalled = false;
 		try {
 			const payload = await postJson(
 				'/api/meechie-studio-text',
@@ -2310,6 +2365,7 @@ export class StudioState {
 			// while its text was still the text on screen.
 			this.restoredPageLayout = false;
 			await this.applyTextToSpec(parsed.data.value);
+			verdictInstalled = true;
 		} catch (error) {
 			// Same rule for a failure: an error about the round the reader walked away from would
 			// otherwise appear under the mode they walked to.
@@ -2320,6 +2376,30 @@ export class StudioState {
 			// is the one that owns the flag whether or not its result is still wanted. Leaving it set
 			// on a stale round would wedge every AI button on the new one.
 			this.isTextWorking = false;
+		}
+		// One press, one page. The words are already on screen — `acceptVerdict` put them there — so
+		// the reader reads the verdict while the picture is made, and this resolves only once it is.
+		// After the `finally`, not inside the `try`: `isTextWorking` is released by now, so the
+		// "Reading..." label does not outlive the reading and sit over a picture being drawn.
+		//
+		// Every text action does this, not only the first. A rewrite already discards the page on the
+		// paper, so without it Make Meaner would leave the reader with words and no picture, one press
+		// from the very state this exists to remove. `handleGeneratePage` owns its own refusals: a
+		// full image bucket leaves the verdict standing under the line that already says why, and a
+		// failed generation lands in the page's own notice with its own retry.
+		//
+		// Not for a verdict Meechie cautioned on (`needs_more_evidence`, `blocked`). That caution is
+		// the reader's chance to decide whether this verdict is worth an image, and the panel puts it
+		// above the page button for exactly that reason — a warning met after the press "has cost them
+		// the generation it was warning them off". An automatic page would spend before it could be
+		// read, so a cautioned verdict waits for the reader's own press, as it always did. Caught in
+		// review of PR #358.
+		if (
+			verdictInstalled &&
+			roundToken === this.verdictToken &&
+			this.verdictReport.pageCaution === null
+		) {
+			await this.handleGeneratePage();
 		}
 	};
 
@@ -2494,6 +2574,7 @@ export class StudioState {
 		// finishes — which is the defect the mode routes already guard against, and this one did not.
 		const pageToken = this.pageLoadToken;
 		this.isGenerating = true;
+		const run = ++this.generationRun;
 		this.lastPageAttempt = 'page';
 		try {
 			await this.applyTextToSpec(this.textOutput);
@@ -2589,7 +2670,8 @@ export class StudioState {
 		} catch (error) {
 			this.pageFailure = this.classifyPageFailure({ thrown: error });
 		} finally {
-			this.isGenerating = false;
+			// Only the latest run releases the flag — see `generationRun`.
+			if (run === this.generationRun) this.isGenerating = false;
 		}
 	};
 
@@ -2635,6 +2717,7 @@ export class StudioState {
 		// a moved token means the reader is no longer looking at the page they asked for.
 		const pageToken = this.pageLoadToken;
 		this.isGenerating = true;
+		const run = ++this.generationRun;
 		this.lastPageAttempt = 'tryOn';
 		try {
 			// Captured before the await, like `wig` above and like the generate path: the spec this
@@ -2712,7 +2795,8 @@ export class StudioState {
 					'The try-on page could not be assembled. Try creating it again.'
 			});
 		} finally {
-			this.isGenerating = false;
+			// Only the latest run releases the flag — see `generationRun`.
+			if (run === this.generationRun) this.isGenerating = false;
 		}
 	};
 
@@ -2734,6 +2818,10 @@ export class StudioState {
 	}
 
 	handleWigTryOn = async (): Promise<void> => {
+		// Refused here as well as on the button, for the reason `canTryOn` gives: the state is where
+		// a race between two transitions has to be refused. Silent, like `retryWigTryOn`'s own guard:
+		// the page the reader is waiting for is the thing in progress.
+		if (this.isAwaitingPicture) return;
 		const wig = this.selectedWig;
 		if (!wig || !this.selectedWigId || !this.selfieBase64) {
 			// A defensive guard, not a path the reader can reach today: `canTryOn` already requires

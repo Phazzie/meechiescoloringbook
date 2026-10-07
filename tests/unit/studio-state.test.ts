@@ -5249,3 +5249,454 @@ describe('StudioState wig try-on failures', () => {
 		expect(studio.traceFailureDetail).toBeNull();
 	});
 });
+
+/**
+ * One press: asking for a verdict also makes its page.
+ *
+ * The studio used to stop after the words and wait for a second button, which read as an app that
+ * produces text and no pictures — the verdict preview is a plain text card, and the real picture
+ * only existed after "Create Coloring Page". Everything below is about the seams of the chain: it
+ * must start only from a verdict that actually landed, it must never throw away a page that was paid
+ * for, and a page that cannot be made must leave the words standing.
+ */
+describe('StudioState one-press page', () => {
+	const PAGE_PNG_BASE64 = Buffer.from(new Uint8Array(4096).fill(7)).toString('base64');
+
+	const textResponse = (
+		output: MeechieStudioTextOutput = DEFAULT_STUDIO_TEXT_OUTPUT
+	): Response =>
+		new Response(JSON.stringify({ ok: true, value: output }), {
+			status: 200,
+			statusText: 'OK'
+		});
+
+	const pageResponse = (headers: Record<string, string> = {}): Response =>
+		new Response(
+			JSON.stringify({
+				ok: true,
+				value: {
+					prompt: 'the assembled prompt',
+					templateVersion: 'v2',
+					images: [
+						{
+							id: 'image-1',
+							format: 'png',
+							mimeType: 'image/png',
+							data: PAGE_PNG_BASE64,
+							encoding: 'base64'
+						}
+					],
+					violations: [],
+					recommendedFixes: []
+				}
+			}),
+			{ status: 200, statusText: 'OK', headers }
+		);
+
+	type Handlers = {
+		text?: () => Promise<Response>;
+		generate?: () => Promise<Response>;
+	};
+
+	/**
+	 * A fetch that answers each endpoint on its own. The older quota tests answer every URL with a
+	 * studio-text body, which would turn the chained page request into an off-contract reply and
+	 * hide whether a page was made at all.
+	 */
+	const stubEndpoints = (handlers: Handlers = {}): string[] => {
+		const calls: string[] = [];
+		vi.stubGlobal(
+			'fetch',
+			vi.fn(async (url: string) => {
+				calls.push(url);
+				if (url === '/api/meechie-studio-text') {
+					return (handlers.text ?? (async () => textResponse()))();
+				}
+				if (url === '/api/generate') {
+					return (handlers.generate ?? (async () => pageResponse()))();
+				}
+				throw new Error(`Unstubbed request to ${url}`);
+			})
+		);
+		return calls;
+	};
+
+	const arrange = (): StudioState => {
+		vi.spyOn(outputPackagingAdapter, 'package').mockResolvedValue({
+			ok: true,
+			value: {
+				files: [{ filename: 'page.pdf', mimeType: 'application/pdf', dataBase64: 'cGRm' }]
+			}
+		});
+		const studio = new StudioState();
+		studio.evidence = 'He said he was working late.';
+		return studio;
+	};
+
+	/** Let queued microtasks run until `done` holds — a fixed tick count would be a guess. */
+	const until = async (done: () => boolean): Promise<void> => {
+		for (let i = 0; i < 200 && !done(); i += 1) await Promise.resolve();
+		expect(done()).toBe(true);
+	};
+
+	afterEach(() => {
+		vi.unstubAllGlobals();
+	});
+
+	it('makes the page from the same press that asks for the verdict', async () => {
+		const calls = stubEndpoints();
+		const studio = arrange();
+
+		await studio.runTextAction('generate_text');
+
+		expect(calls).toEqual(['/api/meechie-studio-text', '/api/generate']);
+		expect(studio.textOutput).not.toBeNull();
+		expect(studio.images).toHaveLength(1);
+		expect(studio.pageFailure).toBeNull();
+		expect(studio.isGenerating).toBe(false);
+	});
+
+	it('shows the words while the picture is still being made', async () => {
+		let release!: (response: Response) => void;
+		const held = new Promise<Response>((resolve) => {
+			release = resolve;
+		});
+		stubEndpoints({ generate: () => held });
+		const studio = arrange();
+
+		const pressed = studio.runTextAction('generate_text');
+		await until(() => studio.isGenerating);
+
+		// The reader is reading the verdict now; the "Reading..." label has ended with the reading.
+		expect(studio.textOutput).not.toBeNull();
+		expect(studio.isTextWorking).toBe(false);
+		expect(studio.images).toHaveLength(0);
+
+		release(pageResponse());
+		await pressed;
+		expect(studio.images).toHaveLength(1);
+	});
+
+	// These two start from a studio that already has a verdict and a page, on purpose. From an empty
+	// studio `handleGeneratePage` refuses by itself (no words, no page), so a chain that fired after
+	// a failure would be invisible. The real exposure is a failed *rewrite*: an unguarded chain would
+	// buy a second picture of the OLD words and discard the page that was already paid for.
+	it('spends no image and keeps the page it has when a rewrite request fails', async () => {
+		let failText = false;
+		const calls = stubEndpoints({
+			text: async () => {
+				if (failText) throw new Error('Network is down');
+				return textResponse();
+			}
+		});
+		const studio = arrange();
+		await studio.runTextAction('generate_text');
+		const pageBefore = studio.images;
+		expect(pageBefore).toHaveLength(1);
+
+		failText = true;
+		await studio.runTextAction('make_meaner');
+
+		expect(calls).toEqual([
+			'/api/meechie-studio-text',
+			'/api/generate',
+			'/api/meechie-studio-text'
+		]);
+		expect(studio.textFailure).not.toBeNull();
+		expect(studio.images).toEqual(pageBefore);
+	});
+
+	it('spends no image and keeps the page it has when the server refuses a rewrite', async () => {
+		let refuseText = false;
+		const calls = stubEndpoints({
+			text: async () =>
+				refuseText
+					? new Response(
+							JSON.stringify({
+								ok: false,
+								error: { code: 'PROVIDER_DOWN', message: 'Provider is down.' }
+							}),
+							{ status: 502 }
+						)
+					: textResponse()
+		});
+		const studio = arrange();
+		await studio.runTextAction('generate_text');
+		const pageBefore = studio.images;
+		expect(pageBefore).toHaveLength(1);
+
+		refuseText = true;
+		await studio.runTextAction('make_meaner');
+
+		expect(calls).toEqual([
+			'/api/meechie-studio-text',
+			'/api/generate',
+			'/api/meechie-studio-text'
+		]);
+		expect(studio.textFailure).not.toBeNull();
+		expect(studio.images).toEqual(pageBefore);
+	});
+
+	it('leaves the verdict standing, with the page notice, when the page cannot be made', async () => {
+		stubEndpoints({
+			generate: async () =>
+				new Response(
+					JSON.stringify({ ok: false, error: { code: 'PROVIDER_DOWN', message: 'Provider is down.' } }),
+					{ status: 502 }
+				)
+		});
+		const studio = arrange();
+
+		await studio.runTextAction('generate_text');
+
+		expect(studio.textOutput).not.toBeNull();
+		expect(studio.textFailure).toBeNull();
+		expect(studio.pageFailure).not.toBeNull();
+		expect(studio.images).toHaveLength(0);
+		expect(studio.isGenerating).toBe(false);
+	});
+
+	it('makes a fresh page after a rewrite, so the picture always matches the words', async () => {
+		const calls = stubEndpoints();
+		const studio = arrange();
+
+		await studio.runTextAction('generate_text');
+		await studio.runTextAction('make_meaner');
+
+		expect(calls).toEqual([
+			'/api/meechie-studio-text',
+			'/api/generate',
+			'/api/meechie-studio-text',
+			'/api/generate'
+		]);
+		expect(studio.images).toHaveLength(1);
+	});
+
+	it('starts no page for a round the reader walked away from', async () => {
+		let release!: (response: Response) => void;
+		const held = new Promise<Response>((resolve) => {
+			release = resolve;
+		});
+		const calls = stubEndpoints({ text: () => held });
+		const studio = arrange();
+
+		const pressed = studio.runTextAction('generate_text');
+		await until(() => studio.isTextWorking);
+		studio.handleModeSelect(studio.modes[1].id);
+		release(textResponse());
+		await pressed;
+
+		expect(calls).toEqual(['/api/meechie-studio-text']);
+		expect(studio.textOutput).toBeNull();
+		expect(studio.images).toHaveLength(0);
+	});
+
+	it('refuses a rewrite while its picture is being made, so a paid page is never discarded', async () => {
+		let release!: (response: Response) => void;
+		const held = new Promise<Response>((resolve) => {
+			release = resolve;
+		});
+		const calls = stubEndpoints({ generate: () => held });
+		const studio = arrange();
+
+		const pressed = studio.runTextAction('generate_text');
+		await until(() => studio.isGenerating);
+
+		// Every control that would end in `resetGeneratedPage()` reads as unavailable...
+		expect(studio.canGenerateText).toBe(false);
+		expect(studio.canRegenerateText).toBe(false);
+		expect(studio.canMakePrettier).toBe(false);
+		expect(studio.canMakeMeaner).toBe(false);
+		expect(studio.canMakeMoreSpecific).toBe(false);
+		// ...and pressing one anyway does nothing, rather than throwing the generation away.
+		await studio.runTextAction('make_meaner');
+		expect(calls.filter((url) => url === '/api/meechie-studio-text')).toHaveLength(1);
+
+		release(pageResponse());
+		await pressed;
+		expect(studio.images).toHaveLength(1);
+		expect(studio.canMakeMeaner).toBe(true);
+	});
+
+	it.each(['blocked', 'needs_more_evidence'] as const)(
+		'leaves the page to the reader when the verdict is %s, so the caution is read before an image is spent',
+		async (qualityState) => {
+			// The panel puts this caution above the page button so the reader decides whether the
+			// verdict is worth an image. An automatic page would spend before it could be read.
+			// Caught in review of PR #358.
+			const calls = stubEndpoints({
+				text: async () => textResponse({ ...DEFAULT_STUDIO_TEXT_OUTPUT, qualityState })
+			});
+			const studio = arrange();
+
+			await studio.runTextAction('generate_text');
+
+			expect(calls).toEqual(['/api/meechie-studio-text']);
+			expect(studio.verdictReport.pageCaution).not.toBeNull();
+			expect(studio.images).toHaveLength(0);
+			expect(studio.pageFailure).toBeNull();
+
+			// The reader still owns the decision, and their own press still makes the page.
+			await studio.handleGeneratePage();
+			expect(calls).toEqual(['/api/meechie-studio-text', '/api/generate']);
+			expect(studio.images).toHaveLength(1);
+		}
+	);
+
+	it('does not let an earlier page\u2019s slow packaging release the flag a newer page owns', async () => {
+		// The controls are released when a picture lands, so a rewrite can start page B while page A
+		// is still packaging. A's `finally` used to clear `isGenerating` unconditionally, handing B's
+		// in-flight picture back to the controls that discard it. Caught in review of PR #358.
+		let releaseA!: () => void;
+		const heldA = new Promise<void>((resolve) => {
+			releaseA = resolve;
+		});
+		let releaseB!: (response: Response) => void;
+		const heldB = new Promise<Response>((resolve) => {
+			releaseB = resolve;
+		});
+		let generateCalls = 0;
+		stubEndpoints({
+			generate: () => {
+				generateCalls += 1;
+				return generateCalls === 1 ? Promise.resolve(pageResponse()) : heldB;
+			}
+		});
+		const studio = arrange();
+		let packageCalls = 0;
+		vi.mocked(outputPackagingAdapter.package).mockImplementation(async () => {
+			packageCalls += 1;
+			if (packageCalls === 1) await heldA;
+			return {
+				ok: true,
+				value: {
+					files: [{ filename: 'page.pdf', mimeType: 'application/pdf', dataBase64: 'cGRm' }]
+				}
+			};
+		});
+
+		void studio.runTextAction('generate_text');
+		await vi.waitFor(() => expect(studio.images.length).toBeGreaterThan(0));
+		expect(studio.canMakeMeaner).toBe(true);
+
+		void studio.runTextAction('make_meaner');
+		await vi.waitFor(() => expect(generateCalls).toBe(2));
+		expect(studio.isAwaitingPicture).toBe(true);
+
+		// A's packaging finally settles, with B's picture still being drawn.
+		releaseA();
+		await new Promise((resolve) => setTimeout(resolve, 25));
+
+		expect(studio.isAwaitingPicture).toBe(true);
+		expect(studio.canMakeMeaner).toBe(false);
+
+		releaseB(pageResponse());
+		await vi.waitFor(() => expect(studio.isGenerating).toBe(false));
+		expect(studio.images).toHaveLength(1);
+	});
+
+	it('still releases the flag when the run it belongs to was abandoned with no replacement', async () => {
+		// Why ownership is a run counter and not `pageLoadToken`: a mode switch bumps the token and
+		// starts nothing, so a token comparison would leave the abandoned run unable to release the
+		// flag, and the studio disabled until a reload.
+		let release!: (response: Response) => void;
+		const held = new Promise<Response>((resolve) => {
+			release = resolve;
+		});
+		stubEndpoints({ generate: () => held });
+		const studio = arrange();
+
+		const pressed = studio.runTextAction('generate_text');
+		await until(() => studio.isGenerating);
+		studio.handleModeSelect(studio.modes[1].id);
+		release(pageResponse());
+		await pressed;
+
+		expect(studio.isGenerating).toBe(false);
+		expect(studio.isAwaitingPicture).toBe(false);
+	});
+
+	it('releases the text controls once the picture lands, even if packaging never settles', async () => {
+		// `isGenerating` also covers packaging, and the packaging adapter awaits `image.onload` with
+		// no timeout, so a hang there must not leave every text control disabled for good — nor Try
+		// On. The gates cover only the window in which a reset would discard a paid picture.
+		// Caught in review of PR #358.
+		stubEndpoints();
+		const studio = arrange();
+		vi.mocked(outputPackagingAdapter.package).mockReturnValue(new Promise<never>(() => {}));
+		studio.selectedWig = SAMPLE_WIG;
+		studio.selfieBase64 = 'selfie-bytes';
+
+		void studio.runTextAction('generate_text');
+		await vi.waitFor(() => expect(studio.images.length).toBeGreaterThan(0));
+
+		expect(studio.isGenerating).toBe(true);
+		expect(studio.canGenerateText).toBe(true);
+		expect(studio.canMakeMeaner).toBe(true);
+		expect(studio.canTryOn).toBe(true);
+	});
+
+	it('calls the page button a remake only over the verdict\u2019s own page, never over a try-on portrait', async () => {
+		// The button always makes the verdict's page. Over a wig portrait, "Redraw This Page" would
+		// promise the portrait back and replace it with an unrelated page. Caught in review of PR #358.
+		stubEndpoints();
+		const studio = arrange();
+		expect(studio.pageButtonRemakes).toBe(false);
+
+		await studio.runTextAction('generate_text');
+		expect(studio.pageButtonRemakes).toBe(true);
+
+		(studio as unknown as { tryOnPageOnScreen: boolean }).tryOnPageOnScreen = true;
+		expect(studio.pageButtonRemakes).toBe(false);
+	});
+
+	it('refuses a wig try-on while its page is being drawn, so the paid page is not discarded', async () => {
+		// A try-on resets the generated page, which advances the token a page in flight compares
+		// against — so pressing it mid-drawing made that page discard itself after being paid for.
+		// Caught in review of PR #358.
+		let release!: (response: Response) => void;
+		const held = new Promise<Response>((resolve) => {
+			release = resolve;
+		});
+		const calls = stubEndpoints({ generate: () => held });
+		const studio = arrange();
+		studio.selectedWig = SAMPLE_WIG;
+		studio.selfieBase64 = 'selfie-bytes';
+		expect(studio.canTryOn).toBe(true);
+
+		const pressed = studio.runTextAction('generate_text');
+		await until(() => studio.isGenerating);
+
+		expect(studio.canTryOn).toBe(false);
+		await studio.handleWigTryOn();
+		expect(calls).not.toContain('/api/wig-try-on');
+
+		release(pageResponse());
+		await pressed;
+		expect(studio.images).toHaveLength(1);
+		expect(studio.canTryOn).toBe(true);
+	});
+
+	it('keeps the new verdict and spends no image when the image allowance is already empty', async () => {
+		const calls = stubEndpoints({
+			generate: async () =>
+				pageResponse({
+					'RateLimit-Limit': '8',
+					'RateLimit-Remaining': '0',
+					'RateLimit-Reset': '60'
+				})
+		});
+		const studio = arrange();
+
+		await studio.runTextAction('generate_text');
+		expect(studio.pageQuotaExhausted).toBe(true);
+		const generateCallsBefore = calls.filter((url) => url === '/api/generate').length;
+
+		await studio.runTextAction('regenerate');
+
+		// The rewrite itself landed, and the server's own "no pages left" line explains the rest.
+		expect(calls.filter((url) => url === '/api/meechie-studio-text')).toHaveLength(2);
+		expect(calls.filter((url) => url === '/api/generate')).toHaveLength(generateCallsBefore);
+		expect(studio.textOutput).not.toBeNull();
+	});
+});

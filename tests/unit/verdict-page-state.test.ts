@@ -1380,3 +1380,230 @@ describe('the verdict control answers to the text bucket', () => {
 		expect(state.verdictQuotaExhausted).toBe(false);
 	});
 });
+
+/**
+ * One press: asking a question also makes its page.
+ *
+ * `requestVerdict` and `makePage` are tested above as the two halves they are. This is the
+ * composition every route calls, and what has to hold at its seams: it starts a page only from a
+ * verdict that actually landed, it hands the verdict back without waiting for the picture, and a
+ * page that cannot be made leaves the words on screen.
+ */
+describe('requestVerdictAndPage', () => {
+	/** The page starts after the call returns, so wait for it — `isGenerating` ends after packaging. */
+	const untilPageSettles = (state: VerdictPageState): Promise<void> =>
+		vi.waitFor(() => expect(state.isGenerating).toBe(false));
+
+	it('installs the verdict and makes its page from one call', async () => {
+		const state = await readyState();
+		routes.tools = okTools(STRUCTURED_VERDICT);
+		routes.generate = okGenerate();
+
+		await state.requestVerdictAndPage(INPUT_FOR[STRUCTURED_VERDICT.toolId]);
+		await untilPageSettles(state);
+
+		expect(state.verdict).toEqual(STRUCTURED_VERDICT);
+		expect(state.hasPage).toBe(true);
+		expect(state.error).toBe('');
+		expect(fetchCalls).toEqual([ENDPOINTS.tools, ENDPOINTS.generate]);
+	});
+
+	it('hands the verdict back as soon as it is installed, not after the picture', async () => {
+		// A route relabels its form on this answer. Holding it for a generation would leave the form
+		// on "Reading" for as long as the picture takes.
+		const state = await readyState();
+		routes.tools = okTools(STRUCTURED_VERDICT);
+		const gate = defer<Response>();
+		routes.generate = () => gate.promise;
+
+		const installed = await state.requestVerdictAndPage(
+			INPUT_FOR[STRUCTURED_VERDICT.toolId]
+		);
+
+		expect(installed).toEqual(STRUCTURED_VERDICT);
+		expect(state.isWorking).toBe(false);
+		expect(state.isGenerating).toBe(true);
+		expect(state.hasPage).toBe(false);
+
+		gate.resolve(jsonResponse({ ok: true, value: generateValue() }));
+		await untilPageSettles(state);
+		expect(state.hasPage).toBe(true);
+	});
+
+	it('spends no image and keeps the page it has when a replacement verdict fails', async () => {
+		// From a state that already has a verdict and a page, on purpose: from an empty state
+		// `makePage` refuses by itself, which would hide a chain that fired after a failure. The real
+		// exposure is the failed *retry*: an unguarded chain would buy a second picture of the OLD
+		// words and discard the page already paid for.
+		const state = await withPage();
+		expect(state.hasPage).toBe(true);
+		const generateCallsBefore = fetchCalls.filter(
+			(url) => url === ENDPOINTS.generate
+		).length;
+
+		routes.tools = async () => {
+			throw new Error('Network is down');
+		};
+		const installed = await state.requestVerdictAndPage({
+			toolId: 'red_flag_or_run',
+			situation: 'Try again.'
+		});
+		await untilPageSettles(state);
+
+		expect(installed).toBeNull();
+		expect(
+			fetchCalls.filter((url) => url === ENDPOINTS.generate)
+		).toHaveLength(generateCallsBefore);
+		expect(state.verdict).toEqual(STRUCTURED_VERDICT);
+		expect(state.hasPage).toBe(true);
+	});
+
+	it('spends nothing on an input the contract would refuse', async () => {
+		const state = await readyState();
+
+		const installed = await state.requestVerdictAndPage({
+			toolId: 'red_flag_or_run',
+			situation: ''
+		});
+
+		expect(installed).toBeNull();
+		expect(fetchCalls).toEqual([]);
+	});
+
+	it('leaves the verdict standing, with the page notice, when the page cannot be made', async () => {
+		const state = await readyState();
+		routes.tools = okTools(PLAIN_VERDICT);
+		routes.generate = async () =>
+			jsonResponse({
+				ok: false,
+				error: { code: 'PROVIDER_DOWN', message: 'Provider is down.' }
+			});
+
+		await state.requestVerdictAndPage({ toolId: 'random_meechie' });
+		await untilPageSettles(state);
+
+		expect(state.verdict).toEqual(PLAIN_VERDICT);
+		expect(state.verdictFailure).toBeNull();
+		expect(state.generateError).toBe('Provider is down.');
+		expect(state.hasPage).toBe(false);
+	});
+
+	it('makes the page on a retried verdict too, so a retry is the same single press', async () => {
+		const state = await readyState();
+		routes.generate = okGenerate();
+		routes.tools = async () => {
+			throw new Error('Network is down');
+		};
+		await state.requestVerdictAndPage(INPUT_FOR[STRUCTURED_VERDICT.toolId]);
+		expect(state.verdict).toBeNull();
+		expect(fetchCalls).toEqual([ENDPOINTS.tools]);
+
+		routes.tools = okTools(STRUCTURED_VERDICT);
+		await state.retryVerdict();
+		await untilPageSettles(state);
+
+		expect(state.verdict).toEqual(STRUCTURED_VERDICT);
+		expect(state.hasPage).toBe(true);
+	});
+
+	const sentSpec = (which: 'first' | 'last' = 'first'): { dedication?: string } => {
+		const calls = vi
+			.mocked(fetch)
+			.mock.calls.filter(([url]) => url === ENDPOINTS.generate);
+		const call = which === 'last' ? calls[calls.length - 1] : calls[0];
+		return JSON.parse((call?.[1] as RequestInit).body as string).spec;
+	};
+
+	it('clears a dedication for a new subject before the page is made, so the page is not discarded', async () => {
+		// The defect: the caller cleared the dedication *after* this returned, by which time the page
+		// had started, and `setDedication` discards a page in flight — the picture was drawn, paid for
+		// and thrown away. Random Meechie is the one question whose every answer is a new subject.
+		const state = await readyState();
+		routes.tools = okTools(PLAIN_VERDICT);
+		routes.generate = okGenerate();
+		state.setDedication('For Andre');
+
+		await state.requestVerdictAndPage(
+			{ toolId: 'random_meechie' },
+			{ newSubject: true }
+		);
+		await untilPageSettles(state);
+
+		expect(state.dedication).toBe('');
+		expect(state.hasPage).toBe(true);
+		expect(sentSpec().dedication ?? '').toBe('');
+	});
+
+	it('keeps the dedication when the question is about the same subject', async () => {
+		const state = await readyState();
+		routes.tools = okTools(STRUCTURED_VERDICT);
+		routes.generate = okGenerate();
+		state.setDedication('For the group chat');
+
+		await state.requestVerdictAndPage(INPUT_FOR[STRUCTURED_VERDICT.toolId]);
+		await untilPageSettles(state);
+
+		expect(state.dedication).toBe('For the group chat');
+		expect(state.hasPage).toBe(true);
+		expect(sentSpec().dedication).toBe('For the group chat');
+	});
+
+	it('keeps the saying, its page and its dedication when a new-subject tap fails', async () => {
+		const state = await readyState();
+		routes.tools = okTools(PLAIN_VERDICT);
+		routes.generate = okGenerate();
+		state.setDedication('For Andre');
+		await state.requestVerdictAndPage({ toolId: 'random_meechie' });
+		await untilPageSettles(state);
+		expect(state.hasPage).toBe(true);
+		const generateCallsBefore = fetchCalls.filter(
+			(url) => url === ENDPOINTS.generate
+		).length;
+
+		routes.tools = async () => {
+			throw new Error('Network is down');
+		};
+		const installed = await state.requestVerdictAndPage(
+			{ toolId: 'random_meechie' },
+			{ newSubject: true }
+		);
+		await untilPageSettles(state);
+
+		expect(installed).toBeNull();
+		expect(state.dedication).toBe('For Andre');
+		expect(state.verdict).toEqual(PLAIN_VERDICT);
+		expect(state.hasPage).toBe(true);
+		expect(
+			fetchCalls.filter((url) => url === ENDPOINTS.generate)
+		).toHaveLength(generateCallsBefore);
+	});
+
+	it('clears the dedication on a retried new-subject tap, so the old saying\u2019s dedication does not follow it', async () => {
+		// Caught in review of PR #358: `retryVerdict` re-asked the same question but dropped the
+		// option, so a Random tap that failed and was retried printed the previous saying's dedication
+		// on the new one — and, now that a verdict starts its page, spent an image doing it.
+		const state = await readyState();
+		routes.tools = okTools(PLAIN_VERDICT);
+		routes.generate = okGenerate();
+		await state.requestVerdictAndPage({ toolId: 'random_meechie' });
+		await untilPageSettles(state);
+		state.setDedication('For Andre');
+
+		routes.tools = async () => {
+			throw new Error('Network is down');
+		};
+		await state.requestVerdictAndPage(
+			{ toolId: 'random_meechie' },
+			{ newSubject: true }
+		);
+		expect(state.dedication).toBe('For Andre');
+
+		routes.tools = okTools(PLAIN_VERDICT);
+		await state.retryVerdict();
+		await untilPageSettles(state);
+
+		expect(state.dedication).toBe('');
+		expect(state.hasPage).toBe(true);
+		expect(sentSpec('last').dedication ?? '').toBe('');
+	});
+});

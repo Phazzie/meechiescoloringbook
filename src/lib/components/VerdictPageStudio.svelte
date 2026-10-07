@@ -35,6 +35,20 @@ Invariants: The quality report is rendered ONLY through `QualityReportPanel`, ne
 		dedicationPlaceholder?: string;
 	} = $props();
 
+	// A remake once a page exists, as on the home studio: the verdict already started its page, so
+	// "Generate" would invite a second paid generation of the same words. See `createLabel` in
+	// `StudioPreviewPanel.svelte`.
+	//
+	// Read off `imagePreviews`, which is `$state`, and never off `studio.hasPage`: that getter reads
+	// two plain fields, so a `$derived` built on it has nothing to invalidate it, and a studio that
+	// mounts while the picture is still being drawn would keep saying "Generate" after it lands.
+	// Caught in review of PR #358.
+	const generateLabel = $derived(
+		studio.imagePreviews.length > 0
+			? 'Redraw My Coloring Page'
+			: 'Generate My Coloring Page'
+	);
+
 	let glitter = $state(false);
 </script>
 
@@ -130,7 +144,7 @@ Invariants: The quality report is rendered ONLY through `QualityReportPanel`, ne
 		aria-describedby={studio.quota.pictureMessage() ? 'page-budget' : undefined}
 		disabled={studio.isGenerating || studio.isWorking || studio.pageQuotaExhausted}
 	>
-		{studio.isGenerating ? 'Printing the truth…' : 'Generate My Coloring Page'}
+		{studio.isGenerating ? 'Printing the truth…' : generateLabel}
 	</button>
 	<!-- The image bucket, which is what the button directly above spends. This panel is shared by
 	     the three standalone mode routes and every `/m/<slug>` page, so this one line is what puts a

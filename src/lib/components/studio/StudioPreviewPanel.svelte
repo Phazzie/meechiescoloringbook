@@ -27,6 +27,7 @@ Critical invariant: the paper on screen shows the page's OWN look, never the liv
 	let {
 		previewOutput,
 		imagePreviews,
+		isRemake,
 		pageExports,
 		attempts,
 		onRebuild,
@@ -52,6 +53,11 @@ Critical invariant: the paper on screen shows the page's OWN look, never the liv
 	}: {
 		previewOutput: MeechieStudioTextOutput | null;
 		imagePreviews: string[];
+		/**
+		 * The page button would remake the verdict's own page, which is on the paper. False over a try-on
+		 * portrait, which the button would replace rather than redraw.
+		 */
+		isRemake: boolean;
 		/** Every way this page can be taken away, each one describing itself. */
 		pageExports: PageExport[];
 		/**
@@ -111,6 +117,15 @@ Critical invariant: the paper on screen shows the page's OWN look, never the liv
 		onCopyQuote: () => Promise<void>;
 		onSaveToVault: () => Promise<void>;
 	} = $props();
+
+	/**
+	 * One press already makes the page, so once a picture is on the paper this control is a
+	 * remake, and says so. Left reading "Create Coloring Page" it invited a second paid generation
+	 * of the same words from a reader doing exactly what the label asked. Caught in review of
+	 * PR #358. Before any picture exists — including after a failed one, which this is the retry
+	 * for — it keeps its original wording.
+	 */
+	const createLabel = $derived(isRemake ? 'Redraw This Page' : 'Create Coloring Page');
 </script>
 
 <section class="preview-panel" aria-label="Meechie coloring-page preview">
@@ -190,7 +205,7 @@ Critical invariant: the paper on screen shows the page's OWN look, never the liv
 			aria-describedby={pageQuotaMessage ? 'page-budget' : undefined}
 			disabled={!textOutput || isGenerating || pageQuotaExhausted}
 		>
-			{isGenerating ? 'Creating...' : 'Create Coloring Page'}
+			{isGenerating ? 'Creating...' : createLabel}
 		</button>
 		<AiQuotaLine
 			message={pageQuotaMessage}
