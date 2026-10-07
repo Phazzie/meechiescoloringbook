@@ -5,7 +5,7 @@ Why: This route is one of the app's four nav destinations and it used to dead-en
      could download once and never see again: the verdict was flattened into a title-only page
      whatever structure it came back in, the drift report was discarded, and nothing could reach
      the Quote Vault. All of that now lives in `VerdictPageState`, shared with the other modes.
-Info flow: Situation input -> VerdictPageState.requestVerdict (red_flag_or_run) -> verdict ->
+Info flow: Situation input -> VerdictPageState.requestVerdictAndPage (red_flag_or_run) -> verdict ->
            VerdictPageStudio -> coloring page, downloads, vault.
 -->
 <script lang="ts">
@@ -26,7 +26,7 @@ Info flow: Situation input -> VerdictPageState.requestVerdict (red_flag_or_run) 
 
 	const submit = (): void => {
 		if (!situation.trim()) return;
-		void studio.requestVerdict({
+		void studio.requestVerdictAndPage({
 			toolId: 'red_flag_or_run',
 			situation: situation.trim()
 		});

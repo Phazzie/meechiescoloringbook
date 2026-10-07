@@ -903,6 +903,9 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 		let abandoned = false;
 
 		const toolRequestedAtMs = clockSeam.now();
+		// The verdict this call installed, if it did. Stays null on every failure and every abandoned
+		// request, which is what keeps those from starting a page.
+		let installed: MeechieToolOutput | null = null;
 
 		try {
 			const payload = await postJson('/api/tools', parsedInput.data, {
@@ -926,6 +929,7 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 				// Here, and only here, does what is on screen stop belonging to what is on screen.
 				resetState();
 				output = parsedResult.data.value;
+				installed = parsedResult.data.value;
 			} else {
 				verdictFailure = classifyVerdictFailure({
 					apiError: parsedResult.data.error
@@ -942,6 +946,11 @@ Invariants: `driftReported` is independent of `violations.length` and of page pr
 			// abandoning reset released it already.
 			if (!abandoned) isWorking = false;
 		}
+		// One press, one page. Not awaited, so the verdict is readable while the picture is made and
+		// the button is not held on "Reading" for the length of a generation. After the `finally`
+		// for the same reason as `VerdictPageState.requestVerdictAndPage`: `isWorking` is released first.
+		// `makePageFor` carries its own failure handling, notice and retry.
+		if (installed) void makePageFor(installed);
 	};
 
 	// Bound to the controls. Wrappers rather than the functions themselves, because `on:click` would

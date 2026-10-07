@@ -4,7 +4,7 @@ Why: One of the app's four nav destinations. Its saying was flattened into a tit
      drift report was thrown away, and nothing it produced could reach the Quote Vault — so the
      page a user paid a generation for survived exactly as long as the tab did. The lifecycle now
      lives in `VerdictPageState`, shared with the other modes.
-Info flow: Tap -> VerdictPageState.requestVerdict (random_meechie) -> saying -> VerdictPageStudio
+Info flow: Tap -> VerdictPageState.requestVerdictAndPage (random_meechie) -> saying -> VerdictPageStudio
            -> coloring page, downloads, vault.
 -->
 <script lang="ts">
@@ -22,15 +22,16 @@ Info flow: Tap -> VerdictPageState.requestVerdict (random_meechie) -> saying -> 
 	onDestroy(() => studio.dispose());
 
 	const tap = async (): Promise<void> => {
-		const installed = await studio.requestVerdict({ toolId: 'random_meechie' });
 		// A new saying is a new subject, so a dedication chosen for the previous one must not ride
 		// along and end up printed on, downloaded with, or saved against a saying it was never meant
-		// for. Cleared only once a replacement has actually arrived: a failed tap keeps the saying
-		// and its page exactly as they were, dedication included.
+		// for. `newSubject` clears it inside the call, between the verdict landing and its page
+		// starting — clearing it here afterwards would discard the page that press just started.
+		// Cleared only once a replacement has actually arrived: a failed tap keeps the saying and
+		// its page exactly as they were, dedication included.
 		//
 		// The two other mode routes deliberately do *not* do this. "Ask her again" and "Re-run the
 		// ruling" re-ask about the same situation, so the dedication still belongs to it.
-		if (installed) studio.setDedication('');
+		await studio.requestVerdictAndPage({ toolId: 'random_meechie' }, { newSubject: true });
 	};
 </script>
 

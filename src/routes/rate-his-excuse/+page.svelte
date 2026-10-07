@@ -5,7 +5,7 @@ Why: One of the app's four nav destinations. It used to flatten every ruling int
      regardless of the structure Meechie answered in, discard the drift report, and offer no way to
      save the page it charged a generation for. The lifecycle now lives in `VerdictPageState`,
      shared with the other modes, so the score leads the page and the page reaches the vault.
-Info flow: Excuse input -> VerdictPageState.requestVerdict (rate_excuse) -> scored ruling ->
+Info flow: Excuse input -> VerdictPageState.requestVerdictAndPage (rate_excuse) -> scored ruling ->
            VerdictPageStudio -> coloring page, downloads, vault.
 -->
 <script lang="ts">
@@ -39,7 +39,7 @@ Info flow: Excuse input -> VerdictPageState.requestVerdict (rate_excuse) -> scor
 		// successful one — and would then echo the abandoned excuse above the newer ruling,
 		// attributing Meechie's words to text she never read. A failed re-run still leaves the
 		// previous ruling and its excuse on screen, untouched.
-		const installed = await studio.requestVerdict({
+		const installed = await studio.requestVerdictAndPage({
 			toolId: 'rate_excuse',
 			excuse: trimmed
 		});

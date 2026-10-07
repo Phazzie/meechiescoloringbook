@@ -8,7 +8,7 @@ Why: This is the only page five of the eight modes have, and it is where every f
      was no way to make a page, download one, or save one — in an app whose single purpose is
      printable coloring pages. Everything after the verdict now comes from `VerdictPageState` and
      `VerdictPageStudio`, shared with the three standalone mode routes.
-Info flow: ModeConfig + reader's answers -> VerdictPageState.requestVerdict -> verdict ->
+Info flow: ModeConfig + reader's answers -> VerdictPageState.requestVerdictAndPage -> verdict ->
            VerdictPageStudio -> coloring page, downloads, vault.
 -->
 <script lang="ts">
@@ -52,16 +52,19 @@ Info flow: ModeConfig + reader's answers -> VerdictPageState.requestVerdict -> v
 
 	const submit = async (): Promise<void> => {
 		if (!canSubmit) return;
-		const installed = await studio.requestVerdict(config.buildInput(values));
 		// A mode that asks nothing — Random Meechie — returns a different subject every time, so a
 		// dedication chosen for the previous saying must not ride along and end up printed on,
 		// downloaded with, or saved against a saying it was never meant for. A mode that asks a
 		// question is re-asking about the same situation, so its dedication still belongs and is
 		// left alone. `/random` and the two other standalone routes split on exactly this line.
 		//
-		// Cleared only once a replacement has actually arrived: a failed re-ask keeps the saying and
-		// its page as they were, dedication included.
-		if (installed && config.fields.length === 0) studio.setDedication('');
+		// `newSubject` clears it inside the call, between the verdict landing and its page starting.
+		// Clearing it here afterwards discarded the page that press had just started. Cleared only
+		// once a replacement has actually arrived: a failed re-ask keeps the saying and its page as
+		// they were, dedication included.
+		await studio.requestVerdictAndPage(config.buildInput(values), {
+			newSubject: config.fields.length === 0
+		});
 	};
 
 	const handleKeydown = (event: KeyboardEvent): void => {

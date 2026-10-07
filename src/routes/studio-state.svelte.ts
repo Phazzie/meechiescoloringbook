@@ -1115,11 +1115,22 @@ export class StudioState {
 	 * end — the sentence and the guard have to be reading the same number.
 	 */
 	aiQuotaExhausted = $derived(this.quota.textExhausted());
+	/**
+	 * A text action is refused while words are being asked for *or a picture is being made*.
+	 *
+	 * The second half is what one-press generation needs. A verdict now starts its page by itself,
+	 * so a generation is in flight for tens of seconds the reader never asked for by name, with the
+	 * rewrite buttons sitting right there. Every text action ends in `resetGeneratedPage()`, which
+	 * discards a page that is mid-flight after it has already been billed — the same rule
+	 * `VerdictPageState.requestVerdict` already states for the mode routes: never start work whose
+	 * only possible effect is to throw away work that was paid for.
+	 */
+	isTextBlocked = $derived(this.isTextWorking || this.isGenerating);
 	canGenerateText = $derived(
 		!this.aiQuotaExhausted &&
 			canRunStudioAction('generate_text', {
 				remainingBudget: this.revisionBudget,
-				isRunning: this.isTextWorking
+				isRunning: this.isTextBlocked
 			})
 	);
 	canRegenerateText = $derived(
@@ -1127,7 +1138,7 @@ export class StudioState {
 			!this.aiQuotaExhausted &&
 			canRunStudioAction('regenerate', {
 				remainingBudget: this.revisionBudget,
-				isRunning: this.isTextWorking
+				isRunning: this.isTextBlocked
 			})
 	);
 	canMakePrettier = $derived(
@@ -1135,7 +1146,7 @@ export class StudioState {
 			!this.aiQuotaExhausted &&
 			canRunStudioAction('make_prettier', {
 				remainingBudget: this.revisionBudget,
-				isRunning: this.isTextWorking
+				isRunning: this.isTextBlocked
 			})
 	);
 	canMakeMeaner = $derived(
@@ -1143,7 +1154,7 @@ export class StudioState {
 			!this.aiQuotaExhausted &&
 			canRunStudioAction('make_meaner', {
 				remainingBudget: this.revisionBudget,
-				isRunning: this.isTextWorking
+				isRunning: this.isTextBlocked
 			})
 	);
 	canMakeMoreSpecific = $derived(
@@ -1151,7 +1162,7 @@ export class StudioState {
 			!this.aiQuotaExhausted &&
 			canRunStudioAction('make_more_specific', {
 				remainingBudget: this.revisionBudget,
-				isRunning: this.isTextWorking
+				isRunning: this.isTextBlocked
 			})
 	);
 	// `?? ''` rather than dropping the entry: this array is indexed in parallel with `images`, so
@@ -2219,7 +2230,7 @@ export class StudioState {
 			this.aiQuotaExhausted ||
 			!canRunStudioAction(actionId, {
 				remainingBudget: this.revisionBudget,
-				isRunning: this.isTextWorking
+				isRunning: this.isTextBlocked
 			})
 		) {
 			return;
@@ -2252,6 +2263,9 @@ export class StudioState {
 		const requestStartedAtMs = this.clock.now();
 		// Captured before the await, compared after it. See `verdictToken`.
 		const roundToken = this.verdictToken;
+		// Set only once a verdict is on screen and the spec has caught up with it. Every failure and
+		// every abandoned round leaves it false, which is what keeps them from starting a page.
+		let verdictInstalled = false;
 		try {
 			const payload = await postJson(
 				'/api/meechie-studio-text',
@@ -2310,6 +2324,7 @@ export class StudioState {
 			// while its text was still the text on screen.
 			this.restoredPageLayout = false;
 			await this.applyTextToSpec(parsed.data.value);
+			verdictInstalled = true;
 		} catch (error) {
 			// Same rule for a failure: an error about the round the reader walked away from would
 			// otherwise appear under the mode they walked to.
@@ -2320,6 +2335,19 @@ export class StudioState {
 			// is the one that owns the flag whether or not its result is still wanted. Leaving it set
 			// on a stale round would wedge every AI button on the new one.
 			this.isTextWorking = false;
+		}
+		// One press, one page. The words are already on screen — `acceptVerdict` put them there — so
+		// the reader reads the verdict while the picture is made, and this resolves only once it is.
+		// After the `finally`, not inside the `try`: `isTextWorking` is released by now, so the
+		// "Reading..." label does not outlive the reading and sit over a picture being drawn.
+		//
+		// Every text action does this, not only the first. A rewrite already discards the page on the
+		// paper, so without it Make Meaner would leave the reader with words and no picture, one press
+		// from the very state this exists to remove. `handleGeneratePage` owns its own refusals: a
+		// full image bucket leaves the verdict standing under the line that already says why, and a
+		// failed generation lands in the page's own notice with its own retry.
+		if (verdictInstalled && roundToken === this.verdictToken) {
+			await this.handleGeneratePage();
 		}
 	};
 
