@@ -2352,7 +2352,18 @@ export class StudioState {
 		// from the very state this exists to remove. `handleGeneratePage` owns its own refusals: a
 		// full image bucket leaves the verdict standing under the line that already says why, and a
 		// failed generation lands in the page's own notice with its own retry.
-		if (verdictInstalled && roundToken === this.verdictToken) {
+		//
+		// Not for a verdict Meechie cautioned on (`needs_more_evidence`, `blocked`). That caution is
+		// the reader's chance to decide whether this verdict is worth an image, and the panel puts it
+		// above the page button for exactly that reason — a warning met after the press "has cost them
+		// the generation it was warning them off". An automatic page would spend before it could be
+		// read, so a cautioned verdict waits for the reader's own press, as it always did. Caught in
+		// review of PR #358.
+		if (
+			verdictInstalled &&
+			roundToken === this.verdictToken &&
+			this.verdictReport.pageCaution === null
+		) {
 			await this.handleGeneratePage();
 		}
 	};

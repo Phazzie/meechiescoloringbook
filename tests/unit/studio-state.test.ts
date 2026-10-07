@@ -5262,8 +5262,10 @@ describe('StudioState wig try-on failures', () => {
 describe('StudioState one-press page', () => {
 	const PAGE_PNG_BASE64 = Buffer.from(new Uint8Array(4096).fill(7)).toString('base64');
 
-	const textResponse = (): Response =>
-		new Response(JSON.stringify({ ok: true, value: DEFAULT_STUDIO_TEXT_OUTPUT }), {
+	const textResponse = (
+		output: MeechieStudioTextOutput = DEFAULT_STUDIO_TEXT_OUTPUT
+	): Response =>
+		new Response(JSON.stringify({ ok: true, value: output }), {
 			status: 200,
 			statusText: 'OK'
 		});
@@ -5515,6 +5517,31 @@ describe('StudioState one-press page', () => {
 		expect(studio.images).toHaveLength(1);
 		expect(studio.canMakeMeaner).toBe(true);
 	});
+
+	it.each(['blocked', 'needs_more_evidence'] as const)(
+		'leaves the page to the reader when the verdict is %s, so the caution is read before an image is spent',
+		async (qualityState) => {
+			// The panel puts this caution above the page button so the reader decides whether the
+			// verdict is worth an image. An automatic page would spend before it could be read.
+			// Caught in review of PR #358.
+			const calls = stubEndpoints({
+				text: async () => textResponse({ ...DEFAULT_STUDIO_TEXT_OUTPUT, qualityState })
+			});
+			const studio = arrange();
+
+			await studio.runTextAction('generate_text');
+
+			expect(calls).toEqual(['/api/meechie-studio-text']);
+			expect(studio.verdictReport.pageCaution).not.toBeNull();
+			expect(studio.images).toHaveLength(0);
+			expect(studio.pageFailure).toBeNull();
+
+			// The reader still owns the decision, and their own press still makes the page.
+			await studio.handleGeneratePage();
+			expect(calls).toEqual(['/api/meechie-studio-text', '/api/generate']);
+			expect(studio.images).toHaveLength(1);
+		}
+	);
 
 	it('refuses a wig try-on while its page is being drawn, so the paid page is not discarded', async () => {
 		// A try-on resets the generated page, which advances the token a page in flight compares
