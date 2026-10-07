@@ -966,6 +966,10 @@ test('the focused Random mode makes its page from one tap, and Another one does 
 	await page.getByTestId('mode-submit').click();
 	await expect(page.locator('.preview-grid img')).toBeVisible();
 	expect(dedications).toHaveLength(1);
+	// The studio mounted while the picture was still being drawn, so its label has to follow the
+	// page landing rather than being read once: "Generate" over a finished page invites a second
+	// paid picture of the same words. Caught in review of PR #358.
+	await expect(page.getByTestId('verdict-page-generate')).toContainText(/redraw/i);
 
 	// A dedication edit drops the page it was not generated with, then the next saying replaces it.
 	await page.getByTestId('verdict-page-dedication').fill('For Andre');

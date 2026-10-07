@@ -5543,6 +5543,40 @@ describe('StudioState one-press page', () => {
 		}
 	);
 
+	it('releases the text controls once the picture lands, even if packaging never settles', async () => {
+		// `isGenerating` also covers packaging, and the packaging adapter awaits `image.onload` with
+		// no timeout, so a hang there must not leave every text control disabled for good — nor Try
+		// On. The gates cover only the window in which a reset would discard a paid picture.
+		// Caught in review of PR #358.
+		stubEndpoints();
+		const studio = arrange();
+		vi.mocked(outputPackagingAdapter.package).mockReturnValue(new Promise<never>(() => {}));
+		studio.selectedWig = SAMPLE_WIG;
+		studio.selfieBase64 = 'selfie-bytes';
+
+		void studio.runTextAction('generate_text');
+		await vi.waitFor(() => expect(studio.images.length).toBeGreaterThan(0));
+
+		expect(studio.isGenerating).toBe(true);
+		expect(studio.canGenerateText).toBe(true);
+		expect(studio.canMakeMeaner).toBe(true);
+		expect(studio.canTryOn).toBe(true);
+	});
+
+	it('calls the page button a remake only over the verdict\u2019s own page, never over a try-on portrait', async () => {
+		// The button always makes the verdict's page. Over a wig portrait, "Redraw This Page" would
+		// promise the portrait back and replace it with an unrelated page. Caught in review of PR #358.
+		stubEndpoints();
+		const studio = arrange();
+		expect(studio.pageButtonRemakes).toBe(false);
+
+		await studio.runTextAction('generate_text');
+		expect(studio.pageButtonRemakes).toBe(true);
+
+		(studio as unknown as { tryOnPageOnScreen: boolean }).tryOnPageOnScreen = true;
+		expect(studio.pageButtonRemakes).toBe(false);
+	});
+
 	it('refuses a wig try-on while its page is being drawn, so the paid page is not discarded', async () => {
 		// A try-on resets the generated page, which advances the token a page in flight compares
 		// against — so pressing it mid-drawing made that page discard itself after being paid for.

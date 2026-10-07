@@ -38,8 +38,15 @@ Invariants: The quality report is rendered ONLY through `QualityReportPanel`, ne
 	// A remake once a page exists, as on the home studio: the verdict already started its page, so
 	// "Generate" would invite a second paid generation of the same words. See `createLabel` in
 	// `StudioPreviewPanel.svelte`.
+	//
+	// Read off `imagePreviews`, which is `$state`, and never off `studio.hasPage`: that getter reads
+	// two plain fields, so a `$derived` built on it has nothing to invalidate it, and a studio that
+	// mounts while the picture is still being drawn would keep saying "Generate" after it lands.
+	// Caught in review of PR #358.
 	const generateLabel = $derived(
-		studio.hasPage ? 'Redraw My Coloring Page' : 'Generate My Coloring Page'
+		studio.imagePreviews.length > 0
+			? 'Redraw My Coloring Page'
+			: 'Generate My Coloring Page'
 	);
 
 	let glitter = $state(false);

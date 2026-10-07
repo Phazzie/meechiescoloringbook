@@ -113,6 +113,7 @@ Invariants: `SystemTrace` receives `promptWasSent` from the state and must never
 		<StudioPreviewPanel
 			previewOutput={studio.previewOutput}
 			imagePreviews={studio.imagePreviews}
+			isRemake={studio.pageButtonRemakes}
 			pageExports={studio.pageExports}
 			attempts={studio.packageAttempts}
 			onRebuild={() => void studio.rebuildPageExports()}

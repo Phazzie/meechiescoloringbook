@@ -1116,6 +1116,17 @@ export class StudioState {
 	 */
 	aiQuotaExhausted = $derived(this.quota.textExhausted());
 	/**
+	 * A page has been asked for and its picture has not landed yet.
+	 *
+	 * The window the gates above and on Try On exist for: a reset in it makes the page discard itself
+	 * after being paid for. It ends when the picture is *installed*, not when packaging finishes —
+	 * `isGenerating` also covers packaging, and the packaging adapter awaits `image.onload` with no
+	 * timeout, so a hang there would otherwise leave every text control disabled for good (and a
+	 * mode switch does not release `isGenerating`). Once the picture is on the paper a rewrite is the
+	 * reader replacing a page they can see, which is theirs to do. Caught in review of PR #358.
+	 */
+	isAwaitingPicture = $derived(this.isGenerating && this.images.length === 0);
+	/**
 	 * A text action is refused while words are being asked for *or a picture is being made*.
 	 *
 	 * The second half is what one-press generation needs. A verdict now starts its page by itself,
@@ -1125,7 +1136,16 @@ export class StudioState {
 	 * `VerdictPageState.requestVerdict` already states for the mode routes: never start work whose
 	 * only possible effect is to throw away work that was paid for.
 	 */
-	isTextBlocked = $derived(this.isTextWorking || this.isGenerating);
+	isTextBlocked = $derived(this.isTextWorking || this.isAwaitingPicture);
+	/**
+	 * The page button would *remake* a page that is on the paper: there is a picture, and it is the
+	 * verdict's own. False over a wig try-on portrait — the button always makes the verdict's page, so
+	 * calling that a redraw would promise the portrait back and replace it with an unrelated page.
+	 * Read through `pageIsTryOnPortrait` for the ordering reason documented there.
+	 */
+	pageButtonRemakes = $derived(
+		this.images.length > 0 && !this.pageIsTryOnPortrait
+	);
 	canGenerateText = $derived(
 		!this.aiQuotaExhausted &&
 			canRunStudioAction('generate_text', {
@@ -1245,8 +1265,9 @@ export class StudioState {
 			// page still being drawn compares against, so that page discards itself after it has been
 			// paid for. A verdict now starts its own page, so every verdict opens that window. The
 			// opposite direction already refuses (`handleGenerateTryOnPage` waits for `isTryingOn`).
+			// Only until the picture lands — see `isAwaitingPicture` for why not through packaging.
 			// Caught in review of PR #358.
-			!this.isGenerating &&
+			!this.isAwaitingPicture &&
 			!this.tryOnQuotaExhausted
 	);
 	// The portrait on screen is whichever belongs to the wig on screen. Selecting a wig that was
@@ -2782,7 +2803,7 @@ export class StudioState {
 		// Refused here as well as on the button, for the reason `canTryOn` gives: the state is where
 		// a race between two transitions has to be refused. Silent, like `retryWigTryOn`'s own guard:
 		// the page the reader is waiting for is the thing in progress.
-		if (this.isGenerating) return;
+		if (this.isAwaitingPicture) return;
 		const wig = this.selectedWig;
 		if (!wig || !this.selectedWigId || !this.selfieBase64) {
 			// A defensive guard, not a path the reader can reach today: `canTryOn` already requires
