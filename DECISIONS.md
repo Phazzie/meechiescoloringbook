@@ -7,6 +7,25 @@ Info flow: Decision -> consequences -> future changes.
 
 Short, durable decisions with context and tradeoffs.
 
+## 2026-11-12 - The audit gate stays on high severity, cleared with Zod 4 and patched transitives
+
+- Date: 2026-11-12
+- Decision: `zod` is `^4.6.7`. `package.json` overrides pin the patched transitive versions
+  `npm audit --audit-level=high` named: `devalue` 5.9.4, `source-map-js` 1.2.2, `undici` 7.30.2,
+  the project's own `vite` 7.3.8 for every nested copy, `brace-expansion` 1.1.22 where a parent
+  asks for 1.x and 5.0.13 where it asks for 5.x. Every `z.record` call passes a string key schema.
+  Label and title checks treat Zod 4's `invalid_format` the way Zod 3's `invalid_string` was treated.
+- Context: `npm run verify` exits on `audit:gate` before any other step. Zod's high advisory has no
+  fix below 4.6.6. `npm audit fix` then crashed inside npm's arborist (`edgesOut` of null) while
+  resolving a vitest peer set, so the non-major fixes are overrides rather than a blind audit fix.
+- Alternatives: **(a) Leave the gate red.** Rejected: the Depot `verify` job runs this command.
+  **(b) `npm audit fix --force`.** Rejected: npm's own plan for the remaining items is SvelteKit 3
+  and a downgrade of typescript-eslint. Those advisories are moderate or require a major framework
+  jump, and the gate does not fail on moderate.
+- Consequences: record schemas state their key type. Reader-facing spec issue codes stay the mapped
+  ones (`LABEL_INVALID_CHARS` and the title checks), because a regex failure is now `invalid_format`.
+  Moderate advisories remain. They do not fail `npm run audit:gate`.
+
 ## 2026-09-11 - The triage table's columns are addressed by name, and measured against `origin/main`
 
 - Date: 2026-09-11

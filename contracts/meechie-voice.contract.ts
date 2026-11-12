@@ -30,7 +30,7 @@ const ResponsePairSchema = z.object({
 });
 
 const ApologyTranslatorSchema = z.object({
-	exactMap: z.record(NonEmptyStringSchema),
+	exactMap: z.record(z.string(), NonEmptyStringSchema),
 	fallback: NonEmptyStringSchema
 });
 
@@ -64,7 +64,7 @@ const LineupSchema = z.object({
 });
 
 const HoroscopeSchema = z.object({
-	map: z.record(NonEmptyStringSchema),
+	map: z.record(z.string(), NonEmptyStringSchema),
 	fallback: NonEmptyStringSchema
 });
 
@@ -73,7 +73,7 @@ const TemplateSchema = z.object({
 });
 
 const ExplainsSchema = z.object({
-	map: z.record(NonEmptyStringSchema),
+	map: z.record(z.string(), NonEmptyStringSchema),
 	fallbackTemplate: NonEmptyStringSchema
 });
 

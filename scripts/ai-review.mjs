@@ -201,16 +201,16 @@ export function publish(env, body, deps = {}) {
 	try {
 		publishOnOrigin(pullRequestNumber(env), body, deps);
 		return 0;
-	} catch (caught) {
+	} catch (error_) {
 		log(oneLogLine(body).replace(/\r\n|[\r\n]/g, ' '));
 		const missing =
-			caught &&
-			typeof caught === 'object' &&
-			'code' in caught &&
-			caught.code === 'ENOENT';
+			error_ &&
+			typeof error_ === 'object' &&
+			'code' in error_ &&
+			error_.code === 'ENOENT';
 		error(
 			oneLogLine(
-				caught instanceof Error ? caught.message : String(caught)
+				error_ instanceof Error ? error_.message : String(error_)
 			).replace(/\r\n|[\r\n]/g, ' ')
 		);
 		log(
@@ -247,14 +247,15 @@ export async function runReview(env, deps = {}) {
 const isDirect =
 	process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isDirect) {
-	runReview(process.env)
-		.then((code) => process.exit(code))
-		.catch((error) => {
-			console.error(
-				oneLogLine(
-					error instanceof Error ? error.message : String(error)
-				).replace(/\r\n|[\r\n]/g, ' ')
-			);
-			process.exit(1);
-		});
+	try {
+		const code = await runReview(process.env);
+		process.exit(code);
+	} catch (error_) {
+		console.error(
+			oneLogLine(
+				error_ instanceof Error ? error_.message : String(error_)
+			).replace(/\r\n|[\r\n]/g, ' ')
+		);
+		process.exit(1);
+	}
 }

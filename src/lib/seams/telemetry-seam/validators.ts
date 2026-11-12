@@ -11,7 +11,7 @@ export const telemetryEventSchema = z.object({
     'prompt_compiler_fallback'
   ]),
   timestamp: z.string().min(1),
-  metadata: z.record(z.unknown()).optional()
+  metadata: z.record(z.string(), z.unknown()).optional()
 });
 
 export const validateTelemetryEvent = (input: unknown) => telemetryEventSchema.parse(input);
