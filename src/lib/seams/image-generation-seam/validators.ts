@@ -21,7 +21,7 @@ export const generatedImageSchema = z.object({
 
 export const imageGenerationResultSchema = z.object({
   images: z.array(generatedImageSchema),
-  rawModelInfo: z.record(z.unknown()),
+  rawModelInfo: z.record(z.string(), z.unknown()),
   timingMs: z.number()
 });
 

@@ -24,12 +24,21 @@ const formatPath = (path: Array<string | number>): string => {
 		.replace('.[', '[');
 };
 
-const issueFromZod = (issue: ZodIssue): SpecValidationOutput['issues'][number] => {
-	const field = formatPath(issue.path);
-	const pathString = issue.path.map((segment) => String(segment)).join('.');
+const issueFromZod = (
+	issue: ZodIssue
+): SpecValidationOutput['issues'][number] => {
+	const segments = issue.path.filter(
+		(segment): segment is string | number => typeof segment !== 'symbol'
+	);
+	const field = formatPath(segments);
+	const pathString = segments.map((segment) => String(segment)).join('.');
 
 	if (pathString.endsWith('items.0.number') || pathString.endsWith('number')) {
-		if (issue.code === 'too_small' || issue.code === 'too_big' || issue.code === 'invalid_type') {
+		if (
+			issue.code === 'too_small' ||
+			issue.code === 'too_big' ||
+			issue.code === 'invalid_type'
+		) {
 			return {
 				code: 'ITEM_NUMBER_OUT_OF_RANGE',
 				field: field || 'items.number',
@@ -47,7 +56,7 @@ const issueFromZod = (issue: ZodIssue): SpecValidationOutput['issues'][number] =
 	}
 
 	if (pathString === 'title') {
-		if (issue.code === 'invalid_string' || issue.code === 'custom') {
+		if (issue.code === 'invalid_format' || issue.code === 'custom') {
 			return {
 				code: 'TITLE_INVALID_CHARS',
 				field: 'title',
@@ -64,7 +73,7 @@ const issueFromZod = (issue: ZodIssue): SpecValidationOutput['issues'][number] =
 	}
 
 	if (pathString.endsWith('label')) {
-		if (issue.code === 'invalid_string' || issue.code === 'custom') {
+		if (issue.code === 'invalid_format' || issue.code === 'custom') {
 			return {
 				code: 'LABEL_INVALID_CHARS',
 				field: field || 'items.label',
@@ -88,11 +97,15 @@ const issueFromZod = (issue: ZodIssue): SpecValidationOutput['issues'][number] =
 };
 
 export const specValidationAdapter: SpecValidationSeam = {
-	validate: async (input: SpecValidationInput): Promise<SpecValidationOutput> => {
+	validate: async (
+		input: SpecValidationInput
+	): Promise<SpecValidationOutput> => {
 		const parsedInput = SpecValidationInputSchema.safeParse(input);
 		if (!parsedInput.success) {
 			const issues = parsedInput.error.issues.map(issueFromZod);
-			const normalizedIssues = issues.map((issue) => SpecValidationIssueSchema.parse(issue));
+			const normalizedIssues = issues.map((issue) =>
+				SpecValidationIssueSchema.parse(issue)
+			);
 			return {
 				ok: false,
 				issues: normalizedIssues
@@ -108,7 +121,9 @@ export const specValidationAdapter: SpecValidationSeam = {
 		}
 
 		const issues = parsedSpec.error.issues.map(issueFromZod);
-		const normalizedIssues = issues.map((issue) => SpecValidationIssueSchema.parse(issue));
+		const normalizedIssues = issues.map((issue) =>
+			SpecValidationIssueSchema.parse(issue)
+		);
 
 		return {
 			ok: false,
