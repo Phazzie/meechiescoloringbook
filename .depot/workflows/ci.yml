@@ -1,0 +1,72 @@
+# Purpose: Run this repo's verification and end-to-end gates on Depot, plus a pull-request review.
+# Why: GitHub Actions is billing-locked. Depot runs this GitHub Actions syntax on
+#      depot-ubuntu-24.04 once the repository is detached from GitHub.
+# Info flow: pull request or push to main -> checkout at the .nvmrc Node -> locked install ->
+#            npm run verify, Playwright, and (on a pull request) scripts/ai-review.mjs.
+# Invariants:
+#   - Installs use the lockfile (`npm ci`). The GitHub verify job's `npm install` is not copied.
+#   - The e2e install is `npm ci --ignore-scripts`, then `npm run playwright:install`, then
+#     `npm run test:e2e`. Playwright starts its own dev server; this job does not build or preview.
+#   - The review job calls Grok only when XAI_API_KEY is set. A missing key or a missing
+#     `origin` CLI prints the reason and exits 0.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: depot-ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Verify
+        run: npm run verify
+
+  e2e:
+    runs-on: depot-ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+      # Same locked install as .github/workflows/verify.yml. `--ignore-scripts` skips `prepare`
+      # and Playwright's postinstall download; the dev server syncs SvelteKit, and the next
+      # step installs the pinned browser.
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+      - name: Install the pinned browser
+        run: npm run playwright:install
+      - name: End-to-end
+        run: npm run test:e2e
+
+  ai-review:
+    if: github.event_name == 'pull_request'
+    runs-on: depot-ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Grok review
+        env:
+          XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GITHUB_BASE_REF: ${{ github.base_ref }}
+        run: node scripts/ai-review.mjs
