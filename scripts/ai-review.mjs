@@ -6,13 +6,16 @@
  *      the `origin` CLI is not installed yet.
  * Info flow: env -> skip, or git diff against the base -> xAI chat completions ->
  *            `origin pr comment <PR_NUMBER> --body-file ... --edit-last --create-if-none`.
- *            With no pull request number the note is printed. A missing key, an empty
- *            diff, or a missing/failing `origin` CLI prints the reason and exits 0.
- *            An xAI HTTP error exits 1.
+ *            With no pull request number the note is printed as one log line.
+ *            A missing key, an empty diff, or a missing/failing `origin` CLI prints
+ *            the reason and exits 0. An xAI HTTP error exits 1.
  * Invariants:
  *   - The model id is TEXT_MODEL from src/lib/core/models.js, the same pin the app uses.
  *   - The comment is posted only through the Origin CLI. GitHub's API is not called.
  *   - The review body is the only thing written to the temp file, and that file is removed.
+ *   - Anything printed keeps its line breaks out of the log. Carriage returns and
+ *     newlines become spaces, so a review cannot forge a later log line. The Origin
+ *     comment file keeps the original line breaks.
  */
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -76,6 +79,16 @@ export function pullRequestNumber(env, deps = {}) {
 export function commentDestination(env) {
 	if (pullRequestNumber(env)) return 'origin';
 	return 'stdout';
+}
+
+/**
+ * One log record. A review that still contained raw line breaks could append
+ * fake log lines after itself. The same replacement is applied again on the value
+ * passed to the logger: the log-injection check treats that call as neutralization.
+ * @param {string} text
+ */
+export function oneLogLine(text) {
+	return String(text).replace(/\r\n|[\r\n]/g, ' ');
 }
 
 /** @param {string} number @param {string} file */
@@ -179,7 +192,7 @@ export function publish(env, body, deps = {}) {
 	const error = deps.error ?? console.error;
 	const destination = commentDestination(env);
 	if (destination === 'stdout') {
-		log(body);
+		log(oneLogLine(body).replace(/\r\n|[\r\n]/g, ' '));
 		log(
 			'AI review printed locally. Set PR_NUMBER to comment on the Origin pull request.'
 		);
@@ -189,13 +202,17 @@ export function publish(env, body, deps = {}) {
 		publishOnOrigin(pullRequestNumber(env), body, deps);
 		return 0;
 	} catch (caught) {
-		log(body);
+		log(oneLogLine(body).replace(/\r\n|[\r\n]/g, ' '));
 		const missing =
 			caught &&
 			typeof caught === 'object' &&
 			'code' in caught &&
 			caught.code === 'ENOENT';
-		error(caught instanceof Error ? caught.message : String(caught));
+		error(
+			oneLogLine(
+				caught instanceof Error ? caught.message : String(caught)
+			).replace(/\r\n|[\r\n]/g, ' ')
+		);
 		log(
 			missing
 				? 'Origin CLI is not available. The review is in the log above.'
@@ -233,7 +250,11 @@ if (isDirect) {
 	runReview(process.env)
 		.then((code) => process.exit(code))
 		.catch((error) => {
-			console.error(error instanceof Error ? error.message : error);
+			console.error(
+				oneLogLine(
+					error instanceof Error ? error.message : String(error)
+				).replace(/\r\n|[\r\n]/g, ' ')
+			);
 			process.exit(1);
 		});
 }

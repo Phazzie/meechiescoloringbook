@@ -11,6 +11,7 @@ import {
 	askGrok,
 	clipDiff,
 	commentDestination,
+	oneLogLine,
 	originCommentArgs,
 	publish,
 	pullRequestNumber,
@@ -92,6 +93,19 @@ describe('ai review', () => {
 		});
 		expect(note).toBe('No bugs.');
 		expect(JSON.parse(sent).model).toBe(TEXT_MODEL);
+	});
+
+	it('prints a review as one log line', () => {
+		expect(oneLogLine('ok\r\nINFO admin logged in\nnext')).toBe(
+			'ok INFO admin logged in next'
+		);
+		const lines: string[] = [];
+		const code = publish({}, 'ok\nINFO admin logged in', {
+			log: (line) => lines.push(line)
+		});
+		expect(code).toBe(0);
+		expect(lines[0]).toBe('ok INFO admin logged in');
+		expect(lines.some((line) => line === 'INFO admin logged in')).toBe(false);
 	});
 
 	it('prints the review and exits 0 when the Origin CLI is missing', () => {

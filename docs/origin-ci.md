@@ -56,9 +56,11 @@ On a pull request, `ai-review` checks out full history and runs
   [`src/lib/core/models.js`](../src/lib/core/models.js), currently `grok-4.6`.
 - It posts with `origin pr comment <PR_NUMBER> --body-file <file> --edit-last --create-if-none`.
   `--edit-last --create-if-none` updates this job's previous comment or adds one.
-- No pull request number: the note is printed to the log.
-- The `origin` CLI is missing, or the comment command fails: the note is printed and the
-  process exits 0.
+- No pull request number: the note is printed to the log as one line. Line breaks in the
+  review become spaces, so the note cannot add extra log lines. The Origin comment keeps
+  the original line breaks.
+- The `origin` CLI is missing, or the comment command fails: the note is printed the same
+  way and the process exits 0.
 - xAI returns a non-OK status or an empty note: the process exits 1.
 
 The script does not call the GitHub API. A `GITHUB_TOKEN` on the runner is ignored, so a
